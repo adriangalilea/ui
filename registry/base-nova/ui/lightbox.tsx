@@ -55,6 +55,7 @@ import {
   frameAt,
   GONE,
   HAND,
+  HURRY,
   INTENT,
   KEY_PAN,
   MACHINE,
@@ -67,6 +68,7 @@ import {
   panBounds,
   pinchProgress,
   project,
+  QUICK,
   RELOCK,
   type Rect,
   rubber,
@@ -190,6 +192,9 @@ const StateContext = React.createContext<State | null>(null)
 /** Reserved for the bar and the caption; consumer chrome is declared via data-obstructs. */
 const INSET_Y = 48
 const INSET_X = 16
+/** The thumbnail strip under the media: 48px thumbs in 12px of air. */
+const STRIP_H = 72
+const THUMB_H = 48
 const FRAME_GUTTER = 32
 /** The rail beside the media at lg (px), under it below (share of the stage). The
  *  css reads both from the root (--lb-rail-w, --lb-rail-h). */
@@ -263,7 +268,7 @@ function rectOf(el: HTMLElement): Rect {
   return { x: r.left, y: r.top, w: r.width, h: r.height, radius }
 }
 
-function measureBand(rail: boolean): Band {
+function measureBand(rail: boolean, strip: boolean): Band {
   const vv = window.visualViewport
   assert(vv, "visualViewport")
   const base: Band = {
@@ -290,7 +295,12 @@ function measureBand(rail: boolean): Band {
     : window.matchMedia(LG).matches
       ? { ...b, w: b.w - RAIL_W }
       : { ...b, h: b.h * (1 - RAIL_H) }
-  return { ...lane, top: lane.top + INSET_Y, h: lane.h - 2 * INSET_Y }
+  // The strip sits between the media and the caption: its height leaves the band.
+  return {
+    ...lane,
+    top: lane.top + INSET_Y,
+    h: lane.h - 2 * INSET_Y - (strip ? STRIP_H : 0),
+  }
 }
 
 const sameBand = (a: Band, b: Band) =>
@@ -311,7 +321,9 @@ function prime(entry: Entry, rail: boolean) {
   const img = new Image()
   if (source.srcset) {
     img.srcset = source.srcset
-    img.sizes = `${Math.round(fitOf(m, measureBand(rail)).w)}px`
+    // Without the strip: the fit it yields is the larger one, and a decode a size
+    // up is never wasted.
+    img.sizes = `${Math.round(fitOf(m, measureBand(rail, false)).w)}px`
   }
   img.src = source.full
   // The live element reports a broken original; a primer has nothing to add.
@@ -595,7 +607,10 @@ function Stage(props: StageProps) {
   const layers = React.useRef(new Map<string, HTMLDivElement>())
   const video = React.useRef<HTMLVideoElement | null>(null)
 
-  const [band, setBand] = React.useState<Band>(() => measureBand(rail))
+  // The strip shows when there is somewhere to go; `t` folds it.
+  const [strip, setStrip] = React.useState(count > 1)
+  const stripOn = strip && count > 1
+  const [band, setBand] = React.useState<Band>(() => measureBand(rail, stripOn))
   const [phase, setPhase] = React.useState<Phase>(rest ? "idle" : "enter")
   const [zoom, setZoom] = React.useState(1)
   const [chrome, setChrome] = React.useState(true)
@@ -662,6 +677,7 @@ function Stage(props: StageProps) {
       for (const a of ["zoom.in", "zoom.out", "zoom.fit"] as const) u.add(a)
     if (!document.fullscreenEnabled) u.add("fullscreen")
     if (!renderRail) u.add("rail")
+    if (count < 2) u.add("strip")
     const can = neighbours(index, count, loop)
     if (!can.prev) for (const a of ["prev", "step.prev"] as const) u.add(a)
     if (!can.next) for (const a of ["next", "step.next"] as const) u.add(a)
@@ -679,6 +695,7 @@ function Stage(props: StageProps) {
     layerSet,
     unavailable,
     rail,
+    stripOn,
     loop,
     history,
     onRailChange,
@@ -695,6 +712,7 @@ function Stage(props: StageProps) {
     layerSet,
     unavailable,
     rail,
+    stripOn,
     loop,
     history,
     onRailChange,
@@ -707,6 +725,8 @@ function Stage(props: StageProps) {
     dispatch: Dispatch
     settleIndex: () => void
     refit: (prev: { band: Band; fitted: Size }) => void
+    /** A thumbnail picked: cut to that slide. */
+    jump: (to: number) => void
   } | null>(null)
 
   // The engine mounts once per open; everything live is read through `live`.
@@ -758,6 +778,10 @@ function Stage(props: StageProps) {
       corner: 0,
       /** What last drove the lightbox: a pointer-driven close leaves no focus ring. */
       input: "pointer" as "pointer" | "key",
+      /** Steps pressed while a slide was committing, taken one by one on settle. */
+      queued: 0,
+      /** Where the slide in flight is going (track px). */
+      slideTo: 0,
       /** The page's own hash at open, restored on close; a `#lb=` hash is ours. */
       hash0: /^#lb=/.test(window.location.hash) ? "" : window.location.hash,
     }
@@ -1029,6 +1053,7 @@ function Stage(props: StageProps) {
       done?: () => void,
     ) => {
       slide.aim({ x }, tune(tuning), { x: vx })
+      S.slideTo = x
       S.slideOn = true
       S.onSlide = done ?? null
       trackEl.style.willChange = "transform"
@@ -1180,6 +1205,14 @@ function Stage(props: StageProps) {
       const d = to - index
       if (d === 0) return
       const step = Math.abs(d) === 1
+      // A step while a slide is still committing never waits and is never lost: it
+      // queues, the slide in flight hurries, and settleIndex takes the next one the
+      // moment the index lands. Two quick presses move two.
+      if (step && S.slideOn && S.onSlide) {
+        S.queued += d
+        slide.aim({ x: S.slideTo }, tune(HURRY), { x: slide.vel.x })
+        return
+      }
       if (step) {
         const can = neighbours(index, n, loop)
         if (!(d === 1 ? can.next : can.prev)) return
@@ -1276,17 +1309,21 @@ function Stage(props: StageProps) {
           return
         case "prev":
         case "step.prev":
-          stepTo(index - 1, MACHINE)
+          stepTo(index - 1, QUICK)
           return
         case "next":
         case "step.next":
-          stepTo(index + 1, MACHINE)
+          stepTo(index + 1, QUICK)
           return
         case "first":
-          stepTo(0, MACHINE)
+          stepTo(0, QUICK)
           return
         case "last":
-          stepTo(ids.length - 1, MACHINE)
+          stepTo(ids.length - 1, QUICK)
+          return
+        case "strip":
+          if (unavailable.has(id)) return
+          setStrip((s) => !s)
           return
         case "pan.left":
         case "pan.right":
@@ -1443,6 +1480,7 @@ function Stage(props: StageProps) {
     }
     const onDown = (e: PointerEvent) => {
       S.input = "pointer"
+      S.queued = 0
       if (chromeTarget(e.target)) return
       // The native control strip owns its pointers: a scrub is not a drag; the rest
       // of the video is media.
@@ -2020,7 +2058,7 @@ function Stage(props: StageProps) {
       if (bandRaf) return
       bandRaf = requestAnimationFrame(() => {
         bandRaf = 0
-        const next = measureBand(L.current.rail)
+        const next = measureBand(L.current.rail, L.current.stripOn)
         if (!sameBand(next, L.current.band)) setBand(next)
       })
     }
@@ -2059,7 +2097,14 @@ function Stage(props: StageProps) {
         write()
         upgradeSizes()
         announceSlide()
+        // The next queued step, now that the index is the one it counts from.
+        if (S.queued !== 0) {
+          const d = Math.sign(S.queued)
+          S.queued -= d
+          stepTo(L.current.index + d, QUICK)
+        }
       },
+      jump: (to) => stepTo(to, QUICK),
       refit: (prev) => {
         if (S.ph !== "idle" || S.gesture) return
         const { band, fitted } = L.current
@@ -2171,11 +2216,11 @@ function Stage(props: StageProps) {
     if (sameBand(prev.band, band)) return
     engine.current?.refit(prev)
   }, [band])
-  // biome-ignore lint/correctness/useExhaustiveDependencies: rail flips the band
+  // biome-ignore lint/correctness/useExhaustiveDependencies: rail and strip flip the band
   React.useLayoutEffect(() => {
-    const next = measureBand(rail)
+    const next = measureBand(rail, stripOn)
     if (!sameBand(next, band)) setBand(next)
-  }, [rail])
+  }, [rail, stripOn])
 
   const dispatch = (a: ActionId) => engine.current?.dispatch(a)
   // The sheet owns the keyboard while up: its siblings are inert, so Tab has
@@ -2261,7 +2306,7 @@ function Stage(props: StageProps) {
           top: band.top - INSET_Y,
           left: band.left,
           width: band.w,
-          height: band.h + 2 * INSET_Y,
+          height: band.h + 2 * INSET_Y + (stripOn ? STRIP_H : 0),
         }}
       >
         <div className="ag-lb-bar">
@@ -2309,6 +2354,14 @@ function Stage(props: StageProps) {
             <path d="M8 7v5M8 4.5v.5" />
           </svg>
         </Button>
+        {stripOn && (
+          <Strip
+            ids={ids}
+            index={index}
+            entryOf={entryOf}
+            jump={(to) => engine.current?.jump(to)}
+          />
+        )}
         <div className="ag-lb-caption">{caption}</div>
       </div>
       <div className="ag-lb-live" aria-live="polite">
@@ -2350,6 +2403,70 @@ function Stage(props: StageProps) {
         </div>
       )}
     </Dialog.Popup>
+  )
+}
+
+/** Every slide as a thumbnail, the one on stage lit and kept in view (the cursor
+ *  law: the strip scrolls so the active thumb is centered). A click cuts to the
+ *  slide. The page's own rendition is the thumb; a frame has none and shows its
+ *  title. */
+function Strip({
+  ids,
+  index,
+  entryOf,
+  jump,
+}: {
+  ids: string[]
+  index: number
+  entryOf: (id: string) => Entry
+  jump: (to: number) => void
+}) {
+  const active = React.useRef<HTMLButtonElement>(null)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the active thumb moves with index
+  React.useLayoutEffect(() => {
+    active.current?.scrollIntoView({
+      block: "nearest",
+      inline: "center",
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+    })
+  }, [index])
+  return (
+    <nav className="ag-lb-strip" aria-label="thumbnails">
+      <div className="ag-lb-strip-row">
+        {ids.map((id, i) => {
+          const m = entryOf(id).media
+          const thumb =
+            m.kind === "image" || m.kind === "gif"
+              ? m.source
+              : m.kind === "video"
+                ? m.poster
+                : null
+          const box = boxOf(m)
+          const w = Math.round((THUMB_H * box.w) / box.h)
+          return (
+            <button
+              key={id}
+              ref={i === index ? active : undefined}
+              type="button"
+              className="ag-lb-thumb"
+              aria-current={i === index ? "true" : undefined}
+              aria-label={`${i + 1} of ${ids.length} · ${altOf(m)}`}
+              style={{ width: Math.min(w, THUMB_H * 2), height: THUMB_H }}
+              onClick={() => jump(i)}
+            >
+              {thumb ? (
+                // biome-ignore lint/performance/noImgElement: the page's own rendition
+                <img src={thumb.src} alt="" draggable={false} loading="lazy" />
+              ) : (
+                <span>{altOf(m)}</span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+    </nav>
   )
 }
 

@@ -27,6 +27,10 @@ export function assert(cond: unknown, msg: string): asserts cond {
 export const MACHINE: Tuning = { zeta: 1, f: 4.5 }
 /** Hand releases: dismiss cancel, slide commit. A little weight. */
 export const HAND: Tuning = { zeta: 0.82, f: 4.5 }
+/** A key step: brisk, the reader already knows where they are going. */
+export const QUICK: Tuning = { zeta: 1, f: 7 }
+/** A step queued behind a committing slide: the slide in flight hurries. */
+export const HURRY: Tuning = { zeta: 1, f: 10 }
 /** Reduced motion: the target is assumed at once. */
 export const STILL: Tuning = { zeta: 1, f: Infinity }
 

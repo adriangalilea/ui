@@ -167,6 +167,13 @@ export const ACTIONS = [
     label: "details",
   },
   {
+    id: "strip",
+    keys: ["t"],
+    layer: "always",
+    section: "view",
+    label: "thumbnails",
+  },
+  {
     id: "chrome",
     keys: ["h"],
     layer: "always",
