@@ -12,7 +12,7 @@ A public shadcn registry (`registry.json` at the root, items under `registry/bas
 
 ## Distribution
 
-`public/r/*.json` is COMMITTED (`shadcn build` runs inside `mise check`), so the registry is reachable the moment a commit lands, before any deploy: consumers map `@ag` to `https://raw.githubusercontent.com/adriangalilea/ui/main/public/r/{name}.json`. The demo site serves the same files at `/r/`. A stale build shows up as a diff.
+The site deploys on every push to main (Vercel project `ui`, team adriangalileas-projects, git-connected, deployment protection OFF so the registry is public): `https://ui-adriangalileas-projects.vercel.app`, and consumers map `@ag` to `https://ui-adriangalileas-projects.vercel.app/r/{name}.json`. `public/r/*.json` is COMMITTED as well (`shadcn build` runs inside `mise check` and inside the Vercel build), so `https://raw.githubusercontent.com/adriangalilea/ui/main/public/r/{name}.json` is the same registry before a deploy finishes. A stale build shows up as a diff. Vercel needs `ENABLE_EXPERIMENTAL_COREPACK=1` (set) to honour `packageManager` pnpm 11; without it the build ignores `allowBuilds` and `overrides`.
 
 `registry:file` items (tokens) need an explicit `target`; the consumer imports `app/tokens.css` from its globals.css once.
 
