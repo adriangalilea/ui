@@ -12,6 +12,18 @@
   inherits: false;
   initial-value: 0;
 }
+/* The active layer's source crop in layer px (sourceView's clip), set by the engine
+   with the pose; zero when the trigger's aspect matches the media's. */
+@property --lb-clip-w {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --lb-clip-h {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
 
 .ag-lb {
   position: fixed;
@@ -50,32 +62,48 @@
   inset: 0;
 }
 
-/* Three layers: index − 1, index, index + 1. Only the active one moves under the
-   spring and wears the source corner and crop, written by the engine per frame:
-   border-radius (screen radius × (1 − p), divided by the scale so it reads in
-   screen px) and, only for a cover-cropped source, clip-path inset. The media
-   inside is its own compositor layer, so the layer's rounded overflow clip is
-   composited (CALayer cornerRadius in WebKit, a mask layer in Chromium) and a
-   scale or corner change never re-rasters the image. */
+/* Three layers: index − 1, index, index + 1. Only the active one moves, and it
+   moves as Web Animations the engine samples from its spring, every one of them a
+   compositor property: the layer's transform (the pose), and inside it a crop
+   window laid out at the source crop (the layer minus --lb-clip on every side) that
+   scales toward the whole layer while the media box inside scales back, so the
+   media holds its fit size and only the window grows. The window carries the source
+   corner (border-radius: screen radius × (1 − p), divided by the scale so it reads
+   in screen px) and the overflow clip; the media box under it is its own compositor
+   layer, so that rounded clip is composited (CALayer cornerRadius in WebKit, a mask
+   layer in Chromium) and a scale or corner change never re-rasters the image. */
 .ag-lb-layer {
   position: absolute;
+  transform-origin: center;
+}
+.ag-lb-crop {
+  position: absolute;
+  inset: var(--lb-clip-h) var(--lb-clip-w);
+  overflow: hidden;
+  transform-origin: center;
+}
+.ag-lb-media {
+  position: absolute;
+  top: calc(-1 * var(--lb-clip-h));
+  left: calc(-1 * var(--lb-clip-w));
+  width: calc(100% + 2 * var(--lb-clip-w));
+  height: calc(100% + 2 * var(--lb-clip-h));
   box-sizing: border-box;
   transform-origin: center;
   background-size: cover;
   background-position: center;
-  overflow: hidden;
 }
-.ag-lb-layer > img,
-.ag-lb-layer > video,
-.ag-lb-layer > iframe,
+.ag-lb-media > img,
+.ag-lb-media > video,
+.ag-lb-media > iframe,
 .ag-lb-frame-ghost {
   display: block;
   width: 100%;
   height: 100%;
   border: 0;
 }
-.ag-lb-layer[data-active] > img,
-.ag-lb-layer[data-active] > video {
+.ag-lb-layer[data-active] .ag-lb-crop,
+.ag-lb-layer[data-active] .ag-lb-media {
   will-change: transform;
 }
 
@@ -89,10 +117,10 @@
 [data-lightbox][data-focus-quiet]:focus-visible {
   outline: none;
 }
-/* The layer's padding IS the gutter (FRAME_GUTTER in the component); the frame
-   fills the content box. */
-.ag-lb-layer[data-kind="frame"] > iframe,
-.ag-lb-layer[data-kind="frame"] > .ag-lb-frame-ghost {
+/* The media box's padding IS the gutter (FRAME_GUTTER in the component); the
+   frame fills the content box. */
+.ag-lb-layer[data-kind="frame"] iframe,
+.ag-lb-layer[data-kind="frame"] .ag-lb-frame-ghost {
   background: var(--sidebar);
 }
 .ag-lb-frame-ghost {
@@ -299,7 +327,8 @@
   opacity: var(--alpha-meta);
 }
 
-/* The ? sheet: every row of the table, unavailable ones dimmed, never gone. */
+/* The ? sheet: only the actions the world behind it answers to, grouped by section,
+   esc once on its current rung. */
 .ag-lb-sheet {
   position: absolute;
   outline: none;
@@ -327,11 +356,13 @@
   margin-bottom: 8px;
   opacity: var(--alpha-meta);
 }
+.ag-lb-sheet dl + .ag-lb-sheet-head {
+  margin-top: 16px;
+}
 .ag-lb-sheet dl {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 8px 16px;
-
   margin: 0;
 }
 .ag-lb-sheet dl > div {
@@ -344,10 +375,6 @@
 .ag-lb-sheet dd {
   margin: 0;
   opacity: var(--alpha-body);
-}
-.ag-lb-sheet [data-unavailable] dt,
-.ag-lb-sheet [data-unavailable] dd {
-  opacity: var(--alpha-meta);
 }
 .ag-lb-sheet kbd {
   display: inline-block;

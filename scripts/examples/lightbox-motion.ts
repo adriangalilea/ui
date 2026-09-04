@@ -4,16 +4,21 @@ import {
   assert,
   COAST,
   clampPan,
+  FLIGHT_DT,
+  frameAt,
   HAND,
   MACHINE,
   neighbours,
+  overshoot,
   project,
   rubber,
   Spring,
   STILL,
+  sampleFlight,
   slideCommit,
   sourceView,
   stageBand,
+  unovershoot,
   velocity,
   WHEEL_TICK_MAX,
   WHEEL_ZOOM,
@@ -162,6 +167,22 @@ assert(
   ).x === 100,
   "pan bound",
 )
+// A grab mid-bounce (79 px past a 50 px bound) reads back to the raw offset it
+// rubbered from, and the first 1 px of drag moves the image under 1 px, not 19.
+for (const v of [-79, -50, 0, 37, 50, 120]) {
+  assert(
+    Math.abs(overshoot(unovershoot(v, 50), 50) - v) < 1e-9,
+    `unovershoot is not the inverse at ${v}`,
+  )
+}
+{
+  const raw0 = unovershoot(-79, 50)
+  const moved = overshoot(raw0 + 1, 50)
+  assert(
+    moved > -79 && moved - -79 < 1,
+    `a grab past the bound jumped on its first move: ${moved}`,
+  )
+}
 assert(
   slideCommit(-10, -0.8, 800, { prev: true, next: true }) === 1,
   "fast flick commits",
@@ -214,28 +235,31 @@ const band = stageBand({ top: 0, left: 0, w: 1000, h: 800 }, [
   { side: "bottom", edge: 700 },
 ])
 assert(band.top === 44 && band.h === 656, "band minus obstructions")
-console.log("rubber, pan, commit, guard, band hold")
+console.log("rubber, pan, grab past the bound, commit, guard, band hold")
 
-// A finger that moves, rests, then lifts carries no momentum; one lifting mid-move
-// does. A wheel tick is bounded: one mouse notch zooms under 1.5x and nudges 30 px.
+// A finger that moves, then rests before lifting carries no momentum; one lifting
+// mid-move does, at its true speed. A mouse drag at 16 ms and 12 px per move whose
+// button lifts 8 ms after the last move keeps the whole 0.75 px/ms: the release is
+// the clock, not a sample. A wheel tick is bounded: one mouse notch zooms under
+// 1.5x and nudges 30 px.
 {
   const rest = velocity(
     [
       { x: 0, y: 0, t: 0 },
       { x: 20, y: 0, t: 16 },
-      { x: 20, y: 0, t: 96 },
     ],
     96,
   )
   assert(rest.x === 0 && rest.y === 0, `a rested finger flicked: ${rest.x}`)
-  const stale = velocity(
+  const nudge = velocity(
     [
       { x: 0, y: 0, t: 0 },
       { x: 20, y: 0, t: 16 },
+      { x: 21, y: 0, t: 90 },
     ],
-    96,
+    92,
   )
-  assert(stale.x === 0, `a stale window flicked: ${stale.x}`)
+  assert(nudge.x === 0, `a nudge after a rest flicked: ${nudge.x}`)
   const live = velocity(
     [
       { x: 0, y: 0, t: 0 },
@@ -247,6 +271,18 @@ console.log("rubber, pan, commit, guard, band hold")
   assert(
     Math.abs(live.x - 1.25) < 1e-9,
     `a moving finger lost its speed: ${live.x}`,
+  )
+  const mouse = velocity(
+    [0, 16, 32, 48, 64].map((t) => ({ x: (t / 16) * 12, y: 0, t })),
+    72,
+  )
+  assert(
+    Math.abs(mouse.x - 0.75) < 1e-9,
+    `a mouse flick lost its speed: ${mouse.x}`,
+  )
+  assert(
+    Math.abs(project(0, mouse.x) - 149.25) < 1e-9,
+    "a 0.75 px/ms flick coasts 149 px",
   )
   assert(
     wheelTick(wheelPx(100, 0, 800)) === WHEEL_TICK_MAX,
@@ -296,4 +332,43 @@ console.log("rubber, pan, commit, guard, band hold")
   }
   assert(threw, "an undamped spring must scream within 2 s")
   console.log("stuck spring screams")
+}
+
+// A flight sampled ahead is the spring itself: frame 0 is the start, the last frame
+// is the target exactly, the table settles under the limit, and a frame read
+// between two samples lies between them, velocity included. Reduced motion is a
+// two-frame table: one hop to the target.
+{
+  const frames = sampleFlight(
+    { x: -300, s: 0.3 },
+    { x: 0, s: 0 },
+    { x: 0, s: 1 },
+    MACHINE,
+    { x: 0.5, s: 0.001 },
+  )
+  const first = frames[0]
+  const last = frames[frames.length - 1]
+  assert(first && last, "empty flight")
+  assert(first.t === 0 && first.value.x === -300, "frame 0 is the start")
+  assert(
+    last.value.x === 0 && last.value.s === 1,
+    "the last frame is the target",
+  )
+  assert(last.t < 2000, `flight took ${last.t} ms`)
+  const mid = frameAt(frames, FLIGHT_DT * 3.5)
+  const a = frames[3]
+  const b = frames[4]
+  assert(a && b, "frames 3 and 4")
+  assert(
+    Math.abs(mid.value.x - (a.value.x + b.value.x) / 2) < 1e-9 &&
+      Math.abs(mid.vel.x - (a.vel.x + b.vel.x) / 2) < 1e-9,
+    "frameAt interpolates halfway",
+  )
+  assert(frameAt(frames, 1e6) === last, "past the end is the end")
+  assert(frameAt(frames, -1) === first, "before the start is the start")
+  const still = sampleFlight({ x: 0 }, { x: 0 }, { x: 100 }, STILL, { x: 0.5 })
+  assert(still.length === 2 && still[1]?.value.x === 100, "STILL is one hop")
+  console.log(
+    `flight   ${frames.length} frames, ${last.t.toFixed(0)} ms, frameAt interpolates`,
+  )
 }

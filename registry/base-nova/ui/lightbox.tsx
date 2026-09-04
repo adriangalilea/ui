@@ -3,9 +3,14 @@
 // The lightbox: one interruptible spring over a View, a three-layer track, a fly
 // that passes under the page's chrome. The trigger element IS the source rect; its
 // `src` is the page's pixels and paints frame one, `full` cross-fades in on decode.
-// Per frame the engine writes the active layer's transform and --lb-p on its three
-// readers (scrim, chrome, active layer); chrome reads --lb-p in CSS. React changes
-// only at checkpoints (open, settle, step, release). Base UI Dialog supplies portal,
+// Every move of the pose is a FLIGHT: the spring is sampled ahead (sampleFlight) and
+// played by the compositor as Web Animations keyframes on the active layer's
+// transform, its crop window and corner, so a main thread busy decoding never drops
+// a frame of the image. Per frame the engine writes only --lb-p on its three readers (scrim,
+// chrome, active layer); chrome reads --lb-p in CSS. A hand landing mid-flight reads
+// the pose and velocity off the same table at the animation's currentTime, cancels
+// it and takes over without a jump. React changes only at checkpoints (open, settle,
+// step, release). Base UI Dialog supplies portal,
 // inert, focus trap, focus return and the scroll lock (its gutter included: no token
 // rule duplicates it); every key and pointer verb dispatches an id from
 // lightbox-actions.
@@ -20,18 +25,17 @@
 import { Dialog } from "@base-ui/react/dialog"
 import * as React from "react"
 import {
-  ACTIONS,
   type Action,
   type ActionId,
   type Layer as ActionLayer,
   action,
-  available,
   escRung,
   KEYS,
   keycap,
   keyOf,
   keyshortcuts,
   resolve,
+  sheet as sheetOf,
 } from "@/registry/base-nova/lib/lightbox-actions"
 import {
   assert,
@@ -46,7 +50,9 @@ import {
   dragProgress,
   dragScale,
   FIT,
+  type Frame,
   fit,
+  frameAt,
   GONE,
   HAND,
   INTENT,
@@ -64,12 +70,14 @@ import {
   RELOCK,
   type Rect,
   rubber,
+  SAMPLES,
   type Sample,
   type Size,
   SLIDE_GAP,
   type SourceView,
   Spring,
   STILL,
+  sampleFlight,
   sharpScale,
   slideCommit,
   sourceView,
@@ -77,6 +85,7 @@ import {
   TAP_TRAVEL,
   type Tuning,
   type Tunings,
+  unovershoot,
   type View,
   velocity,
   WHEEL_GUARD,
@@ -131,7 +140,12 @@ export interface LightboxProps {
   /** Explicit order; else triggers in document order at open. */
   entries?: Entry[]
   loop?: boolean
-  /** `#lb=<id>` deep links, Back closes. */
+  /** `#lb=<id>` deep links: the hash is REPLACED on open and on every step, and
+   *  on close the page's own hash comes back (a section anchor the visitor arrived
+   *  on), so a reload lands on the entry and Back leaves the page the way it does on
+   *  any hash-less page. Nothing is pushed: an edge swipe on iOS runs
+   *  the browser's own page transition, and a lightbox that then flew home on top of
+   *  it was a double motion. Android Back still closes, through CloseWatcher. */
   history?: boolean
   /** Controlled, consumer-owned. */
   rail?: boolean
@@ -185,6 +199,9 @@ const LG = "(min-width: 64rem)"
 /** The two elements the browser activates from the keyboard: a `render` that is
  *  merely focusable opens by pointer only. */
 const ACTIVATABLE = "a[href], button"
+/** The bottom strip of a `<video>` where the native controls live (css px): Chrome,
+ *  Safari and iOS inline controls all sit in the bottom 40 to 50 px. */
+const CONTROLS_H = 56
 /** Targets that keep their own keys (Escape excepted). */
 const TYPING = "input, textarea, select, [contenteditable]"
 /** Targets Space and Enter activate. */
@@ -498,6 +515,7 @@ export function LightboxTrigger({
     {
       ref,
       "data-lightbox": entry.id,
+      "data-lightbox-kind": entry.media.kind,
       "aria-label": props["aria-label"] ?? (altOf(entry.media) || undefined),
       onPointerDown: (e: React.PointerEvent) => {
         ;(
@@ -543,6 +561,8 @@ type StageProps = {
 
 type Pose = { x: number; y: number; s: number; p: number }
 const POSE_EPS: Pose = { x: 0.5, y: 0.5, s: 0.001, p: 0.002 }
+/** A zoom within this share of the sharp scale IS the original. */
+const SHARP_EPS = 0.01
 
 function Stage(props: StageProps) {
   const {
@@ -583,7 +603,6 @@ function Stage(props: StageProps) {
   const [fullscreen, setFullscreen] = React.useState(false)
   const [warm, setWarm] = React.useState(rest)
   const [dir, setDir] = React.useState<1 | -1>(1)
-  const [status, setStatus] = React.useState<string | null>(null)
   // Keyed by a counter so a repeated status is a fresh DOM mutation, announced again.
   const [announce, setAnnounce] = React.useState({ text: "", n: 0 })
   const [caption, setCaption] = React.useState<React.ReactNode>(null)
@@ -600,6 +619,18 @@ function Stage(props: StageProps) {
   const sharp = natural ? sharpScale(natural.w, fitted.w, dpr) : 1
   const sourceLimited = media.kind !== "frame" && sharp < zoomMax
   const zoomed = zoom > 1.01
+  // What the bar says about the pixels once the user asks for more: past the sharp
+  // scale (a fit that already outgrew a small original included) the image is
+  // larger than its file; at it, within a percent, it is the file. Quiet at fit: on
+  // a dense display most fits exceed their file, and that is the norm.
+  const status =
+    natural === null || media.kind === "gif" || !zoomed
+      ? null
+      : zoom > sharp * (1 + SHARP_EPS)
+        ? `shown larger than its ${natural.w} px original`
+        : zoom >= sharp * (1 - SHARP_EPS)
+          ? `at its ${natural.w} px original`
+          : null
   const facts = React.useMemo<Facts>(
     () => ({
       index,
@@ -613,6 +644,9 @@ function Stage(props: StageProps) {
     [index, count, natural, fitted.w, fitted.h, zoom, zoomMax, sourceLimited],
   )
   React.useEffect(() => onFacts(facts), [facts, onFacts])
+  React.useEffect(() => {
+    if (status) setAnnounce((a) => ({ text: status, n: a.n + 1 }))
+  }, [status])
 
   const layerSet = React.useMemo(() => {
     const s = new Set<ActionLayer>(["always"])
@@ -642,8 +676,6 @@ function Stage(props: StageProps) {
     fitted,
     band,
     zoomMax,
-    sharp,
-    sourceLimited,
     layerSet,
     unavailable,
     rail,
@@ -660,8 +692,6 @@ function Stage(props: StageProps) {
     fitted,
     band,
     zoomMax,
-    sharp,
-    sourceLimited,
     layerSet,
     unavailable,
     rail,
@@ -693,36 +723,66 @@ function Stage(props: StageProps) {
     const tune = (t: Tunings<keyof Pose>): Tunings<keyof Pose> =>
       reduced ? STILL : t
     const L = live
-    const pose = new Spring<keyof Pose>(
-      rest ? { ...FIT, p: 1 } : { x: 0, y: 0, s: 1, p: 0 },
-      POSE_EPS,
-    )
+    const ZERO: Pose = { x: 0, y: 0, s: 0, p: 0 }
+    // The pose: its value and velocity, live. Between checkpoints a flight owns it
+    // (the tick copies the table's frame in); a hand writes it directly.
+    const pose = {
+      value: (rest ? { ...FIT, p: 1 } : { x: 0, y: 0, s: 1, p: 0 }) as Pose,
+      vel: ZERO,
+    }
     const slide = new Spring<"x">({ x: 0 }, { x: 0.5 })
+    /** A sampled spring playing on the compositor. `settles`: reaching `target` is
+     *  the pending checkpoint (settle the enter, close, clear pending); a flight
+     *  that merely returns the image to a grab is not. */
+    type Flight = {
+      frames: Frame<keyof Pose>[]
+      anims: Animation[]
+      target: Pose
+      settles: boolean
+    }
     const S = {
       raf: 0,
       last: 0,
-      poseOn: false,
+      flight: null as Flight | null,
       slideOn: false,
       aim: "free" as Aim,
       onSlide: null as (() => void) | null,
       pending: null as { target: Pose; tuning: Tunings<keyof Pose> } | null,
-      heldVel: { x: 0, y: 0, s: 0, p: 0 } as Pose,
+      heldVel: ZERO,
       ph: (rest ? "idle" : "enter") as Phase,
       z: rest ? "own" : "fly",
       gesture: false,
       enterAt: performance.now(),
-      popped: false,
       /** The source crop (layer px) and its corner (screen px); zero when none. */
       clip: { w: 0, h: 0 } as Size,
       corner: 0,
       /** What last drove the lightbox: a pointer-driven close leaves no focus ring. */
       input: "pointer" as "pointer" | "key",
+      /** The page's own hash at open, restored on close; a `#lb=` hash is ours. */
+      hash0: /^#lb=/.test(window.location.hash) ? "" : window.location.hash,
     }
 
     const layerEl = () => {
       const el = layers.current.get(L.current.ids[L.current.index] as string)
       assert(el, "active layer missing")
       return el
+    }
+    // The layer's two children: the crop window (overflow hidden, the corner) and
+    // the media box inside it, sized to the layer.
+    const cropEl = (layer: HTMLDivElement) => {
+      const el = layer.firstElementChild
+      assert(el instanceof HTMLDivElement, "layer without a crop")
+      return el
+    }
+    const mediaEl = (layer: HTMLDivElement) => {
+      const el = cropEl(layer).firstElementChild
+      assert(el instanceof HTMLDivElement, "crop without media")
+      return el
+    }
+    const layerBox = (): Size => {
+      const { fitted, entry } = L.current
+      const g = gutterOf(entry.media)
+      return { w: fitted.w + 2 * g, h: fitted.h + 2 * g }
     }
     const center = (): Point => {
       const b = L.current.band
@@ -738,25 +798,60 @@ function Stage(props: StageProps) {
       return vv.height
     }
 
+    const transformOf = ({ x, y, s }: Pose) =>
+      `translate3d(${x}px, ${y}px, 0) scale(${s})`
+    // The corner reads in SCREEN px, linear in p, so it neither balloons under the
+    // scale nor snaps at the end.
+    const cornerOf = ({ s, p }: Pose) => (S.corner * (1 - p)) / s
+    const cropped = () => S.clip.w > 0.5 || S.clip.h > 0.5
+    // A cover crop is two transforms, both on the compositor (a clip-path inset is a
+    // main-thread effect that races the transform under a busy decode): the crop
+    // window is laid out at its p = 0 size (the layer minus 2·clip) and scales by k
+    // toward the whole layer, the media inside scales by 1/k, so the media holds its
+    // fit size and only the window grows. k is 1 at the source, box/(box − 2·clip)
+    // at rest. The window's corner is an ellipse mid-flight (rx = r·kx, ry = r·ky)
+    // but cornerOf is proportional to (1 − p), near zero exactly where kx and ky
+    // diverge.
+    const cropScale = (v: Pose): Point => {
+      const b = layerBox()
+      const w0 = b.w - 2 * S.clip.w
+      const h0 = b.h - 2 * S.clip.h
+      assert(w0 > 0 && h0 > 0, `crop ${S.clip.w}×${S.clip.h} eats the layer`)
+      return {
+        x: (b.w - 2 * S.clip.w * (1 - v.p)) / w0,
+        y: (b.h - 2 * S.clip.h * (1 - v.p)) / h0,
+      }
+    }
+    const cropOf = (v: Pose) => {
+      const k = cropScale(v)
+      return `scale(${k.x}, ${k.y})`
+    }
+    const mediaOf = (v: Pose) => {
+      const k = cropScale(v)
+      return `scale(${1 / k.x}, ${1 / k.y})`
+    }
+    const writePose = () => {
+      const v = pose.value
+      const el = layerEl()
+      const crop = cropEl(el)
+      const media = mediaEl(el)
+      el.style.transform = transformOf(v)
+      if (cropped()) {
+        crop.style.transform = cropOf(v)
+        media.style.transform = mediaOf(v)
+      } else {
+        crop.style.transform = ""
+        media.style.transform = ""
+      }
+      const corner = cornerOf(v)
+      crop.style.borderRadius = corner > 0.05 ? `${corner}px` : ""
+    }
     // --lb-p is registered `inherits: false` and lands on its three readers only,
     // so the rail's subtree and the sheet never see a per-frame style change.
-    const write = () => {
-      const { x, y, s, p } = pose.value
-      const el = layerEl()
-      el.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${s})`
-      // The corner reads in SCREEN px, linear in p, so it neither balloons under the
-      // scale nor snaps at the end; a crop rides clip-path only while it exists.
-      const corner = (S.corner * (1 - p)) / s
-      const cropped = (S.clip.w > 0.5 || S.clip.h > 0.5) && p < 0.999
-      if (cropped) {
-        el.style.borderRadius = ""
-        el.style.clipPath = `inset(${S.clip.h * (1 - p)}px ${S.clip.w * (1 - p)}px round ${corner}px)`
-      } else {
-        el.style.clipPath = ""
-        el.style.borderRadius = corner > 0.05 ? `${corner}px` : ""
-      }
+    const writeP = () => {
+      const p = pose.value.p
       const pv = String(p)
-      el.style.setProperty("--lb-p", pv)
+      layerEl().style.setProperty("--lb-p", pv)
       scrimEl.style.setProperty("--lb-p", pv)
       barEl.style.setProperty("--lb-p", pv)
       if (S.ph === "enter" && S.z === "fly" && p >= 0.85) {
@@ -767,22 +862,60 @@ function Stage(props: StageProps) {
         rootEl.dataset.z = "fly"
       }
     }
+    const write = () => {
+      writePose()
+      writeP()
+    }
     const writeSlide = () => {
       trackEl.style.transform = `translate3d(${slide.value.x}px, 0, 0)`
+    }
+    const flightTime = (f: Flight) => {
+      const t = (f.anims[0] as Animation).currentTime
+      assert(typeof t === "number", "flight without a clock")
+      return t
+    }
+    // The flight ends: the pose IS the target, inline, and the animations go. The
+    // inline write lands in the same frame the fill-forwards effect is cancelled, so
+    // nothing flashes.
+    const land = () => {
+      const f = S.flight
+      assert(f, "landing without a flight")
+      S.flight = null
+      pose.value = f.target
+      pose.vel = ZERO
+      write()
+      for (const a of f.anims) a.cancel()
+      if (!f.settles) return
+      S.pending = null
+      upgradeSizes()
+      if (S.aim === "enter") settleEnter()
+      else if (S.aim === "exit") closed()
+    }
+    // A hand or a new aim takes over mid-flight: the live pose and velocity come off
+    // the table at the animation's own clock, written inline before the effect is
+    // cancelled, so the takeover is seamless.
+    const sync = () => {
+      const f = S.flight
+      if (!f) return
+      const fr = frameAt(f.frames, flightTime(f))
+      pose.value = fr.value
+      pose.vel = fr.vel
+      S.flight = null
+      writePose()
+      for (const a of f.anims) a.cancel()
     }
     const tick = (t: number) => {
       const dt = S.last ? t - S.last : 16
       S.last = t
-      if (S.poseOn) {
-        const done = pose.step(dt)
-        write()
-        if (done) {
-          S.poseOn = false
-          S.pending = null
-          upgradeSizes()
-          if (S.aim === "enter") settleEnter()
-          else if (S.aim === "exit") closed()
-        }
+      if (S.flight) {
+        const f = S.flight
+        const now = flightTime(f)
+        const fr = frameAt(f.frames, now)
+        pose.value = fr.value
+        pose.vel = fr.vel
+        writeP()
+        if (now >= (f.frames[f.frames.length - 1] as Frame<keyof Pose>).t)
+          land()
       }
       if (S.slideOn) {
         const done = slide.step(dt)
@@ -794,7 +927,7 @@ function Stage(props: StageProps) {
           cb?.()
         }
       }
-      if (S.poseOn || S.slideOn) S.raf = requestAnimationFrame(tick)
+      if (S.flight || S.slideOn) S.raf = requestAnimationFrame(tick)
       else {
         S.raf = 0
         S.last = 0
@@ -809,6 +942,60 @@ function Stage(props: StageProps) {
       S.last = 0
       S.raf = requestAnimationFrame(tick)
     }
+    // One flight at a time: a running one is read and cancelled first, so the new
+    // table starts from the live pose and carries its velocity unless handed one.
+    // The transform plays on the compositor, the crop's pair of transforms beside
+    // it; the corner (border-radius) is one more effect on the same clock.
+    const fly = (
+      target: Pose,
+      tuning: Tunings<keyof Pose>,
+      vel: Pose | undefined,
+      settles: boolean,
+    ) => {
+      sync()
+      const frames = sampleFlight(
+        pose.value,
+        vel ?? pose.vel,
+        target,
+        tune(tuning),
+        POSE_EPS,
+      )
+      const el = layerEl()
+      const duration = (frames[frames.length - 1] as Frame<keyof Pose>).t
+      const timing: KeyframeAnimationOptions = {
+        duration,
+        easing: "linear",
+        fill: "forwards",
+      }
+      const crop = cropEl(el)
+      const anims = [
+        el.animate(
+          frames.map((f) => ({ transform: transformOf(f.value) })),
+          timing,
+        ),
+      ]
+      if (cropped())
+        anims.push(
+          crop.animate(
+            frames.map((f) => ({ transform: cropOf(f.value) })),
+            timing,
+          ),
+          mediaEl(el).animate(
+            frames.map((f) => ({ transform: mediaOf(f.value) })),
+            timing,
+          ),
+        )
+      if (S.corner > 0)
+        anims.push(
+          crop.animate(
+            frames.map((f) => ({ borderRadius: `${cornerOf(f.value)}px` })),
+            timing,
+          ),
+        )
+      S.flight = { frames, anims, target, settles }
+      el.style.willChange = "transform"
+      start()
+    }
     // The settle action is a function of the aim, never of who last called: a free
     // spring during an enter completes the enter; one during an exit cancels it and
     // re-enters, so phase, z and the neighbours all recover on settle.
@@ -820,13 +1007,7 @@ function Stage(props: StageProps) {
       aim: Aim = "free",
     ) => {
       const target = { ...view, p }
-      pose.aim(
-        target,
-        tune(tuning),
-        vel ? { x: vel.x, y: vel.y, s: 0, p: 0 } : undefined,
-      )
       S.pending = { target, tuning }
-      S.poseOn = true
       if (aim === "free" && S.ph !== "idle") {
         if (S.ph === "exit") {
           S.ph = "enter"
@@ -834,8 +1015,12 @@ function Stage(props: StageProps) {
         }
         S.aim = "enter"
       } else S.aim = aim
-      layerEl().style.willChange = "transform"
-      start()
+      fly(
+        target,
+        tuning,
+        vel ? { x: vel.x, y: vel.y, s: 0, p: 0 } : undefined,
+        true,
+      )
     }
     const animateSlide = (
       x: number,
@@ -849,22 +1034,20 @@ function Stage(props: StageProps) {
       trackEl.style.willChange = "transform"
       start()
     }
-    // A hand took over: drop the clock, remember where it was going. The pose holds
-    // at its live value (the drag offsets from there); the slide keeps its target.
+    // A hand took over: the flight is read and dropped, its velocity remembered for
+    // resume. The pose holds at its live value (the drag offsets from there); the
+    // slide keeps its target, frozen.
     const pause = () => {
+      sync()
+      S.heldVel = pose.vel
+      pose.vel = ZERO
       if (S.raf) cancelAnimationFrame(S.raf)
       S.raf = 0
       S.last = 0
-      S.heldVel = pose.vel
-      S.poseOn = false
-      pose.hold()
     }
     const resume = () => {
-      if (S.pending) {
-        pose.aim(S.pending.target, tune(S.pending.tuning), S.heldVel)
-        S.poseOn = true
-      }
-      if (S.poseOn || S.slideOn) start()
+      if (S.pending) fly(S.pending.target, S.pending.tuning, S.heldVel, true)
+      else if (S.slideOn) start()
     }
 
     // A larger candidate is decoded off-DOM first, so the live element's reselection
@@ -902,10 +1085,11 @@ function Stage(props: StageProps) {
         rootEl.dataset.z = "own"
       }
       clipToSource()
+      writePose()
       setWarm(true)
       announceSlide()
     }
-    // The one point where the history entry goes, after the fly has landed.
+    // The one point where the hash goes, after the fly has landed.
     const closed = () => {
       const { history, ids, index } = L.current
       // Focus returns to the trigger. After a pointer or a finger the ring stays
@@ -921,23 +1105,23 @@ function Stage(props: StageProps) {
           { once: true, capture: true },
         )
       }
-      if (history && !S.popped) {
-        const state = window.history.state as { lb?: string } | null
-        if (state?.lb === ids[index]) window.history.back()
-        else
-          window.history.replaceState(
-            null,
-            "",
-            window.location.pathname + window.location.search,
-          )
-      }
+      if (history)
+        window.history.replaceState(
+          window.history.state,
+          "",
+          window.location.pathname + window.location.search + S.hash0,
+        )
       L.current.onClosed()
     }
     // sourceView's radius is in layer px at the source scale; write() wants it in
-    // screen px, which is that times the source scale.
+    // screen px, which is that times the source scale. The clip lays out the crop
+    // window (--lb-clip-w/h, read by the css) on the active layer.
     const clipVars = (sv: SourceView | null) => {
       S.clip = sv ? sv.clip : { w: 0, h: 0 }
       S.corner = sv ? sv.radius * sv.view.s : 0
+      const el = layerEl()
+      el.style.setProperty("--lb-clip-w", `${S.clip.w}px`)
+      el.style.setProperty("--lb-clip-h", `${S.clip.h}px`)
     }
     const source = () => {
       const { ids, index, fitted, band } = L.current
@@ -958,11 +1142,16 @@ function Stage(props: StageProps) {
     // A neighbour has no inline transform: whatever a spring left on a layer that
     // stopped being active is cleared before the new one takes the pose.
     const clearLayer = (el: HTMLDivElement) => {
+      for (const a of el.getAnimations({ subtree: true })) a.cancel()
       el.style.transform = ""
       el.style.willChange = ""
-      el.style.borderRadius = ""
-      el.style.clipPath = ""
       el.style.removeProperty("--lb-p")
+      el.style.removeProperty("--lb-clip-w")
+      el.style.removeProperty("--lb-clip-h")
+      const crop = cropEl(el)
+      crop.style.transform = ""
+      crop.style.borderRadius = ""
+      mediaEl(el).style.transform = ""
     }
     // A committing slide is dropped by any gesture that takes the stage vertically:
     // the track springs home, the index never changes. One rule for pinch, exit and
@@ -998,7 +1187,6 @@ function Stage(props: StageProps) {
       const wrapped = step ? (index + d + n) % n : to
       assert(wrapped >= 0 && wrapped < n, `step to ${to} of ${n}`)
       setDir(d > 0 ? 1 : -1)
-      setStatus(null)
       if (
         pose.value.s !== 1 ||
         pose.value.p !== 1 ||
@@ -1015,8 +1203,11 @@ function Stage(props: StageProps) {
       animateSlide(-d * w, tuning, vx, () => L.current.onIndex(wrapped))
     }
 
+    // A move computed FROM the pose reads it live: a flight in progress is read and
+    // dropped first, so the next flight starts where the eye sees the image.
     const zoomTo = (s: number, at: Point, tuning = MACHINE) => {
       const { fitted, band, zoomMax } = L.current
+      sync()
       const target = Math.min(zoomMax, Math.max(1, s))
       const v = clampPan(zoomAt(pose.value, target, at), fitted, band)
       animate(target <= 1 ? FIT : v, 1, tuning)
@@ -1049,8 +1240,7 @@ function Stage(props: StageProps) {
     }
 
     const dispatch: Dispatch = (id, at = { x: 0, y: 0 }) => {
-      const { layerSet, unavailable, entry, ids, index, sourceLimited, sharp } =
-        L.current
+      const { layerSet, unavailable, entry, ids, index } = L.current
       const v = video.current
       switch (id) {
         case "close":
@@ -1074,13 +1264,10 @@ function Stage(props: StageProps) {
         case "zoom.in":
         case "zoom.out": {
           if (unavailable.has(id)) return
-          const s = id === "zoom.in" ? pose.value.s * 1.5 : pose.value.s / 1.5
-          if (id === "zoom.in" && sourceLimited && s > sharp) {
-            const w = (naturalOf(entry.media) as Size).w
-            setStatus(`source-limited · ${w}px`)
-            say(`source-limited · ${w}px`)
-          }
-          zoomTo(s, at)
+          // Steps compound on where the image is GOING: a held key or two quick
+          // presses climb 1.5x each, not 1.5x of a flight a few ms in.
+          const base = S.pending ? S.pending.target.s : pose.value.s
+          zoomTo(id === "zoom.in" ? base * 1.5 : base / 1.5, at)
           return
         }
         case "zoom.toggle":
@@ -1110,6 +1297,7 @@ function Stage(props: StageProps) {
           const dy =
             id === "pan.up" ? KEY_PAN : id === "pan.down" ? -KEY_PAN : 0
           const { fitted, band } = L.current
+          sync()
           animate(
             clampPan(
               { ...pose.value, x: pose.value.x + dx, y: pose.value.y + dy },
@@ -1178,13 +1366,16 @@ function Stage(props: StageProps) {
     // ---- pointer
     // `samples` hold ONE trajectory: the finger, or the pinch midpoint; the window is
     // emptied whenever the pointer count changes. `anchor` is the last point the hand
-    // was at, relative to the band center: where a rubbered zoom is undone.
+    // was at, relative to the band center: where a rubbered zoom is undone. `raw0` is
+    // the grab read back through the pan rubber: a drag offsets it and rubbers the
+    // sum, so a grab taken mid-bounce moves under the finger from its first px.
     type G = {
       pts: Map<number, Point>
       start: Sample
       samples: Sample[]
       prev: Point
       grab: Pose
+      raw0: Point
       slide0: number
       axis: "x" | "y" | null
       mode: "pan" | "fit"
@@ -1221,7 +1412,21 @@ function Stage(props: StageProps) {
     }
     const sample = (g: G, x: number, y: number, t: number) => {
       g.samples.push({ x, y, t })
-      if (g.samples.length > 6) g.samples.shift()
+      if (g.samples.length > SAMPLES) g.samples.shift()
+    }
+    // The hand, not the dispatch: a frame the main thread dropped still delivered
+    // its 8 ms samples, coalesced into the one move that got through, each with its
+    // own position and time, so the release velocity measures the hand across a
+    // stall. A move with nothing coalesced (an engine without the method, an
+    // untrusted event) is its own sample.
+    const handOf = (e: PointerEvent): readonly PointerEvent[] => {
+      const list = "getCoalescedEvents" in e ? e.getCoalescedEvents() : []
+      return list.length > 0 ? list : [e]
+    }
+    const rawOf = (v: Pose): Point => {
+      const { fitted, band } = L.current
+      const b = panBounds(v, fitted, band)
+      return { x: unovershoot(v.x, b.x), y: unovershoot(v.y, b.y) }
     }
     // A gesture that takes the stage off the x axis (a pan, a pinch, a vertical
     // drag, a zoom or pan wheel) drops any committing slide first; only an x-axis
@@ -1239,13 +1444,22 @@ function Stage(props: StageProps) {
     const onDown = (e: PointerEvent) => {
       S.input = "pointer"
       if (chromeTarget(e.target)) return
+      // The native control strip owns its pointers: a scrub is not a drag; the rest
+      // of the video is media.
+      if (e.target instanceof Element) {
+        const v = e.target.closest("video")
+        if (v && e.clientY > v.getBoundingClientRect().bottom - CONTROLS_H)
+          return
+      }
       if (e.pointerType === "mouse" && e.button !== 0) return
       const kind = L.current.entry.media.kind
       if (!G) {
-        // A finger landing ends any wheel session: one hand at a time.
+        // A finger landing ends any wheel session: one hand at a time. The session
+        // is released, not dropped: its zoom reaches React, its rubber is undone,
+        // and the grab below takes the release flight at frame 0.
         if (W) {
           clearTimeout(W.timer)
-          W = null
+          endWheel()
         }
         beginGesture()
         G = {
@@ -1254,6 +1468,7 @@ function Stage(props: StageProps) {
           samples: [],
           prev: { x: e.clientX, y: e.clientY },
           grab: pose.value,
+          raw0: rawOf(pose.value),
           slide0: slide.value.x,
           axis: null,
           mode: pose.value.s > 1.01 ? "pan" : "fit",
@@ -1269,6 +1484,10 @@ function Stage(props: StageProps) {
       }
       G.pts.set(e.pointerId, { x: e.clientX, y: e.clientY })
       if (G.pts.size === 2 && kind !== "frame") {
+        // The pinch is computed FROM the pose: a flight in progress (the y-to-x
+        // relock) is read and dropped first, so s0 and view0 are the live pose.
+        sync()
+        dropSlide()
         G.pinch = {
           s0: pose.value.s,
           p0: pose.value.p,
@@ -1279,7 +1498,6 @@ function Stage(props: StageProps) {
         G.pinched = true
         G.axis = null
         G.samples = []
-        dropSlide()
       }
     }
     const onMove = (e: PointerEvent) => {
@@ -1291,25 +1509,29 @@ function Stage(props: StageProps) {
         const ms = midScreen(G.pts)
         sample(G, ms.x, ms.y, e.timeStamp)
         const raw = (G.pinch.s0 * dist(G.pts)) / G.pinch.d0
-        // From fit, pinching in is the dismiss gesture and follows the fingers;
-        // from a zoom it rubbers under 1 and springs back.
-        const s = G.pinch.s0 <= 1.01 && raw < 1 ? raw : rubber(raw, 1, zoomMax)
+        G.pinchMax = Math.max(G.pinchMax, raw)
+        // From fit, pinching in is the dismiss gesture and follows the fingers,
+        // lighting the room, the same rule the release closes by; a pinch that went
+        // past the ceiling first, or one from a zoom, rubbers under 1 and springs
+        // back, the room untouched.
+        const dismissing =
+          G.pinch.s0 <= 1.01 && raw < 1 && G.pinchMax < PINCH_PASSED
+        const s = dismissing ? raw : rubber(raw, 1, zoomMax)
         const m = mid(G.pts)
         G.anchor = m
         const v = zoomAt(G.pinch.view0, s, G.pinch.mid0)
-        G.pinchMax = Math.max(G.pinchMax, raw)
         // A pinch that starts mid-drag carries the drag's darkness: p never jumps.
         pose.value = {
           x: v.x + m.x - G.pinch.mid0.x,
           y: v.y + m.y - G.pinch.mid0.y,
           s,
-          p: s < 1 ? Math.min(G.pinch.p0, pinchProgress(s)) : G.pinch.p0,
+          p: dismissing ? Math.min(G.pinch.p0, pinchProgress(s)) : G.pinch.p0,
         }
         write()
         return
       }
       if (G.pts.size !== 1) return
-      sample(G, e.clientX, e.clientY, e.timeStamp)
+      for (const c of handOf(e)) sample(G, c.clientX, c.clientY, c.timeStamp)
       G.anchor = rel(e.clientX, e.clientY)
       const dx = e.clientX - G.start.x
       const dy = e.clientY - G.start.y
@@ -1320,8 +1542,8 @@ function Stage(props: StageProps) {
         const b = panBounds(G.grab, fitted, band)
         pose.value = {
           ...G.grab,
-          x: overshoot(G.grab.x + dx, b.x),
-          y: overshoot(G.grab.y + dy, b.y),
+          x: overshoot(G.raw0.x + dx, b.x),
+          y: overshoot(G.raw0.y + dy, b.y),
         }
         write()
         return
@@ -1337,6 +1559,7 @@ function Stage(props: StageProps) {
         Math.abs(my) > 3 * Math.abs(mx)
       ) {
         G.axis = "y"
+        sync()
         dropSlide()
       } else if (
         G.axis === "y" &&
@@ -1344,12 +1567,10 @@ function Stage(props: StageProps) {
         Math.abs(mx) > RELOCK &&
         Math.abs(mx) > 3 * Math.abs(my)
       ) {
-        // The image springs back to the grab while the track takes the hand; the
-        // release re-aims the pose from S.pending, so the clock is aimed directly.
+        // The image flies back to the grab while the track takes the hand; the
+        // release re-aims the pose from S.pending, so this flight settles nothing.
         G.axis = "x"
-        pose.aim(G.grab, tune(MACHINE))
-        S.poseOn = true
-        start()
+        fly(G.grab, MACHINE, undefined, false)
       }
       if (G.axis === "y") {
         const h = vh()
@@ -1369,20 +1590,31 @@ function Stage(props: StageProps) {
         writeSlide()
       }
     }
+    // What a tap leaves behind. A hand on a coasting image stops it: a pan flight
+    // (coast, wall bounce, key pan: the pending target keeps the scale) settles
+    // where the finger found it. Every other flight resumes with the velocity it
+    // held; finishing a zoom or the enter is what the tap wanted.
+    const afterTap = () => {
+      const { fitted, band } = L.current
+      if (
+        pose.value.s > 1.01 &&
+        S.pending &&
+        S.pending.target.s === pose.value.s
+      )
+        animate(clampPan(pose.value, fitted, band), 1, MACHINE)
+      else resume()
+    }
     const tap = (G: G, e: PointerEvent) => {
       const { entry } = L.current
       if (!G.onMedia) {
         if (pose.value.s <= 1.01) dispatch("escape")
-        else resume()
+        else afterTap()
         return
       }
-      if (entry.media.kind === "video") {
-        dispatch("play")
-        resume()
-        return
-      }
-      if (entry.media.kind === "frame") {
-        resume()
+      // A tap on a video is the video's (its controls, the platform's play toggle);
+      // a tap on a frame is the frame's.
+      if (entry.media.kind === "video" || entry.media.kind === "frame") {
+        afterTap()
         return
       }
       const now = e.timeStamp
@@ -1406,7 +1638,7 @@ function Stage(props: StageProps) {
           dispatch("chrome")
         }, DOUBLE_TOUCH)
       }
-      resume()
+      afterTap()
     }
     const onUp = (e: PointerEvent) => {
       if (!G?.pts.has(e.pointerId)) return
@@ -1416,6 +1648,7 @@ function Stage(props: StageProps) {
         G.pinch = null
         G.samples = []
         G.grab = pose.value
+        G.raw0 = rawOf(pose.value)
         G.start = { x: p.x, y: p.y, t: e.timeStamp }
         G.prev = p
         G.axis = null
@@ -1426,9 +1659,8 @@ function Stage(props: StageProps) {
       endGesture()
       const g = G
       G = null
-      // The release is the last sample: a finger held still before lifting
-      // contributes a zero-displacement tail and no momentum.
-      sample(g, e.clientX, e.clientY, e.timeStamp)
+      // The release instant is the clock, not a sample: a hand held still before
+      // lifting reads as stopped, a mouse button lifting late keeps the hand's speed.
       const v = velocity(g.samples, e.timeStamp)
       const { fitted, band, ids, index, loop } = L.current
       if (g.pinched) {
@@ -1446,11 +1678,12 @@ function Stage(props: StageProps) {
         return
       }
       const travel = Math.hypot(e.clientX - g.start.x, e.clientY - g.start.y)
-      if (g.axis === null) {
-        if (travel < TAP_TRAVEL) tap(g, e)
-        else resume()
+      if (g.axis === null && travel < TAP_TRAVEL) {
+        tap(g, e)
         return
       }
+      // A pan has no axis (it moves on both): its release is the coast, before the
+      // axis test, or a flick would resume a stale aim and stop dead past the bound.
       if (g.mode === "pan") {
         const coast = {
           x: project(pose.value.x, v.x),
@@ -1459,6 +1692,10 @@ function Stage(props: StageProps) {
         }
         const target = clampPan(coast, fitted, band)
         animate(target, 1, coastOrWall(coast, target), v)
+        return
+      }
+      if (g.axis === null) {
+        resume()
         return
       }
       if (g.axis === "y") {
@@ -1501,8 +1738,11 @@ function Stage(props: StageProps) {
       y: number
       x: number
       grab: Pose
+      /** The grab read back through the pan rubber (see G.raw0). */
+      raw0: Point
       slide0: number
-      max: number
+      /** The raw scale the ticks accumulated; the pose wears it rubbered. */
+      zoom: number
       samples: Sample[]
       last: number
       at: Point
@@ -1519,20 +1759,16 @@ function Stage(props: StageProps) {
       switch (w.axis) {
         case "pass":
           return
-        case "zoom": {
-          const s = pose.value.s
-          if (s < PINCH_CLOSE && w.max < PINCH_PASSED) {
-            beginExit()
-            return
-          }
-          if (s < 1) {
+        case "zoom":
+          // Under fit the rubber lets go and the image springs back; a wheel or a
+          // trackpad pinch never dismisses (that is a finger's gesture).
+          if (pose.value.s < 1) {
             animate(FIT, 1, MACHINE)
             setZoom(1)
             return
           }
           releaseZoom({ x: 0, y: 0 }, w.at)
           return
-        }
         case "pan":
           animate(clampPan(pose.value, fitted, band), 1, MACHINE)
           return
@@ -1547,7 +1783,14 @@ function Stage(props: StageProps) {
       }
     }
     const onWheel = (e: WheelEvent) => {
+      // The dialog owns every wheel while open. Browser zoom (ctrl+wheel, a trackpad
+      // pinch) never reaches the page behind it, not even over the chrome, inside
+      // the enter guard, under a finger or in an inertia tail; a plain wheel over
+      // the chrome scrolls the chrome (rail, sheet). The returns below skip the
+      // motion, never the ownership.
+      if (e.ctrlKey) e.preventDefault()
       if (chromeTarget(e.target)) return
+      e.preventDefault()
       if (performance.now() - S.enterAt < WHEEL_GUARD) return
       if (G) return
       if (W) clearTimeout(W.timer)
@@ -1574,8 +1817,9 @@ function Stage(props: StageProps) {
           y: 0,
           x: 0,
           grab: pose.value,
+          raw0: rawOf(pose.value),
           slide0: slide.value.x,
-          max: pose.value.s,
+          zoom: pose.value.s,
           samples: [],
           last: 0,
           at: rel(e.clientX, e.clientY),
@@ -1586,17 +1830,16 @@ function Stage(props: StageProps) {
       }
       W.timer = window.setTimeout(endWheel, WHEEL_SILENCE)
       if (W.axis === "pass") return
-      e.preventDefault()
       const now = performance.now()
       W.last = now
       W.at = rel(e.clientX, e.clientY)
       switch (W.axis) {
         case "zoom": {
-          const raw = pose.value.s * Math.exp(-dy * WHEEL_ZOOM)
-          const s = W.max <= 1.01 && raw < 1 ? raw : rubber(raw, 1, zoomMax)
-          W.max = Math.max(W.max, raw)
-          const v = zoomAt(pose.value, s, W.at)
-          pose.value = { ...v, p: s < 1 ? pinchProgress(s) : 1 }
+          // The raw accumulator rubbers (soft floor 0.85 under fit, stiff over the
+          // ceiling), the way a drag offsets from its grab.
+          W.zoom *= Math.exp(-dy * WHEEL_ZOOM)
+          const v = zoomAt(pose.value, rubber(W.zoom, 1, zoomMax), W.at)
+          pose.value = { ...v, p: pose.value.p }
           write()
           return
         }
@@ -1607,8 +1850,8 @@ function Stage(props: StageProps) {
           W.y -= dy
           pose.value = {
             ...pose.value,
-            x: overshoot(W.grab.x + W.x, b.x),
-            y: overshoot(W.grab.y + W.y, b.y),
+            x: overshoot(W.raw0.x + W.x, b.x),
+            y: overshoot(W.raw0.y + W.y, b.y),
           }
           write()
           return
@@ -1758,10 +2001,6 @@ function Stage(props: StageProps) {
 
     const onFullscreen = () =>
       setFullscreen(document.fullscreenElement === rootEl)
-    const onPop = () => {
-      S.popped = true
-      dispatch("close")
-    }
     let bandRaf = 0
     const onViewport = () => {
       if (bandRaf) return
@@ -1779,7 +2018,6 @@ function Stage(props: StageProps) {
     rootEl.addEventListener("wheel", onWheel, { passive: false })
     document.addEventListener("keydown", onKey, { capture: true })
     document.addEventListener("fullscreenchange", onFullscreen)
-    window.addEventListener("popstate", onPop)
     const vv = window.visualViewport
     assert(vv, "visualViewport")
     vv.addEventListener("resize", onViewport)
@@ -1789,9 +2027,17 @@ function Stage(props: StageProps) {
     engine.current = {
       dispatch,
       settleIndex: () => {
+        // A flight still running on the layer that just stopped being active (the
+        // zoom-to-fit under a step) goes with it: the new layer starts at rest.
+        if (S.flight) {
+          for (const a of S.flight.anims) a.cancel()
+          S.flight = null
+          S.pending = null
+        }
         slide.value = { x: 0 }
         writeSlide()
         pose.value = { ...FIT, p: 1 }
+        pose.vel = ZERO
         const active = layerEl()
         for (const el of layers.current.values())
           if (el !== active) clearLayer(el)
@@ -1803,6 +2049,10 @@ function Stage(props: StageProps) {
       refit: (prev) => {
         if (S.ph !== "idle" || S.gesture) return
         const { band, fitted } = L.current
+        sync()
+        // The crop is in layer px and the trigger moved with the page: re-measured
+        // in the new fit before the pose is written.
+        clipToSource()
         const { x, y, s, p } = pose.value
         const dx = prev.band.left + prev.band.w / 2 - (band.left + band.w / 2)
         const dy = prev.band.top + prev.band.h / 2 - (band.top + band.h / 2)
@@ -1846,7 +2096,6 @@ function Stage(props: StageProps) {
       document.removeEventListener("keydown", onKey, { capture: true })
       watcher?.destroy()
       document.removeEventListener("fullscreenchange", onFullscreen)
-      window.removeEventListener("popstate", onPop)
       vv.removeEventListener("resize", onViewport)
       vv.removeEventListener("scroll", onViewport)
       window.removeEventListener("resize", onViewport)
@@ -1878,15 +2127,14 @@ function Stage(props: StageProps) {
         el?.closest("figure")?.querySelector("figcaption")?.textContent ??
         altOf(entry.media),
     )
-    // A deep link has nothing behind it: at rest no entry is pushed, and close strips
-    // the hash. A step rewrites the entry in place.
-    if (history) {
-      const state = window.history.state as { lb?: string } | null
-      const url = `#lb=${encodeURIComponent(id)}`
-      if (state?.lb) window.history.replaceState({ lb: id }, "", url)
-      else if (rest) window.history.replaceState(null, "", url)
-      else window.history.pushState({ lb: id }, "", url)
-    }
+    // The hash is replaced, never pushed: a deep link, not a history entry. The
+    // router's own state rides along untouched.
+    if (history)
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `#lb=${encodeURIComponent(id)}`,
+      )
     return () => {
       if (el) el.style.visibility = ""
     }
@@ -2068,26 +2316,23 @@ function Stage(props: StageProps) {
           tabIndex={-1}
           data-lb-chrome
         >
-          <div className="ag-lb-sheet-head">keys</div>
-          <dl>
-            {ACTIONS.map((a) => (
-              <div
-                key={a.id}
-                data-unavailable={
-                  !available(a, layerSet) || unavailable.has(a.id)
-                    ? ""
-                    : undefined
-                }
-              >
-                <dt>
-                  {a.keys.map((k) => (
-                    <kbd key={k}>{keycap(k)}</kbd>
-                  ))}
-                </dt>
-                <dd>{a.label}</dd>
-              </div>
-            ))}
-          </dl>
+          {sheetOf(layerSet, unavailable).map((section) => (
+            <React.Fragment key={section.section}>
+              <div className="ag-lb-sheet-head">{section.section}</div>
+              <dl>
+                {section.rows.map((row) => (
+                  <div key={row.label}>
+                    <dt>
+                      {row.keys.map((k) => (
+                        <kbd key={k}>{keycap(k)}</kbd>
+                      ))}
+                    </dt>
+                    <dd>{row.label}</dd>
+                  </div>
+                ))}
+              </dl>
+            </React.Fragment>
+          ))}
         </div>
       )}
     </Dialog.Popup>
@@ -2138,7 +2383,8 @@ function factsLine(f: Facts): string {
     on,
     zoom,
   ]
-  if (f.sourceLimited) parts.push("source-limited")
+  if (f.natural && f.rendered.w * window.devicePixelRatio > f.natural.w)
+    parts.push("larger than its original")
   return parts.join(" · ")
 }
 
@@ -2215,6 +2461,9 @@ const Layer = React.memo(function Layer({
     },
     [entry.id, layers],
   )
+  // The crop window and the media box inside it are the engine's (cropEl, mediaEl):
+  // the source crop is laid out through --lb-clip-w/h on the layer and flown as
+  // two transforms.
   return (
     // biome-ignore lint/a11y/useSemanticElements: a slide is a group, not a fieldset
     <div
@@ -2230,13 +2479,18 @@ const Layer = React.memo(function Layer({
         top: (band.h - h) / 2,
         width: w,
         height: h,
-        padding: gutter,
-        background: blur,
       }}
     >
-      {mounted && (
-        <Content m={m} active={active} fitted={fitted} video={video} />
-      )}
+      <div className="ag-lb-crop">
+        <div
+          className="ag-lb-media"
+          style={{ padding: gutter, background: blur }}
+        >
+          {mounted && (
+            <Content m={m} active={active} fitted={fitted} video={video} />
+          )}
+        </div>
+      </div>
     </div>
   )
 })
@@ -2312,7 +2566,9 @@ function Still({
 /** The one <video>: mounted on the active slide only, released once, on unmount.
  *  `src` is owned by the effect so setup and cleanup are symmetric (StrictMode runs
  *  the pair once on mount). No `poster`: the Still under it is the poster, and a
- *  <video> with no decoded frame is transparent until the first frame arrives. */
+ *  <video> with no decoded frame is transparent until the first frame arrives. The
+ *  native controls are the seek bar; the engine leaves the pointers in their strip
+ *  to them (CONTROLS_H) and keeps the keys (space, k, j, l, m). */
 function Video({
   m,
   video,
@@ -2339,6 +2595,7 @@ function Video({
       className="ag-lb-video"
       aria-label={m.title}
       preload="metadata"
+      controls
       playsInline
       muted={m.muted}
       loop={m.loop}

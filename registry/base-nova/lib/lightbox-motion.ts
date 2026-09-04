@@ -58,6 +58,12 @@ export const WHEEL_ZOOM = 0.01
 export const WHEEL_TICK_MAX = 30
 /** A finger still for this long before lifting has no momentum. */
 export const STOP_GAP = 50
+/** Release velocity is the mean over this span; a gesture keeps SAMPLES points,
+ *  enough to cover it at 120 Hz. */
+export const VELOCITY_WINDOW = 100
+export const SAMPLES = 12
+/** Flights are sampled ahead at this period; a compositor plays the table. */
+export const FLIGHT_DT = 1000 / 60
 export const DOUBLE_TOUCH = 300
 export const DOUBLE_MOUSE = 500
 export const DOUBLE_TRAVEL = 24
@@ -145,6 +151,14 @@ export function overshoot(value: number, bound: number): number {
   if (value < -bound) return -bound + (value + bound) * OVERSHOOT
   return value
 }
+/** The exact inverse: a grab taken past the bound (mid-bounce, or a rubbered wheel
+ *  pan) is read back to the raw offset it rubbered from, so a drag that offsets the
+ *  raw grab and rubbers the sum is continuous at dx = 0. */
+export function unovershoot(value: number, bound: number): number {
+  if (value > bound) return bound + (value - bound) / OVERSHOOT
+  if (value < -bound) return -bound + (value + bound) / OVERSHOOT
+  return value
+}
 
 export function clampPan(view: View, fitted: Size, band: Band): View {
   const b = panBounds(view, fitted, band)
@@ -218,11 +232,13 @@ export function slideCommit(
 
 export type Sample = Point & { t: number }
 
-/** Mean velocity (px/ms) of the last three samples inside 100 ms, measured against
- *  the release instant `now`: a hand that rested longer than STOP_GAP before `now`,
+/** Mean velocity (px/ms) over the samples inside VELOCITY_WINDOW, measured against
+ *  the release instant `now`. The release is NOT a sample: a mouse button lifts tens
+ *  of ms after the hand's last motion, and a release point duplicating the last
+ *  move would halve the speed. A hand that rested longer than STOP_GAP before `now`,
  *  or before its own last sample, has stopped and carries nothing. */
 export function velocity(samples: readonly Sample[], now: number): Point {
-  const recent = samples.filter((s) => now - s.t <= 100).slice(-3)
+  const recent = samples.filter((s) => now - s.t <= VELOCITY_WINDOW)
   if (recent.length < 2) return { x: 0, y: 0 }
   const a = recent[0] as Sample
   const b = recent[recent.length - 1] as Sample
@@ -395,4 +411,57 @@ export class Spring<K extends string> {
     )
     return done
   }
+}
+
+export type Frame<K extends string> = {
+  t: number
+  value: Axes<K>
+  vel: Axes<K>
+}
+
+/** The whole flight ahead of time: the spring is deterministic, so it is sampled at
+ *  FLIGHT_DT until it settles and the table is handed to the compositor. Frame 0 is
+ *  the start; the last frame is the target exactly. A stuck spring screams here. */
+export function sampleFlight<K extends string>(
+  value: Axes<K>,
+  vel: Axes<K>,
+  target: Axes<K>,
+  tuning: Tunings<K>,
+  eps: Axes<K>,
+): Frame<K>[] {
+  const s = new Spring<K>(value, eps)
+  s.aim(target, tuning, vel)
+  const frames: Frame<K>[] = [{ t: 0, value, vel }]
+  let t = 0
+  for (;;) {
+    const done = s.step(FLIGHT_DT)
+    t += FLIGHT_DT
+    frames.push({ t, value: s.value, vel: s.vel })
+    if (done) break
+  }
+  return frames
+}
+
+/** The pose and velocity at `t` ms into a sampled flight, interpolated between
+ *  frames; clamped to the table's ends. */
+export function frameAt<K extends string>(
+  frames: readonly Frame<K>[],
+  t: number,
+): Frame<K> {
+  assert(frames.length >= 2, "a flight has at least two frames")
+  const last = frames[frames.length - 1] as Frame<K>
+  if (t >= last.t) return last
+  if (t <= 0) return frames[0] as Frame<K>
+  const i = Math.floor(t / FLIGHT_DT)
+  const a = frames[i] as Frame<K>
+  const b = frames[i + 1] as Frame<K>
+  const k = (t - a.t) / (b.t - a.t)
+  const lerp = (p: Axes<K>, q: Axes<K>): Axes<K> =>
+    Object.fromEntries(
+      Object.keys(p).map((key) => [
+        key,
+        p[key as K] + (q[key as K] - p[key as K]) * k,
+      ]),
+    ) as Axes<K>
+  return { t, value: lerp(a.value, b.value), vel: lerp(a.vel, b.vel) }
 }

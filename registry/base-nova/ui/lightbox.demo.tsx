@@ -104,20 +104,31 @@ const GIF: Entry = {
   },
 }
 
+// The 33 s trailer, served by Blender itself (cc-by). The poster is a frame of it,
+// grabbed with ffmpeg into public/, so the page paints the film and the film's own
+// first frame flies.
 const VIDEO: Entry = {
   id: "bunny",
   media: {
     kind: "video",
-    src: "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4",
-    poster: picsum(1025, 1920, 1080),
-    title: "big buck bunny",
+    src: "https://download.blender.org/peach/trailer/trailer_720p.mov",
+    poster: {
+      src: "/bunny-poster.jpg",
+      full: "/bunny-poster.jpg",
+      width: 1280,
+      height: 720,
+      blur: "oklch(0.85 0.06 120)",
+    },
+    title: "big buck bunny, the trailer",
     muted: true,
     loop: true,
   },
   caption:
-    "big buck bunny (cc-by, blender foundation) · tap or space plays · j / l seek",
+    "big buck bunny trailer (cc-by, blender foundation) · space plays · j / l seek 10 s · m mutes · the bar scrubs",
 }
 
+// One map tile is the picture the frame opens from (a single tile for a demo sits
+// inside openstreetmap's tile usage policy); the frame is the live map around it.
 const FRAME: Entry = {
   id: "map",
   media: {
@@ -127,7 +138,9 @@ const FRAME: Entry = {
     height: 800,
     title: "openstreetmap · barcelona",
   },
+  caption: "openstreetmap · barcelona · © openstreetmap contributors",
 }
+const TILE = "https://tile.openstreetmap.org/13/4145/3059.png"
 
 const SMALL: Entry = {
   id: "small",
@@ -139,7 +152,7 @@ const SMALL: Entry = {
       width: 640,
       height: 427,
     },
-    alt: "a 640 px original: source-limited at dpr 2",
+    alt: "a 640 px original: the bar says when it is shown larger",
   },
 }
 
@@ -211,10 +224,13 @@ function Rail({ entry, facts }: { entry: Entry; facts: Facts }) {
   )
 }
 
+// Each surface is signed off by a hand on the device, never by a build: a round of
+// fixes puts every line back to unverified.
 const DEVICES = [
   "iphone safari",
   "android chrome",
-  "macos trackpad + mouse",
+  "macos safari",
+  "macos chrome, trackpad + mouse",
   "firefox",
 ]
 
@@ -307,14 +323,27 @@ export default function Demo() {
           </div>
           <div className="space-y-4">
             <div className="font-mono text-xs text-muted-foreground">
-              04 · a video, the poster flies
+              04 · a video: its own frame flies, native controls inside
             </div>
-            <LightboxTrigger entry={VIDEO}>
+            {/* The trigger wears data-lightbox-kind; the play glyph is drawn from
+                that attribute alone (two pseudo-elements: a wash and a triangle),
+                so any video trigger on the page says what it is. */}
+            <LightboxTrigger
+              entry={VIDEO}
+              render={
+                <a
+                  href={(VIDEO.media as { src: string }).src}
+                  className="relative block overflow-hidden rounded-lg data-[lightbox-kind=video]:before:absolute data-[lightbox-kind=video]:before:left-1/2 data-[lightbox-kind=video]:before:top-1/2 data-[lightbox-kind=video]:before:size-12 data-[lightbox-kind=video]:before:-translate-x-1/2 data-[lightbox-kind=video]:before:-translate-y-1/2 data-[lightbox-kind=video]:before:rounded-full data-[lightbox-kind=video]:before:bg-background/80 data-[lightbox-kind=video]:before:content-[''] data-[lightbox-kind=video]:after:absolute data-[lightbox-kind=video]:after:left-1/2 data-[lightbox-kind=video]:after:top-1/2 data-[lightbox-kind=video]:after:size-12 data-[lightbox-kind=video]:after:-translate-x-1/2 data-[lightbox-kind=video]:after:-translate-y-1/2 data-[lightbox-kind=video]:after:bg-foreground data-[lightbox-kind=video]:after:[clip-path:polygon(38%_28%,74%_50%,38%_72%)] data-[lightbox-kind=video]:after:content-['']"
+                />
+              }
+            >
               {/* biome-ignore lint/performance/noImgElement: the poster */}
               <img
                 src={(VIDEO.media as { poster: Source }).poster.src}
                 alt=""
-                className="block aspect-video w-full rounded-lg"
+                width={1280}
+                height={720}
+                className="block aspect-video w-full"
               />
             </LightboxTrigger>
           </div>
@@ -323,17 +352,36 @@ export default function Demo() {
         <section className="grid gap-8 sm:grid-cols-2">
           <div className="space-y-4">
             <div className="font-mono text-xs text-muted-foreground">
-              05 · a frame: box and keyboard, no zoom
+              05 · a frame: opens from a picture, box and keyboard, no zoom
             </div>
-            <LightboxTrigger entry={FRAME}>
-              <div className="grid aspect-[3/2] w-full place-items-center rounded-lg border border-border bg-sidebar font-mono text-xs text-muted-foreground">
-                {FRAME.media.kind === "frame" && FRAME.media.title}
-              </div>
-            </LightboxTrigger>
+            <figure className="space-y-2">
+              <LightboxTrigger
+                entry={FRAME}
+                render={
+                  <a
+                    href={(FRAME.media as { src: string }).src}
+                    className="block w-fit overflow-hidden rounded-lg"
+                  />
+                }
+              >
+                {/* biome-ignore lint/performance/noImgElement: one map tile */}
+                <img
+                  src={TILE}
+                  alt=""
+                  width={256}
+                  height={256}
+                  className="block size-64"
+                />
+              </LightboxTrigger>
+              <figcaption className="font-mono text-xs lowercase text-muted-foreground">
+                {FRAME.media.kind === "frame" && FRAME.media.title} · ©
+                openstreetmap contributors
+              </figcaption>
+            </figure>
           </div>
           <div className="space-y-4">
             <div className="font-mono text-xs text-muted-foreground">
-              06 · source-limited: press + and read the bar
+              06 · a 640 px original: press + and read the bar
             </div>
             <LightboxTrigger entry={SMALL}>
               {/* biome-ignore lint/performance/noImgElement: a 640 px original */}
@@ -355,9 +403,11 @@ export default function Demo() {
           <p className="text-[0.9375rem] leading-relaxed text-foreground/80">
             The caption below is a plain figcaption. Nothing on the entry names
             it; the lightbox reads the sibling once at open. Click the image,
-            then press ? for the live key sheet, i for the rail (the site's own
-            inspector beside the media: details, actions, a field), h to hide
-            the chrome.
+            then press ? for the keys that work right now, i for the rail (the
+            site's own inspector beside the media: details, actions, a field), h
+            to hide the chrome. While it is open the address carries #lb=id: a
+            reload lands on the same image, close strips it, and Back leaves the
+            page the way it always does.
           </p>
           <figure className="space-y-2">
             <LightboxTrigger entry={PROSE}>
