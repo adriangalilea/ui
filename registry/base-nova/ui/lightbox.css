@@ -57,6 +57,13 @@
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.ag-lb-media > img,
+.ag-lb-media > video {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 .ag-lb-track {
   position: absolute;
@@ -250,6 +257,11 @@
 }
 .ag-lb-nav[data-side="right"] {
   right: 8px;
+}
+/* Zoomed, the image is the whole stage: the arrows would sit on it unreadable, and
+   a drag there pans. Shift+arrow still steps; the strip still jumps. */
+.ag-lb[data-zoomed] .ag-lb-nav {
+  visibility: hidden;
 }
 /* Present only when it explains: the figure's caption, hidden while zoomed or flying. */
 .ag-lb-caption {

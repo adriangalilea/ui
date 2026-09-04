@@ -1475,6 +1475,9 @@ function Stage(props: StageProps) {
           return
       }
       if (e.pointerType === "mouse" && e.button !== 0) return
+      // The stage owns this pointer: no selection (iOS selects an image on a double
+      // tap and then hands every drag to the selection handles), no image drag.
+      e.preventDefault()
       const kind = L.current.entry.media.kind
       if (!G) {
         // A finger landing ends any wheel session: one hand at a time. The session
