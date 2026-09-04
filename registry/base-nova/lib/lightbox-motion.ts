@@ -284,27 +284,22 @@ export function wheelIsHand(ticks: readonly number[]): boolean {
   return !(a > b && b > c)
 }
 
-/** Under this a tick is a trackpad tail's last dregs or a mouse's rounding jitter,
- *  never a push. */
-export const WHEEL_HAND_MIN = 6
+/** Sideways wheel travel that asks for the next slide. The horizontal axis is a
+ *  STEPPER, not a drag: a wheel stream never says when the hand left the trackpad,
+ *  so a track following the fingers 1:1 can only GUESS when to snap, and every guess
+ *  is either premature or parks the image between two slides. Accumulating to a
+ *  threshold and stepping once is exact. One swipe moves one slide, the track is
+ *  never off a lock, and it lands with the motion the arrow keys already use.
+ *  Raw px, not the bounded tick: the threshold must mean the same finger travel
+ *  whatever speed it arrives at. */
+export const WHEEL_STEP = 80
 
-/** A session that already committed its step hears a NEW hand: a tick that is a real
- *  push AND has climbed back to twice the floor its neighbours decayed to. Both
- *  halves matter. An inertia tail decays toward zero, so it never climbs; a hand
- *  still finishing the same swipe is DECELERATING, so it never climbs either and the
- *  swipe stays one step; a second swipe starts from the tail's dregs and leaps.
- *  Without this the tail owns the session until it dies, hiding the chrome and
- *  swallowing every swipe made during it. */
-export function wheelReawoke(ticks: readonly number[]): boolean {
-  if (ticks.length < 3) return false
-  const recent = ticks.slice(-3)
-  const last = recent[recent.length - 1] as number
-  return (
-    last >= WHEEL_HAND_MIN &&
-    last >= 2 * Math.min(...recent) &&
-    wheelIsHand(recent)
-  )
-}
+/** A committed session swallows the device's inertia so the tail cannot step again,
+ *  and lets go this long after the stream pauses. Momentum events run continuously
+ *  (~16 ms apart) and putting fingers back on the trackpad cancels them, so any real
+ *  pause means the tail is over and whatever follows is a new swipe. Far shorter
+ *  than WHEEL_SILENCE: nothing is being dragged, there is nothing to wait for. */
+export const WHEEL_PASS_SILENCE = 50
 
 export type Obstruction = { side: "top" | "bottom"; edge: number }
 

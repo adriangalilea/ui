@@ -90,6 +90,7 @@ import {
   type Tunings,
   type View,
   WHEEL_GUARD,
+  WHEEL_PASS_SILENCE,
   WHEEL_SILENCE,
   zoomAt,
   zoomMax as zoomCeiling,
@@ -1681,7 +1682,6 @@ function Stage(props: StageProps) {
         pose: S.flight
           ? (readFlight(S.flight).frame.value as Pose)
           : pose.value,
-        slideX: slide.value.x,
         fitted,
         band,
         zoomMax,
@@ -1711,10 +1711,6 @@ function Stage(props: StageProps) {
           return
         case "cancel":
           animate(FIT, 1, HAND, r.vel)
-          return
-        case "home":
-          animateSlide(0, HAND, r.vx)
-          resume()
           return
         default: {
           const never: never = r
@@ -1748,7 +1744,13 @@ function Stage(props: StageProps) {
       )
       W = next.session
       if (!W) return
-      wheelTimer = window.setTimeout(endWheel, WHEEL_SILENCE)
+      // A session that already stepped is only swallowing inertia: it lets go a
+      // breath after the stream pauses, so the next swipe is heard at once. One
+      // still holding the image waits the full silence before it decides.
+      wheelTimer = window.setTimeout(
+        endWheel,
+        W.axis === "pass" ? WHEEL_PASS_SILENCE : WHEEL_SILENCE,
+      )
       for (const f of next.effects) {
         switch (f.kind) {
           case "grab":
@@ -1764,12 +1766,10 @@ function Stage(props: StageProps) {
             pose.value = f.pose
             write()
             break
-          case "slide":
-            slide.value = { x: f.x }
-            writeSlide()
-            break
           case "step":
-            stepTo(L.current.index + f.d, HAND, f.vx)
+            // The same motion the arrow keys use: a swipe and a key press are the
+            // same verb, so they must not land differently.
+            stepTo(L.current.index + f.d, QUICK)
             break
           case "exit":
             beginExit({ x: 0, y: f.vy })

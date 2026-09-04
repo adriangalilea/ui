@@ -1,13 +1,15 @@
-// The wheel session, framework-free. A session applies its accumulated delta (`x`,
-// `y`) to the pose the hand found (`grab`, or `slide0` for the track), the way a drag
-// offsets from its grab; the content follows the fingers on every axis. `last` is
-// the accepted tick the velocity span is measured against; `at` the last cursor;
-// `live` whether the session ever moved anything (a vertical session at fit is held
-// back until the inertia guard passes, and decides nothing if it never did). A slide
-// or dismiss commits the moment its rule is met, not at silence: a trackpad's
-// inertia tail is then `pass`ed, so a flick steps at once and never overshoots the
-// neighbour. Ticks in, a new session and effects out; the binder owns the silence
-// timer and applies the effects. `bun scripts/examples/lightbox-wheel.ts`.
+// The wheel session, framework-free. Two kinds of axis, because a wheel stream never
+// says when the hand left the trackpad:
+//   zoom, pan, y  DRAG. The content follows the accumulated delta from the pose the
+//     hand found (`grab`), and silence decides where it lands. Safe: each one springs
+//     back to a resting place, so a mistimed release costs nothing.
+//   x             STEPS (WHEEL_STEP). Nothing follows the fingers; travel accumulates
+//     invisibly and fires one step. A track dragged 1:1 would have to guess when the
+//     hand left, and a wrong guess strands the image between two slides.
+// `last` is the accepted tick the velocity span is measured against; `at` the last
+// cursor; `live` whether a vertical session ever passed the inertia guard. Ticks in,
+// a new session and effects out; the binder owns the silence timers and applies the
+// effects. `bun scripts/examples/lightbox-wheel.ts`.
 
 import {
   type Band,
@@ -24,14 +26,12 @@ import {
   rubber,
   type Sample,
   type Size,
-  SLIDE_GAP,
-  slideCommit,
   type View,
   velocity,
+  WHEEL_STEP,
   WHEEL_ZOOM,
   wheelIsHand,
   wheelPx,
-  wheelReawoke,
   zoomAt,
 } from "@/registry/base-nova/lib/lightbox-motion"
 
@@ -50,7 +50,6 @@ export type WheelSession = {
   grab: Pose
   /** The grab read back through the pan rubber. */
   raw0: Point
-  slide0: number
   /** The raw scale the ticks accumulated; the pose wears it rubbered. */
   zoom: number
   samples: readonly Sample[]
@@ -72,7 +71,6 @@ export type WheelInput = {
 /** What the engine knows at this tick. */
 export type WheelCtx = {
   pose: Pose
-  slideX: number
   fitted: Size
   band: Band
   zoomMax: number
@@ -92,8 +90,7 @@ export type WheelEffect =
   /** A committing slide is dropped (zoom, pan and dismiss leave the x axis). */
   | { kind: "drop" }
   | { kind: "pose"; pose: Pose }
-  | { kind: "slide"; x: number }
-  | { kind: "step"; d: -1 | 1; vx: number }
+  | { kind: "step"; d: -1 | 1 }
   | { kind: "exit"; vy: number }
 
 const begin = (input: WheelInput, ctx: WheelCtx, dx: number, dy: number) => {
@@ -113,15 +110,17 @@ const begin = (input: WheelInput, ctx: WheelCtx, dx: number, dy: number) => {
     y: 0,
     grab: ctx.pose,
     raw0: rawPan(ctx.pose, ctx.fitted, ctx.band),
-    slide0: ctx.slideX,
     zoom: ctx.pose.s,
     samples: [],
     last: 0,
     at: input.at,
   }
-  const effects: WheelEffect[] = []
-  if (axis !== "y") effects.push({ kind: "grab" })
-  if (axis === "zoom" || axis === "pan") effects.push({ kind: "drop" })
+  // Only a DRAG takes the image: the stepper moves nothing, so it must not pause
+  // flights, flag a gesture, or drop a slide that is still landing.
+  const effects: WheelEffect[] =
+    axis === "zoom" || axis === "pan"
+      ? [{ kind: "grab" }, { kind: "drop" }]
+      : []
   return { session, effects }
 }
 
@@ -145,14 +144,10 @@ export function wheelTick(
   const axis = w.axis
   if (axis === "dead") return { session: w, effects }
   if (axis === "pass") {
-    // The session committed and what follows is the device's inertia. It is
-    // swallowed, EXCEPT when the hand comes back: a tail only decays, so a tick
-    // that stops decaying is a new swipe and opens a fresh session on the spot.
-    const ticks = [...w.ticks, Math.max(Math.abs(rawX), Math.abs(rawY))].slice(
-      -3,
-    )
-    if (!wheelReawoke(ticks)) return { session: { ...w, ticks }, effects }
-    return wheelTick(null, input, ctx)
+    // The step already landed; what follows is the device's inertia and is ignored
+    // whole. The binder drops the session a breath after the stream pauses
+    // (WHEEL_PASS_SILENCE), which is the only honest signal that the tail is over.
+    return { session: w, effects }
   }
   w = { ...w, last: input.now, at: input.at }
   switch (axis) {
@@ -178,20 +173,16 @@ export function wheelTick(
       return { session: w, effects }
     }
     case "x": {
-      w = { ...w, x: w.x - dx }
-      let x = w.slide0 + w.x
-      if ((x > 0 && !ctx.can.prev) || (x < 0 && !ctx.can.next)) x *= 0.35
-      // Never past the neighbour's slot: nothing is mounted beyond it.
-      x = overshoot(x, ctx.band.w + SLIDE_GAP)
-      w = { ...w, samples: [...w.samples, { x, y: 0, t: input.now }] }
-      effects.push({ kind: "slide", x })
-      const vx = velocity(w.samples, input.now).x
-      const d = slideCommit(x, vx, ctx.band.w, ctx.can)
-      if (d !== 0) {
-        w = { ...w, axis: "pass", ticks: [] }
-        effects.push({ kind: "release" }, { kind: "step", d, vx })
-      }
-      return { session: w, effects }
+      // Raw travel, not the bounded tick: 80 px of fingers is 80 px however fast it
+      // arrives. Nothing moves until it fires, so there is no in-between to be
+      // stranded in, and one swipe is one step until the stream pauses.
+      w = { ...w, x: w.x + rawX }
+      if (Math.abs(w.x) < WHEEL_STEP) return { session: w, effects }
+      const d: -1 | 1 = w.x > 0 ? 1 : -1
+      if (!(d === 1 ? ctx.can.next : ctx.can.prev))
+        return { session: { ...w, x: 0 }, effects }
+      effects.push({ kind: "step", d })
+      return { session: { ...w, axis: "pass", x: 0 }, effects }
     }
     case "y": {
       // Nothing accumulates before the guard decides: a session it rejects is passed
@@ -242,8 +233,6 @@ export type WheelRelease =
   | { kind: "pan"; target: View }
   /** A dismiss drag that did not commit: home under the hand's spring, with its speed. */
   | { kind: "cancel"; vel: Point }
-  /** A slide that did not commit: the track home, with its speed. */
-  | { kind: "home"; vx: number }
 
 /** Silence: the session ends and decides. */
 export function wheelRelease(
@@ -262,7 +251,8 @@ export function wheelRelease(
     case "y":
       return w.live ? { kind: "cancel", vel: v } : { kind: "none" }
     case "x":
-      return { kind: "home", vx: v.x }
+      // The stepper never left the track off a lock.
+      return { kind: "none" }
     default: {
       const never: never = w.axis
       throw new Error(`lightbox: wheel axis ${String(never)}`)
