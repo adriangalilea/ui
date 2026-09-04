@@ -366,6 +366,12 @@ console.log("rubber, pan, grab past the bound, commit, guard, band hold")
   )
   assert(frameAt(frames, 1e6) === last, "past the end is the end")
   assert(frameAt(frames, -1) === first, "before the start is the start")
+  // WebKit hands the duration back a hair short (seconds in, milliseconds out).
+  const webkit = last.t / 1000 - 1e-16
+  assert(
+    frameAt(frames, webkit * 1000) === last,
+    "a duration that lost a bit in seconds is still the last frame",
+  )
   const still = sampleFlight({ x: 0 }, { x: 0 }, { x: 100 }, STILL, { x: 0.5 })
   assert(still.length === 2 && still[1]?.value.x === 100, "STILL is one hop")
   console.log(

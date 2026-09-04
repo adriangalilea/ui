@@ -85,6 +85,7 @@ import {
   sourceView,
   stageBand,
   TAP_TRAVEL,
+  TIME_EPS,
   type Tuning,
   type Tunings,
   unovershoot,
@@ -973,7 +974,10 @@ function Stage(props: StageProps) {
         pose.value = fr.value
         pose.vel = fr.vel
         writeP()
-        if (now >= (f.frames[f.frames.length - 1] as Frame<keyof Pose>).t)
+        if (
+          now >=
+          (f.frames[f.frames.length - 1] as Frame<keyof Pose>).t - TIME_EPS
+        )
           land()
       }
       if (S.slideOn) {

@@ -449,15 +449,22 @@ export function sampleFlight<K extends string>(
 
 /** The pose and velocity at `t` ms into a sampled flight, interpolated between
  *  frames; clamped to the table's ends. */
+/** WebKit keeps animation time in seconds and converts back to milliseconds, so a
+ *  finished animation's currentTime comes back a hair under the duration it was
+ *  given (583.33333333333314 for 583.33333333333337). Times within this of the last
+ *  frame ARE the last frame. */
+export const TIME_EPS = 1e-3
+
 export function frameAt<K extends string>(
   frames: readonly Frame<K>[],
   t: number,
 ): Frame<K> {
   assert(frames.length >= 2, "a flight has at least two frames")
+  assert(Number.isFinite(t), `a flight time that is not a number: ${t}`)
   const last = frames[frames.length - 1] as Frame<K>
-  if (t >= last.t) return last
+  if (t >= last.t - TIME_EPS) return last
   if (t <= 0) return frames[0] as Frame<K>
-  const i = Math.floor(t / FLIGHT_DT)
+  const i = Math.min(frames.length - 2, Math.floor(t / FLIGHT_DT))
   const a = frames[i] as Frame<K>
   const b = frames[i + 1] as Frame<K>
   const k = (t - a.t) / (b.t - a.t)
