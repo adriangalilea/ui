@@ -81,6 +81,7 @@ import {
   type Size,
   SLIDE_GAP,
   type SourceView,
+  Spring,
   STILL,
   sharpScale,
   sourceView,
@@ -614,7 +615,6 @@ function Stage(props: StageProps) {
   const [sheet, setSheet] = React.useState(false)
   const [fullscreen, setFullscreen] = React.useState(false)
   const [warm, setWarm] = React.useState(rest)
-  const [_dir, setDir] = React.useState<1 | -1>(1)
   // Where the hand pointed, ahead of the stage: the slide takes ~200 ms and queued
   // steps chain, so a strip and a counter that waited for `index` would trail a
   // fast reader by slides. They are an INDEX, not the content, and must read as
@@ -702,34 +702,10 @@ function Stage(props: StageProps) {
     return u
   }, [media.kind, loop, index, count, renderRail])
 
-  // The mounted window, in VISUAL order: the scroller's DOM order IS the layout the
-  // reader scrolls through. `active` is where the current slide sits inside it, which
-  // is the snap point the engine holds the track at.
-  const slots = React.useMemo(() => {
-    const out: { slot: -1 | 0 | 1; id: string }[] = [{ slot: 0, id }]
-    const can = neighbours(index, count, loop)
-    const at = (k: -1 | 1) =>
-      (k === 1 ? can.next : can.prev)
-        ? (ids[(index + k + count) % count] as string)
-        : null
-    for (const slot of [-1, 1] as const) {
-      const nid = at(slot)
-      if (nid && !out.some((o) => o.id === nid)) out.push({ slot, id: nid })
-    }
-    out.sort((a, b) => a.slot - b.slot)
-    return out
-  }, [id, ids, index, count, loop])
-  const active = React.useMemo(
-    () => slots.findIndex((s) => s.slot === 0),
-    [slots],
-  )
-
   // Everything the engine reads, one frame fresh, never a stale closure.
   const live = React.useRef({
     ids,
     index,
-    slots,
-    active,
     entry,
     fitted,
     band,
@@ -748,8 +724,6 @@ function Stage(props: StageProps) {
   live.current = {
     ids,
     index,
-    slots,
-    active,
     entry,
     fitted,
     band,
@@ -818,9 +792,6 @@ function Stage(props: StageProps) {
       /** Where the accepted steps point, null when the stage is the truth. The
        *  chrome reads it so the index it shows is never behind the hand. */
       aimIndex: null as number | null,
-      /** The scroller is being put back under the active slide after a re-index, so
-       *  the scroll it emits is ours and decides nothing. */
-      recentring: false,
       /** The page's own hash at open, restored on close; a `#lb=` hash is ours. */
       hash0: /^#lb=/.test(window.location.hash) ? "" : window.location.hash,
     }
@@ -946,26 +917,46 @@ function Stage(props: StageProps) {
       writePose()
       writeP()
     }
-    // ---- the track: a scroll container the browser owns. One slide per screenful,
-    // so the scroll offset of a slide IS its place in the mounted window.
+    // ---- the track: a scroll container the browser owns. Every slide is mounted and
+    // one fills the screen, so the scroll offset IS the index. Gestures are entirely
+    // the platform's; only a KEY, a button or a thumbnail is animated here, because
+    // `scroll-behavior: smooth` has no duration and reads as a crawl next to the rest
+    // of this thing. The same spring the pose uses, so a step feels like a step.
     const slotW = () => trackEl.clientWidth + SLIDE_GAP
     const landedSlot = () => Math.round(trackEl.scrollLeft / slotW())
-    /** Put the track under the active slide with no animation and no decision: the
-     *  window shifted by one under it, so the same pixels stay on screen. */
-    const recentre = () => {
-      const to = L.current.active * slotW()
-      if (Math.abs(trackEl.scrollLeft - to) < 1) return
-      S.recentring = true
-      trackEl.scrollTo({ left: to, behavior: "instant" })
-      S.recentring = false
+    let glide = 0
+    const stopGlide = () => {
+      if (!glide) return
+      cancelAnimationFrame(glide)
+      glide = 0
+      trackEl.style.scrollSnapType = ""
     }
-    /** Ask the browser to fly to a mounted neighbour. It decides the motion and the
-     *  landing; `scrollend` tells us where it stopped. */
-    const scrollToSlot = (i: number) => {
-      trackEl.scrollTo({
-        left: i * slotW(),
-        behavior: reduced ? "instant" : "smooth",
-      })
+    const glideTo = (i: number) => {
+      stopGlide()
+      const to = i * slotW()
+      if (reduced) {
+        trackEl.scrollTo({ left: to, behavior: "instant" })
+        return
+      }
+      // Mandatory snap re-snaps after every programmatic write, which would fight a
+      // per-frame glide; it goes back on at the end, exactly on a snap point.
+      trackEl.style.scrollSnapType = "none"
+      const s = new Spring<"x">({ x: trackEl.scrollLeft }, { x: 0.5 })
+      s.aim({ x: to }, QUICK)
+      let last = performance.now()
+      const step = (t: number) => {
+        const done = s.step(t - last)
+        last = t
+        trackEl.scrollLeft = s.value.x
+        if (done) {
+          glide = 0
+          trackEl.style.scrollSnapType = ""
+          onScrollSettled()
+          return
+        }
+        glide = requestAnimationFrame(step)
+      }
+      glide = requestAnimationFrame(step)
     }
     // The flight ends: the pose IS the target, inline, and the animations go. The
     // inline write lands in the same frame the fill-forwards effect is cancelled, so
@@ -1224,7 +1215,7 @@ function Stage(props: StageProps) {
         setPhase("exit")
       }
       const sv = clipToSource()
-      recentre()
+      stopGlide()
       animate(sv ? sv.view : GONE, 0, MACHINE, vel, "exit")
     }
 
@@ -1234,11 +1225,12 @@ function Stage(props: StageProps) {
       setAim(to)
     }
 
-    // A step of one asks the scroller for the neighbour and lets it fly there; the
-    // index commits when it lands (onScrollEnd). A jump is a cut: the target is not
-    // mounted, so there is nothing to scroll through.
+    // A step glides the track to the slide asked for. Presses chain: each one re-aims
+    // the glide in flight from where it already is, so a held arrow is one motion and
+    // no press is ever lost. A wrap under `loop` is the one cut, because the slide it
+    // wants sits at the far end of the scroller.
     const stepTo = (to: number) => {
-      const { ids, loop, index, active } = L.current
+      const { ids, loop, index } = L.current
       const n = ids.length
       const d = to - index
       if (d === 0) return
@@ -1250,7 +1242,6 @@ function Stage(props: StageProps) {
       const wrapped = step ? (index + d + n) % n : to
       assert(wrapped >= 0 && wrapped < n, `step to ${to} of ${n}`)
       aimAt(wrapped)
-      setDir(d > 0 ? 1 : -1)
       if (
         pose.value.s !== 1 ||
         pose.value.p !== 1 ||
@@ -1259,13 +1250,13 @@ function Stage(props: StageProps) {
       )
         animate(FIT, 1, MACHINE)
       setZoom(1)
-      if (!step) {
+      if (step && Math.abs(wrapped - index) !== 1) {
+        // A wrapped step: cut, there is nothing between here and there.
+        trackEl.scrollTo({ left: wrapped * slotW(), behavior: "instant" })
         L.current.onIndex(wrapped)
         return
       }
-      // Two presses in a row are two scrollTo calls: the browser re-aims the one in
-      // flight, so the motion stays continuous and no step is ever lost.
-      scrollToSlot(active + d)
+      glideTo(wrapped)
     }
 
     // A move computed FROM the pose reads it live: a flight in progress is read and
@@ -1508,6 +1499,8 @@ function Stage(props: StageProps) {
     }
     const onDown = (e: PointerEvent) => {
       S.input = "pointer"
+      // A hand on the track always wins over a glide it started itself.
+      stopGlide()
       if (chromeTarget(e.target)) return
       // The native control strip owns its pointers: a scrub is not a drag; the rest
       // of the video is media.
@@ -1639,9 +1632,9 @@ function Stage(props: StageProps) {
           resume()
           return
         case "snap":
-          // The mouse dragged the scroller by hand; the platform's own snap takes
-          // it from here and `scrollend` says where it landed.
-          scrollToSlot(landedSlot())
+          // The mouse dragged the scroller by hand; it glides to the nearest slide
+          // from there, the same motion a key press makes.
+          glideTo(landedSlot())
           resume()
           return
         default: {
@@ -1707,6 +1700,9 @@ function Stage(props: StageProps) {
       // motion, never the ownership.
       if (e.ctrlKey) e.preventDefault()
       if (chromeTarget(e.target)) return
+      // The reader took over mid-glide: theirs, immediately. This is what made
+      // chained swipes feel blocked.
+      stopGlide()
       // A sideways wheel at fit is the TRACK's. It is the one event we hand back to
       // the browser, because the browser is the only one that knows when the fingers
       // left the trackpad, and so the only one that can carry the momentum and land
@@ -1928,17 +1924,13 @@ function Stage(props: StageProps) {
     // quiet stretch of `scroll` says the same thing a little later.
     let scrollTimer = 0
     const onScrollSettled = () => {
-      if (S.recentring || S.ph !== "idle") return
-      const landed = landedSlot()
-      const { slots, active, ids } = L.current
-      const to = slots[landed]
-      if (!to || landed === active) return
-      const at = ids.indexOf(to.id)
-      assert(at >= 0, `landed on an unmounted slide ${to.id}`)
-      trace(`track landed on slot ${landed} · ${to.id}`)
-      setDir(landed > active ? 1 : -1)
-      aimAt(at)
-      L.current.onIndex(at)
+      if (S.ph !== "idle") return
+      const { index, ids } = L.current
+      const landed = Math.min(ids.length - 1, Math.max(0, landedSlot()))
+      if (landed === index) return
+      trace(`track landed on ${landed} · ${ids[landed]}`)
+      aimAt(landed)
+      L.current.onIndex(landed)
     }
     const hasScrollEnd = "onscrollend" in window
     const onScrollEnd = () => onScrollSettled()
@@ -1976,9 +1968,8 @@ function Stage(props: StageProps) {
           S.flight = null
           S.pending = null
         }
-        // The window shifted by one under the scroller: putting it back over the
-        // active slide leaves the very same pixels on screen, so this is invisible.
-        recentre()
+        // Nothing to put back: the reader is already on this slide, which is the
+        // whole reason every slide is mounted.
         pose.value = { ...FIT, p: 1 }
         pose.vel = ZERO
         const activeEl = layerEl()
@@ -1992,10 +1983,11 @@ function Stage(props: StageProps) {
       jump: (to) => stepTo(to),
       refit: (prev) => {
         if (S.ph !== "idle" || S.gesture) return
-        const { band, fitted } = L.current
+        const { band, fitted, index } = L.current
         sync()
         // The slides are viewport-wide, so a resize moves every snap point.
-        recentre()
+        stopGlide()
+        trackEl.scrollTo({ left: index * slotW(), behavior: "instant" })
         // The crop is in layer px and the trigger moved with the page: re-measured
         // in the new fit before the pose is written.
         clipToSource()
@@ -2017,8 +2009,8 @@ function Stage(props: StageProps) {
     // Frame one: the source pose, written before paint. The engine is the only
     // writer of data-z and --lb-p.
     rootEl.dataset.z = S.z
-    // The scroller starts under the active slide, before anything paints.
-    recentre()
+    // The scroller starts under the opened slide, before anything paints.
+    trackEl.scrollTo({ left: L.current.index * slotW(), behavior: "instant" })
     if (!rest) {
       const sv = source()
       assert(sv, "open without a trigger rect")
@@ -2037,6 +2029,7 @@ function Stage(props: StageProps) {
       clearTimeout(tapTimer)
       clearTimeout(wheelTimer)
       clearTimeout(scrollTimer)
+      if (glide) cancelAnimationFrame(glide)
       trackEl.removeEventListener("scrollend", onScrollEnd)
       trackEl.removeEventListener("scroll", onScroll)
       rootEl.removeEventListener("pointerdown", onDown)
@@ -2159,14 +2152,16 @@ function Stage(props: StageProps) {
         inert={sheet || undefined}
         style={{ inset: 0 }}
       >
+        {/* Every slide, in order: the scroll offset IS the index. Only the ones
+            beside the current slide decode their media. */}
         <div ref={track} className="ag-lb-track">
-          {slots.map(({ slot, id: lid }) => (
+          {ids.map((lid, i) => (
             <div key={lid} className="ag-lb-slot">
               <Layer
                 entry={entryOf(lid)}
                 band={band}
-                active={slot === 0}
-                warm={warm}
+                active={i === index}
+                near={Math.abs(i - index) <= 1 && warm}
                 layers={layers}
                 video={video}
               />
@@ -2488,14 +2483,15 @@ const Layer = React.memo(function Layer({
   entry,
   band,
   active,
-  warm,
+  near,
   layers,
   video,
 }: {
   entry: Entry
   band: Band
   active: boolean
-  warm: boolean
+  /** Next to the current slide: worth decoding ahead, so a step never shows a gap. */
+  near: boolean
   layers: React.RefObject<Map<string, HTMLDivElement>>
   video: React.RefObject<HTMLVideoElement | null>
 }) {
@@ -2510,7 +2506,7 @@ const Layer = React.memo(function Layer({
       : m.kind === "video"
         ? m.poster.blur
         : undefined
-  const mounted = active || warm
+  const mounted = active || near
   const ref = React.useCallback(
     (el: HTMLDivElement | null) => {
       assert(el, "layer rendered nothing")

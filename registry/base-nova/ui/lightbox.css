@@ -69,13 +69,19 @@
    can decide where a throw comes to rest; simulating that from wheel deltas produces
    skipped slides, a sluggish feel and an image parked between two locks, every time.
    Here the magnets are the platform's: `scroll-snap-type: x mandatory` for where it
-   may rest, `scroll-snap-stop: always` so one gesture is one slide and a hard throw
-   can never skip past its neighbour, `overscroll-behavior: contain` so the page
-   behind never takes over. Momentum, rubber banding and the snap all run on the
-   compositor. The engine only reads where it landed.
+   may rest and `overscroll-behavior: contain` so the page behind never takes over.
+   Momentum, rubber banding and the snap all run on the compositor; the engine only
+   reads where it landed. Deliberately NOT `scroll-snap-stop: always`: a long throw
+   should carry as far as it was thrown, and capping every gesture at one slide is
+   the thing that made this feel stuck.
 
-   It spans the whole viewport, not the media band: the enter and exit flights scale
-   the image from a trigger anywhere on the page, and a scroll container clips. */
+   Every slide is mounted, so the scroll offset IS the index and chaining swipes
+   costs nothing: there is no window to shift and nothing to put back under the
+   reader mid-throw. Only the slides next to the current one decode their media. */
+
+/* The track spans the whole viewport, not the media band: the enter and exit flights
+   scale the image from a trigger anywhere on the page, and a scroll container
+   clips. */
 .ag-lb-track {
   position: absolute;
   inset: 0;
@@ -98,7 +104,6 @@
   width: 100%;
   height: 100%;
   scroll-snap-align: center;
-  scroll-snap-stop: always;
   touch-action: pan-x;
 }
 /* Zoomed, the image owns every gesture: the track stops snapping so a pan cannot
