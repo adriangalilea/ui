@@ -212,7 +212,8 @@ const INSET_X = 16
 const THUMB_H = 32
 const clamp = (v: number, lo: number, hi: number) =>
   Math.min(hi, Math.max(lo, v))
-const TAU = 2 * Math.PI
+/** How soon to check that the track is not standing between two slides. */
+const SETTLE_WATCH = 140
 /** Slides each side of the one on screen that hold decoded media. Two, not one: a
  *  throw crosses its neighbour and is already looking at the next one by the time
  *  anything commits. */
@@ -957,6 +958,7 @@ function Stage(props: StageProps) {
       // the door just in time for this landing's OWN scrollend to walk through and
       // decide the same swipe a second time.
       trackFrom = i
+      swipe = "idle"
       if (i === L.current.index) return
       aimAt(i)
       L.current.onIndex(i)
@@ -966,6 +968,15 @@ function Stage(props: StageProps) {
       if (!glide) return
       cancelAnimationFrame(glide)
       glide = 0
+      armSettle()
+    }
+    /** Ask again shortly. Anything that can leave the track between two slides arms
+     *  this, because a cut-short landing can leave nothing at all in flight: the
+     *  coast was being swallowed to keep it from adding to the throw, so there is no
+     *  scrolling left to end and no `scrollend` will ever come to notice. */
+    const armSettle = () => {
+      clearTimeout(scrollTimer)
+      scrollTimer = window.setTimeout(onScrollSettled, SETTLE_WATCH)
     }
     /** Where a swipe means to arrive, and the ONE place that is decided. Every way a
      *  gesture can end comes through here, because two rules reading the same swipe
@@ -1817,13 +1828,10 @@ function Stage(props: StageProps) {
       // A HAND on the track takes over from a landing in flight. A coast never does:
       // cancelling the landing on every tail event is what made a swipe crawl for a
       // second and then jump back.
-      // A hand back on the glass is a new gesture and takes over any landing still
-      // in flight. This is the ONE thing that frees the track to be decided again.
-      if (!fed.read.momentum) {
-        stopGlide()
-        if (swipe === "decided") swipe = "idle"
-      }
       lastWheelAt = input.now
+      // Whatever this event turns out to be, and by whichever of the paths below it
+      // leaves, something checks afterwards that the track is not left in between.
+      armSettle()
       if (fed.read.start) {
         swipe = "idle"
         streamAxis = null
@@ -1866,6 +1874,11 @@ function Stage(props: StageProps) {
           e.preventDefault()
           return
         }
+        // A hand back on the glass, on THIS axis, past the point where the direction
+        // is known: only here is a landing in flight worth cutting short. Doing it
+        // any earlier let a stray event with no direction yet kill a landing and
+        // leave the track standing between two slides with nothing left to move it.
+        stopGlide()
         // Under the fingers: the browser scrolls, natively and one to one.
         swipe = "hand"
         return
@@ -2079,20 +2092,17 @@ function Stage(props: StageProps) {
     // detector could not read, a mouse wheel, a drag let go slowly). Same rule, so a
     // swipe means the same thing whichever way it ends: two rules is what the jank
     // between one gesture and the next actually was.
+    // THE INVARIANT, and the only question worth asking here: is the track standing
+    // between two slides with nothing left to move it? On a lock there is nothing to
+    // answer, which is what makes a landing's OWN `scrollend` harmless and why no
+    // second opinion can race the first. And a hand still on the glass is not an
+    // ending: `scrollend` fires in any lull between events, and deciding there lands
+    // the track mid-swipe and then fights the fingers that are still going.
     const onScrollSettled = () => {
-      if (S.ph !== "idle" || glide || swipe === "decided") return
-      // A hand still on the trackpad is not an ending. `scrollend` fires in any lull
-      // between events, and deciding there lands the track mid-swipe and then fights
-      // the fingers that are still going.
-      const quiet = performance.now() - lastWheelAt
-      if (quiet < wheelPhase.endsIn) {
-        clearTimeout(scrollTimer)
-        scrollTimer = window.setTimeout(
-          onScrollSettled,
-          wheelPhase.endsIn - quiet,
-        )
-        return
-      }
+      if (S.ph !== "idle" || glide) return
+      if (Math.abs(trackEl.scrollLeft - landedSlot() * slotW()) < 1) return
+      if (performance.now() - lastWheelAt < wheelPhase.endsIn)
+        return armSettle()
       landTrack("ended", 0)
     }
     const hasScrollEnd = "onscrollend" in window
