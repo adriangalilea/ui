@@ -947,10 +947,11 @@ function Stage(props: StageProps) {
         Math.max(0, Math.round(trackEl.scrollLeft / slotW())),
       )
     const commitIndex = (i: number) => {
-      // The next swipe is measured from the slide this one arrived at, and the track
-      // is free again: a mouse wheel never coasts, so nothing else would release it.
+      // The next swipe is measured from the slide this one arrived at. The gesture
+      // stays `decided` until a hand actually returns: releasing it here reopened
+      // the door just in time for this landing's OWN scrollend to walk through and
+      // decide the same swipe a second time.
       trackFrom = i
-      swipe = "idle"
       if (i === L.current.index) return
       aimAt(i)
       L.current.onIndex(i)
@@ -1808,7 +1809,12 @@ function Stage(props: StageProps) {
       // A HAND on the track takes over from a landing in flight. A coast never does:
       // cancelling the landing on every tail event is what made a swipe crawl for a
       // second and then jump back.
-      if (!fed.read.momentum) stopGlide()
+      // A hand back on the glass is a new gesture and takes over any landing still
+      // in flight. This is the ONE thing that frees the track to be decided again.
+      if (!fed.read.momentum) {
+        stopGlide()
+        if (swipe === "decided") swipe = "idle"
+      }
       lastWheelAt = input.now
       if (fed.read.start) {
         swipe = "idle"
@@ -1839,21 +1845,21 @@ function Stage(props: StageProps) {
           e.preventDefault()
           return
         }
-        // A coast with no gesture behind it is leftover, never the start of one.
-        if (fed.read.momentum) {
-          e.preventDefault()
-          return
-        }
-        swipe = "hand"
-        // The hand let go. Its momentum is ours from here: the browser's own tail is
-        // long and arrives flat, so it is cut off and the track is thrown to where
-        // that momentum was going, under the spring.
+        // The hand let go ON THIS EVENT, which is also the first event of the coast:
+        // this has to be asked BEFORE the coast is turned away, or the one moment
+        // worth deciding at is the one moment thrown out.
         if (fed.read.released) {
           e.preventDefault()
           landTrack("released", fed.read.velocity.x)
           return
         }
+        // A coast with no gesture behind it is leftover, never the start of one.
+        if (fed.read.momentum) {
+          e.preventDefault()
+          return
+        }
         // Under the fingers: the browser scrolls, natively and one to one.
+        swipe = "hand"
         return
       }
       e.preventDefault()
