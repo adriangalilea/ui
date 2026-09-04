@@ -392,14 +392,15 @@
   font: inherit;
 }
 
-/* The thumbnail strip: between the media and the caption, one row that scrolls
-   sideways with the active thumb kept centered. Monochrome: the alpha ladder alone
-   tells the active one. Gone while zoomed or under a hand, like the caption. */
+/* The thumbnail strip: under the bar, above the media, so the caption stays with
+   the image it explains. One row that scrolls sideways with the active thumb kept
+   centered. Monochrome: the alpha ladder alone tells the active one. Gone while
+   zoomed or under a hand, like the caption. */
 .ag-lb-strip {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 48px;
+  top: 48px;
   height: 72px;
   overflow-x: auto;
   overflow-y: hidden;

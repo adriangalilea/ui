@@ -192,7 +192,7 @@ const StateContext = React.createContext<State | null>(null)
 /** Reserved for the bar and the caption; consumer chrome is declared via data-obstructs. */
 const INSET_Y = 48
 const INSET_X = 16
-/** The thumbnail strip under the media: 48px thumbs in 12px of air. */
+/** The thumbnail strip under the bar, above the media: 48px thumbs in 12px of air. */
 const STRIP_H = 72
 const THUMB_H = 48
 const FRAME_GUTTER = 32
@@ -295,11 +295,13 @@ function measureBand(rail: boolean, strip: boolean): Band {
     : window.matchMedia(LG).matches
       ? { ...b, w: b.w - RAIL_W }
       : { ...b, h: b.h * (1 - RAIL_H) }
-  // The strip sits between the media and the caption: its height leaves the band.
+  // The strip sits under the bar, above the media: the caption stays glued to the
+  // image it explains. Its height leaves the band from the top.
+  const stripH = strip ? STRIP_H : 0
   return {
     ...lane,
-    top: lane.top + INSET_Y,
-    h: lane.h - 2 * INSET_Y - (strip ? STRIP_H : 0),
+    top: lane.top + INSET_Y + stripH,
+    h: lane.h - 2 * INSET_Y - stripH,
   }
 }
 
@@ -2303,7 +2305,7 @@ function Stage(props: StageProps) {
         data-lb-chrome
         inert={sheet || undefined}
         style={{
-          top: band.top - INSET_Y,
+          top: band.top - INSET_Y - (stripOn ? STRIP_H : 0),
           left: band.left,
           width: band.w,
           height: band.h + 2 * INSET_Y + (stripOn ? STRIP_H : 0),
