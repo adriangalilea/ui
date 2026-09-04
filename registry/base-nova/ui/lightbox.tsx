@@ -2547,8 +2547,22 @@ function Stage(props: StageProps) {
 function Debug({ lines }: { lines: string[] }) {
   const [errors, setErrors] = React.useState<string[]>([])
   React.useEffect(() => {
-    const onError = (e: ErrorEvent) =>
-      setErrors((x) => [...x.slice(-3), `error: ${e.message}`])
+    const onError = (e: ErrorEvent) => {
+      const stack = (e.error as Error | undefined)?.stack
+        ?.split("\n")
+        .slice(0, 3)
+        .map((l) =>
+          l
+            .trim()
+            .replace(/^.*\/_next\//, "")
+            .slice(-60),
+        )
+        .join(" ← ")
+      setErrors((x) => [
+        ...x.slice(-2),
+        `error: ${e.message} @ ${e.lineno}:${e.colno} ${stack ?? ""}`,
+      ])
+    }
     const onReject = (e: PromiseRejectionEvent) =>
       setErrors((x) => [...x.slice(-3), `rejection: ${String(e.reason)}`])
     window.addEventListener("error", onError)
