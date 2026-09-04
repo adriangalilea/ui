@@ -154,6 +154,9 @@ export interface LightboxProps {
   onRailChange?: (open: boolean) => void
   renderRail?: (entry: Entry, facts: Facts) => React.ReactNode
   onOpenChange?: (id: string | null) => void
+  /** A mono trace of pointer, gesture and dispatch decisions on the stage, for
+   *  device sign-off: what the engine saw and decided, as it happened. */
+  debug?: boolean
   /** What the dialog is announced as, after the count. */
   label?: string
   children: React.ReactNode
@@ -340,6 +343,7 @@ export function Lightbox({
   renderRail,
   onOpenChange,
   label = "media",
+  debug = false,
   children,
 }: LightboxProps) {
   assert(
@@ -460,6 +464,7 @@ export function Lightbox({
               onIndex={onIndex}
               onFacts={setFacts}
               onClosed={onClosed}
+              debug={debug}
             />
           )}
         </Dialog.Portal>
@@ -561,6 +566,7 @@ type StageProps = {
   onIndex: (index: number) => void
   onFacts: (f: Facts) => void
   onClosed: () => void
+  debug: boolean
 }
 
 type Pose = { x: number; y: number; s: number; p: number }
@@ -585,6 +591,7 @@ function Stage(props: StageProps) {
     onIndex,
     onFacts,
     onClosed,
+    debug,
   } = props
   const count = ids.length
   const id = ids[index] as string
@@ -613,6 +620,21 @@ function Stage(props: StageProps) {
   // Keyed by a counter so a repeated status is a fresh DOM mutation, announced again.
   const [announce, setAnnounce] = React.useState({ text: "", n: 0 })
   const [caption, setCaption] = React.useState<React.ReactNode>(null)
+  // The debug trace: the engine pushes lines, React sees them once per frame.
+  const [log, setLog] = React.useState<string[]>([])
+  const logRef = React.useRef<string[]>([])
+  const logRaf = React.useRef(0)
+  const pushTrace = React.useCallback((m: string) => {
+    logRef.current = [
+      ...logRef.current.slice(-15),
+      `${(performance.now() / 1000).toFixed(2)} ${m}`,
+    ]
+    if (logRaf.current === 0)
+      logRaf.current = requestAnimationFrame(() => {
+        logRaf.current = 0
+        setLog(logRef.current)
+      })
+  }, [])
 
   const fitted = fitOf(media, band)
   const natural = React.useMemo(() => naturalOf(media), [media])
@@ -692,6 +714,8 @@ function Stage(props: StageProps) {
     onRailChange,
     onIndex,
     onClosed,
+    debug,
+    trace: pushTrace,
   })
   live.current = {
     ids,
@@ -708,6 +732,8 @@ function Stage(props: StageProps) {
     onRailChange,
     onIndex,
     onClosed,
+    debug,
+    trace: pushTrace,
   }
 
   // The engine: one object of mutable clocks and gesture state, owned by this effect.
@@ -776,6 +802,14 @@ function Stage(props: StageProps) {
       carry: null as { x: number; v: number } | null,
       /** The page's own hash at open, restored on close; a `#lb=` hash is ours. */
       hash0: /^#lb=/.test(window.location.hash) ? "" : window.location.hash,
+    }
+    // The debug trace: a decision, stamped with the live pose. Nothing when off.
+    const trace = (m: string) => {
+      if (!L.current.debug) return
+      const { x, y, s, p } = pose.value
+      L.current.trace(
+        `${m} · s ${s.toFixed(2)} x ${Math.round(x)} y ${Math.round(y)} p ${p.toFixed(2)}`,
+      )
     }
 
     const layerEl = () => {
@@ -1270,6 +1304,7 @@ function Stage(props: StageProps) {
     }
 
     const dispatch: Dispatch = (id, at = { x: 0, y: 0 }) => {
+      trace(`dispatch ${id}`)
       const { layerSet, unavailable, entry, ids, index } = L.current
       const v = video.current
       switch (id) {
@@ -1507,7 +1542,12 @@ function Stage(props: StageProps) {
           type: e.pointerType,
         }
         if (G.mode === "pan") dropSlide()
-      }
+        trace(
+          `down ${e.pointerType} #${e.pointerId} ${G.mode} ${G.onMedia ? "media" : "backdrop"} ${
+            e.target instanceof Element ? e.target.tagName.toLowerCase() : "?"
+          }`,
+        )
+      } else trace(`down ${e.pointerType} #${e.pointerId} +finger`)
       G.pts.set(e.pointerId, { x: e.clientX, y: e.clientY })
       if (G.pts.size === 2 && kind !== "frame") {
         // The pinch is computed FROM the pose: a flight in progress (the y-to-x
@@ -1524,6 +1564,7 @@ function Stage(props: StageProps) {
         G.pinched = true
         G.axis = null
         G.samples = []
+        trace("pinch start")
       }
     }
     const onMove = (e: PointerEvent) => {
@@ -1585,6 +1626,7 @@ function Stage(props: StageProps) {
         Math.abs(my) > 3 * Math.abs(mx)
       ) {
         G.axis = "y"
+        trace("axis y")
         sync()
         dropSlide()
       } else if (
@@ -1596,6 +1638,7 @@ function Stage(props: StageProps) {
         // The image flies back to the grab while the track takes the hand; the
         // release re-aims the pose from S.pending, so this flight settles nothing.
         G.axis = "x"
+        trace("axis x (relock)")
         fly(G.grab, MACHINE, undefined, false)
       }
       if (G.axis === "y") {
@@ -1667,9 +1710,13 @@ function Stage(props: StageProps) {
       if (again) {
         clearTimeout(tapTimer)
         lastTap = null
+        trace("double tap")
         dispatch("zoom.toggle", at)
         return
       }
+      trace(
+        `tap ${lastTap ? `${Math.round(now - lastTap.t)}ms late` : "first"}`,
+      )
       lastTap = { x: e.clientX, y: e.clientY, t: now }
       if (pose.value.s <= 1.01) {
         clearTimeout(tapTimer)
@@ -1679,6 +1726,10 @@ function Stage(props: StageProps) {
         }, DOUBLE_TOUCH)
       }
       afterTap()
+    }
+    const onCancel = (e: PointerEvent) => {
+      trace(`cancel ${e.pointerType} #${e.pointerId}`)
+      onUp(e)
     }
     const onUp = (e: PointerEvent) => {
       if (!G?.pts.has(e.pointerId)) return
@@ -1702,6 +1753,11 @@ function Stage(props: StageProps) {
       // The release instant is the clock, not a sample: a hand held still before
       // lifting reads as stopped, a mouse button lifting late keeps the hand's speed.
       const v = velocity(g.samples, e.timeStamp)
+      trace(
+        `up ${e.type} ${g.mode} axis ${g.axis ?? "-"} pinched ${g.pinched} samples ${g.samples.length} travel ${Math.round(
+          Math.hypot(e.clientX - g.start.x, e.clientY - g.start.y),
+        )} v ${v.x.toFixed(2)},${v.y.toFixed(2)}`,
+      )
       const { fitted, band, ids, index, loop } = L.current
       if (g.pinched) {
         const s = pose.value.s
@@ -2126,7 +2182,7 @@ function Stage(props: StageProps) {
     rootEl.addEventListener("pointerdown", onDown)
     rootEl.addEventListener("pointermove", onMove)
     rootEl.addEventListener("pointerup", onUp)
-    rootEl.addEventListener("pointercancel", onUp)
+    rootEl.addEventListener("pointercancel", onCancel)
     rootEl.addEventListener("wheel", onWheel, { passive: false })
     document.addEventListener("keydown", onKey, { capture: true })
     document.addEventListener("keyup", onKeyUp, { capture: true })
@@ -2217,7 +2273,7 @@ function Stage(props: StageProps) {
       rootEl.removeEventListener("pointerdown", onDown)
       rootEl.removeEventListener("pointermove", onMove)
       rootEl.removeEventListener("pointerup", onUp)
-      rootEl.removeEventListener("pointercancel", onUp)
+      rootEl.removeEventListener("pointercancel", onCancel)
       rootEl.removeEventListener("wheel", onWheel)
       document.removeEventListener("keydown", onKey, { capture: true })
       document.removeEventListener("keyup", onKeyUp, { capture: true })
@@ -2437,6 +2493,7 @@ function Stage(props: StageProps) {
       <div className="ag-lb-live" aria-live="polite">
         <span key={announce.n}>{announce.text}</span>
       </div>
+      {debug && <Debug lines={log} />}
       {rail && renderRail && (
         <Rail inert={sheet} stage={stage}>
           <div className="ag-lb-facts">{factsLine(facts)}</div>
@@ -2473,6 +2530,29 @@ function Stage(props: StageProps) {
         </div>
       )}
     </Dialog.Popup>
+  )
+}
+
+/** The debug trace on the stage: the engine's decisions as they happened, plus any
+ *  error the page threw. Mono, read-only, for a device in hand. */
+function Debug({ lines }: { lines: string[] }) {
+  const [errors, setErrors] = React.useState<string[]>([])
+  React.useEffect(() => {
+    const onError = (e: ErrorEvent) =>
+      setErrors((x) => [...x.slice(-3), `error: ${e.message}`])
+    const onReject = (e: PromiseRejectionEvent) =>
+      setErrors((x) => [...x.slice(-3), `rejection: ${String(e.reason)}`])
+    window.addEventListener("error", onError)
+    window.addEventListener("unhandledrejection", onReject)
+    return () => {
+      window.removeEventListener("error", onError)
+      window.removeEventListener("unhandledrejection", onReject)
+    }
+  }, [])
+  return (
+    <pre className="ag-lb-debug" aria-hidden>
+      {[...errors, ...lines].join("\n") || "debug · waiting for a pointer"}
+    </pre>
   )
 }
 

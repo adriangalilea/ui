@@ -236,9 +236,15 @@ const DEVICES = [
 
 export default function Demo() {
   const [rail, setRail] = React.useState(false)
+  // ?debug on the url shows the engine's trace on the stage, for a device in hand.
+  const [debug, setDebug] = React.useState(false)
+  React.useEffect(() => {
+    setDebug(new URLSearchParams(window.location.search).has("debug"))
+  }, [])
   return (
     <Lightbox
       history
+      debug={debug}
       rail={rail}
       onRailChange={setRail}
       renderRail={(e, f) => <Rail entry={e} facts={f} />}

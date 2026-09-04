@@ -500,6 +500,26 @@
   pointer-events: none;
 }
 
+/* The debug trace, when a consumer asks for it. */
+.ag-lb-debug {
+  position: absolute;
+  left: 8px;
+  bottom: 56px;
+  z-index: 30;
+  max-width: calc(100% - 16px);
+  margin: 0;
+  padding: 6px 8px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: color-mix(in oklab, var(--background) 88%, transparent);
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.35;
+  white-space: pre;
+  pointer-events: none;
+}
+
 /* Reduced motion: the spring assumes its target at once (STILL), the scrim sits at
    rest, and nothing cross-fades. Gestures still follow the finger. */
 @media (prefers-reduced-motion: reduce) {
