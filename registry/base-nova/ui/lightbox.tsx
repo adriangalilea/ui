@@ -617,6 +617,12 @@ function Stage(props: StageProps) {
   const [fullscreen, setFullscreen] = React.useState(false)
   const [warm, setWarm] = React.useState(rest)
   const [dir, setDir] = React.useState<1 | -1>(1)
+  // Where the hand pointed, ahead of the stage: the slide takes ~200 ms and queued
+  // steps chain, so a strip and a counter that waited for `index` would trail a
+  // fast reader by slides. They are an INDEX, not the content, and must read as
+  // already there.
+  const [aim, setAim] = React.useState<number | null>(null)
+  const shown = aim ?? index
   // Keyed by a counter so a repeated status is a fresh DOM mutation, announced again.
   const [announce, setAnnounce] = React.useState({ text: "", n: 0 })
   const [caption, setCaption] = React.useState<React.ReactNode>(null)
@@ -790,6 +796,9 @@ function Stage(props: StageProps) {
       input: "pointer" as "pointer" | "key",
       /** Steps pressed while a slide was committing, taken one by one on settle. */
       queued: 0,
+      /** Where the accepted steps point, null when the stage is the truth. The
+       *  chrome reads it so the index it shows is never behind the hand. */
+      aimIndex: null as number | null,
       /** Where the slide in flight is going (track px). */
       slideTo: 0,
       /** The track's offset and velocity carried across an early re-index. */
@@ -1218,6 +1227,12 @@ function Stage(props: StageProps) {
       animate(sv ? sv.view : GONE, 0, MACHINE, vel, "exit")
     }
 
+    // The chrome's index, moved the moment a step is accepted.
+    const aimAt = (to: number) => {
+      S.aimIndex = to
+      setAim(to)
+    }
+
     // A step of one slides to the neighbour (wrapping under loop); a jump cuts.
     const stepTo = (to: number, tuning: Tuning, vx = 0) => {
       const { ids, loop, index } = L.current
@@ -1231,6 +1246,7 @@ function Stage(props: StageProps) {
       // slide from there. Two quick presses are one continuous motion.
       if (step && S.slideOn && S.onSlide) {
         S.queued += d
+        aimAt(((S.aimIndex ?? index) + d + n) % n)
         const cb = S.onSlide
         S.onSlide = null
         S.slideOn = false
@@ -1244,6 +1260,7 @@ function Stage(props: StageProps) {
       }
       const wrapped = step ? (index + d + n) % n : to
       assert(wrapped >= 0 && wrapped < n, `step to ${to} of ${n}`)
+      aimAt(wrapped)
       setDir(d > 0 ? 1 : -1)
       if (
         pose.value.s !== 1 ||
@@ -1737,6 +1754,9 @@ function Stage(props: StageProps) {
           case "grab":
             beginGesture()
             break
+          case "release":
+            endGesture()
+            break
           case "drop":
             dropSlide()
             break
@@ -1938,6 +1958,9 @@ function Stage(props: StageProps) {
     engine.current = {
       dispatch,
       settleIndex: () => {
+        // The stage caught up; a queued step below re-aims before this paints.
+        S.aimIndex = null
+        setAim(null)
         // A flight still running on the layer that just stopped being active (the
         // zoom-to-fit under a step) goes with it: the new layer starts at rest.
         if (S.flight) {
@@ -2178,13 +2201,13 @@ function Stage(props: StageProps) {
       >
         <div className="ag-lb-bar">
           <span className="ag-lb-counter">
-            {index + 1} / {count}
+            {shown + 1} / {count}
           </span>
           {status && <span className="ag-lb-status">{status}</span>}
           {stripOn ? (
             <Strip
               ids={ids}
-              index={index}
+              index={shown}
               entryOf={entryOf}
               jump={(to) => engine.current?.jump(to)}
             />
@@ -2328,14 +2351,15 @@ function Strip({
 }) {
   const nav = React.useRef<HTMLElement>(null)
   const active = React.useRef<HTMLButtonElement>(null)
+  // The active thumb is kept centered INSTANTLY. A smooth scroll is a second
+  // animation racing the slide, and a reader holding an arrow key outruns it: the
+  // strip spends the whole run behind, pointing at a slide that already left.
   // biome-ignore lint/correctness/useExhaustiveDependencies: the active thumb moves with index
   React.useLayoutEffect(() => {
     active.current?.scrollIntoView({
       block: "nearest",
       inline: "center",
-      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
-        ? "auto"
-        : "smooth",
+      behavior: "instant",
     })
   }, [index])
   // Edge fades only when the row is longer than the strip: a signal, never chrome.

@@ -284,6 +284,28 @@ export function wheelIsHand(ticks: readonly number[]): boolean {
   return !(a > b && b > c)
 }
 
+/** Under this a tick is a trackpad tail's last dregs or a mouse's rounding jitter,
+ *  never a push. */
+export const WHEEL_HAND_MIN = 6
+
+/** A session that already committed its step hears a NEW hand: a tick that is a real
+ *  push AND has climbed back to twice the floor its neighbours decayed to. Both
+ *  halves matter. An inertia tail decays toward zero, so it never climbs; a hand
+ *  still finishing the same swipe is DECELERATING, so it never climbs either and the
+ *  swipe stays one step; a second swipe starts from the tail's dregs and leaps.
+ *  Without this the tail owns the session until it dies, hiding the chrome and
+ *  swallowing every swipe made during it. */
+export function wheelReawoke(ticks: readonly number[]): boolean {
+  if (ticks.length < 3) return false
+  const recent = ticks.slice(-3)
+  const last = recent[recent.length - 1] as number
+  return (
+    last >= WHEEL_HAND_MIN &&
+    last >= 2 * Math.min(...recent) &&
+    wheelIsHand(recent)
+  )
+}
+
 export type Obstruction = { side: "top" | "bottom"; edge: number }
 
 /** The stage: the visual viewport minus declared chrome. `edge` is the obstruction's

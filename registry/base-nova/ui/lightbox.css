@@ -494,8 +494,11 @@
   clip-path: polygon(0 0, 100% 50%, 0 100%);
   filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.6));
 }
-.ag-lb[data-zoomed] .ag-lb-strip,
-.ag-lb[data-gesture] .ag-lb-strip {
+/* Zoomed, the strip gets out of the way. It does NOT hide for a gesture: a swipe
+   between slides IS navigation, and the index you are navigating by is the last
+   thing that should blink out. A dismiss drag takes it with the rest of the chrome
+   through --lb-p, which is where fading belongs. */
+.ag-lb[data-zoomed] .ag-lb-strip {
   opacity: 0;
   pointer-events: none;
 }

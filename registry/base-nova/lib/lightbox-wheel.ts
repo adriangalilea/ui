@@ -31,10 +31,14 @@ import {
   WHEEL_ZOOM,
   wheelIsHand,
   wheelPx,
+  wheelReawoke,
   zoomAt,
 } from "@/registry/base-nova/lib/lightbox-motion"
 
-export type WheelAxis = "zoom" | "pan" | "x" | "y" | "pass"
+/** `pass`: the step committed and the device's tail is being swallowed, but a new
+ *  hand can still take the session over. `dead`: the lightbox is leaving, nothing
+ *  that follows can mean anything. */
+export type WheelAxis = "zoom" | "pan" | "x" | "y" | "pass" | "dead"
 
 export type WheelSession = {
   axis: WheelAxis
@@ -82,6 +86,9 @@ export type WheelCtx = {
 export type WheelEffect =
   /** The hand took the image: the engine pauses flights and marks the gesture. */
   | { kind: "grab" }
+  /** The hand is done and what follows is only decay: the chrome comes back NOW,
+   *  not when the tail finally dies. */
+  | { kind: "release" }
   /** A committing slide is dropped (zoom, pan and dismiss leave the x axis). */
   | { kind: "drop" }
   | { kind: "pose"; pose: Pose }
@@ -127,15 +134,26 @@ export function wheelTick(
   input: WheelInput,
   ctx: WheelCtx,
 ): { session: WheelSession | null; effects: WheelEffect[] } {
+  const rawX = wheelPx(input.deltaX, input.deltaMode, ctx.band.h)
   const rawY = wheelPx(input.deltaY, input.deltaMode, ctx.band.h)
-  const dx = boundTick(wheelPx(input.deltaX, input.deltaMode, ctx.band.h))
+  const dx = boundTick(rawX)
   const dy = boundTick(rawY)
   const opened = session ? { session, effects: [] } : begin(input, ctx, dx, dy)
   if (!opened) return { session: null, effects: [] }
   const effects: WheelEffect[] = opened.effects
   let w = opened.session
   const axis = w.axis
-  if (axis === "pass") return { session: w, effects }
+  if (axis === "dead") return { session: w, effects }
+  if (axis === "pass") {
+    // The session committed and what follows is the device's inertia. It is
+    // swallowed, EXCEPT when the hand comes back: a tail only decays, so a tick
+    // that stops decaying is a new swipe and opens a fresh session on the spot.
+    const ticks = [...w.ticks, Math.max(Math.abs(rawX), Math.abs(rawY))].slice(
+      -3,
+    )
+    if (!wheelReawoke(ticks)) return { session: { ...w, ticks }, effects }
+    return wheelTick(null, input, ctx)
+  }
   w = { ...w, last: input.now, at: input.at }
   switch (axis) {
     case "zoom": {
@@ -170,8 +188,8 @@ export function wheelTick(
       const vx = velocity(w.samples, input.now).x
       const d = slideCommit(x, vx, ctx.band.w, ctx.can)
       if (d !== 0) {
-        w = { ...w, axis: "pass" }
-        effects.push({ kind: "step", d, vx })
+        w = { ...w, axis: "pass", ticks: [] }
+        effects.push({ kind: "release" }, { kind: "step", d, vx })
       }
       return { session: w, effects }
     }
@@ -202,8 +220,8 @@ export function wheelTick(
       w = { ...w, samples: [...w.samples, { x: 0, y: w.y, t: input.now }] }
       const v = velocity(w.samples, input.now)
       if (dismissCommit(w.y, v.y, ctx.vh)) {
-        w = { ...w, axis: "pass" }
-        effects.push({ kind: "exit", vy: v.y })
+        w = { ...w, axis: "dead" }
+        effects.push({ kind: "release" }, { kind: "exit", vy: v.y })
       }
       return { session: w, effects }
     }
@@ -235,6 +253,7 @@ export function wheelRelease(
   const v = velocity(w.samples, w.last)
   switch (w.axis) {
     case "pass":
+    case "dead":
       return { kind: "none" }
     case "zoom":
       return ctx.pose.s < 1 ? { kind: "fit" } : { kind: "zoom", at: w.at }

@@ -103,7 +103,10 @@ const run = (
 {
   const inputs = Array.from({ length: 12 }, (_, i) => tick(0, -60, i * 8))
   const r = run(inputs, ctx())
-  assert(r.session?.axis === "pass", "dismiss passed the tail")
+  assert(
+    r.session?.axis === "dead",
+    `the lightbox is leaving: ${r.session?.axis}`,
+  )
   const exits = r.effects.filter((e) => e.kind === "exit")
   assert(exits.length === 1, `one exit, got ${exits.length}`)
   const lastPose = r.effects.filter((e) => e.kind === "pose").length
@@ -149,7 +152,72 @@ console.log("inertia tail passed, hand accepted, dismiss commits once")
   const rel = wheelRelease(r.session as WheelSession, r.ctx)
   assert(rel.kind === "home", "slide home at silence")
 }
-console.log("slide follows, steps once, refuses without a neighbour")
+// A committed flick is followed by the device's inertia tail, which must be
+// swallowed (it would step again), while a SECOND deliberate swipe inside that tail
+// must be heard. The tail only decays; a hand pushes.
+{
+  const flick = Array.from({ length: 40 }, (_, i) => tick(30, 0, i * 8))
+  const r = run(flick, ctx())
+  assert(r.session?.axis === "pass", "committed, now passing")
+  // 600 ms of decaying tail: swallowed whole, no second step.
+  let s: WheelSession | null = r.session
+  let steps = 0
+  let t = 400
+  for (let d = 28; d > 1; d = d * 0.9, t += 8) {
+    const out = wheelTick(s, tick(d, 0, t), ctx())
+    s = out.session
+    steps += out.effects.filter((e) => e.kind === "step").length
+  }
+  assert(
+    steps === 0 && s?.axis === "pass",
+    `the tail is swallowed: ${steps} steps`,
+  )
+  // A real swipe arrives inside that tail: it leaps back over the dregs, so the
+  // very first tick of it opens a fresh session on the settled track.
+  const woke = wheelTick(s, tick(6, 0, t), ctx())
+  assert(
+    woke.session?.axis === "x",
+    `a new hand reawakens: ${woke.session?.axis}`,
+  )
+  assert(
+    woke.session?.slide0 === 0,
+    "the fresh session grabs the settled track",
+  )
+  assert(kinds(woke.effects) === "grab,slide", kinds(woke.effects))
+  // And it goes on to step, as a swipe should: the tail never cost the user a slide.
+  let again: WheelSession | null = woke.session
+  let stepped = 0
+  for (const [i, d] of [18, 30, 30, 30].entries()) {
+    const out = wheelTick(again, tick(d, 0, t + 8 + i * 8), ctx())
+    again = out.session
+    stepped += out.effects.filter((e) => e.kind === "step").length
+  }
+  assert(stepped === 1, `the second swipe steps once: ${stepped}`)
+}
+// The tail's last dregs never reawaken a session, however ragged they read.
+{
+  const passing: WheelSession = {
+    axis: "pass",
+    live: true,
+    ticks: [],
+    x: 0,
+    y: 0,
+    grab: atFit,
+    raw0: { x: 0, y: 0 },
+    slide0: 0,
+    zoom: 1,
+    samples: [],
+    last: 0,
+    at: { x: 0, y: 0 },
+  }
+  let s: WheelSession | null = passing
+  for (const [i, d] of [3, 1, 2, 1, 3, 2].entries())
+    s = wheelTick(s, tick(d, 0, i * 8), ctx()).session
+  assert(s?.axis === "pass", "dregs under the hand floor stay swallowed")
+}
+console.log(
+  "slide follows, steps once, refuses without a neighbour, tail swallowed",
+)
 
 // ctrl + wheel is zoom: up zooms in at the cursor, the accumulator rubbers past the
 // ceiling and under fit, and the release under fit springs to fit (a wheel never
