@@ -52,8 +52,14 @@
       "description": "content that arrives as it enters the viewport, once or scroll-tied, with optional stagger",
       "registryDependencies": ["@ag/tokens"],
       "files": [
-        { "path": "registry/base-nova/ui/reveal.tsx", "type": "registry:ui" },
-        { "path": "registry/base-nova/ui/reveal.css", "type": "registry:ui" }
+        {
+          "path": "registry/base-nova/ui/reveal.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/base-nova/ui/reveal.css",
+          "type": "registry:ui"
+        }
       ]
     },
     {
@@ -63,8 +69,14 @@
       "description": "viewport fogs at top and bottom, scroll-linked, never transitioned",
       "registryDependencies": ["@ag/tokens"],
       "files": [
-        { "path": "registry/base-nova/ui/scrims.tsx", "type": "registry:ui" },
-        { "path": "registry/base-nova/ui/scrims.css", "type": "registry:ui" }
+        {
+          "path": "registry/base-nova/ui/scrims.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/base-nova/ui/scrims.css",
+          "type": "registry:ui"
+        }
       ]
     },
     {
@@ -74,7 +86,10 @@
       "description": "a phosphor terminal that plays a session script live; the still renderer in session-dsl draws the same frame",
       "registryDependencies": ["@ag/tokens", "@ag/session-dsl"],
       "files": [
-        { "path": "registry/base-nova/ui/terminal.tsx", "type": "registry:ui" }
+        {
+          "path": "registry/base-nova/ui/terminal.tsx",
+          "type": "registry:ui"
+        }
       ]
     },
     {
@@ -104,6 +119,52 @@
         {
           "path": "registry/base-nova/blocks/telegram-summary/telegram-summary.tsx",
           "type": "registry:component"
+        }
+      ]
+    },
+    {
+      "name": "lightbox-motion",
+      "type": "registry:lib",
+      "title": "lightbox-motion",
+      "description": "the lightbox's math: fit, source view, zoom at a point, rubber, pan bounds, momentum, commit rules, the stage band and one interruptible spring. framework-free",
+      "files": [
+        {
+          "path": "registry/base-nova/lib/lightbox-motion.ts",
+          "type": "registry:lib"
+        }
+      ]
+    },
+    {
+      "name": "lightbox-actions",
+      "type": "registry:lib",
+      "title": "lightbox-actions",
+      "description": "the lightbox's action registry: keys, layers, resolve, the escape ladder; one table drives dispatch, buttons, aria-keyshortcuts and the ? sheet. framework-free",
+      "files": [
+        {
+          "path": "registry/base-nova/lib/lightbox-actions.ts",
+          "type": "registry:lib"
+        }
+      ]
+    },
+    {
+      "name": "lightbox",
+      "type": "registry:ui",
+      "title": "lightbox",
+      "description": "one interruptible spring over a view: the image leaves the page under its chrome and owns the screen; pinch, drag, swipe, wheel, every key in the table, deep links, a consumer rail",
+      "dependencies": ["@base-ui/react"],
+      "registryDependencies": [
+        "@ag/tokens",
+        "@ag/lightbox-motion",
+        "@ag/lightbox-actions"
+      ],
+      "files": [
+        {
+          "path": "registry/base-nova/ui/lightbox.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/base-nova/ui/lightbox.css",
+          "type": "registry:ui"
         }
       ]
     }

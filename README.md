@@ -23,5 +23,6 @@ Items live in `registry/base-nova/`, a demo beside each one, played at `/<item>`
 | `terminal` | a phosphor terminal playing a session live |
 | `telegram-chat` | a Telegram chat on an iPhone as a pure function of `{messages, progress}` |
 | `telegram-summary` | a link-summary bot's conversation on top of `telegram-chat` |
+| `lightbox` | one interruptible spring over a view: the image leaves the page under its chrome, gestures, every key in a table, deep links; `lightbox-motion` (the math) and `lightbox-actions` (the key table) beneath it |
 
 Base UI + Tailwind 4 + Next 16. MIT.
