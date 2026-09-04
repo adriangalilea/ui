@@ -51,7 +51,12 @@
 }
 
 /* Three layers: index − 1, index, index + 1. Only the active one moves under the
-   spring and wears the source clip, which uncurls with --lb-p. */
+   spring and wears the source corner and crop, written by the engine per frame:
+   border-radius (screen radius × (1 − p), divided by the scale so it reads in
+   screen px) and, only for a cover-cropped source, clip-path inset. The media
+   inside is its own compositor layer, so the layer's rounded overflow clip is
+   composited (CALayer cornerRadius in WebKit, a mask layer in Chromium) and a
+   scale or corner change never re-rasters the image. */
 .ag-lb-layer {
   position: absolute;
   box-sizing: border-box;
@@ -59,16 +64,6 @@
   background-size: cover;
   background-position: center;
   overflow: hidden;
-  --lb-clip-x: 0px;
-  --lb-clip-y: 0px;
-  --lb-radius: 0px;
-}
-.ag-lb-layer[data-active] {
-  clip-path: inset(
-    calc(var(--lb-clip-y) * (1 - var(--lb-p)))
-      calc(var(--lb-clip-x) * (1 - var(--lb-p))) round
-      calc(var(--lb-radius) * (1 - var(--lb-p)))
-  );
 }
 .ag-lb-layer > img,
 .ag-lb-layer > video,
@@ -78,6 +73,21 @@
   width: 100%;
   height: 100%;
   border: 0;
+}
+.ag-lb-layer[data-active] > img,
+.ag-lb-layer[data-active] > video {
+  will-change: transform;
+}
+
+/* The trigger after a close: focus returns to it. The ring follows the trigger's
+   own corner (give the trigger the radius, it is the source rect) and stays quiet
+   when the close came from a pointer or a finger. */
+[data-lightbox]:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+[data-lightbox][data-focus-quiet]:focus-visible {
+  outline: none;
 }
 /* The layer's padding IS the gutter (FRAME_GUTTER in the component); the frame
    fills the content box. */

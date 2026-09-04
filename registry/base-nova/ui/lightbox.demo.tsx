@@ -152,26 +152,61 @@ const PROSE: Entry = {
   },
 }
 
+// The rail is the consumer's inspector beside the media (loom's rail, videoclub's
+// details): whatever a site knows about the item and can do with it. This one shows
+// what a media library would: the name, the original, an action, and a field whose
+// keys stay in the field (arrows and letters never reach the lightbox from here).
 function Rail({ entry, facts }: { entry: Entry; facts: Facts }) {
+  const m = entry.media
+  const full =
+    m.kind === "image" || m.kind === "gif"
+      ? m.source.full
+      : m.kind === "video"
+        ? m.src
+        : null
   return (
     <div className="space-y-4 text-sm">
       <div className="font-mono text-xs lowercase text-muted-foreground">
-        {entry.id}
+        {entry.id} · {m.kind}
       </div>
-      <p className="text-foreground/55">
-        {facts.index + 1} of {facts.count}. Keys inside the rail belong to the
-        rail: type here, or tab to the slider and press the arrows.
-      </p>
-      <input
-        type="range"
-        className="w-full"
-        aria-label="a slider"
-        defaultValue={40}
-      />
-      <input
-        className="w-full rounded-lg border border-border bg-background px-2 py-1 text-sm"
-        placeholder="a note"
-      />
+      {entry.caption && (
+        <div className="text-foreground/80">{entry.caption}</div>
+      )}
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-mono text-xs lowercase">
+        <dt className="text-muted-foreground">position</dt>
+        <dd>
+          {facts.index + 1} of {facts.count}
+        </dd>
+        {facts.natural && (
+          <>
+            <dt className="text-muted-foreground">original</dt>
+            <dd>
+              {facts.natural.w} × {facts.natural.h}
+            </dd>
+          </>
+        )}
+        <dt className="text-muted-foreground">zoom</dt>
+        <dd>{Math.round(facts.zoom * 100)}%</dd>
+      </dl>
+      {full && (
+        <a
+          href={full}
+          download
+          className="inline-flex h-8 items-center rounded-lg border border-border px-3 font-mono text-xs lowercase text-foreground/80 hover:text-foreground"
+        >
+          download original
+        </a>
+      )}
+      <label className="block space-y-1">
+        <span className="font-mono text-xs lowercase text-muted-foreground">
+          notes
+        </span>
+        <textarea
+          rows={3}
+          className="w-full rounded-lg border border-border bg-background px-2 py-1 text-sm"
+          placeholder="type here; arrows and letters stay in the field"
+        />
+      </label>
     </div>
   )
 }
@@ -206,14 +241,24 @@ export default function Demo() {
                   key={e.id}
                   style={{ flex: `${aspect} 1 ${aspect * 160}px` }}
                 >
-                  <LightboxTrigger entry={e}>
+                  {/* The trigger carries the corner: it is the source rect the
+                      image flies from, and the focus ring follows it. */}
+                  <LightboxTrigger
+                    entry={e}
+                    render={
+                      <a
+                        href={source.full}
+                        className="block overflow-hidden rounded-lg"
+                      />
+                    }
+                  >
                     {/* biome-ignore lint/performance/noImgElement: the page's rendition */}
                     <img
                       src={source.src}
                       alt={alt}
                       width={source.width}
                       height={source.height}
-                      className="block h-auto w-full rounded-lg"
+                      className="block h-auto w-full"
                       style={{ aspectRatio: aspect }}
                       loading="lazy"
                     />
@@ -310,8 +355,9 @@ export default function Demo() {
           <p className="text-[0.9375rem] leading-relaxed text-foreground/80">
             The caption below is a plain figcaption. Nothing on the entry names
             it; the lightbox reads the sibling once at open. Click the image,
-            then press ? for the live key sheet, i for the rail, h to hide the
-            chrome.
+            then press ? for the live key sheet, i for the rail (the site's own
+            inspector beside the media: details, actions, a field), h to hide
+            the chrome.
           </p>
           <figure className="space-y-2">
             <LightboxTrigger entry={PROSE}>

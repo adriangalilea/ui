@@ -67,6 +67,7 @@ import {
   type Sample,
   type Size,
   SLIDE_GAP,
+  type SourceView,
   Spring,
   STILL,
   sharpScale,
@@ -711,6 +712,11 @@ function Stage(props: StageProps) {
       gesture: false,
       enterAt: performance.now(),
       popped: false,
+      /** The source crop (layer px) and its corner (screen px); zero when none. */
+      clip: { w: 0, h: 0 } as Size,
+      corner: 0,
+      /** What last drove the lightbox: a pointer-driven close leaves no focus ring. */
+      input: "pointer" as "pointer" | "key",
     }
 
     const layerEl = () => {
@@ -738,6 +744,17 @@ function Stage(props: StageProps) {
       const { x, y, s, p } = pose.value
       const el = layerEl()
       el.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${s})`
+      // The corner reads in SCREEN px, linear in p, so it neither balloons under the
+      // scale nor snaps at the end; a crop rides clip-path only while it exists.
+      const corner = (S.corner * (1 - p)) / s
+      const cropped = (S.clip.w > 0.5 || S.clip.h > 0.5) && p < 0.999
+      if (cropped) {
+        el.style.borderRadius = ""
+        el.style.clipPath = `inset(${S.clip.h * (1 - p)}px ${S.clip.w * (1 - p)}px round ${corner}px)`
+      } else {
+        el.style.clipPath = ""
+        el.style.borderRadius = corner > 0.05 ? `${corner}px` : ""
+      }
       const pv = String(p)
       el.style.setProperty("--lb-p", pv)
       scrimEl.style.setProperty("--lb-p", pv)
@@ -891,6 +908,19 @@ function Stage(props: StageProps) {
     // The one point where the history entry goes, after the fly has landed.
     const closed = () => {
       const { history, ids, index } = L.current
+      // Focus returns to the trigger. After a pointer or a finger the ring stays
+      // quiet until the next key; after a key it shows, the keyboard is the user.
+      const t = triggers.current.get(ids[index] as string)?.el
+      if (t && S.input === "pointer") {
+        t.dataset.focusQuiet = ""
+        document.addEventListener(
+          "keydown",
+          () => {
+            delete t.dataset.focusQuiet
+          },
+          { once: true, capture: true },
+        )
+      }
       if (history && !S.popped) {
         const state = window.history.state as { lb?: string } | null
         if (state?.lb === ids[index]) window.history.back()
@@ -903,10 +933,11 @@ function Stage(props: StageProps) {
       }
       L.current.onClosed()
     }
-    const clipVars = (el: HTMLElement, clip: Size, radius: number) => {
-      el.style.setProperty("--lb-clip-x", `${clip.w}px`)
-      el.style.setProperty("--lb-clip-y", `${clip.h}px`)
-      el.style.setProperty("--lb-radius", `${radius}px`)
+    // sourceView's radius is in layer px at the source scale; write() wants it in
+    // screen px, which is that times the source scale.
+    const clipVars = (sv: SourceView | null) => {
+      S.clip = sv ? sv.clip : { w: 0, h: 0 }
+      S.corner = sv ? sv.radius * sv.view.s : 0
     }
     const source = () => {
       const { ids, index, fitted, band } = L.current
@@ -921,9 +952,7 @@ function Stage(props: StageProps) {
     // card from the first frame, never at release.
     const clipToSource = () => {
       const sv = source()
-      const el = layerEl()
-      if (sv) clipVars(el, sv.clip, sv.radius)
-      else clipVars(el, { w: 0, h: 0 }, 0)
+      clipVars(sv)
       return sv
     }
     // A neighbour has no inline transform: whatever a spring left on a layer that
@@ -931,10 +960,9 @@ function Stage(props: StageProps) {
     const clearLayer = (el: HTMLDivElement) => {
       el.style.transform = ""
       el.style.willChange = ""
+      el.style.borderRadius = ""
+      el.style.clipPath = ""
       el.style.removeProperty("--lb-p")
-      el.style.removeProperty("--lb-clip-x")
-      el.style.removeProperty("--lb-clip-y")
-      el.style.removeProperty("--lb-radius")
     }
     // A committing slide is dropped by any gesture that takes the stage vertically:
     // the track springs home, the index never changes. One rule for pinch, exit and
@@ -1209,6 +1237,7 @@ function Stage(props: StageProps) {
       delete rootEl.dataset.gesture
     }
     const onDown = (e: PointerEvent) => {
+      S.input = "pointer"
       if (chromeTarget(e.target)) return
       if (e.pointerType === "mouse" && e.button !== 0) return
       const kind = L.current.entry.media.kind
@@ -1645,11 +1674,12 @@ function Stage(props: StageProps) {
     // belongs to the consumer's widgets and is not touched; keys typed into a field
     // elsewhere stay with the field; Space and Enter on a focused control activate
     // it; the default is prevented only for keys the registry dispatches. Tab is
-    // never stopped: Base UI's document guard keeps it inside the modal, and with
-    // nothing tabbable it stays on the stage. A key that is part of an IME
-    // composition belongs to the composition.
+    // walked by hand over the dialog's own tabbables: Safari's Tab visits only
+    // fields by default and would leave for the address bar, so the browser never
+    // gets it. A key that is part of an IME composition belongs to the composition.
     const onKey = (e: KeyboardEvent) => {
       if (e.isComposing || e.keyCode === 229) return
+      S.input = "key"
       const key = keyOf(e)
       const { layerSet, unavailable } = L.current
       const target = e.target instanceof Element ? e.target : null
@@ -1666,7 +1696,19 @@ function Stage(props: StageProps) {
         return
       }
       if (e.key === "Tab") {
-        if (!tabbable()) e.preventDefault()
+        e.preventDefault()
+        const list = tabbables()
+        if (list.length === 0) return
+        const i = list.indexOf(document.activeElement as HTMLElement)
+        const last = list.length - 1
+        const next = e.shiftKey
+          ? i <= 0
+            ? last
+            : i - 1
+          : i < 0 || i === last
+            ? 0
+            : i + 1
+        ;(list[next] as HTMLElement).focus()
         return
       }
       if (target?.closest(".ag-lb-rail")) return
@@ -1694,8 +1736,8 @@ function Stage(props: StageProps) {
       dispatch(a.id as ActionId)
     }
 
-    const tabbable = () =>
-      [...rootEl.querySelectorAll<HTMLElement>(TABBABLE)].some(
+    const tabbables = () =>
+      [...rootEl.querySelectorAll<HTMLElement>(TABBABLE)].filter(
         (el) =>
           !el.closest("[inert]") &&
           el.checkVisibility({ visibilityProperty: true }),
@@ -1782,7 +1824,7 @@ function Stage(props: StageProps) {
     if (!rest) {
       const sv = source()
       assert(sv, "open without a trigger rect")
-      clipVars(layerEl(), sv.clip, sv.radius)
+      clipVars(sv)
       pose.value = { ...sv.view, p: 0 }
       write()
       animate(FIT, 1, MACHINE, undefined, "enter")
