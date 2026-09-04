@@ -55,7 +55,6 @@ import {
   frameAt,
   GONE,
   HAND,
-  HURRY,
   INTENT,
   KEY_PAN,
   MACHINE,
@@ -772,6 +771,8 @@ function Stage(props: StageProps) {
       queued: 0,
       /** Where the slide in flight is going (track px). */
       slideTo: 0,
+      /** The track's offset and velocity carried across an early re-index. */
+      carry: null as { x: number; v: number } | null,
       /** The page's own hash at open, restored on close; a `#lb=` hash is ours. */
       hash0: /^#lb=/.test(window.location.hash) ? "" : window.location.hash,
     }
@@ -1195,12 +1196,17 @@ function Stage(props: StageProps) {
       const d = to - index
       if (d === 0) return
       const step = Math.abs(d) === 1
-      // A step while a slide is still committing never waits and is never lost: it
-      // queues, the slide in flight hurries, and settleIndex takes the next one the
-      // moment the index lands. Two quick presses move two.
+      // A step while a slide is still committing never waits, never stops, never
+      // gets lost: the index commits NOW where the track is, the track carries its
+      // offset and velocity across the re-index, and settleIndex starts the next
+      // slide from there. Two quick presses are one continuous motion.
       if (step && S.slideOn && S.onSlide) {
         S.queued += d
-        slide.aim({ x: S.slideTo }, tune(HURRY), { x: slide.vel.x })
+        const cb = S.onSlide
+        S.onSlide = null
+        S.slideOn = false
+        S.carry = { x: slide.value.x - S.slideTo, v: slide.vel.x }
+        cb()
         return
       }
       if (step) {
@@ -2076,7 +2082,11 @@ function Stage(props: StageProps) {
           S.flight = null
           S.pending = null
         }
-        slide.value = { x: 0 }
+        // An early re-index (a step pressed mid-slide) lands the track where the
+        // slide was, in the new index's frame; a settled one lands it at rest.
+        const carry = S.carry
+        S.carry = null
+        slide.value = { x: carry ? carry.x : 0 }
         writeSlide()
         pose.value = { ...FIT, p: 1 }
         pose.vel = ZERO
@@ -2087,12 +2097,13 @@ function Stage(props: StageProps) {
         write()
         upgradeSizes()
         announceSlide()
-        // The next queued step, now that the index is the one it counts from.
+        // The next queued step, now that the index is the one it counts from,
+        // continuing with the velocity the track had.
         if (S.queued !== 0) {
           const d = Math.sign(S.queued)
           S.queued -= d
-          stepTo(L.current.index + d, QUICK)
-        }
+          stepTo(L.current.index + d, QUICK, carry ? carry.v : 0)
+        } else if (carry) animateSlide(0, QUICK, carry.v)
       },
       jump: (to) => stepTo(to, QUICK),
       refit: (prev) => {
