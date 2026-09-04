@@ -13,15 +13,16 @@
   initial-value: 0;
 }
 /* The active layer's source crop in layer px (sourceView's clip), set by the engine
-   with the pose; zero when the trigger's aspect matches the media's. */
+   on the layer with the pose; zero when the trigger's aspect matches the media's.
+   Inherited on purpose: the crop window and the media box below the layer read it. */
 @property --lb-clip-w {
   syntax: "<length>";
-  inherits: false;
+  inherits: true;
   initial-value: 0px;
 }
 @property --lb-clip-h {
   syntax: "<length>";
-  inherits: false;
+  inherits: true;
   initial-value: 0px;
 }
 
