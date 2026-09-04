@@ -202,6 +202,8 @@ const INSET_Y = 48
 const INSET_X = 16
 /** Thumbnails ride the bar, between the counter and the buttons: 32px tall. */
 const THUMB_H = 32
+const clamp = (v: number, lo: number, hi: number) =>
+  Math.min(hi, Math.max(lo, v))
 /** Slides each side of the one on screen that hold decoded media. Two, not one: a
  *  throw crosses its neighbour and is already looking at the next one by the time
  *  anything commits. */
@@ -1676,6 +1678,8 @@ function Stage(props: StageProps) {
     let wheelPhase = phaseStart()
     /** The hand let go on the track and we took its momentum over. */
     let coasting = false
+    /** The slide this gesture started from. */
+    let trackFrom = 0
     const wheelCtx = (): WheelCtx => {
       const { fitted, band, zoomMax, entry } = L.current
       return {
@@ -1751,6 +1755,9 @@ function Stage(props: StageProps) {
         stopGlide()
         coasting = false
       }
+      // Where this gesture began. A swipe is counted from here, not from wherever
+      // the free scroll had reached by the time the hand let go.
+      if (fed.read.start) trackFrom = landedSlot()
       const guarded = performance.now() - S.enterAt < WHEEL_GUARD
       if (!guarded && !G && wheelIsTrack(input, ctx)) {
         // The hand let go. Its momentum is ours from here: the browser's own tail is
@@ -1759,16 +1766,26 @@ function Stage(props: StageProps) {
         if (fed.read.released) {
           coasting = true
           e.preventDefault()
-          const from = trackEl.scrollLeft
-          const flung = project(from, fed.read.velocity.x)
-          const to = Math.min(
-            L.current.ids.length - 1,
-            Math.max(0, Math.round(flung / slotW())),
+          const w = slotW()
+          const at = trackEl.scrollLeft / w
+          // Momentum breaks the TIE, it does not add slides. Capped at half a slot,
+          // it can only decide whether the one you are over is the one you get, so
+          // the count is the distance your hand covered and nothing else.
+          const carried = clamp(project(0, fed.read.velocity.x) / w, -0.5, 0.5)
+          // And one gesture pages ONE, measured from where it began: macOS
+          // accelerates a flick into more than a slide's worth of pixels, so free
+          // scrolling alone would skip. A hand that deliberately drags past a slide
+          // and a half is not flicking, and keeps everything it travelled.
+          const far = Math.abs(at - trackFrom) > 1.5
+          const to = clamp(
+            Math.round(at + carried),
+            far ? 0 : trackFrom - 1,
+            far ? L.current.ids.length - 1 : trackFrom + 1,
           )
           trace(
-            `released at ${(from / slotW()).toFixed(2)} v ${fed.read.velocity.x.toFixed(2)} → ${to}`,
+            `released ${trackFrom}→${at.toFixed(2)} v ${fed.read.velocity.x.toFixed(2)}${far ? " far" : ""} → ${to}`,
           )
-          glideTo(to, fed.read.velocity.x)
+          glideTo(clamp(to, 0, L.current.ids.length - 1), fed.read.velocity.x)
           return
         }
         // Still coasting after that: the browser must not add to it.
