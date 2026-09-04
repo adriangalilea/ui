@@ -155,8 +155,9 @@
 .ag-lb[data-kind="image"] .ag-lb-layer[data-active] {
   cursor: zoom-in;
 }
+/* The cursor says what a click does: in at fit, out when zoomed; a drag pans. */
 .ag-lb[data-kind="image"][data-zoomed] .ag-lb-layer[data-active] {
-  cursor: grab;
+  cursor: zoom-out;
 }
 .ag-lb[data-gesture][data-zoomed] .ag-lb-layer[data-active] {
   cursor: grabbing;

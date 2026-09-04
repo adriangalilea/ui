@@ -1620,18 +1620,32 @@ function Stage(props: StageProps) {
       const now = e.timeStamp
       const window_ = G.type === "touch" ? DOUBLE_TOUCH : DOUBLE_MOUSE
       const at = rel(e.clientX, e.clientY)
-      if (
-        lastTap &&
+      const again =
+        lastTap !== null &&
         now - lastTap.t < window_ &&
         Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < DOUBLE_TRAVEL
-      ) {
+      // A pointer with a cursor is told what a click does (zoom-in, zoom-out): one
+      // click toggles the zoom at the point. The second click of a double click is
+      // the same intent, already served, so it settles and does nothing more.
+      if (G.type !== "touch") {
+        if (again) {
+          lastTap = null
+          afterTap()
+          return
+        }
+        lastTap = { x: e.clientX, y: e.clientY, t: now }
+        dispatch("zoom.toggle", at)
+        return
+      }
+      // A finger has no cursor: one tap toggles the chrome, two toggle the zoom.
+      if (again) {
         clearTimeout(tapTimer)
         lastTap = null
         dispatch("zoom.toggle", at)
         return
       }
       lastTap = { x: e.clientX, y: e.clientY, t: now }
-      if (G.type === "touch" && pose.value.s <= 1.01) {
+      if (pose.value.s <= 1.01) {
         clearTimeout(tapTimer)
         tapTimer = window.setTimeout(() => {
           lastTap = null
