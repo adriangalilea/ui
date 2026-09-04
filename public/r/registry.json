@@ -9,7 +9,11 @@
       "title": "tokens",
       "description": "the studio's voice on top of shadcn's neutral theme: three type voices, semantic tones, the alpha ladder, motion. import it once from globals.css",
       "files": [
-        { "path": "registry/base-nova/theme/tokens.css", "type": "registry:file", "target": "app/tokens.css" }
+        {
+          "path": "registry/base-nova/theme/tokens.css",
+          "type": "registry:file",
+          "target": "app/tokens.css"
+        }
       ]
     },
     {
@@ -17,7 +21,12 @@
       "type": "registry:lib",
       "title": "session-dsl",
       "description": "the terminal-session script: parse, palette, timeline, and the SVG still renderer. framework-free",
-      "files": [{ "path": "registry/base-nova/lib/session-dsl.ts", "type": "registry:lib" }]
+      "files": [
+        {
+          "path": "registry/base-nova/lib/session-dsl.ts",
+          "type": "registry:lib"
+        }
+      ]
     },
     {
       "name": "scroll-stage",
@@ -26,8 +35,14 @@
       "description": "the pinned stage: a tall track, a sticky stage, --stage-p driven by CSS scroll-driven animation, acts as checkpoints",
       "registryDependencies": ["@ag/tokens"],
       "files": [
-        { "path": "registry/base-nova/ui/scroll-stage.tsx", "type": "registry:ui" },
-        { "path": "registry/base-nova/ui/scroll-stage.css", "type": "registry:ui" }
+        {
+          "path": "registry/base-nova/ui/scroll-stage.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/base-nova/ui/scroll-stage.css",
+          "type": "registry:ui"
+        }
       ]
     },
     {
@@ -58,7 +73,9 @@
       "title": "terminal",
       "description": "a phosphor terminal that plays a session script live; the still renderer in session-dsl draws the same frame",
       "registryDependencies": ["@ag/tokens", "@ag/session-dsl"],
-      "files": [{ "path": "registry/base-nova/ui/terminal.tsx", "type": "registry:ui" }]
+      "files": [
+        { "path": "registry/base-nova/ui/terminal.tsx", "type": "registry:ui" }
+      ]
     },
     {
       "name": "telegram-chat",
@@ -67,8 +84,14 @@
       "description": "a Telegram chat on an iPhone as a pure function of {messages, progress}: peer, bot and group shapes, streaming bodies, reactions, afterlife",
       "registryDependencies": ["@ag/tokens"],
       "files": [
-        { "path": "registry/base-nova/ui/telegram-chat.tsx", "type": "registry:ui" },
-        { "path": "registry/base-nova/ui/telegram-chat.css", "type": "registry:ui" }
+        {
+          "path": "registry/base-nova/ui/telegram-chat.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/base-nova/ui/telegram-chat.css",
+          "type": "registry:ui"
+        }
       ]
     },
     {
@@ -78,7 +101,10 @@
       "description": "a link-summary bot's conversation (intro, link, mention, streamed answer) built on telegram-chat",
       "registryDependencies": ["@ag/telegram-chat"],
       "files": [
-        { "path": "registry/base-nova/blocks/telegram-summary/telegram-summary.tsx", "type": "registry:component" }
+        {
+          "path": "registry/base-nova/blocks/telegram-summary/telegram-summary.tsx",
+          "type": "registry:component"
+        }
       ]
     }
   ]
