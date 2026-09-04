@@ -67,7 +67,12 @@ import {
   clampPan,
   FIT,
   fit,
+  GLIDE,
+  GLIDE_ENTRY,
+  GLIDE_MAX,
+  GLIDE_MIN,
   GONE,
+  glide as glide_,
   HAND,
   MACHINE,
   neighbours,
@@ -962,16 +967,6 @@ function Stage(props: StageProps) {
       cancelAnimationFrame(glide)
       glide = 0
     }
-    /** A landing that CONTINUES the throw instead of restarting it. A critically
-     *  damped spring covers its distance at about ω·d, so handing it a speed the
-     *  frequency does not match is felt as a shove: the track decelerates with the
-     *  device, then jumps. Matching ω to v/d makes the handover invisible. Clamped
-     *  at both ends, because the true match would take a second to finish a long
-     *  throw, and forever to close a short gap left by a slow release. */
-    const landing = (d: number, v: number): Tuning => ({
-      zeta: 1,
-      f: clamp((Math.abs(v) / Math.max(1, Math.abs(d))) * (1000 / TAU), 2.5, 7),
-    })
     /** Where a swipe means to arrive, and the ONE place that is decided. Every way a
      *  gesture can end comes through here, because two rules reading the same swipe
      *  differently is felt as the thing not being attached to the hand. */
@@ -996,38 +991,51 @@ function Stage(props: StageProps) {
       const far = Math.abs(at - trackFrom) > 1.5
       if (!far) n = clamp(n, -1, 1)
       const to = clamp(trackFrom + n, 0, L.current.ids.length - 1)
-      const tune = landing(to * w - trackEl.scrollLeft, v)
       trace(
-        `${why} ${trackFrom}→${at.toFixed(2)} v ${v.toFixed(2)} sum ${total.toFixed(2)}${far ? " far" : ""} → ${to} f ${tune.f.toFixed(1)}`,
+        `${why} ${trackFrom}→${at.toFixed(2)} v ${v.toFixed(2)} sum ${total.toFixed(2)}${far ? " far" : ""} → ${to}`,
       )
-      glideTo(to, v, tune)
+      glideTo(to, v)
     }
-    /** The pull into the slide, under the same spring the image itself moves with.
-     *  `vx` is the speed the throw still had when it was handed over. */
-    const glideTo = (i: number, vx = 0, tuning?: Tuning) => {
+    /** The slide pulling the track into itself. `vx` is the speed the throw still had
+     *  when it was handed over; with none, this ACCELERATES into place, which is what
+     *  a magnet does and what a spring, decaying from the first frame, never can. */
+    const glideTo = (i: number, vx = 0) => {
       stopGlide()
       // Where the track is HEADING is where the next gesture counts from. Taking it
       // from the live position instead means a swipe begun mid-landing measures from
       // whatever slide it happened to be flying over.
       trackFrom = i
       const to = i * slotW()
-      if (reduced || Math.abs(trackEl.scrollLeft - to) < 0.5) {
+      const from = trackEl.scrollLeft
+      const d = to - from
+      if (reduced || Math.abs(d) < 0.5) {
         trackEl.scrollLeft = to
         commitIndex(i)
         return
       }
-      const s = new Spring<"x">({ x: trackEl.scrollLeft }, { x: 0.5 })
-      s.aim({ x: to }, tuning ?? QUICK, { x: vx })
-      let last = performance.now()
+      // Far to go, longer to go it; but bounded, and never linear in the distance,
+      // or crossing three slides would take three times as long as crossing one.
+      const ms = clamp(
+        GLIDE * Math.sqrt(Math.abs(d) / slotW()),
+        GLIDE_MIN,
+        GLIDE_MAX,
+      )
+      const m0 = clamp(
+        vx * ms,
+        -GLIDE_ENTRY * Math.abs(d),
+        GLIDE_ENTRY * Math.abs(d),
+      )
+      const t0 = performance.now()
       const step = (t: number) => {
-        const done = s.step(t - last)
-        last = t
-        trackEl.scrollLeft = s.value.x
-        if (!done) {
+        const s = Math.min(1, (t - t0) / ms)
+        trackEl.scrollLeft = from + glide_(d, m0, s)
+        if (s < 1) {
           glide = requestAnimationFrame(step)
           return
         }
+        // Exactly home, at a time that was known before it started.
         glide = 0
+        trackEl.scrollLeft = to
         commitIndex(i)
       }
       glide = requestAnimationFrame(step)

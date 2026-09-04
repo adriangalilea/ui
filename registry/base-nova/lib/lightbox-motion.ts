@@ -52,6 +52,19 @@ export const TAP_TRAVEL = 4
 export const DISMISS_COMMIT = 0.4
 export const PINCH_CLOSE = 0.75
 export const PINCH_PASSED = 1.067
+/** How long a landing takes for one slide's worth of distance, scaled by the square
+ *  root of how far it actually has to go, and bounded. A landing ARRIVES: it is the
+ *  one motion here with a known end, because a spring only ever approaches its
+ *  target and the tail of that approach is the crawl that reads as the track slowing
+ *  down forever a few px short of home. */
+export const GLIDE = 300
+export const GLIDE_MIN = 180
+export const GLIDE_MAX = 420
+/** The steepest entry a landing will take from the speed handed to it, as a multiple
+ *  of the average speed it needs. Past this a fast throw would sail through the slide
+ *  and come back for it. */
+export const GLIDE_ENTRY = 3
+
 export const SLIDE_VELOCITY = 0.5
 /** Share of a slide a swipe must cover to arrive at the next one. Rounding alone
  *  would ask for half, which is a shove; a quarter is a swipe. */
@@ -311,6 +324,22 @@ export function stageBand(vv: Band, blocks: readonly Obstruction[]): Band {
   }
   assert(bottom > top, "obstructions cover the whole viewport")
   return { top, left: vv.left, w: vv.w, h: bottom - top }
+}
+
+/** The position along a landing, `s` from 0 to 1. A cubic Hermite between where the
+ *  track is (moving at the speed it was handed) and where it belongs (at rest).
+ *
+ *  This is the shape a magnet has and a spring does not. Handed nothing, it
+ *  ACCELERATES to the halfway point and eases in: the slide pulls the track toward
+ *  itself, which is what a snap point is supposed to feel like. Handed a fast throw,
+ *  it continues at that speed and eases out, so the handover is invisible. Either
+ *  way it is exactly home at s = 1, with no asymptote to crawl down.
+ *
+ *  `m0` is the entry tangent: the speed at s = 0 in the same units as `d`. */
+export function glide(d: number, m0: number, s: number): number {
+  const s2 = s * s
+  const s3 = s2 * s
+  return (s3 - 2 * s2 + s) * m0 + (3 * s2 - 2 * s3) * d
 }
 
 export type Axes<K extends string> = Readonly<Record<K, number>>

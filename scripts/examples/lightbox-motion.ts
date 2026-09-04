@@ -6,6 +6,7 @@ import {
   clampPan,
   FLIGHT_DT,
   frameAt,
+  glide,
   HAND,
   MACHINE,
   neighbours,
@@ -202,6 +203,32 @@ for (const v of [-79, -50, 0, 37, 50, 120]) {
     assert(give < prev && give > 0, `the give must keep shrinking at ${e}`)
     prev = give
   }
+}
+// The landing is a MAGNET, not a spring. Handed nothing it accelerates into place,
+// fastest halfway, which is the shape a snap point is supposed to have; handed a
+// throw it continues at that speed and eases out. Both arrive exactly, at s = 1.
+{
+  const at = (m0: number, s: number) => glide(1000, m0, s)
+  const speed = (m0: number, s: number) => at(m0, s + 0.01) - at(m0, s)
+  assert(
+    at(0, 0) === 0 && Math.abs(at(0, 1) - 1000) < 1e-9,
+    "leaves and arrives",
+  )
+  assert(
+    speed(0, 0.5) > speed(0, 0.05) && speed(0, 0.5) > speed(0, 0.95),
+    "from rest it is fastest in the middle: it is pulled in, not eased down",
+  )
+  assert(speed(0, 0.05) > 0, "and it never stalls on the way")
+  // Handed a fast throw it does not shove: it leaves at exactly that speed.
+  const thrown = 2500
+  const entry = (glide(1000, thrown, 1e-6) - 0) / 1e-6
+  assert(
+    Math.abs(entry - thrown) / thrown < 0.01,
+    `the entry speed IS the speed it was handed: ${entry.toFixed(0)}`,
+  )
+  assert(speed(thrown, 0.9) < speed(thrown, 0.1), "and it eases out from there")
+  for (const m0 of [0, 500, 2500, -800])
+    assert(Math.abs(glide(1000, m0, 1) - 1000) < 1e-9, `arrives whatever ${m0}`)
 }
 assert(
   slideCommit(-10, -0.8, 800, { prev: true, next: true }) === 1,
