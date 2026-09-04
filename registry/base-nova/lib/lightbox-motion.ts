@@ -52,37 +52,16 @@ export const TAP_TRAVEL = 4
 export const DISMISS_COMMIT = 0.4
 export const PINCH_CLOSE = 0.75
 export const PINCH_PASSED = 1.067
-/** How long a landing takes for one slide's worth of distance, scaled by the square
- *  root of how far it actually has to go, and bounded. A landing ARRIVES: it is the
- *  one motion here with a known end, because a spring only ever approaches its
- *  target and the tail of that approach is the crawl that reads as the track slowing
- *  down forever a few px short of home. */
+/** How long a STEP takes for one slide's worth of distance, scaled by the square root
+ *  of how far it actually has to go, and bounded. Only moves the reader asked for by
+ *  name come through here (a key, a button, a thumbnail): a gesture is the browser's
+ *  from the first pixel to the last, snap point included. A step ARRIVES, which a
+ *  spring never does: the tail of an approach is a crawl a few px short of home. */
 export const GLIDE = 300
 export const GLIDE_MIN = 180
 export const GLIDE_MAX = 420
-/** The steepest entry a landing will take from the speed handed to it, as a multiple
- *  of the average speed it needs. Past this a fast throw would sail through the slide
- *  and come back for it. */
-export const GLIDE_ENTRY = 3
-
-/** The track moves FASTER than the fingers, and how much faster depends on where it
- *  is between two slides. Leaving, it is at DRAG_GAIN_MAX: a slide is a whole screen
- *  wide, and 1:1 means dragging a whole screen to see the next one, which is the
- *  "slow, slow, slow" of it. Arriving, it is back to 1:1, so the last part of the
- *  move is precise and the reader can see what they are choosing. */
-export const DRAG_GAIN_MAX = 2.6
-export const DRAG_GAIN_MIN = 1
-
-/** `travelled` is how far the gesture has come, in slides. */
-export function dragGain(travelled: number): number {
-  const into = Math.abs(travelled) % 1
-  return DRAG_GAIN_MAX - (DRAG_GAIN_MAX - DRAG_GAIN_MIN) * into
-}
 
 export const SLIDE_VELOCITY = 0.5
-/** Share of a slide a swipe must cover to arrive at the next one. Rounding alone
- *  would ask for half, which is a shove; a quarter is a swipe. */
-export const SLIDE_TRAVEL = 0.25
 /** A held arrow pans at this speed (px per ms); two arrows add up to a diagonal. */
 export const KEY_PAN_SPEED = 0.9
 /** A held + or - doubles (halves) the zoom every this many ms. */
@@ -340,20 +319,16 @@ export function stageBand(vv: Band, blocks: readonly Obstruction[]): Band {
   return { top, left: vv.left, w: vv.w, h: bottom - top }
 }
 
-/** The position along a landing, `s` from 0 to 1. A cubic Hermite between where the
- *  track is (moving at the speed it was handed) and where it belongs (at rest).
+/** The position along a step, `s` from 0 to 1. A cubic Hermite from rest to rest.
  *
- *  This is the shape a magnet has and a spring does not. Handed nothing, it
- *  ACCELERATES to the halfway point and eases in: the slide pulls the track toward
- *  itself, which is what a snap point is supposed to feel like. Handed a fast throw,
- *  it continues at that speed and eases out, so the handover is invisible. Either
- *  way it is exactly home at s = 1, with no asymptote to crawl down.
- *
- *  `m0` is the entry tangent: the speed at s = 0 in the same units as `d`. */
-export function glide(d: number, m0: number, s: number): number {
+ *  This is the shape a magnet has and a spring does not: it ACCELERATES to the
+ *  halfway point and eases in, so the slide pulls the track toward itself, and it is
+ *  exactly home at s = 1 with no asymptote to crawl down. It starts from rest because
+ *  the only moves it serves are the ones the reader named; a gesture has speed to
+ *  hand over, and a gesture never reaches here. */
+export function glide(d: number, s: number): number {
   const s2 = s * s
-  const s3 = s2 * s
-  return (s3 - 2 * s2 + s) * m0 + (3 * s2 - 2 * s3) * d
+  return (3 * s2 - 2 * s2 * s) * d
 }
 
 export type Axes<K extends string> = Readonly<Record<K, number>>

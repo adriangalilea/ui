@@ -4,9 +4,6 @@ import {
   assert,
   COAST,
   clampPan,
-  DRAG_GAIN_MAX,
-  DRAG_GAIN_MIN,
-  dragGain,
   FLIGHT_DT,
   frameAt,
   glide,
@@ -207,47 +204,24 @@ for (const v of [-79, -50, 0, 37, 50, 120]) {
     prev = give
   }
 }
-// The landing is a MAGNET, not a spring. Handed nothing it accelerates into place,
-// fastest halfway, which is the shape a snap point is supposed to have; handed a
-// throw it continues at that speed and eases out. Both arrive exactly, at s = 1.
+// A STEP is a magnet, not a spring: it accelerates into place, fastest halfway,
+// which is the shape a snap point is supposed to have, and it arrives exactly at
+// s = 1. Only named moves come through here, so it always starts from rest.
 {
-  const at = (m0: number, s: number) => glide(1000, m0, s)
-  const speed = (m0: number, s: number) => at(m0, s + 0.01) - at(m0, s)
+  const at = (s: number) => glide(1000, s)
+  const speed = (s: number) => at(s + 0.01) - at(s)
+  assert(at(0) === 0 && Math.abs(at(1) - 1000) < 1e-9, "leaves and arrives")
   assert(
-    at(0, 0) === 0 && Math.abs(at(0, 1) - 1000) < 1e-9,
-    "leaves and arrives",
+    speed(0.5) > speed(0.05) && speed(0.5) > speed(0.95),
+    "fastest in the middle: it is pulled in, not eased down",
   )
-  assert(
-    speed(0, 0.5) > speed(0, 0.05) && speed(0, 0.5) > speed(0, 0.95),
-    "from rest it is fastest in the middle: it is pulled in, not eased down",
-  )
-  assert(speed(0, 0.05) > 0, "and it never stalls on the way")
-  // Handed a fast throw it does not shove: it leaves at exactly that speed.
-  const thrown = 2500
-  const entry = (glide(1000, thrown, 1e-6) - 0) / 1e-6
-  assert(
-    Math.abs(entry - thrown) / thrown < 0.01,
-    `the entry speed IS the speed it was handed: ${entry.toFixed(0)}`,
-  )
-  assert(speed(thrown, 0.9) < speed(thrown, 0.1), "and it eases out from there")
-  for (const m0 of [0, 500, 2500, -800])
-    assert(Math.abs(glide(1000, m0, 1) - 1000) < 1e-9, `arrives whatever ${m0}`)
-}
-// The drag leaves fast and arrives slow, both ways, every slide.
-{
-  assert(dragGain(0) === DRAG_GAIN_MAX, "it leaves at full gain")
-  assert(Math.abs(dragGain(0.999) - DRAG_GAIN_MIN) < 0.01, "and arrives at 1:1")
-  assert(dragGain(-0.25) === dragGain(0.25), "the same in both directions")
-  assert(
-    dragGain(3.25) === dragGain(0.25),
-    "and on every slide after the first",
-  )
-  let prev = Number.POSITIVE_INFINITY
-  for (let p = 0; p < 1; p += 0.05) {
-    assert(dragGain(p) <= prev, `the gain only ever eases off, at ${p}`)
-    prev = dragGain(p)
-  }
-  assert(DRAG_GAIN_MIN >= 1, "and the track never lags the fingers")
+  assert(speed(0.05) > 0, "and it never stalls on the way")
+  // The entry tangent is zero: it starts from rest, so a step never begins with a
+  // shove. Measured as speed per unit s, against the 1000 it averages over the move.
+  const entry = glide(1000, 1e-6) / 1e-6
+  assert(entry < 1, `it leaves from rest, not with a shove: ${entry}`)
+  for (const d of [1000, -1000, 3200])
+    assert(Math.abs(glide(d, 1) - d) < 1e-9, `arrives exactly, over ${d}`)
 }
 assert(
   slideCommit(-10, -0.8, 800, { prev: true, next: true }) === 1,

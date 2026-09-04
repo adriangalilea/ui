@@ -29,23 +29,38 @@ The site deploys on every push to main (Vercel project `ui`, team adriangalileas
 - Headless Chrome over CDP (bun scripts, `/tmp/lb-*.ts` shape) is the regression rig: drive the demo with `?debug`, read the trace and the active layer's computed matrix, run the same script against the deployed site to diff behavior. A CDP keyup lands the same ms as the keydown, which is how the settle bug surfaced.
 - The architecture debt and the extraction plan are in the todo below; do them before adopting the item in a site.
 
-### The trackpad swipe is BAD. Do not iterate on it again.
+### The slide track: the browser owns the gesture, end to end
 
-Read this before touching the track. It is the honest state, not a caveat.
+The track is a real scroll container, and the drag, the momentum, the rubber band, the choice of where it lands AND the animation that lands it are all the browser's. The engine only reads where it went. **Do not move any part of that into JavaScript.** It has been tried twice and lost twice: once as a spring-driven transform (tag `lightbox-js-track`), once as a scroll container with a JS landing (`e3b5663`..`845c463`, thirteen commits of tuning that ended worse than it started).
 
-Swiping between slides on a trackpad is bad UX. Not rough, not nearly there: bad. It overshoots, it oscillates, one swipe covers one slide or two depending on nothing the reader can perceive, and a run of them reads as fighting the thing rather than using it. `released 5→3.27 v -12.14 sum -2.23 far → 3` next to `released 3→4.32 v 9.25 sum 1.82 → 4` is a reader trying to go one slide back and being thrown two, then overcorrecting. Everything else in this component is good; this one gesture is not, and it is the gesture a reader uses most.
+Three declarations are the whole policy, and they are load-bearing:
 
-**It got worse through iteration, and that is the lesson.** It was rebuilt from a JS-driven track (tag `lightbox-js-track`) onto a real scroll container, which was right. Then roughly a dozen rounds followed, each one changing a constant or a rule in response to one report of how it felt: the commit threshold, the momentum cap, the axis lock, the landing curve, the drag gain. Every round fixed the thing that was named and moved the problem somewhere else, because there was no model of what correct is to check against. Tuning by a single reader's reaction, one round at a time, converges on nothing. The commit log from `2c73650` to `845c463` is that process; read it as a record of how not to do this.
+- **`scroll-snap-type: x mandatory`** on the track. It may only ever come to rest on a slide. Remove it and a gesture can park an image between two locks, which is not fixable with a JS watchdog because there is no event that reliably means "the reader is done".
+- **`scroll-snap-align: center`** on every slot.
+- **`scroll-snap-stop: always`** on every slot. **One gesture moves at most one slide, however hard it is thrown.** Both engines enforce this on trackpad momentum, on the compositor. WebKit returns the `Always` offset nearest the origin before it considers anything else (`searchForPotentialSnapPoints` → `if (searchResult.snapStop) return *(searchResult.snapStop)`, `ScrollSnapOffsetsInfo.cpp`). Chromium re-runs the search with `SnapStopAlwaysFilter::kRequire` and keeps whichever candidate is closer to where the gesture began (`SnapContainerData::FindClosestValidArea`); the fling path builds a `DirectionStrategy`, whose `ShouldRespectSnapStop()` is unconditionally `true`.
 
-**Before any further work, research.** Not another constant. The questions that were never answered:
+Only the browser knows when the fingers left the trackpad. macOS reports gesture and momentum phases to the engine (Chromium reads them as `is_in_inertial_phase`, and only starts a snap fling inside one); the web platform exposes no equivalent to page JS. A JS landing therefore has to infer the release from wheel deltas, and that inference is exactly what a reader feels as a lottery.
 
-- What do the good ones actually do, in numbers? iOS `UIScrollView` paging and `targetContentOffset(forProposedContentOffset:withScrollingVelocity:)`, Android `ViewPager2` and `PagerSnapHelper`, Embla, Swiper, Flicking, Motion's carousel. Their commit thresholds, their velocity thresholds, their durations and curves, and how they weigh distance against speed.
-- Whether the drag should be amplified at all, and if so by how much and with what curve. This has 2.6x easing to 1:1 across a slide and it is too much; nobody checked what a trackpad's own acceleration already contributes before adding to it.
-- What one gesture is allowed to move. One slide, or as many as it was thrown? Both were asked for here at different times and they are not compatible without a rule that distinguishes them, which nothing here has.
-- What macOS momentum actually looks like per device, measured. The detector is inherited from wheel-gestures and its latency is felt directly, but nobody has logged real streams and looked at them.
-- Whether the wheel's vertical dismiss should exist at all. It competes with the swipe for the same gesture and the axis lock is a guess arbitrating between them.
+**One gesture is one slide. That is the canon, not a limitation.** Every reference implementation caps it, and none of them uses the magnitude of the throw to decide how far to go:
 
-Then decide on paper, write the rule down with the numbers in it, and only then change the code. Rollback points: `lightbox-js-track` for the whole pre-scroll-container engine, `19df088` for the last state that was called "99% right".
+| | commits when | how far | landing |
+|---|---|---|---|
+| iOS `UIScrollView` paging | projected destination past the midpoint; project with `v · d/(1−d)`, `d = 0.998` → **`v[px/ms] × 499`** | one page | spring from the release velocity (WWDC18 803: project, snap to nearest, hand velocity to the spring) |
+| Android `PagerSnapHelper` | any fling over `minFlingVelocity`; **velocity's sign only, magnitude unused** | first page past the centre, so exactly one | `MAX_SCROLL_ON_FLING_DURATION` = **100 ms** |
+| Swiper | ≤ `longSwipesMs` **300 ms** → one slide, distance ignored; longer → past `longSwipesRatio` **0.5** | one slide | fixed `speed` **300 ms** |
+| Embla | `|force × 400|` (touch) over `clamp(20% of viewport, 50, 225)` px | `byIndex(current ∓ 1)`, exactly one | friction integrator, `duration` 25, `friction` 0.68 |
+| WebKit snap | destination predicted by the platform momentum calculator (fallback: **`16.7 × first momentum delta`**) | `scroll-snap-stop` decides | cubic Bézier whose initial tangent is the reader's own direction, over an exponential progress curve fitted so the first frame matches their last delta, clamped to 10–50% of the remaining distance |
+| Chromium snap fling | projects `delta / (1 − decay)` once decay < **0.96**; legacy fallback `delta × 25` | `scroll-snap-stop` decides | per-frame deltas decaying **0.92** each 16 ms frame |
+
+Three things follow, and they settle the questions that used to sit here:
+
+- **The drag is never amplified.** Embla and Swiper both track the finger 1:1 (`touchRatio: 1`); the trackpad's own acceleration curve is already applied by the OS. The `2.6×` gain that was here was a second acceleration on top of one that was already there.
+- **The landing decays, it does not accelerate into place.** WebKit and Chromium both ease out. "It slows down then snaps" is a handoff that does not match the reader's speed, not evidence that the curve should invert.
+- **0.96 is the right threshold for "the hand is gone".** Chromium's `kMaxDecayFactor` and the vendored wheel-gestures detector agree on it independently. Kept only because `lightbox-wheel-phase.ts` still arbitrates the vertical dismiss; it decides nothing about the track.
+
+What the engine still owns: which slide is current (`scrollsnapchange`, Chrome 129+/Safari 18.2+, with `scrollend` as the fallback), which is pending so the thumbnail highlights before the slide arrives (`scrollsnapchanging`), which slides carry pixels (two either side of where the reader actually is, not of the committed index, or a fast gesture crosses a slide that is still a grey hole), and the discrete moves (arrows, thumbnails, steps) which have no gesture to hand off from.
+
+Never again, each of these having been tried: a JS spring or curve landing the track; a drag gain; a momentum detector deciding where the track goes; a settle watchdog; a `swipe`/`decided` arbiter. If the track feels wrong, the fix is in those three CSS declarations or in what the engine reads, never in a constant.
 
 ## Verbs
 
@@ -59,11 +74,9 @@ pnpm's 7-day quarantine and no-downgrade trust policy apply. `pnpm-workspace.yam
 
 ### lightbox
 
-**Blocked on the trackpad swipe**, which is bad and must be researched rather than tuned: see "The trackpad swipe is BAD" above. Nothing adopts this item until that is settled, because it is the gesture a reader uses most.
-
 The engine is extracted: `lightbox.tsx` is the binder (DOM listeners in, effects out, React state at checkpoints), and every rule lives in a lib that runs in bun.
 
-Left on the item once the swipe is: the demo streams a 17.8 MB trailer from blender.org on every open (host a short clip on the site); Safari frame pacing is unmeasured (needs Develop → Allow Remote Automation, then WebDriver); the sign-off list is `unverified` for Android.
+Left on the item: the demo streams a 17.8 MB trailer from blender.org on every open (host a short clip on the site); Safari frame pacing is unmeasured (needs Develop → Allow Remote Automation, then WebDriver); the sign-off list is `unverified` for Android.
 
 ### then: adopt, wave 2, wave 3
 

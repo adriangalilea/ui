@@ -65,11 +65,9 @@ import {
   type Band,
   COAST,
   clampPan,
-  dragGain,
   FIT,
   fit,
   GLIDE,
-  GLIDE_ENTRY,
   GLIDE_MAX,
   GLIDE_MIN,
   GONE,
@@ -81,19 +79,15 @@ import {
   type Point,
   type Pose,
   project,
-  QUICK,
   type Rect,
   type Sample,
   type Size,
   SLIDE_GAP,
-  SLIDE_TRAVEL,
   type SourceView,
-  Spring,
   STILL,
   sharpScale,
   sourceView,
   stageBand,
-  type Tuning,
   type Tunings,
   type View,
   WHEEL_GUARD,
@@ -213,8 +207,6 @@ const INSET_X = 16
 const THUMB_H = 32
 const clamp = (v: number, lo: number, hi: number) =>
   Math.min(hi, Math.max(lo, v))
-/** How soon to check that the track is not standing between two slides. */
-const SETTLE_WATCH = 140
 /** Slides each side of the one on screen that hold decoded media. Two, not one: a
  *  throw crosses its neighbour and is already looking at the next one by the time
  *  anything commits. */
@@ -954,13 +946,14 @@ function Stage(props: StageProps) {
         Math.max(0, Math.round(trackEl.scrollLeft / slotW())),
       )
     const commitIndex = (i: number) => {
-      // The next swipe is measured from the slide this one arrived at. The gesture
-      // stays `decided` until a hand actually returns: releasing it here reopened
-      // the door just in time for this landing's OWN scrollend to walk through and
-      // decide the same swipe a second time.
-      trackFrom = i
-      swipe = "idle"
-      if (i === L.current.index) return
+      if (i === L.current.index) {
+        // Back on the slide it already called current: whatever it was heading for is
+        // over, and the next step counts from here. Without this, a step cut short by
+        // a gesture leaves its aim standing and the step after it skips a slide.
+        S.aimIndex = null
+        setAim(null)
+        return
+      }
       aimAt(i)
       L.current.onIndex(i)
     }
@@ -969,54 +962,17 @@ function Stage(props: StageProps) {
       if (!glide) return
       cancelAnimationFrame(glide)
       glide = 0
-      armSettle()
+      // Cut short between two slides: the magnets come straight back on, and the
+      // browser takes it to the nearest one. Nothing here has to decide which.
+      delete trackEl.dataset.stepping
     }
-    /** Ask again shortly. Anything that can leave the track between two slides arms
-     *  this, because a cut-short landing can leave nothing at all in flight: the
-     *  coast was being swallowed to keep it from adding to the throw, so there is no
-     *  scrolling left to end and no `scrollend` will ever come to notice. */
-    const armSettle = () => {
-      clearTimeout(scrollTimer)
-      scrollTimer = window.setTimeout(onScrollSettled, SETTLE_WATCH)
-    }
-    /** Where a swipe means to arrive, and the ONE place that is decided. Every way a
-     *  gesture can end comes through here, because two rules reading the same swipe
-     *  differently is felt as the thing not being attached to the hand. */
-    const landTrack = (why: string, v: number) => {
-      swipe = "decided"
-      const w = slotW()
-      const at = trackEl.scrollLeft / w
-      // Momentum breaks the TIE, it does not add slides. Capped at half a slot, it
-      // can only decide whether the slide you are over is the one you get, so the
-      // count is the distance your hand covered and nothing else.
-      const carried = clamp(project(0, v) / w, -0.5, 0.5)
-      const total = at - trackFrom + carried
-      // A swipe that clearly went somewhere ALWAYS arrives. Rounding alone asks for
-      // half a slide, which is a shove, and shoving for every single slide is the
-      // worst of this to use.
-      let n = Math.round(total)
-      if (n === 0 && Math.abs(total) > SLIDE_TRAVEL) n = Math.sign(total)
-      // One gesture pages ONE, measured from where it began: macOS accelerates a
-      // flick into more than a slide's worth of pixels, so free scrolling alone
-      // would skip. A hand that deliberately drags past a slide and a half is not
-      // flicking, and keeps everything it travelled.
-      const far = Math.abs(at - trackFrom) > 1.5
-      if (!far) n = clamp(n, -1, 1)
-      const to = clamp(trackFrom + n, 0, L.current.ids.length - 1)
-      trace(
-        `${why} ${trackFrom}→${at.toFixed(2)} v ${v.toFixed(2)} sum ${total.toFixed(2)}${far ? " far" : ""} → ${to}`,
-      )
-      glideTo(to, v)
-    }
-    /** The slide pulling the track into itself. `vx` is the speed the throw still had
-     *  when it was handed over; with none, this ACCELERATES into place, which is what
-     *  a magnet does and what a spring, decaying from the first frame, never can. */
-    const glideTo = (i: number, vx = 0) => {
+    /** A step the reader ASKED for by name: a key, a button, a thumbnail. There is no
+     *  gesture to hand off from and nothing to infer, so the timing is ours to pick,
+     *  and `scroll-behavior: smooth` has no duration and reads as a crawl next to the
+     *  rest of this thing. Snapping stands down while this runs: the container may
+     *  only ever rest on a slide, and every frame of a JS scroll looks like a rest. */
+    const glideTo = (i: number) => {
       stopGlide()
-      // Where the track is HEADING is where the next gesture counts from. Taking it
-      // from the live position instead means a swipe begun mid-landing measures from
-      // whatever slide it happened to be flying over.
-      trackFrom = i
       const to = i * slotW()
       const from = trackEl.scrollLeft
       const d = to - from
@@ -1032,22 +988,20 @@ function Stage(props: StageProps) {
         GLIDE_MIN,
         GLIDE_MAX,
       )
-      const m0 = clamp(
-        vx * ms,
-        -GLIDE_ENTRY * Math.abs(d),
-        GLIDE_ENTRY * Math.abs(d),
-      )
+      trackEl.dataset.stepping = ""
       const t0 = performance.now()
       const step = (t: number) => {
         const s = Math.min(1, (t - t0) / ms)
-        trackEl.scrollLeft = from + glide_(d, m0, s)
+        trackEl.scrollLeft = from + glide_(d, s)
         if (s < 1) {
           glide = requestAnimationFrame(step)
           return
         }
-        // Exactly home, at a time that was known before it started.
+        // Exactly home, at a time that was known before it started, and on a snap
+        // point, so handing the magnets back is a no-op the reader cannot see.
         glide = 0
         trackEl.scrollLeft = to
+        delete trackEl.dataset.stepping
         commitIndex(i)
       }
       glide = requestAnimationFrame(step)
@@ -1329,11 +1283,16 @@ function Stage(props: StageProps) {
       const d = to - index
       if (d === 0) return
       const step = Math.abs(d) === 1
+      // A press chains onto the step already in flight: where the track is HEADING is
+      // what the next one counts from. Counting from the committed index instead, which
+      // does not move until a step arrives, made every press in a fast run ask for the
+      // same slide, so five presses moved one.
+      const from = step ? (S.aimIndex ?? index) : index
       if (step) {
-        const can = neighbours(index, n, loop)
+        const can = neighbours(from, n, loop)
         if (!(d === 1 ? can.next : can.prev)) return
       }
-      const wrapped = step ? (index + d + n) % n : to
+      const wrapped = step ? (from + d + n) % n : to
       assert(wrapped >= 0 && wrapped < n, `step to ${to} of ${n}`)
       aimAt(wrapped)
       if (
@@ -1344,7 +1303,7 @@ function Stage(props: StageProps) {
       )
         animate(FIT, 1, MACHINE)
       setZoom(1)
-      if (step && Math.abs(wrapped - index) !== 1) {
+      if (step && Math.abs(wrapped - from) !== 1) {
         // A wrapped step: cut, there is nothing between here and there.
         trackEl.scrollTo({ left: wrapped * slotW(), behavior: "instant" })
         L.current.onIndex(wrapped)
@@ -1563,6 +1522,11 @@ function Stage(props: StageProps) {
             write()
             break
           case "scroll":
+            // A MOUSE dragging the track: no browser drag-scrolls a mouse, so this is
+            // the one gesture the engine has to carry. The magnets stand down while it
+            // does, or a mandatory container would snap out of every frame of it; the
+            // release hands them back by landing on a lock.
+            trackEl.dataset.stepping = ""
             trackEl.scrollLeft -= f.dx
             break
           case "unpose":
@@ -1590,6 +1554,9 @@ function Stage(props: StageProps) {
     const endGesture = () => {
       S.gesture = false
       delete rootEl.dataset.gesture
+      // The engine has stopped driving the scroller, whichever way the gesture ended.
+      // A landing sets it straight back, in the same turn, so nothing can snap between.
+      delete trackEl.dataset.stepping
     }
     const onDown = (e: PointerEvent) => {
       S.input = "pointer"
@@ -1743,21 +1710,13 @@ function Stage(props: StageProps) {
     // eye sees: a flight in progress is read at its clock, not the last tick's copy.
     let W: WheelSession | null = null
     let wheelTimer = 0
-    // The whole wheel stream's phase, kept across sessions because the track has no
-    // session of its own: it is the browser's until the hand lets go.
+    // The whole wheel stream's phase, kept across sessions: hand or device coast is
+    // what tells a deliberate pull down from the tail of one, for the dismiss. The
+    // track never asks, because the browser already knows.
     let wheelPhase = phaseStart()
-    // ---- ONE arbiter for the track. `idle`: nothing of ours is happening and the
-    // browser may scroll. `hand`: a gesture is live, still the browser's. `decided`:
-    // the landing has been chosen and NOTHING else may choose again until a new
-    // gesture opens. Every way a swipe can end goes through the same transition, so
-    // there is never a second opinion racing the first.
-    let swipe: "idle" | "hand" | "decided" = "idle"
-    /** The slide this gesture started from. */
-    let trackFrom = 0
-    /** The axis this wheel stream belongs to, once its travel has said. */
+    /** The axis this wheel stream belongs to, once its travel has said. Sideways is
+     *  the scroller's and we never see it again; down is the dismiss and is ours. */
     let streamAxis: "x" | "y" | null = null
-    /** When the last wheel event arrived: a lull is not the end of a gesture. */
-    let lastWheelAt = 0
     const wheelCtx = (): WheelCtx => {
       const { fitted, band, zoomMax, entry } = L.current
       return {
@@ -1826,28 +1785,16 @@ function Stage(props: StageProps) {
         t: input.now,
       })
       wheelPhase = fed.phase
-      // A HAND on the track takes over from a landing in flight. A coast never does:
-      // cancelling the landing on every tail event is what made a swipe crawl for a
-      // second and then jump back.
-      lastWheelAt = input.now
-      // Whatever this event turns out to be, and by whichever of the paths below it
-      // leaves, something checks afterwards that the track is not left in between.
-      armSettle()
-      if (fed.read.start) {
-        swipe = "idle"
-        streamAxis = null
-        // Mid-landing, the destination is already the origin: only a track sitting
-        // still has to be asked where it is.
-        if (!glide) trackFrom = landedSlot()
-      }
+      if (fed.read.start) streamAxis = null
       // One axis for the whole stream, read off the travel and then LOCKED. Deciding
-      // per event handed the same swipe to the track and to the dismiss by turns,
-      // which is why it stopped feeling attached to the hand at all.
+      // per event handed the same gesture to the track and to the dismiss by turns,
+      // which is why it stopped feeling attached to the hand at all. Until the travel
+      // says, the event goes to the SCROLLER: a stream that turns out to be sideways
+      // must not have lost its first pixels, and the track can only rest on a slide,
+      // so a few px spent on a stream that turns out to be a pull down come back on
+      // their own.
       if (wheelIsTrackable(input, ctx) && streamAxis === null) {
         streamAxis = wheelAxisOf(fed.read.movement)
-        // The browser may not scroll on a guess: the first px of a swipe would go at
-        // 1:1 and the rest at the gain below, and the seam is felt.
-        e.preventDefault()
         if (!streamAxis) return
         trace(`wheel axis ${streamAxis}`)
       }
@@ -1858,40 +1805,12 @@ function Stage(props: StageProps) {
         wheelIsTrackable(input, ctx) &&
         streamAxis === "x"
       ) {
-        // A gesture is decided ONCE. Everything the device sends after that is the
-        // tail of a question already answered, and letting any of it through is what
-        // had two landings racing over the same swipe.
-        if (swipe === "decided") {
-          e.preventDefault()
-          return
-        }
-        // The hand let go ON THIS EVENT, which is also the first event of the coast:
-        // this has to be asked BEFORE the coast is turned away, or the one moment
-        // worth deciding at is the one moment thrown out.
-        // EVERY track event is ours from here. The browser's own scrolling is 1:1,
-        // and a slide is a whole screen wide, so 1:1 means dragging a whole screen to
-        // see the next picture. Its momentum cannot be amplified either, and cannot
-        // be stopped once it is running, which is how the track kept drifting past a
-        // slide long after the fingers had left.
-        e.preventDefault()
-        const w = slotW()
-        const travelled = trackEl.scrollLeft / w - trackFrom
-        const gain = dragGain(travelled)
-        if (fed.read.released) {
-          landTrack("released", fed.read.velocity.x * gain)
-          return
-        }
-        // A coast with no gesture behind it is leftover, never the start of one.
-        if (fed.read.momentum) return
-        // A hand back on the glass, on THIS axis, past the point where the direction
-        // is known: only here is a landing in flight worth cutting short. Doing it
-        // any earlier let a stray event with no direction yet kill a landing and
-        // leave the track standing between two slides with nothing left to move it.
+        // The track is the browser's, whole. It alone knows when the fingers left the
+        // trackpad, so it alone can say where a throw comes to rest; `mandatory` says
+        // it rests on a slide and `scroll-snap-stop: always` says it is the next one.
+        // Nothing is preventDefaulted, nothing is measured, nothing lands. A step the
+        // reader asked for by name is the one thing that yields to a hand.
         stopGlide()
-        swipe = "hand"
-        // Under the fingers, and faster than them: quick to leave the slide it is on,
-        // back to 1:1 as it reaches the next, so the choice is made at walking pace.
-        trackEl.scrollLeft += wheelPx(e.deltaX, e.deltaMode, ctx.band.h) * gain
         return
       }
       e.preventDefault()
@@ -2095,29 +2014,21 @@ function Stage(props: StageProps) {
     }
 
     // ---- the track landed. The browser carried the momentum and chose the snap
-    // point; all that is left is to read which slide is under the viewport and make
-    // it the current one. `scrollend` is the exact signal; where it is missing, a
-    // quiet stretch of `scroll` says the same thing a little later.
-    let scrollTimer = 0
-    // The scroll stopped without the coast ever being recognised (a short swipe the
-    // detector could not read, a mouse wheel, a drag let go slowly). Same rule, so a
-    // swipe means the same thing whichever way it ends: two rules is what the jank
-    // between one gesture and the next actually was.
-    // THE INVARIANT, and the only question worth asking here: is the track standing
-    // between two slides with nothing left to move it? On a lock there is nothing to
-    // answer, which is what makes a landing's OWN `scrollend` harmless and why no
-    // second opinion can race the first. And a hand still on the glass is not an
-    // ending: `scrollend` fires in any lull between events, and deciding there lands
-    // the track mid-swipe and then fights the fingers that are still going.
+    // point; all that is left is to read which slide it chose and make it the current
+    // one. There is nothing to decide here and nothing that can race: the container
+    // is `mandatory`, so where it comes to rest IS a slide.
     const onScrollSettled = () => {
       if (S.ph !== "idle" || glide) return
-      if (Math.abs(trackEl.scrollLeft - landedSlot() * slotW()) < 1) return
-      if (performance.now() - lastWheelAt < wheelPhase.endsIn)
-        return armSettle()
-      landTrack("ended", 0)
+      commitIndex(landedSlot())
     }
+    // The browser says which slide it picked the moment it picks it, mid-flight,
+    // rather than when the scrolling stops: the thumbnail lights on the slide that is
+    // arriving instead of trailing it. Chrome 129 / Safari 18.2; where it is missing,
+    // `scrollend` says the same thing a little later, and `scroll` a little later
+    // still. All three are the same commit, so having all three costs nothing.
+    const hasSnapEvents = "onscrollsnapchange" in trackEl
     const hasScrollEnd = "onscrollend" in window
-    const onScrollEnd = () => onScrollSettled()
+    let scrollTimer = 0
     // Every scroll frame, cheaply: which slide is under the reader, so its
     // neighbours are decoded before the throw arrives. React sees a change only
     // when the answer actually changes.
@@ -2132,7 +2043,9 @@ function Stage(props: StageProps) {
       clearTimeout(scrollTimer)
       scrollTimer = window.setTimeout(onScrollSettled, 120)
     }
-    trackEl.addEventListener("scrollend", onScrollEnd)
+    if (hasSnapEvents)
+      trackEl.addEventListener("scrollsnapchange", onScrollSettled)
+    trackEl.addEventListener("scrollend", onScrollSettled)
     trackEl.addEventListener("scroll", onScroll, { passive: true })
     rootEl.addEventListener("pointerdown", onDown)
     rootEl.addEventListener("pointermove", onMove)
@@ -2202,11 +2115,8 @@ function Stage(props: StageProps) {
     // Frame one: the source pose, written before paint. The engine is the only
     // writer of data-z and --lb-p.
     rootEl.dataset.z = S.z
-    // The scroller starts under the opened slide, before anything paints, and that
-    // slide is where the first swipe counts from. Left at zero, the `scrollend` this
-    // very scroll emits reads the whole way here as one enormous gesture.
-    trackFrom = L.current.index
-    trackEl.scrollTo({ left: trackFrom * slotW(), behavior: "instant" })
+    // The scroller starts under the opened slide, before anything paints.
+    trackEl.scrollTo({ left: L.current.index * slotW(), behavior: "instant" })
     if (!rest) {
       const sv = source()
       assert(sv, "open without a trigger rect")
@@ -2227,7 +2137,9 @@ function Stage(props: StageProps) {
       clearTimeout(scrollTimer)
       if (glide) cancelAnimationFrame(glide)
       if (passRaf) cancelAnimationFrame(passRaf)
-      trackEl.removeEventListener("scrollend", onScrollEnd)
+      if (hasSnapEvents)
+        trackEl.removeEventListener("scrollsnapchange", onScrollSettled)
+      trackEl.removeEventListener("scrollend", onScrollSettled)
       trackEl.removeEventListener("scroll", onScroll)
       rootEl.removeEventListener("pointerdown", onDown)
       rootEl.removeEventListener("pointermove", onMove)
