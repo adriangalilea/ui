@@ -2423,6 +2423,7 @@ function Strip({
   entryOf: (id: string) => Entry
   jump: (to: number) => void
 }) {
+  const nav = React.useRef<HTMLElement>(null)
   const active = React.useRef<HTMLButtonElement>(null)
   // biome-ignore lint/correctness/useExhaustiveDependencies: the active thumb moves with index
   React.useLayoutEffect(() => {
@@ -2434,8 +2435,19 @@ function Strip({
         : "smooth",
     })
   }, [index])
+  // Edge fades only when the row is longer than the strip: a signal, never chrome.
+  React.useLayoutEffect(() => {
+    const el = nav.current
+    assert(el, "strip rendered nothing")
+    const measure = () =>
+      el.toggleAttribute("data-overflow", el.scrollWidth > el.clientWidth + 1)
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    measure()
+    return () => ro.disconnect()
+  }, [])
   return (
-    <nav className="ag-lb-strip" aria-label="thumbnails">
+    <nav ref={nav} className="ag-lb-strip" aria-label="thumbnails">
       <div className="ag-lb-strip-row">
         {ids.map((id, i) => {
           const m = entryOf(id).media
@@ -2453,6 +2465,7 @@ function Strip({
               ref={i === index ? active : undefined}
               type="button"
               className="ag-lb-thumb"
+              data-kind={m.kind}
               aria-current={i === index ? "true" : undefined}
               aria-label={`${i + 1} of ${ids.length} · ${altOf(m)}`}
               style={{ width: Math.min(w, THUMB_H * 2), height: THUMB_H }}
