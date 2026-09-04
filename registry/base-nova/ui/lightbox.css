@@ -54,7 +54,6 @@
 .ag-lb-stage {
   position: absolute;
   outline: none;
-  touch-action: none;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
@@ -65,9 +64,50 @@
   -webkit-user-select: none;
   -webkit-touch-callout: none;
 }
+/* The track is a REAL scroll container with snap points, not a transform a spring
+   drives. Only the browser knows when fingers leave a trackpad, so only the browser
+   can decide where a throw comes to rest; simulating that from wheel deltas produces
+   skipped slides, a sluggish feel and an image parked between two locks, every time.
+   Here the magnets are the platform's: `scroll-snap-type: x mandatory` for where it
+   may rest, `scroll-snap-stop: always` so one gesture is one slide and a hard throw
+   can never skip past its neighbour, `overscroll-behavior: contain` so the page
+   behind never takes over. Momentum, rubber banding and the snap all run on the
+   compositor. The engine only reads where it landed.
+
+   It spans the whole viewport, not the media band: the enter and exit flights scale
+   the image from a trigger anywhere on the page, and a scroll container clips. */
 .ag-lb-track {
   position: absolute;
   inset: 0;
+  display: flex;
+  gap: 32px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+.ag-lb-track::-webkit-scrollbar {
+  display: none;
+}
+/* One slide per screenful. `pan-x` hands horizontal gestures to the scroller and
+   keeps everything else (the dismiss drag, the pinch) for the engine. */
+.ag-lb-slot {
+  position: relative;
+  flex: none;
+  width: 100%;
+  height: 100%;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+  touch-action: pan-x;
+}
+/* Zoomed, the image owns every gesture: the track stops snapping so a pan cannot
+   drag it sideways, and the fingers go to the engine. */
+.ag-lb[data-zoomed] .ag-lb-track {
+  scroll-snap-type: none;
+}
+.ag-lb[data-zoomed] .ag-lb-slot {
+  touch-action: none;
 }
 
 /* Three layers: index − 1, index, index + 1. Only the active one moves, and it

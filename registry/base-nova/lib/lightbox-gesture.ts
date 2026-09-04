@@ -30,7 +30,6 @@ import {
   SAMPLES,
   type Sample,
   type Size,
-  slideCommit,
   TAP_TRAVEL,
   type View,
   velocity,
@@ -45,7 +44,6 @@ export type Gesture = {
   prev: Point
   grab: Pose
   raw0: Point
-  slide0: number
   axis: "x" | "y" | null
   mode: "pan" | "fit"
   pinch: { s0: number; p0: number; d0: number; mid0: Point; view0: View } | null
@@ -76,23 +74,20 @@ export type PointerInput = {
 
 export type GestureCtx = {
   pose: Pose
-  slideX: number
   fitted: Size
   band: Band
   zoomMax: number
-  can: { prev: boolean; next: boolean }
   vh: number
   /** The media cannot be zoomed or pinched (a frame). */
   frame: boolean
 }
 
 export type GestureEffect =
-  /** A second finger, a pan grab or a vertical drag leaves the x axis: drop the slide. */
-  | { kind: "drop" }
   /** Read the flight at its clock and drop it: the pinch or the relock starts live. */
   | { kind: "sync" }
   | { kind: "pose"; pose: Pose }
-  | { kind: "slide"; x: number }
+  /** Drag the scroll container by this many px (a mouse only; see gestureMove). */
+  | { kind: "scroll"; dx: number }
   /** The image flies back to the grab while the track takes the hand; settles nothing. */
   | { kind: "unpose"; target: Pose }
   | { kind: "trace"; text: string }
@@ -138,7 +133,6 @@ export function gestureDown(
       prev: { x: input.x, y: input.y },
       grab: ctx.pose,
       raw0: rawPan(ctx.pose, ctx.fitted, ctx.band),
-      slide0: ctx.slideX,
       axis: null,
       mode,
       pinch: null,
@@ -148,7 +142,6 @@ export function gestureDown(
       onMedia: input.onMedia,
       type: input.type,
     }
-    if (mode === "pan") effects.push({ kind: "drop" })
     effects.push({
       kind: "trace",
       text: `down ${input.type} #${input.id} ${mode} ${input.onMedia ? "media" : "backdrop"}`,
@@ -157,7 +150,7 @@ export function gestureDown(
   if (next.pts.size === 2 && !ctx.frame) {
     // The pinch is computed FROM the pose: a flight in progress (the y-to-x relock)
     // is read and dropped first, so s0 and view0 are the live pose.
-    effects.push({ kind: "sync" }, { kind: "drop" })
+    effects.push({ kind: "sync" })
     next = {
       ...next,
       pinch: {
@@ -240,23 +233,19 @@ export function gestureMove(
     })
     return { gesture: next, effects }
   }
-  // The finger left after a pinch drifts a few px: that is never a slide.
+  // The finger left after a pinch drifts a few px: that is never a drag.
   if (next.axis === null) {
     if (Math.abs(dx) + Math.abs(dy) < INTENT) return { gesture: next, effects }
     const axis = next.pinched || Math.abs(dx) <= Math.abs(dy) ? "y" : "x"
     next = { ...next, axis }
-    if (axis === "y") effects.push({ kind: "drop" })
+    if (axis === "y") effects.push({ kind: "trace", text: "axis y" })
   } else if (
     next.axis === "x" &&
     Math.abs(my) > RELOCK &&
     Math.abs(my) > 3 * Math.abs(mx)
   ) {
     next = { ...next, axis: "y" }
-    effects.push(
-      { kind: "trace", text: "axis y" },
-      { kind: "sync" },
-      { kind: "drop" },
-    )
+    effects.push({ kind: "trace", text: "axis y" }, { kind: "sync" })
   } else if (
     next.axis === "y" &&
     !next.pinched &&
@@ -280,9 +269,11 @@ export function gestureMove(
       },
     })
   } else {
-    let x = next.slide0 + dx
-    if ((x > 0 && !ctx.can.prev) || (x < 0 && !ctx.can.next)) x *= 0.35
-    effects.push({ kind: "slide", x })
+    // Sideways is the track's, and the track is a scroll container. A finger never
+    // gets here (touch-action hands horizontal panning straight to the browser); a
+    // MOUSE does, and it drags the scroller by the same amount, so the platform's
+    // own snap decides where it lands.
+    effects.push({ kind: "scroll", dx: mx })
   }
   return { gesture: next, effects }
 }
@@ -303,8 +294,8 @@ export type GestureRelease =
   | { kind: "coast"; coast: View; target: View; vel: Point }
   /** An axis was locked but the release decides nothing: resume what was flying. */
   | { kind: "resume" }
-  /** The track let go: step, or spring home. */
-  | { kind: "slide"; d: -1 | 0 | 1; vx: number }
+  /** A mouse let the track go: hand it back to the platform's snap. */
+  | { kind: "snap" }
 
 /** A pointer lifted (or cancelled). The release instant is the clock, not a sample:
  *  a hand held still before lifting reads as stopped, a mouse button lifting late
@@ -371,11 +362,7 @@ export function gestureUp(
       ? { kind: "exit", vel: vy }
       : { kind: "cancel", vel: vy, zoomed: false }
   }
-  return {
-    kind: "slide",
-    d: slideCommit(ctx.slideX, v.x, ctx.band.w, ctx.can),
-    vx: v.x,
-  }
+  return { kind: "snap" }
 }
 
 export type TapIntent =

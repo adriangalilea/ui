@@ -26,11 +26,9 @@ const fitted = { w: 800, h: 600 }
 const atFit = { ...FIT, p: 1 }
 const ctx = (over: Partial<GestureCtx> = {}): GestureCtx => ({
   pose: atFit,
-  slideX: 0,
   fitted,
   band,
   zoomMax: 3,
-  can: { prev: true, next: true },
   vh: 900,
   frame: false,
   ...over,
@@ -72,10 +70,8 @@ const swipe = (
     const moved = gestureMove(g, pt(x, y, (i + 1) * dt, over), cur)
     g = moved.gesture
     effects.push(...moved.effects)
-    for (const e of moved.effects) {
+    for (const e of moved.effects)
       if (e.kind === "pose") cur = { ...cur, pose: e.pose }
-      if (e.kind === "slide") cur = { ...cur, slideX: e.x }
-    }
   })
   const [lx, ly] = path[path.length - 1] as [number, number]
   const release = gestureUp(g, pt(lx, ly, path.length * dt, over), cur)
@@ -94,7 +90,7 @@ const swipe = (
   )
   assert(r.release.kind === "tap", `tap, got ${r.release.kind}`)
   assert(
-    !r.effects.some((e) => e.kind === "pose" || e.kind === "slide"),
+    !r.effects.some((e) => e.kind === "pose" || e.kind === "scroll"),
     "a tap moves nothing",
   )
   const far = swipe(
@@ -124,7 +120,6 @@ const swipe = (
     120,
   )
   assert(r.gesture.axis === "y", `y locked, got ${r.gesture.axis}`)
-  assert(kinds(r.effects).includes("drop"), "the slide is dropped")
   const p = r.ctx.pose
   assert(
     p.y === 70 && p.s < 1 && p.p < 1,
@@ -159,8 +154,10 @@ const swipe = (
 }
 console.log("tap, vertical drag, dismiss commit, intent")
 
-// Horizontal: the track follows the finger, refuses past a missing neighbour, and a
-// fast release steps.
+// Horizontal is the SCROLL CONTAINER's. A finger never reaches this branch at all
+// (touch-action hands horizontal panning to the browser); a mouse does, and it drags
+// the scroller by exactly what it moved, so the platform's own snap decides where it
+// lands. The release hands it straight back.
 {
   const r = swipe(
     [
@@ -172,25 +169,15 @@ console.log("tap, vertical drag, dismiss commit, intent")
     ctx(),
   )
   assert(r.gesture.axis === "x", "x locked")
-  assert(r.ctx.slideX === -240, `the track follows: ${r.ctx.slideX}`)
+  const dragged = r.effects
+    .filter((e) => e.kind === "scroll")
+    .reduce((sum, e) => sum + (e as { dx: number }).dx, 0)
+  assert(dragged === -240, `the scroller is dragged 1:1: ${dragged}`)
   assert(
-    r.release.kind === "slide" && r.release.d === 1,
-    `step next, got ${JSON.stringify(r.release)}`,
+    r.effects.every((e) => e.kind !== "pose"),
+    "and the image itself never moves",
   )
-  const walled = swipe(
-    [
-      [500, 350],
-      [540, 350],
-      [620, 350],
-      [740, 350],
-    ],
-    ctx({ can: { prev: false, next: true } }),
-  )
-  assert(walled.ctx.slideX === 240 * 0.35, `a third: ${walled.ctx.slideX}`)
-  assert(
-    walled.release.kind === "slide" && walled.release.d === 0,
-    "no neighbour, no step",
-  )
+  assert(r.release.kind === "snap", `snap, got ${r.release.kind}`)
 }
 // An x drag that turns sharply vertical relocks to y and unposes the image back to
 // the grab; the reverse relock syncs the flight first.

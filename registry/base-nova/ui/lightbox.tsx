@@ -81,12 +81,10 @@ import {
   type Size,
   SLIDE_GAP,
   type SourceView,
-  Spring,
   STILL,
   sharpScale,
   sourceView,
   stageBand,
-  type Tuning,
   type Tunings,
   type View,
   WHEEL_GUARD,
@@ -96,6 +94,7 @@ import {
 import {
   type WheelCtx,
   type WheelSession,
+  wheelIsTrack,
   wheelRelease,
   wheelTick,
 } from "@/registry/base-nova/lib/lightbox-wheel"
@@ -615,7 +614,7 @@ function Stage(props: StageProps) {
   const [sheet, setSheet] = React.useState(false)
   const [fullscreen, setFullscreen] = React.useState(false)
   const [warm, setWarm] = React.useState(rest)
-  const [dir, setDir] = React.useState<1 | -1>(1)
+  const [_dir, setDir] = React.useState<1 | -1>(1)
   // Where the hand pointed, ahead of the stage: the slide takes ~200 ms and queued
   // steps chain, so a strip and a counter that waited for `index` would trail a
   // fast reader by slides. They are an INDEX, not the content, and must read as
@@ -703,10 +702,34 @@ function Stage(props: StageProps) {
     return u
   }, [media.kind, loop, index, count, renderRail])
 
+  // The mounted window, in VISUAL order: the scroller's DOM order IS the layout the
+  // reader scrolls through. `active` is where the current slide sits inside it, which
+  // is the snap point the engine holds the track at.
+  const slots = React.useMemo(() => {
+    const out: { slot: -1 | 0 | 1; id: string }[] = [{ slot: 0, id }]
+    const can = neighbours(index, count, loop)
+    const at = (k: -1 | 1) =>
+      (k === 1 ? can.next : can.prev)
+        ? (ids[(index + k + count) % count] as string)
+        : null
+    for (const slot of [-1, 1] as const) {
+      const nid = at(slot)
+      if (nid && !out.some((o) => o.id === nid)) out.push({ slot, id: nid })
+    }
+    out.sort((a, b) => a.slot - b.slot)
+    return out
+  }, [id, ids, index, count, loop])
+  const active = React.useMemo(
+    () => slots.findIndex((s) => s.slot === 0),
+    [slots],
+  )
+
   // Everything the engine reads, one frame fresh, never a stale closure.
   const live = React.useRef({
     ids,
     index,
+    slots,
+    active,
     entry,
     fitted,
     band,
@@ -725,6 +748,8 @@ function Stage(props: StageProps) {
   live.current = {
     ids,
     index,
+    slots,
+    active,
     entry,
     fitted,
     band,
@@ -771,7 +796,6 @@ function Stage(props: StageProps) {
       value: (rest ? { ...FIT, p: 1 } : { x: 0, y: 0, s: 1, p: 0 }) as Pose,
       vel: ZERO,
     }
-    const slide = new Spring<"x">({ x: 0 }, { x: 0.5 })
     /** A flight on the compositor: the table and its clock (lightbox-flight) plus
      *  the animations that play it, kept to cancel them. */
     type Flight = MotionFlight<keyof Pose> & { anims: Animation[] }
@@ -779,9 +803,7 @@ function Stage(props: StageProps) {
       raf: 0,
       last: 0,
       flight: null as Flight | null,
-      slideOn: false,
       aim: "free" as Aim,
-      onSlide: null as (() => void) | null,
       pending: null as { target: Pose; tuning: Tunings<keyof Pose> } | null,
       heldVel: ZERO,
       ph: (rest ? "idle" : "enter") as Phase,
@@ -793,15 +815,12 @@ function Stage(props: StageProps) {
       corner: 0,
       /** What last drove the lightbox: a pointer-driven close leaves no focus ring. */
       input: "pointer" as "pointer" | "key",
-      /** Steps pressed while a slide was committing, taken one by one on settle. */
-      queued: 0,
       /** Where the accepted steps point, null when the stage is the truth. The
        *  chrome reads it so the index it shows is never behind the hand. */
       aimIndex: null as number | null,
-      /** Where the slide in flight is going (track px). */
-      slideTo: 0,
-      /** The track's offset and velocity carried across an early re-index. */
-      carry: null as { x: number; v: number } | null,
+      /** The scroller is being put back under the active slide after a re-index, so
+       *  the scroll it emits is ours and decides nothing. */
+      recentring: false,
       /** The page's own hash at open, restored on close; a `#lb=` hash is ours. */
       hash0: /^#lb=/.test(window.location.hash) ? "" : window.location.hash,
     }
@@ -927,8 +946,26 @@ function Stage(props: StageProps) {
       writePose()
       writeP()
     }
-    const writeSlide = () => {
-      trackEl.style.transform = `translate3d(${slide.value.x}px, 0, 0)`
+    // ---- the track: a scroll container the browser owns. One slide per screenful,
+    // so the scroll offset of a slide IS its place in the mounted window.
+    const slotW = () => trackEl.clientWidth + SLIDE_GAP
+    const landedSlot = () => Math.round(trackEl.scrollLeft / slotW())
+    /** Put the track under the active slide with no animation and no decision: the
+     *  window shifted by one under it, so the same pixels stay on screen. */
+    const recentre = () => {
+      const to = L.current.active * slotW()
+      if (Math.abs(trackEl.scrollLeft - to) < 1) return
+      S.recentring = true
+      trackEl.scrollTo({ left: to, behavior: "instant" })
+      S.recentring = false
+    }
+    /** Ask the browser to fly to a mounted neighbour. It decides the motion and the
+     *  landing; `scrollend` tells us where it stopped. */
+    const scrollToSlot = (i: number) => {
+      trackEl.scrollTo({
+        left: i * slotW(),
+        behavior: reduced ? "instant" : "smooth",
+      })
     }
     // The flight ends: the pose IS the target, inline, and the animations go. The
     // inline write lands in the same frame the fill-forwards effect is cancelled, so
@@ -961,7 +998,6 @@ function Stage(props: StageProps) {
       for (const a of f.anims) a.cancel()
     }
     const tick = (t: number) => {
-      const dt = S.last ? t - S.last : 16
       S.last = t
       if (S.flight) {
         const { frame, done } = readFlight(S.flight)
@@ -970,24 +1006,11 @@ function Stage(props: StageProps) {
         writeP()
         if (done) land()
       }
-      if (S.slideOn) {
-        const done = slide.step(dt)
-        writeSlide()
-        if (done) {
-          S.slideOn = false
-          const cb = S.onSlide
-          S.onSlide = null
-          cb?.()
-        }
-      }
-      if (S.flight || S.slideOn) S.raf = requestAnimationFrame(tick)
+      if (S.flight) S.raf = requestAnimationFrame(tick)
       else {
         S.raf = 0
         S.last = 0
-        if (!S.gesture) {
-          layerEl().style.willChange = ""
-          trackEl.style.willChange = ""
-        }
+        if (!S.gesture) layerEl().style.willChange = ""
       }
     }
     const start = () => {
@@ -1074,22 +1097,8 @@ function Stage(props: StageProps) {
         true,
       )
     }
-    const animateSlide = (
-      x: number,
-      tuning: Tuning,
-      vx: number,
-      done?: () => void,
-    ) => {
-      slide.aim({ x }, tune(tuning), { x: vx })
-      S.slideTo = x
-      S.slideOn = true
-      S.onSlide = done ?? null
-      trackEl.style.willChange = "transform"
-      start()
-    }
     // A hand took over: the flight is read and dropped, its velocity remembered for
-    // resume. The pose holds at its live value (the drag offsets from there); the
-    // slide keeps its target, frozen.
+    // resume. The pose holds at its live value (the drag offsets from there).
     const pause = () => {
       sync()
       S.heldVel = pose.vel
@@ -1100,7 +1109,6 @@ function Stage(props: StageProps) {
     }
     const resume = () => {
       if (S.pending) fly(S.pending.target, S.pending.tuning, S.heldVel, true)
-      else if (S.slideOn) start()
     }
 
     // A larger candidate is decoded off-DOM first, so the live element's reselection
@@ -1209,12 +1217,6 @@ function Stage(props: StageProps) {
     // A committing slide is dropped by any gesture that takes the stage vertically:
     // the track springs home, the index never changes. One rule for pinch, exit and
     // the x-to-y relock.
-    const dropSlide = () => {
-      S.onSlide = null
-      if (!S.slideOn && slide.value.x === 0) return
-      animateSlide(0, MACHINE, slide.vel.x)
-    }
-
     // Idempotent: a second call mid-fly re-aims the running exit from the live rect.
     const beginExit = (vel?: Point) => {
       if (S.ph !== "exit") {
@@ -1222,7 +1224,7 @@ function Stage(props: StageProps) {
         setPhase("exit")
       }
       const sv = clipToSource()
-      dropSlide()
+      recentre()
       animate(sv ? sv.view : GONE, 0, MACHINE, vel, "exit")
     }
 
@@ -1232,27 +1234,15 @@ function Stage(props: StageProps) {
       setAim(to)
     }
 
-    // A step of one slides to the neighbour (wrapping under loop); a jump cuts.
-    const stepTo = (to: number, tuning: Tuning, vx = 0) => {
-      const { ids, loop, index } = L.current
+    // A step of one asks the scroller for the neighbour and lets it fly there; the
+    // index commits when it lands (onScrollEnd). A jump is a cut: the target is not
+    // mounted, so there is nothing to scroll through.
+    const stepTo = (to: number) => {
+      const { ids, loop, index, active } = L.current
       const n = ids.length
       const d = to - index
       if (d === 0) return
       const step = Math.abs(d) === 1
-      // A step while a slide is still committing never waits, never stops, never
-      // gets lost: the index commits NOW where the track is, the track carries its
-      // offset and velocity across the re-index, and settleIndex starts the next
-      // slide from there. Two quick presses are one continuous motion.
-      if (step && S.slideOn && S.onSlide) {
-        S.queued += d
-        aimAt(((S.aimIndex ?? index) + d + n) % n)
-        const cb = S.onSlide
-        S.onSlide = null
-        S.slideOn = false
-        S.carry = { x: slide.value.x - S.slideTo, v: slide.vel.x }
-        cb()
-        return
-      }
       if (step) {
         const can = neighbours(index, n, loop)
         if (!(d === 1 ? can.next : can.prev)) return
@@ -1269,12 +1259,13 @@ function Stage(props: StageProps) {
       )
         animate(FIT, 1, MACHINE)
       setZoom(1)
-      if (Math.abs(d) !== 1) {
+      if (!step) {
         L.current.onIndex(wrapped)
         return
       }
-      const w = L.current.band.w + SLIDE_GAP
-      animateSlide(-d * w, tuning, vx, () => L.current.onIndex(wrapped))
+      // Two presses in a row are two scrollTo calls: the browser re-aims the one in
+      // flight, so the motion stays continuous and no step is ever lost.
+      scrollToSlot(active + d)
     }
 
     // A move computed FROM the pose reads it live: a flight in progress is read and
@@ -1351,17 +1342,17 @@ function Stage(props: StageProps) {
           return
         case "prev":
         case "step.prev":
-          stepTo(index - 1, QUICK)
+          stepTo(index - 1)
           return
         case "next":
         case "step.next":
-          stepTo(index + 1, QUICK)
+          stepTo(index + 1)
           return
         case "first":
-          stepTo(0, QUICK)
+          stepTo(0)
           return
         case "last":
-          stepTo(ids.length - 1, QUICK)
+          stepTo(ids.length - 1)
           return
         case "strip":
           if (unavailable.has(id)) return
@@ -1449,14 +1440,12 @@ function Stage(props: StageProps) {
       return events.map((c) => ({ x: c.clientX, y: c.clientY, t: c.timeStamp }))
     }
     const gestureCtx = (): GestureCtx => {
-      const { fitted, band, zoomMax, ids, index, loop, entry } = L.current
+      const { fitted, band, zoomMax, entry } = L.current
       return {
         pose: pose.value,
-        slideX: slide.value.x,
         fitted,
         band,
         zoomMax,
-        can: neighbours(index, ids.length, loop),
         vh: vh(),
         frame: entry.media.kind === "frame",
       }
@@ -1481,9 +1470,6 @@ function Stage(props: StageProps) {
     const applyGesture = (effects: GestureEffect[]) => {
       for (const f of effects) {
         switch (f.kind) {
-          case "drop":
-            dropSlide()
-            break
           case "sync":
             sync()
             break
@@ -1491,9 +1477,8 @@ function Stage(props: StageProps) {
             pose.value = f.pose
             write()
             break
-          case "slide":
-            slide.value = { x: f.x }
-            writeSlide()
+          case "scroll":
+            trackEl.scrollLeft -= f.dx
             break
           case "unpose":
             fly(f.target, MACHINE, undefined, false)
@@ -1523,7 +1508,6 @@ function Stage(props: StageProps) {
     }
     const onDown = (e: PointerEvent) => {
       S.input = "pointer"
-      S.queued = 0
       if (chromeTarget(e.target)) return
       // The native control strip owns its pointers: a scrub is not a drag; the rest
       // of the video is media.
@@ -1654,13 +1638,11 @@ function Stage(props: StageProps) {
         case "resume":
           resume()
           return
-        case "slide":
-          if (r.d === 0) {
-            animateSlide(0, HAND, r.vx)
-            resume()
-            return
-          }
-          stepTo(L.current.index + r.d, HAND, r.vx)
+        case "snap":
+          // The mouse dragged the scroller by hand; the platform's own snap takes
+          // it from here and `scrollend` says where it landed.
+          scrollToSlot(landedSlot())
+          resume()
           return
         default: {
           const never: never = r
@@ -1675,30 +1657,19 @@ function Stage(props: StageProps) {
     let W: WheelSession | null = null
     let wheelTimer = 0
     const wheelCtx = (): WheelCtx => {
-      const { fitted, band, zoomMax, ids, index, loop, entry } = L.current
+      const { fitted, band, zoomMax, entry } = L.current
       return {
         pose: S.flight
           ? (readFlight(S.flight).frame.value as Pose)
           : pose.value,
-        slideX: slide.value.x,
-        sliding: S.slideOn,
         fitted,
         band,
         zoomMax,
-        can: neighbours(index, ids.length, loop),
         vh: vh(),
         frame: entry.media.kind === "frame",
       }
     }
     const fedRead = (w: WheelSession) => (w.phase.momentum ? " coast" : " hand")
-    const slideRelease = (d: -1 | 0 | 1, vx: number) => {
-      if (d === 0) {
-        animateSlide(0, HAND, vx)
-        resume()
-        return
-      }
-      stepTo(L.current.index + d, HAND, vx)
-    }
     const endWheel = () => {
       const w = W
       W = null
@@ -1722,9 +1693,6 @@ function Stage(props: StageProps) {
         case "cancel":
           animate(FIT, 1, HAND, r.vel)
           return
-        case "slide":
-          slideRelease(r.d, r.vx)
-          return
         default: {
           const never: never = r
           throw new Error(`lightbox: wheel release ${String(never)}`)
@@ -1739,31 +1707,33 @@ function Stage(props: StageProps) {
       // motion, never the ownership.
       if (e.ctrlKey) e.preventDefault()
       if (chromeTarget(e.target)) return
+      // A sideways wheel at fit is the TRACK's. It is the one event we hand back to
+      // the browser, because the browser is the only one that knows when the fingers
+      // left the trackpad, and so the only one that can carry the momentum and land
+      // on a snap point. Not preventing the default IS the feature.
+      const ctx = wheelCtx()
+      const input = {
+        deltaX: e.deltaX,
+        deltaY: e.deltaY,
+        deltaMode: e.deltaMode,
+        ctrl: e.ctrlKey,
+        at: rel(e.clientX, e.clientY),
+        now: performance.now(),
+      }
+      const guarded = performance.now() - S.enterAt < WHEEL_GUARD
+      if (!guarded && !G && wheelIsTrack(input, ctx)) return
       e.preventDefault()
-      if (performance.now() - S.enterAt < WHEEL_GUARD) return
-      if (G) return
+      if (guarded || G) return
       clearTimeout(wheelTimer)
-      const next = wheelTick(
-        W,
-        {
-          deltaX: e.deltaX,
-          deltaY: e.deltaY,
-          deltaMode: e.deltaMode,
-          ctrl: e.ctrlKey,
-          at: rel(e.clientX, e.clientY),
-          now: performance.now(),
-        },
-        wheelCtx(),
-      )
+      const next = wheelTick(W, input, ctx)
       W = next.session
       if (!W) return
-      // The swipe, on screen: which axis owns it, whether the hand or the device is
-      // driving, how far the track has been taken, and what the release decided.
-      // Without this a wheel gesture is the one thing the trace cannot see.
+      // The gesture, on screen: which axis owns it, whether the hand or the device
+      // is driving, and what it decided.
       trace(
-        `wheel ${W.axis}${fedRead(W)} track ${Math.round(slide.value.x)} v ${(-W.phase.velocity.x).toFixed(2)} ends ${W.phase.endsIn}${
+        `wheel ${W.axis}${fedRead(W)} ends ${W.phase.endsIn}${
           next.effects.length
-            ? ` → ${next.effects.map((e) => e.kind).join(",")}`
+            ? ` → ${next.effects.map((f) => f.kind).join(",")}`
             : ""
         }`,
       )
@@ -1779,20 +1749,9 @@ function Stage(props: StageProps) {
           case "release":
             endGesture()
             break
-          case "drop":
-            dropSlide()
-            break
           case "pose":
             pose.value = f.pose
             write()
-            break
-          case "slide":
-            slide.value = { x: f.x }
-            writeSlide()
-            break
-          case "step":
-          case "home":
-            slideRelease(f.kind === "home" ? 0 : f.d, f.vx)
             break
           case "exit":
             beginExit({ x: 0, y: f.vy })
@@ -1963,6 +1922,33 @@ function Stage(props: StageProps) {
       })
     }
 
+    // ---- the track landed. The browser carried the momentum and chose the snap
+    // point; all that is left is to read which slide is under the viewport and make
+    // it the current one. `scrollend` is the exact signal; where it is missing, a
+    // quiet stretch of `scroll` says the same thing a little later.
+    let scrollTimer = 0
+    const onScrollSettled = () => {
+      if (S.recentring || S.ph !== "idle") return
+      const landed = landedSlot()
+      const { slots, active, ids } = L.current
+      const to = slots[landed]
+      if (!to || landed === active) return
+      const at = ids.indexOf(to.id)
+      assert(at >= 0, `landed on an unmounted slide ${to.id}`)
+      trace(`track landed on slot ${landed} · ${to.id}`)
+      setDir(landed > active ? 1 : -1)
+      aimAt(at)
+      L.current.onIndex(at)
+    }
+    const hasScrollEnd = "onscrollend" in window
+    const onScrollEnd = () => onScrollSettled()
+    const onScroll = () => {
+      if (hasScrollEnd) return
+      clearTimeout(scrollTimer)
+      scrollTimer = window.setTimeout(onScrollSettled, 120)
+    }
+    trackEl.addEventListener("scrollend", onScrollEnd)
+    trackEl.addEventListener("scroll", onScroll, { passive: true })
     rootEl.addEventListener("pointerdown", onDown)
     rootEl.addEventListener("pointermove", onMove)
     rootEl.addEventListener("pointerup", onUp)
@@ -1981,7 +1967,6 @@ function Stage(props: StageProps) {
     engine.current = {
       dispatch,
       settleIndex: () => {
-        // The stage caught up; a queued step below re-aims before this paints.
         S.aimIndex = null
         setAim(null)
         // A flight still running on the layer that just stopped being active (the
@@ -1991,34 +1976,26 @@ function Stage(props: StageProps) {
           S.flight = null
           S.pending = null
         }
-        // An early re-index (a step pressed mid-slide) lands the track where the
-        // slide was, in the new index's frame; a settled one lands it at rest.
-        const carry = S.carry
-        S.carry = null
-        slide.value = { x: carry ? carry.x : 0 }
-        writeSlide()
+        // The window shifted by one under the scroller: putting it back over the
+        // active slide leaves the very same pixels on screen, so this is invisible.
+        recentre()
         pose.value = { ...FIT, p: 1 }
         pose.vel = ZERO
-        const active = layerEl()
+        const activeEl = layerEl()
         for (const el of layers.current.values())
-          if (el !== active) clearLayer(el)
+          if (el !== activeEl) clearLayer(el)
         clipToSource()
         write()
         upgradeSizes()
         announceSlide()
-        // The next queued step, now that the index is the one it counts from,
-        // continuing with the velocity the track had.
-        if (S.queued !== 0) {
-          const d = Math.sign(S.queued)
-          S.queued -= d
-          stepTo(L.current.index + d, QUICK, carry ? carry.v : 0)
-        } else if (carry) animateSlide(0, QUICK, carry.v)
       },
-      jump: (to) => stepTo(to, QUICK),
+      jump: (to) => stepTo(to),
       refit: (prev) => {
         if (S.ph !== "idle" || S.gesture) return
         const { band, fitted } = L.current
         sync()
+        // The slides are viewport-wide, so a resize moves every snap point.
+        recentre()
         // The crop is in layer px and the trigger moved with the page: re-measured
         // in the new fit before the pose is written.
         clipToSource()
@@ -2040,6 +2017,8 @@ function Stage(props: StageProps) {
     // Frame one: the source pose, written before paint. The engine is the only
     // writer of data-z and --lb-p.
     rootEl.dataset.z = S.z
+    // The scroller starts under the active slide, before anything paints.
+    recentre()
     if (!rest) {
       const sv = source()
       assert(sv, "open without a trigger rect")
@@ -2057,6 +2036,9 @@ function Stage(props: StageProps) {
       if (bandRaf) cancelAnimationFrame(bandRaf)
       clearTimeout(tapTimer)
       clearTimeout(wheelTimer)
+      clearTimeout(scrollTimer)
+      trackEl.removeEventListener("scrollend", onScrollEnd)
+      trackEl.removeEventListener("scroll", onScroll)
       rootEl.removeEventListener("pointerdown", onDown)
       rootEl.removeEventListener("pointermove", onMove)
       rootEl.removeEventListener("pointerup", onUp)
@@ -2148,20 +2130,6 @@ function Stage(props: StageProps) {
       stage.current?.focus()
     }
   }, [sheet])
-  const slots = React.useMemo(() => {
-    const out: { slot: -1 | 0 | 1; id: string }[] = [{ slot: 0, id }]
-    const can = neighbours(index, count, loop)
-    const at = (k: -1 | 1) =>
-      (k === 1 ? can.next : can.prev)
-        ? (ids[(index + k + count) % count] as string)
-        : null
-    for (const slot of dir === 1 ? ([1, -1] as const) : ([-1, 1] as const)) {
-      const nid = at(slot)
-      if (nid && !out.some((o) => o.id === nid)) out.push({ slot, id: nid })
-    }
-    return out
-  }, [id, ids, index, count, loop, dir])
-
   return (
     <Dialog.Popup
       ref={root}
@@ -2181,30 +2149,28 @@ function Stage(props: StageProps) {
       }
     >
       <div ref={scrim} className="ag-lb-scrim" />
+      {/* The stage spans the viewport because the scroller inside it does: a scroll
+          container clips, and the enter flight comes from a trigger anywhere on the
+          page. The media still lives in the band; each slide places it there. */}
       <div
         ref={stage}
         className="ag-lb-stage"
         tabIndex={-1}
         inert={sheet || undefined}
-        style={{
-          top: band.top,
-          left: band.left,
-          width: band.w,
-          height: band.h,
-        }}
+        style={{ inset: 0 }}
       >
         <div ref={track} className="ag-lb-track">
           {slots.map(({ slot, id: lid }) => (
-            <Layer
-              key={lid}
-              entry={entryOf(lid)}
-              slot={slot}
-              band={band}
-              active={slot === 0}
-              warm={warm}
-              layers={layers}
-              video={video}
-            />
+            <div key={lid} className="ag-lb-slot">
+              <Layer
+                entry={entryOf(lid)}
+                band={band}
+                active={slot === 0}
+                warm={warm}
+                layers={layers}
+                video={video}
+              />
+            </div>
           ))}
         </div>
       </div>
@@ -2520,7 +2486,6 @@ function Button({
 
 const Layer = React.memo(function Layer({
   entry,
-  slot,
   band,
   active,
   warm,
@@ -2528,7 +2493,6 @@ const Layer = React.memo(function Layer({
   video,
 }: {
   entry: Entry
-  slot: -1 | 0 | 1
   band: Band
   active: boolean
   warm: boolean
@@ -2570,9 +2534,10 @@ const Layer = React.memo(function Layer({
       aria-hidden={!active}
       data-active={active ? "" : undefined}
       data-kind={m.kind}
+      // The slide fills the viewport; the media sits in the band inside it.
       style={{
-        left: (band.w - w) / 2 + slot * (band.w + SLIDE_GAP),
-        top: (band.h - h) / 2,
+        left: band.left + (band.w - w) / 2,
+        top: band.top + (band.h - h) / 2,
         width: w,
         height: h,
       }}

@@ -11,6 +11,7 @@ import {
   type WheelEffect,
   type WheelInput,
   type WheelSession,
+  wheelIsTrack,
   wheelRelease,
   wheelTick,
 } from "../../registry/base-nova/lib/lightbox-wheel"
@@ -20,12 +21,9 @@ const fitted = { w: 800, h: 600 }
 const atFit = { ...FIT, p: 1 }
 const ctx = (over: Partial<WheelCtx> = {}): WheelCtx => ({
   pose: atFit,
-  slideX: 0,
-  sliding: false,
   fitted,
   band,
   zoomMax: 3,
-  can: { prev: true, next: true },
   vh: 900,
   frame: false,
   ...over,
@@ -57,10 +55,8 @@ const run = (
     const next = wheelTick(session, input, cur)
     session = next.session
     all.push(...next.effects)
-    for (const e of next.effects) {
+    for (const e of next.effects)
       if (e.kind === "pose") cur = { ...cur, pose: e.pose }
-      if (e.kind === "slide") cur = { ...cur, slideX: e.x }
-    }
   }
   return { session, effects: all, ctx: cur }
 }
@@ -88,7 +84,7 @@ const run = (
     r.session?.axis === "y" && r.session.live,
     `hand accepted: ${r.session?.axis}`,
   )
-  assert(kinds(r.effects) === "grab,drop,pose,pose", kinds(r.effects))
+  assert(kinds(r.effects) === "grab,pose,pose", kinds(r.effects))
   const p = r.ctx.pose
   assert(
     p.y === 10 && p.s < 1 && p.p < 1,
@@ -113,91 +109,31 @@ const run = (
 }
 console.log("inertia tail passed, hand accepted, dismiss commits once")
 
-// A trackpad swipe as the device really sends it: fingers pushing at a roughly even
-// rate, then, once they lift, a tail the OS decays by a fixed ratio every frame.
-const HZ = 16
-const hand = (n: number, px: number, t0 = 0) =>
-  Array.from({ length: n }, (_, i) => tick(px, 0, t0 + i * HZ))
-const tail = (from: number, t0: number, decay = 0.9, floor = 0.4) => {
-  const out: WheelInput[] = []
-  for (let d = from * decay, t = t0; d > floor; d *= decay, t += HZ)
-    out.push(tick(d, 0, t))
-  return out
-}
-
-// The track follows the fingers 1:1 while they are down, and nothing is decided:
-// the hand's own rate is irregular, so it never reads as a coast.
+// A sideways wheel at fit is the TRACK's, and the track is a real scroll container.
+// No session opens, nothing is reported, and the binder leaves the event alone so
+// the browser scrolls, snaps and carries the momentum itself.
 {
-  const r = run(hand(8, 30), ctx())
-  assert(r.session?.axis === "x", `x locked: ${r.session?.axis}`)
-  assert(r.ctx.slideX === -8 * 30, `1:1 under the fingers: ${r.ctx.slideX}`)
+  const sideways = tick(30, 0, 0)
+  assert(wheelIsTrack(sideways, ctx()), "sideways at fit belongs to the track")
+  const r = wheelTick(null, sideways, ctx())
   assert(
-    r.effects.every((e) => e.kind !== "step" && e.kind !== "home"),
-    `nothing decided while the hand is down: ${kinds(r.effects)}`,
+    r.session?.axis === "y" && r.effects.length === 0,
+    "and the reducer has no horizontal axis left to give it",
+  )
+  // Zoomed, the same event pans the image: the track must not steal it.
+  const zoomed = ctx({ pose: { ...atFit, s: 2 } })
+  assert(!wheelIsTrack(sideways, zoomed), "zoomed, sideways pans the image")
+  assert(
+    wheelTick(null, sideways, zoomed).session?.axis === "pan",
+    "which is the pan axis",
+  )
+  // ctrl is always a zoom, whichever way it points.
+  assert(
+    !wheelIsTrack(tick(30, 0, 0, true), ctx()),
+    "ctrl is a zoom, never the track",
   )
 }
-// The fingers lift and the OS coasts. The decay gives it away, the step fires ONCE
-// on that event, and every coasting event after it moves nothing at all.
-{
-  const swipe = hand(10, 30)
-  const r = run([...swipe, ...tail(30, 10 * HZ)], ctx())
-  const steps = r.effects.filter((e) => e.kind === "step")
-  assert(steps.length === 1, `one swipe, one step: ${steps.length}`)
-  assert((steps[0] as { d: number }).d === 1, "a leftward swipe goes next")
-  assert(r.session?.axis === "pass", "and the rest of the coast is ignored")
-  const after = r.effects
-    .slice(r.effects.indexOf(steps[0] as WheelEffect))
-    .filter((e) => e.kind === "slide")
-  assert(
-    after.length === 0,
-    `the coast moves the track no further: ${after.length}`,
-  )
-}
-// A gentle swipe that never coasts is decided when the stream stops instead. It is
-// still a decision: the track goes to a neighbour or home, never left in between.
-{
-  const r = run(hand(6, 5), ctx())
-  assert(
-    r.effects.every((e) => e.kind !== "step"),
-    "nothing fired: the device never coasted",
-  )
-  const rel = wheelRelease(r.session as WheelSession, r.ctx)
-  assert(rel.kind === "slide", `silence decides: ${rel.kind}`)
-  assert(rel.kind === "slide" && rel.d === 0, "30 px is not enough, so home")
-  const far = run(hand(20, 30), ctx())
-  const relFar = wheelRelease(far.session as WheelSession, far.ctx)
-  assert(
-    relFar.kind === "slide" && relFar.d === 1,
-    `600 px of travel steps: ${JSON.stringify(relFar)}`,
-  )
-}
-// The hand comes back while the device is still coasting: that event opens a NEW
-// session on the settled track, so a second swipe is never swallowed by the first.
-{
-  const swipe = hand(10, 30)
-  const coast = tail(30, 10 * HZ)
-  const r = run([...swipe, ...coast], ctx())
-  const t = 10 * HZ + coast.length * HZ
-  const back = wheelTick(r.session, tick(30, 0, t), ctx())
-  assert(
-    back.session?.axis === "x",
-    `a new swipe is heard: ${back.session?.axis}`,
-  )
-  assert(
-    back.session?.slide0 === 0,
-    "and it grabs the track where the step left it",
-  )
-}
-// No neighbour that way: the track gives a third of the travel and never commits.
-{
-  const r = run(hand(10, -30), ctx({ can: { prev: false, next: true } }))
-  assert(r.ctx.slideX === 300 * 0.35, `a third: ${r.ctx.slideX}`)
-  const rel = wheelRelease(r.session as WheelSession, r.ctx)
-  assert(rel.kind === "slide" && rel.d === 0, "and it goes home")
-}
-console.log(
-  "the track follows the hand, the coast decides once and then moves nothing",
-)
+console.log("sideways at fit is the scroll container's, and only then")
 // ctrl + wheel is zoom: up zooms in at the cursor, the accumulator rubbers past the
 // ceiling and under fit, and the release under fit springs to fit (a wheel never
 // dismisses); over fit it hands off to the zoom release at the cursor.
@@ -206,7 +142,7 @@ console.log(
     Array.from({ length: 20 }, (_, i) => tick(0, -5, i * 8, true)),
     ctx(),
   )
-  assert(kinds(inn.effects).startsWith("grab,drop,pose"), kinds(inn.effects))
+  assert(kinds(inn.effects).startsWith("grab,pose"), kinds(inn.effects))
   assert(
     Math.abs(inn.ctx.pose.s - Math.E) < 1e-9,
     `100 px of ctrl wheel is e×: ${inn.ctx.pose.s}`,
@@ -249,7 +185,7 @@ console.log(
   const inputs = Array.from({ length: 60 }, (_, i) => tick(30, 0, i * 8))
   const r = run(inputs, ctx({ pose: zoomed }))
   assert(
-    r.session?.axis === "pan" && kinds(r.effects).startsWith("grab,drop,pose"),
+    r.session?.axis === "pan" && kinds(r.effects).startsWith("grab,pose"),
     `pan session: ${kinds(r.effects).slice(0, 40)}`,
   )
   const bound = (fitted.w * 2 - band.w) / 2

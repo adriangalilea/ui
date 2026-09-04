@@ -1,15 +1,17 @@
-// The wheel session, framework-free. The slide axis follows the fingers 1:1 and snaps
-// the instant the hand lets go; lightbox-wheel-phase is what makes that knowable,
-// telling the hand apart from the device's coast. Momentum moves nothing, so one
-// swipe is one slide however hard it is thrown, and the track is never left between
-// locks with nobody deciding.
+// The wheel session, framework-free. Three axes, all of them the POSE: a ctrl-wheel
+// zoom, a pan while zoomed, and the vertical drag that dismisses. Each offsets the
+// pose the hand found (`grab`) and lets silence decide where it lands, which is safe
+// because each springs back to a resting place, so a mistimed release costs nothing.
 //
-// The drag axes (zoom, pan, dismiss) offset the pose the hand found (`grab`) and let
-// silence decide, which is safe for them: each springs back to a resting place, so a
-// mistimed release costs nothing. `last` is the accepted tick the velocity span is
-// measured against; `at` the last cursor; `live` whether a vertical session ever
-// passed the inertia guard. Ticks in, a new session and effects out; the binder owns
-// the timers and applies the effects. `bun scripts/examples/lightbox-wheel.ts`.
+// There is no horizontal axis. Sideways wheel belongs to the track, and the track is
+// a real scroll container: the browser knows when the fingers left the trackpad and
+// we do not, so it owns the momentum and the snap. The binder simply does not
+// preventDefault a sideways wheel at fit.
+//
+// `last` is the accepted tick the velocity span is measured against; `at` the last
+// cursor; `live` whether a vertical session ever passed the inertia guard. Ticks in,
+// a session and effects out; the binder owns the timers and applies the effects.
+// `bun scripts/examples/lightbox-wheel.ts`.
 
 import {
   type Band,
@@ -26,8 +28,6 @@ import {
   rubber,
   type Sample,
   type Size,
-  SLIDE_GAP,
-  slideCommit,
   type View,
   velocity,
   WHEEL_ZOOM,
@@ -41,9 +41,9 @@ import {
   phaseStart,
 } from "@/registry/base-nova/lib/lightbox-wheel-phase"
 
-/** `pass`: the axis decided and the rest of the stream is the device coasting.
- *  `dead`: the lightbox is leaving, nothing that follows can mean anything. */
-export type WheelAxis = "zoom" | "pan" | "x" | "y" | "pass" | "dead"
+/** `pass`: the guard rejected this stream (it opened on a coast), so it is ignored
+ *  whole. `dead`: the lightbox is leaving, nothing that follows can mean anything. */
+export type WheelAxis = "zoom" | "pan" | "y" | "pass" | "dead"
 
 export type WheelSession = {
   axis: WheelAxis
@@ -55,14 +55,13 @@ export type WheelSession = {
   grab: Pose
   /** The grab read back through the pan rubber. */
   raw0: Point
-  /** Where the track was when this session opened. */
-  slide0: number
   /** The raw scale the ticks accumulated; the pose wears it rubbered. */
   zoom: number
   samples: readonly Sample[]
   last: number
   at: Point
-  /** Hand or coast, for the axes that need to know. */
+  /** Hand or coast. The dismiss drag reads it to decide the moment the hand lets go
+   *  instead of waiting out the tail. */
   phase: Phase
 }
 
@@ -80,15 +79,9 @@ export type WheelInput = {
 /** What the engine knows at this tick. */
 export type WheelCtx = {
   pose: Pose
-  /** Where the track sits right now, in px. */
-  slideX: number
-  /** A step is still landing. The hand does not fight it: the travel is banked and
-   *  spent on release, where stepTo can queue it as one continuous motion. */
-  sliding: boolean
   fitted: Size
   band: Band
   zoomMax: number
-  can: { prev: boolean; next: boolean }
   /** The visual viewport's height: the dismiss drag's scale. */
   vh: number
   /** The media is a frame: nothing to zoom. */
@@ -101,30 +94,22 @@ export type WheelEffect =
   /** The hand is done and what follows is only decay: the chrome comes back NOW,
    *  not when the tail finally dies. */
   | { kind: "release" }
-  /** A committing slide is dropped (zoom, pan and dismiss leave the x axis). */
-  | { kind: "drop" }
   | { kind: "pose"; pose: Pose }
-  /** The track under the fingers, in px. */
-  | { kind: "slide"; x: number }
-  | { kind: "step"; d: -1 | 1; vx: number }
-  /** The hand let go without asking for a neighbour: the track goes home. */
-  | { kind: "home"; vx: number }
   | { kind: "exit"; vy: number }
 
-const begin = (
-  input: WheelInput,
-  ctx: WheelCtx,
-  dx: number,
-  dy: number,
-  phase: Phase,
-) => {
-  const axis: WheelAxis = input.ctrl
-    ? "zoom"
-    : ctx.pose.s > 1.01
-      ? "pan"
-      : Math.abs(dx) > Math.abs(dy)
-        ? "x"
-        : "y"
+/** A sideways wheel at fit is the scroll container's, not ours: no session opens and
+ *  the binder leaves the event alone so the browser scrolls, snaps and carries the
+ *  momentum itself. */
+export function wheelIsTrack(input: WheelInput, ctx: WheelCtx): boolean {
+  return (
+    !input.ctrl &&
+    ctx.pose.s <= 1.01 &&
+    Math.abs(input.deltaX) > Math.abs(input.deltaY)
+  )
+}
+
+const begin = (input: WheelInput, ctx: WheelCtx, phase: Phase) => {
+  const axis: WheelAxis = input.ctrl ? "zoom" : ctx.pose.s > 1.01 ? "pan" : "y"
   if (axis === "zoom" && ctx.frame) return null
   const session: WheelSession = {
     axis,
@@ -134,31 +119,15 @@ const begin = (
     y: 0,
     grab: ctx.pose,
     raw0: rawPan(ctx.pose, ctx.fitted, ctx.band),
-    slide0: ctx.slideX,
     zoom: ctx.pose.s,
     samples: [],
     last: 0,
     at: input.at,
     phase,
   }
-  // Only an axis that moves the POSE takes the image: it pauses the flight loop and
-  // sends a committing slide home. The slide axis must do neither. It owns the
-  // track, not the pose, and pausing the loop freezes a slide mid-flight with nobody
-  // left to finish it, which is how the image ends up parked between two slides.
-  const effects: WheelEffect[] =
-    axis === "zoom" || axis === "pan"
-      ? [{ kind: "grab" }, { kind: "drop" }]
-      : []
+  // A vertical session grabs only once the inertia guard has let it through.
+  const effects: WheelEffect[] = axis === "y" ? [] : [{ kind: "grab" }]
   return { session, effects }
-}
-
-/** Where the track sits under the fingers: the grab plus the hand's travel, given a
- *  third of the way past an end that has no neighbour, and never past the slot the
- *  neighbour occupies (nothing is mounted beyond it). */
-function trackAt(slide0: number, travel: number, ctx: WheelCtx): number {
-  let x = slide0 + travel
-  if ((x > 0 && !ctx.can.prev) || (x < 0 && !ctx.can.next)) x *= 0.35
-  return overshoot(x, ctx.band.w + SLIDE_GAP)
 }
 
 /** A tick: a null session starts one (or refuses: a zoom on a frame), a decided one
@@ -171,31 +140,24 @@ export function wheelTick(
   input: WheelInput,
   ctx: WheelCtx,
 ): { session: WheelSession | null; effects: WheelEffect[] } {
-  const rawX = wheelPx(input.deltaX, input.deltaMode, ctx.band.h)
   const rawY = wheelPx(input.deltaY, input.deltaMode, ctx.band.h)
-  const dx = boundTick(rawX)
   const dy = boundTick(rawY)
   const fed = phaseFeed(session ? session.phase : phaseStart(), {
-    dx: rawX,
+    dx: wheelPx(input.deltaX, input.deltaMode, ctx.band.h),
     dy: rawY,
     t: input.now,
   })
   // The hand came back while the device was still coasting: the old session is over
-  // and this event opens a new one, from wherever the track and pose now are.
+  // and this event opens a new one, from wherever the pose now is.
   const live = session && !fed.read.interrupted ? session : null
   const opened = live
     ? { session: { ...live, phase: fed.phase }, effects: [] }
-    : begin(input, ctx, dx, dy, fed.phase)
+    : begin(input, ctx, fed.phase)
   if (!opened) return { session: null, effects: [] }
   const effects: WheelEffect[] = opened.effects
   let w = { ...opened.session, phase: fed.phase }
   const axis = w.axis
-  if (axis === "dead") return { session: w, effects }
-  if (axis === "pass") {
-    // This axis decided; the rest of the stream is the device coasting and moves
-    // nothing. The binder drops the session once the stream pauses.
-    return { session: w, effects }
-  }
+  if (axis === "dead" || axis === "pass") return { session: w, effects }
   w = { ...w, last: input.now, at: input.at }
   switch (axis) {
     case "zoom": {
@@ -208,6 +170,7 @@ export function wheelTick(
     }
     case "pan": {
       const b = panBounds(ctx.pose, ctx.fitted, ctx.band)
+      const dx = boundTick(wheelPx(input.deltaX, input.deltaMode, ctx.band.h))
       w = { ...w, x: w.x - dx, y: w.y - dy }
       effects.push({
         kind: "pose",
@@ -217,25 +180,6 @@ export function wheelTick(
           y: overshoot(w.raw0.y + w.y, b.y),
         },
       })
-      return { session: w, effects }
-    }
-    case "x": {
-      // The coast was recognised ON this event: the ONE honest moment to decide, and
-      // the whole reason the phase detector exists. This delta belongs to the device,
-      // so it is not added; the decision is made from where the hand left the track.
-      if (fed.read.released) {
-        const x = trackAt(w.slide0, w.x, ctx)
-        const vx = -fed.read.velocity.x
-        const d = slideCommit(x, vx, ctx.band.w, ctx.can)
-        effects.push(d === 0 ? { kind: "home", vx } : { kind: "step", d, vx })
-        return { session: { ...w, axis: "pass" }, effects }
-      }
-      // Still coasting after that: nothing a person did, so nothing moves.
-      if (fed.read.momentum) return { session: w, effects }
-      // Under the fingers: raw px, no per-tick bound, the track goes where they go.
-      w = { ...w, x: w.x - rawX }
-      if (!ctx.sliding)
-        effects.push({ kind: "slide", x: trackAt(w.slide0, w.x, ctx) })
       return { session: w, effects }
     }
     case "y": {
@@ -248,7 +192,7 @@ export function wheelTick(
         if (ticks.length < 3) return { session: w, effects }
         if (!wheelIsHand(ticks))
           return { session: { ...w, axis: "pass" }, effects }
-        effects.push({ kind: "grab" }, { kind: "drop" })
+        effects.push({ kind: "grab" })
         w = { ...w, live: true, grab: ctx.pose }
       }
       w = { ...w, y: w.y - dy }
@@ -287,15 +231,11 @@ export type WheelRelease =
   | { kind: "pan"; target: View }
   /** A dismiss drag that did not commit: home under the hand's spring, with its speed. */
   | { kind: "cancel"; vel: Point }
-  /** The slide axis ended without ever coasting: decide on where it was left. */
-  | { kind: "slide"; d: -1 | 0 | 1; vx: number }
 
-/** The stream stopped. Most axes wait for this; the slide axis normally decided long
- *  before, the instant the hand let go, and only lands here when the fingers were
- *  lifted so gently that the device never coasted at all. */
+/** The stream stopped: the session ends and decides where the pose lands. */
 export function wheelRelease(
   w: WheelSession,
-  ctx: Pick<WheelCtx, "pose" | "fitted" | "band"> & WheelCtx,
+  ctx: Pick<WheelCtx, "pose" | "fitted" | "band">,
 ): WheelRelease {
   const v = velocity(w.samples, w.last)
   switch (w.axis) {
@@ -308,11 +248,6 @@ export function wheelRelease(
       return { kind: "pan", target: clampPan(ctx.pose, ctx.fitted, ctx.band) }
     case "y":
       return w.live ? { kind: "cancel", vel: v } : { kind: "none" }
-    case "x": {
-      const x = trackAt(w.slide0, w.x, ctx)
-      const vx = -w.phase.velocity.x
-      return { kind: "slide", d: slideCommit(x, vx, ctx.band.w, ctx.can), vx }
-    }
     default: {
       const never: never = w.axis
       throw new Error(`lightbox: wheel axis ${String(never)}`)
