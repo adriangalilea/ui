@@ -4,7 +4,7 @@ Adrian Galilea's web components, as a [shadcn registry](https://ui.shadcn.com/do
 
 ```jsonc
 // components.json, in the consumer
-{ "registries": { "@ag": "https://ui-adriangalileas-projects.vercel.app/r/{name}.json" } }
+{ "registries": { "@ag": "https://ui.adriangalilea.com/r/{name}.json" } }
 ```
 
 ```bash

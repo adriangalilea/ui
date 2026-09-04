@@ -1,7 +1,7 @@
 {
   "$schema": "https://ui.shadcn.com/schema/registry.json",
   "name": "ag",
-  "homepage": "https://ui-adriangalileas-projects.vercel.app",
+  "homepage": "https://ui.adriangalilea.com",
   "items": [
     {
       "name": "tokens",
