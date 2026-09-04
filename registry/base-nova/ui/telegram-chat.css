@@ -1,0 +1,874 @@
+/* telegram-chat. Every selector lives under .tgchat; no global selector may appear in
+   this file. Sizing is container-driven (cqw against the 356px design width), themes
+   are the two token sets on [data-theme]. */
+
+.tgchat {
+  margin: 0;
+  container-type: inline-size;
+  width: 100%;
+  max-width: 356px;
+  font-family: var(
+    --font-sans,
+    ui-sans-serif,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif
+  );
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --tg-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tgchat[data-theme="dark"] {
+  --tg-phone: linear-gradient(
+    160deg,
+    #6c7075 0%,
+    #4a4e54 22%,
+    #595e65 50%,
+    #43474d 78%,
+    #676c72 100%
+  );
+  --tg-phone-band: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  --tg-phone-chamfer:
+    inset 0 1px 1px rgba(255, 255, 255, 0.4),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.16);
+  --tg-phone-button: linear-gradient(180deg, #5c6167, #43474d);
+  --tg-lift: 0 24px 60px rgba(0, 0, 0, 0.45), 0 4px 14px rgba(0, 0, 0, 0.3);
+  --tg-screen: #101315;
+  --tg-island: #000000;
+  --tg-island-ring: rgba(255, 255, 255, 0.11);
+  --tg-status-ink: #e8e6e1;
+  --tg-bot-bubble: #1e2227;
+  --tg-user-bubble: #246fae;
+  --tg-on-accent: #ffffff;
+  --tg-border: #2b3036;
+  --tg-text: #e8e6e1;
+  --tg-muted: #a0a29e;
+  --tg-composer-icon: #c3c6c9;
+  --tg-quote-rule: #757c85;
+  --tg-accent: #246fae;
+  --tg-link: #6ab3f3;
+  --tg-doodle: rgba(255, 255, 255, 0.09);
+  --tg-gesture-pill: #6e767f;
+}
+
+.tgchat[data-theme="light"] {
+  --tg-phone: #a2a6ad;
+  --tg-phone-band: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+  --tg-phone-chamfer:
+    inset 0 1px 1px rgba(255, 255, 255, 0.5),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.24);
+  --tg-phone-button: linear-gradient(180deg, #b3b7bd, #8c9097);
+  --tg-lift:
+    0 24px 60px rgba(27, 29, 30, 0.22), 0 4px 14px rgba(27, 29, 30, 0.1);
+  --tg-screen: #ffffff;
+  --tg-island: #16181a;
+  --tg-island-ring: rgba(0, 0, 0, 0.22);
+  --tg-status-ink: #1c1c1a;
+  --tg-bot-bubble: #f1f1f1;
+  --tg-user-bubble: #0b74bd;
+  --tg-on-accent: #ffffff;
+  --tg-border: #e4e4e2;
+  --tg-text: #1c1c1a;
+  --tg-muted: #69675f;
+  --tg-composer-icon: #55534c;
+  --tg-quote-rule: #85837c;
+  --tg-accent: #0b74bd;
+  --tg-link: #0b74bd;
+  --tg-doodle: rgba(0, 0, 0, 0.08);
+  --tg-gesture-pill: #1c1c1a;
+}
+
+/* iPhone shell: titanium band, polished chamfer, ~5px uniform bezel, side buttons
+   standing proud of the frame (never negative z-index — that paints them behind the
+   page background). Height follows width, so the component sizes to its container. */
+.tgchat-phone {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 356 / 730;
+  padding: 5px;
+  background: var(--tg-phone);
+  border-radius: 16cqw;
+  box-shadow: var(--tg-lift), var(--tg-phone-band);
+}
+
+.tgchat-phone::after {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--tg-phone-chamfer);
+  content: "";
+  pointer-events: none;
+}
+
+.tgchat-btn {
+  position: absolute;
+  z-index: 0;
+  width: 3px;
+  background: var(--tg-phone-button);
+  border-radius: 2px;
+}
+.tgchat-btn.action {
+  top: 31%;
+  left: -3px;
+  height: 4%;
+  border-radius: 2px 0 0 2px;
+}
+.tgchat-btn.vol-up {
+  top: 22%;
+  left: -3px;
+  height: 8%;
+  border-radius: 2px 0 0 2px;
+}
+.tgchat-btn.vol-down {
+  top: 32%;
+  left: -3px;
+  height: 8%;
+  border-radius: 2px 0 0 2px;
+}
+.tgchat-btn.power {
+  top: 27%;
+  right: -3px;
+  height: 12.6%;
+  border-radius: 0 2px 2px 0;
+}
+
+.tgchat-screen {
+  position: relative;
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+  flex-direction: column;
+  background: var(--tg-screen);
+  border-radius: 14.6cqw;
+  color: var(--tg-text);
+  font-size: 3.8cqw;
+  line-height: 1.15;
+  --tg-header-top: 11cqw;
+  --tg-composer-h: 10cqw;
+}
+
+/* The thread scrolls under the floating chrome; scrims keep the clock and composer
+   legible. */
+.tgchat-screen::before,
+.tgchat-screen::after {
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  left: 0;
+  content: "";
+  pointer-events: none;
+}
+.tgchat-screen::before {
+  top: 0;
+  height: calc(var(--tg-header-top) + 17cqw);
+  background: linear-gradient(
+    to bottom,
+    var(--tg-screen) 0%,
+    var(--tg-screen) 76%,
+    transparent 100%
+  );
+}
+.tgchat-screen::after {
+  bottom: 0;
+  height: calc(var(--tg-composer-h) + 12cqw);
+  background: linear-gradient(
+    to top,
+    var(--tg-screen) 0%,
+    var(--tg-screen) 58%,
+    transparent 100%
+  );
+}
+
+.tgchat-island {
+  position: absolute;
+  z-index: 5;
+  top: 2.5cqw;
+  left: 50%;
+  width: 26cqw;
+  height: 7.6cqw;
+  background: var(--tg-island);
+  border-radius: 4cqw;
+  box-shadow: 0 0 0 1px var(--tg-island-ring);
+  transform: translateX(-50%);
+}
+
+.tgchat-status {
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 12.4cqw;
+  padding: 0 9.8cqw 0 11.8cqw;
+  color: var(--tg-status-ink);
+  font-size: 3.65cqw;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.tgchat-status svg {
+  display: block;
+  height: 3.1cqw;
+  width: auto;
+}
+.tgchat-status .radios {
+  display: flex;
+  align-items: center;
+  gap: 1.4cqw;
+}
+
+.tgchat-header {
+  position: absolute;
+  z-index: 3;
+  top: var(--tg-header-top);
+  right: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 2cqw;
+  padding: 0.5cqw 2.2cqw 2.2cqw;
+}
+.tgchat-round {
+  display: grid;
+  width: 10cqw;
+  height: 10cqw;
+  flex: none;
+  place-items: center;
+  color: var(--tg-text);
+  background: var(--tg-bot-bubble);
+  border: 1px solid var(--tg-border);
+  border-radius: 50%;
+}
+.tgchat-round svg {
+  display: block;
+  width: 4.5cqw;
+  height: 4.5cqw;
+}
+/* iOS-modern header: the title is a centered pill hugging its content (mini
+   avatar + name), and the chat's big avatar stands alone on the right. */
+.tgchat-card {
+  display: flex;
+  min-inline-size: 48%;
+  max-inline-size: 64%;
+  height: 10cqw;
+  flex: none;
+  margin: 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 1.8cqw;
+  padding: 0 4cqw 0 1.2cqw;
+  background: var(--tg-bot-bubble);
+  border: 1px solid var(--tg-border);
+  border-radius: 5cqw;
+}
+video.tgchat-avatar,
+video.tgchat-mini {
+  display: block;
+}
+.tgchat-avatar {
+  display: grid;
+  width: 10cqw;
+  height: 10cqw;
+  flex: none;
+  place-items: center;
+  overflow: hidden;
+  background: var(--tg-user-bubble);
+  border-radius: 50%;
+  color: #fff;
+  font-size: 5cqw;
+  font-weight: 600;
+  line-height: 1;
+  object-fit: cover;
+}
+.tgchat-names {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3cqw;
+  text-align: center;
+}
+.tgchat-names strong {
+  font-size: 4.2cqw;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tgchat-names span {
+  color: var(--tg-muted);
+  font-size: 3.4cqw;
+  line-height: 1.2;
+}
+
+/* The typing status, as Telegram draws it: accent text in the header sub-line
+   with three pulsing dots. Transient by construction - it exists only during
+   the reading beat of the timeline. */
+.tgchat-names span.typing {
+  display: inline-flex;
+  align-items: center;
+  gap: 1cqw;
+  color: var(--tg-link);
+}
+.tgchat-tdots {
+  display: inline-flex;
+  gap: 0.7cqw;
+}
+.tgchat-tdots i {
+  width: 1cqw;
+  height: 1cqw;
+  background: currentColor;
+  border-radius: 50%;
+  animation: tgchat-tdot 1.1s ease-in-out infinite;
+}
+.tgchat-tdots i:nth-child(2) {
+  animation-delay: 0.18s;
+}
+.tgchat-tdots i:nth-child(3) {
+  animation-delay: 0.36s;
+}
+@keyframes tgchat-tdot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.75;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-0.6cqw);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tgchat-tdots i {
+    animation: none;
+  }
+}
+
+/* Telegram's doodle wallpaper, the client's own technique: the pattern svg is
+   a MASK over a per-theme tint, tiled. Sits under the bubbles (messages carry
+   z-index 1) and under every scrim. */
+.tgchat-wall {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background-color: var(--tg-doodle);
+  mask-position: center;
+  mask-repeat: repeat;
+  mask-size: 120cqw auto;
+  pointer-events: none;
+}
+
+/* The thread scrolls (scrollbar hidden, like the client); the inner column
+   bottom-aligns a short conversation so the first bubbles sit above the
+   composer, never at the top of an empty screen. */
+.tgchat-messages {
+  position: relative;
+  z-index: 1;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+  scrollbar-width: none;
+}
+.tgchat[data-settled] .tgchat-messages {
+  overflow-y: auto;
+}
+.tgchat-messages::-webkit-scrollbar {
+  display: none;
+}
+.tgchat-thread {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 3.4cqw;
+  padding: calc(var(--tg-header-top) + 12.4cqw) 4cqw
+    calc(var(--tg-composer-h) + 11.8cqw);
+}
+
+.tgchat-bubble {
+  inline-size: fit-content;
+  max-inline-size: 94%;
+  padding: 2.2cqw 3.1cqw;
+  border-radius: 6.2cqw;
+  animation: tgchat-bubble-in 350ms var(--tg-ease) both;
+}
+@keyframes tgchat-bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tgchat-bubble {
+    animation: none;
+  }
+}
+.tgchat-bubble.bot {
+  align-self: flex-start;
+  background: var(--tg-bot-bubble);
+  border-bottom-left-radius: 1.7cqw;
+}
+/* Reaction pills, as Telegram draws them: rounded chips at the bubble's foot,
+   emoji + count, popping in with a small scale. */
+.tgchat-reacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.4cqw;
+  margin-top: 1.7cqw;
+}
+.tgchat-react {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.1cqw;
+  padding: 0.7cqw 2.2cqw;
+  border-radius: 4cqw;
+  background: color-mix(in srgb, var(--tg-accent) 24%, transparent);
+  font-size: 3.4cqw;
+  line-height: 1.4;
+  /* Telegram Web's bouncy scale-in: overshoot past 1, settle. */
+  animation: tgchat-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.tgchat-react .n {
+  color: var(--tg-link);
+  font-weight: 600;
+}
+.tgchat-bubble.user .tgchat-react {
+  background: rgba(255, 255, 255, 0.24);
+}
+.tgchat-bubble.user .tgchat-react .n {
+  color: var(--tg-on-accent);
+}
+@keyframes tgchat-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tgchat-react {
+    animation: none;
+  }
+}
+.tgchat-bubble.user {
+  align-self: flex-end;
+  color: var(--tg-on-accent);
+  overflow-wrap: anywhere;
+  background: var(--tg-user-bubble);
+  border-bottom-right-radius: 1.7cqw;
+}
+.tgchat-bubble.link {
+  max-inline-size: min(94%, 24ch);
+  overflow-wrap: anywhere;
+}
+.tgchat-bubble.link:has(.tgchat-preview) {
+  max-inline-size: 84%;
+}
+
+/* Links, as Telegram paints them: link-blue in received bubbles, white
+   underlined in yours. */
+.tgchat-link {
+  color: var(--tg-link);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+.tgchat-bubble.user .tgchat-link {
+  color: var(--tg-on-accent);
+}
+
+/* The webpage preview under a link: a tinted card with a rule on the left,
+   site name in link-blue, bold title, muted text, cover image on top.
+   One color (the link) at alpha tiers, like the client. */
+.tgchat-preview {
+  display: block;
+  margin-top: 1.7cqw;
+  color: inherit;
+  text-decoration: none;
+  transition: background 150ms var(--tg-ease);
+  padding: 1.6cqw 2.2cqw 1.8cqw 2.6cqw;
+  overflow: hidden;
+  border-left: 3px solid var(--tg-link);
+  border-radius: 1.4cqw;
+  background: color-mix(in srgb, var(--tg-link) 10%, transparent);
+  --tg-preview-ink: var(--tg-link);
+  --tg-preview-text: var(--tg-text);
+  --tg-preview-muted: var(--tg-muted);
+}
+.tgchat-preview:hover {
+  background: color-mix(in srgb, var(--tg-link) 18%, transparent);
+}
+.tgchat-bubble.user .tgchat-preview:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+.tgchat-bubble.user .tgchat-preview {
+  border-left-color: var(--tg-on-accent);
+  background: rgba(255, 255, 255, 0.14);
+  --tg-preview-ink: var(--tg-on-accent);
+  --tg-preview-text: var(--tg-on-accent);
+  --tg-preview-muted: rgba(255, 255, 255, 0.78);
+}
+.tgchat-preview img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  margin-bottom: 1.6cqw;
+  border-radius: 1.2cqw;
+  object-fit: cover;
+}
+.tgchat-preview .site {
+  color: var(--tg-preview-ink);
+  font-size: 3.4cqw;
+  font-weight: 600;
+}
+.tgchat-preview .title {
+  margin-top: 0.4cqw;
+  color: var(--tg-preview-text);
+  font-weight: 600;
+  line-height: 1.2;
+}
+.tgchat-preview .desc {
+  display: -webkit-box;
+  margin-top: 0.6cqw;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  color: var(--tg-preview-muted);
+  font-size: 3.4cqw;
+  line-height: 1.25;
+}
+
+/* The quoted message inside a reply bubble, as Telegram draws it: a rule, the quoted
+   sender, one truncated line. */
+.tgchat-reply {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1.4cqw;
+  padding: 0.8cqw 0 0.8cqw 2.2cqw;
+  border-left: 3px solid currentColor;
+  border-radius: 2px;
+  opacity: 0.85;
+}
+.tgchat-reply strong {
+  font-size: 3.4cqw;
+  font-weight: 600;
+}
+.tgchat-reply span {
+  overflow: hidden;
+  max-inline-size: 46cqw;
+  font-size: 3.4cqw;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The inline-bot attribution on the summary. */
+.tgchat-via {
+  margin-bottom: 1.4cqw;
+  color: var(--tg-accent);
+  font-size: 3.4cqw;
+  font-weight: 600;
+}
+
+/* Group chats: a mini avatar rides beside every left bubble, bottom-aligned. */
+.tgchat-rowline {
+  display: flex;
+  max-inline-size: 94%;
+  align-items: flex-end;
+  gap: 1.7cqw;
+}
+.tgchat-rowline .tgchat-bubble {
+  max-inline-size: 100%;
+}
+.tgchat-mini {
+  display: grid;
+  width: 7.3cqw;
+  height: 7.3cqw;
+  flex: none;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 3.9cqw;
+  font-weight: 600;
+  line-height: 1;
+  object-fit: cover;
+}
+
+/* Group sender label on a left bubble (color set inline per sender). */
+.tgchat-from {
+  margin-bottom: 0.8cqw;
+  font-size: 3.4cqw;
+  font-weight: 600;
+}
+
+/* A cited timestamp at the end of a summary line: plain link-blue text, exactly
+   as the real bot output renders in Telegram (no pill). */
+.tgchat-cite {
+  margin-left: 1.3cqw;
+  color: var(--tg-link);
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+}
+.tgchat-cite:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.tgchat-summary .h {
+  margin: 2.8cqw 0 1.1cqw;
+  font-weight: 700;
+}
+.tgchat-summary .h:first-child {
+  margin-top: 0;
+}
+.tgchat-summary .h .e {
+  margin-right: 1.2cqw;
+}
+.tgchat-summary .i {
+  margin-bottom: 1.7cqw;
+}
+.tgchat-summary .q {
+  margin-top: 2.8cqw;
+  padding: 0.6cqw 0 0.6cqw 3.4cqw;
+  border-left: 3px solid var(--tg-quote-rule);
+}
+.tgchat-summary .q .by {
+  display: block;
+  margin-top: 0.8cqw;
+  color: var(--tg-muted);
+  font-size: 3.4cqw;
+}
+.tgchat-caret {
+  display: inline-block;
+  width: 0.55em;
+  height: 1em;
+  margin-left: 0.1em;
+  background: currentColor;
+  opacity: 0.7;
+  vertical-align: -0.15em;
+}
+/* One line, always: the source may ellipsize but the row NEVER wraps or
+   reflows - a settled summary must not shift. */
+.tgchat-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  gap: 1.7cqw;
+  margin-top: 2.8cqw;
+}
+.tgchat-meta .src {
+  display: inline-flex;
+  min-width: 0;
+  color: var(--tg-link);
+  align-items: center;
+  gap: 1.1cqw;
+  overflow: hidden;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tgchat-meta .src:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+.tgchat-meta .time {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 1.1cqw;
+  white-space: nowrap;
+}
+
+/* The reply bar Telegram shows above the composer while you answer a message:
+   arrow, "Reply to <who>", one truncated line of what is quoted. */
+.tgchat-replybar {
+  position: absolute;
+  z-index: 3;
+  right: 3.4cqw;
+  bottom: calc(var(--tg-composer-h) + 5.6cqw + 4.8cqw);
+  left: 3.4cqw;
+  display: flex;
+  align-items: center;
+  gap: 2.4cqw;
+  padding: 1.6cqw 3cqw;
+  background: var(--tg-bot-bubble);
+  border: 1px solid var(--tg-border);
+  border-radius: 3cqw;
+  color: var(--tg-link);
+  animation: tgchat-bubble-in 250ms var(--tg-ease) both;
+}
+.tgchat-replybar svg {
+  display: block;
+  width: 4.6cqw;
+  height: 4.6cqw;
+  flex: none;
+}
+.tgchat-replybar div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.3cqw;
+  padding-left: 2.2cqw;
+  border-left: 2px solid var(--tg-link);
+}
+.tgchat-replybar strong {
+  font-size: 3.3cqw;
+  font-weight: 600;
+}
+.tgchat-replybar span {
+  overflow: hidden;
+  color: var(--tg-text);
+  font-size: 3.3cqw;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Decorative composer: pure chrome, zero focusables — the mockup is a picture.
+   The real bar's furniture stays: paperclip left, emoji inside the field, mic
+   right. */
+.tgchat-composer {
+  position: absolute;
+  z-index: 3;
+  right: 0;
+  bottom: 5.6cqw;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 2.4cqw;
+  padding: 2.4cqw 3.4cqw;
+}
+.tgchat-composer .cbtn {
+  display: grid;
+  width: 10cqw;
+  height: 10cqw;
+  flex: none;
+  place-items: center;
+  color: var(--tg-composer-icon);
+  background: var(--tg-bot-bubble);
+  border: 1px solid var(--tg-border);
+  border-radius: 50%;
+}
+.tgchat-composer .cbtn svg {
+  display: block;
+  width: 5.2cqw;
+  height: 5.2cqw;
+}
+.tgchat-composer .box {
+  display: flex;
+  height: 10cqw;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 1.7cqw;
+  padding: 0 3cqw 0 4.2cqw;
+  color: var(--tg-muted);
+  background: var(--tg-bot-bubble);
+  border: 1px solid var(--tg-border);
+  border-radius: 5cqw;
+  font-size: 3.65cqw;
+}
+.tgchat-composer .box svg {
+  display: block;
+  width: 5.3cqw;
+  height: 5.3cqw;
+  flex: none;
+  color: var(--tg-composer-icon);
+}
+.tgchat-composer .pill {
+  display: inline-flex;
+  height: 10cqw;
+  flex: none;
+  align-items: center;
+  gap: 1.6cqw;
+  padding: 0 3.2cqw;
+  color: var(--tg-on-accent);
+  background: var(--tg-accent);
+  border-radius: 5cqw;
+  font-size: 3.4cqw;
+  font-weight: 600;
+}
+.tgchat-composer .pill svg {
+  display: block;
+  width: 4.4cqw;
+  height: 4.4cqw;
+}
+.tgchat-composer .hint,
+.tgchat-composer .typed {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.tgchat-composer .typed {
+  color: var(--tg-text);
+  text-overflow: clip;
+  direction: rtl;
+  text-align: left;
+}
+.tgchat-composer .typed .tgchat-caret {
+  opacity: 0.9;
+}
+
+/* The spotlight token in a sent mention (the language word): a quiet pill
+   that pulses while the story dwells on it, then rests. */
+.tgchat-emph {
+  padding: 0 0.9cqw;
+  border-radius: 1cqw;
+  background: rgba(255, 255, 255, 0.18);
+  color: inherit;
+  transition: background 300ms var(--tg-ease);
+}
+.tgchat-emph[data-on] {
+  animation: tgchat-emph 1.1s ease-in-out 3;
+}
+@keyframes tgchat-emph {
+  0%,
+  100% {
+    background: rgba(255, 255, 255, 0.18);
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+  }
+  50% {
+    background: rgba(255, 255, 255, 0.42);
+    box-shadow: 0 0 0 0.8cqw rgba(255, 255, 255, 0.18);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tgchat-emph[data-on] {
+    animation: none;
+    background: rgba(255, 255, 255, 0.42);
+  }
+}
+
+.tgchat-gesture {
+  position: absolute;
+  z-index: 4;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 5.6cqw;
+}
+.tgchat-gesture span {
+  width: 30cqw;
+  height: 4px;
+  background: var(--tg-gesture-pill);
+  border-radius: 2px;
+}

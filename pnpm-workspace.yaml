@@ -1,3 +1,7 @@
 allowBuilds:
   sharp: false
   unrs-resolver: false
+# fastq 1.20.2 shipped without provenance (1.20.1 and 1.20.3 both carry SLSA provenance);
+# pinned to the last trusted version. Drop once 1.20.3 clears the 7-day quarantine.
+overrides:
+  fastq: 1.20.1

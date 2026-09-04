@@ -1,0 +1,29 @@
+# The repo's verbs. package.json keeps `build` only because Vercel runs it; it is the
+# same command as `mise build`.
+
+[tasks.dev]
+description = "demo site on :3100 (also serves the registry at /r/<name>.json)"
+run = "next dev --port 3100"
+
+[tasks.registry]
+description = "registry.json -> public/r/*.json"
+run = "shadcn build"
+
+[tasks.build]
+description = "registry + site"
+run = ["shadcn build", "next build"]
+
+[tasks.check]
+description = "typecheck, lint, registry build + assertions (public/r is committed: a stale build shows as a diff)"
+run = ["tsc --noEmit", "biome check .", "shadcn build", "bun scripts/validate-registry.ts"]
+
+[tasks.format]
+run = "biome check --write ."
+
+[tasks.add]
+description = "build, then copy one item into a consumer (default: the garden)"
+usage = '''
+arg "<item>" help="registry item name"
+arg "[dir]" help="consumer directory" default="/Users/adrian/Developer/untitled/apps/garden"
+'''
+run = 'shadcn build && npx shadcn add "$PWD/public/r/{{arg(name="item")}}.json" --cwd "{{arg(name="dir")}}" --overwrite --yes'

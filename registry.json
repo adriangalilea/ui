@@ -1,0 +1,111 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "ag",
+  "homepage": "https://github.com/adriangalilea/ui",
+  "items": [
+    {
+      "name": "tokens",
+      "type": "registry:item",
+      "title": "tokens",
+      "description": "the studio's voice on top of shadcn's neutral theme: three type voices, semantic tones, the alpha ladder, motion. import it once from globals.css",
+      "files": [
+        {
+          "path": "registry/base-nova/theme/tokens.css",
+          "type": "registry:file",
+          "target": "app/tokens.css"
+        }
+      ]
+    },
+    {
+      "name": "session-dsl",
+      "type": "registry:lib",
+      "title": "session-dsl",
+      "description": "the terminal-session script: parse, palette, timeline, and the SVG still renderer. framework-free",
+      "files": [
+        {
+          "path": "registry/base-nova/lib/session-dsl.ts",
+          "type": "registry:lib"
+        }
+      ]
+    },
+    {
+      "name": "scroll-stage",
+      "type": "registry:ui",
+      "title": "scroll-stage",
+      "description": "the pinned stage: a tall track, a sticky stage, --stage-p driven by CSS scroll-driven animation, acts as checkpoints",
+      "registryDependencies": ["@ag/tokens"],
+      "files": [
+        {
+          "path": "registry/base-nova/ui/scroll-stage.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/base-nova/ui/scroll-stage.css",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "reveal",
+      "type": "registry:ui",
+      "title": "reveal",
+      "description": "content that arrives as it enters the viewport, once or scroll-tied, with optional stagger",
+      "registryDependencies": ["@ag/tokens"],
+      "files": [
+        { "path": "registry/base-nova/ui/reveal.tsx", "type": "registry:ui" },
+        { "path": "registry/base-nova/ui/reveal.css", "type": "registry:ui" }
+      ]
+    },
+    {
+      "name": "scrims",
+      "type": "registry:ui",
+      "title": "scrims",
+      "description": "viewport fogs at top and bottom, scroll-linked, never transitioned",
+      "registryDependencies": ["@ag/tokens"],
+      "files": [
+        { "path": "registry/base-nova/ui/scrims.tsx", "type": "registry:ui" },
+        { "path": "registry/base-nova/ui/scrims.css", "type": "registry:ui" }
+      ]
+    },
+    {
+      "name": "terminal",
+      "type": "registry:ui",
+      "title": "terminal",
+      "description": "a phosphor terminal that plays a session script live; the still renderer in session-dsl draws the same frame",
+      "registryDependencies": ["@ag/tokens", "@ag/session-dsl"],
+      "files": [
+        { "path": "registry/base-nova/ui/terminal.tsx", "type": "registry:ui" }
+      ]
+    },
+    {
+      "name": "telegram-chat",
+      "type": "registry:ui",
+      "title": "telegram-chat",
+      "description": "a Telegram chat on an iPhone as a pure function of {messages, progress}: peer, bot and group shapes, streaming bodies, reactions, afterlife",
+      "registryDependencies": ["@ag/tokens"],
+      "files": [
+        {
+          "path": "registry/base-nova/ui/telegram-chat.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/base-nova/ui/telegram-chat.css",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "telegram-summary",
+      "type": "registry:block",
+      "title": "telegram-summary",
+      "description": "a link-summary bot's conversation (intro, link, mention, streamed answer) built on telegram-chat",
+      "registryDependencies": ["@ag/telegram-chat"],
+      "files": [
+        {
+          "path": "registry/base-nova/blocks/telegram-summary/telegram-summary.tsx",
+          "type": "registry:component"
+        }
+      ]
+    }
+  ]
+}

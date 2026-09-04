@@ -1,0 +1,53 @@
+/* @ag/tokens: the studio's voice on top of shadcn's neutral theme. Additive: every
+   shadcn variable stays; these are the ones @ag items read. Consumers import this
+   file once from their globals.css.
+
+   Type: three voices, never mixed. --font-sans (Geist) is display and body;
+   --font-mono (Geist Mono) is metadata ONLY (labels, versions, dates, pills,
+   kickers; text-xs or smaller, lowercase); --font-typewriter (Courier Prime) is the
+   studio's own voice (wordmark, taglines) and never bolds. The consumer's layout
+   defines the three variables with next/font; this file only maps them.
+
+   Rhythm: one 8px doubling scale, every gap a rung: 8 · 16 · 32 · 64 · 128
+   (Tailwind 2 · 4 · 8 · 16 · 32). Adjacent hierarchy levels are a clean 2x.
+
+   Monochrome cards: one color at alpha tiers (title 90, body 55, meta 40,
+   hairlines 7). A card that carries a color flare wears that ONE color everywhere;
+   alpha is the only variable. */
+
+@theme inline {
+  --font-typewriter: var(--font-typewriter);
+  --color-brand: var(--brand);
+  --color-tone-ok: var(--tone-ok);
+  --color-tone-warn: var(--tone-warn);
+  --color-tone-bad: var(--tone-bad);
+  --color-tone-info: var(--tone-info);
+  --ease-out: var(--ease-out);
+}
+
+:root {
+  /* The studio's sage, constant everywhere. --accent is per project; --brand is not. */
+  --brand: oklch(63% 0.08 145);
+
+  /* Semantic tones: state, never decoration. The brand color is forbidden from
+     meaning status. */
+  --tone-ok: oklch(72% 0.17 155);
+  --tone-warn: oklch(80% 0.16 80);
+  --tone-bad: oklch(63% 0.22 27);
+  --tone-info: oklch(72% 0.13 230);
+
+  /* The alpha ladder for monochrome surfaces. */
+  --alpha-hairline: 0.07;
+  --alpha-wash: 0.05;
+  --alpha-meta: 0.4;
+  --alpha-body: 0.55;
+  --alpha-title: 0.9;
+
+  /* Motion: one easing, four durations. Nothing animates indefinitely; one-shot or
+     scroll-driven only. */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-1: 150ms;
+  --dur-2: 300ms;
+  --dur-3: 500ms;
+  --dur-4: 700ms;
+}

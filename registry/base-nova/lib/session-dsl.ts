@@ -1,0 +1,210 @@
+// The terminal-session DSL: ONE source feeding two emitters, the animated web
+// terminal (ui/terminal.tsx) and the static SVG still (renderSessionSvg, rasterized
+// by a CLI). A session .txt doubles as an animation script: one line = one reveal
+// step. Framework-free by contract: nothing here may import React or touch the DOM.
+//
+// The DSL, one line each (XML/HTML escaping is each emitter's job; sessions are
+// written verbatim):
+//   $ cmd args        prompt line: dim $, near-white command
+//   plain text        output, full accent
+//   ~ text            muted output (secondary info, refusals, metadata)
+//   # anything        comment, dropped
+//   @800 <line>       a pause of 800 ms before this line lands (any line kind)
+//   (blank)           vertical breathing room
+
+export type SessionLine = (
+  | { kind: "command"; text: string }
+  | { kind: "output"; text: string }
+  | { kind: "muted"; text: string }
+  | { kind: "blank" }
+) & {
+  /** Milliseconds the emitter waits before this line lands. 0 when unset. */
+  delay: number
+}
+
+const DELAY = /^@(\d+)\s?(.*)$/
+
+/** Parse a session script. Comments drop, trailing blanks collapse (the cursor line
+ *  supplies the ending in both emitters). */
+export function parseSession(source: string): SessionLine[] {
+  const lines = source.split("\n").filter((l) => !l.startsWith("#"))
+  while (lines.at(-1)?.trim() === "") lines.pop()
+  return lines.map((raw) => {
+    const m = DELAY.exec(raw)
+    const delay = m ? Number(m[1]) : 0
+    const line = m ? (m[2] as string) : raw
+    if (line.trim() === "") return { kind: "blank", delay }
+    if (line.startsWith("$ "))
+      return { kind: "command", text: line.slice(2), delay }
+    if (line.startsWith("~ "))
+      return { kind: "muted", text: line.slice(2), delay }
+    return { kind: "output", text: line, delay }
+  })
+}
+
+/** One accent, tiers by mixing: one hue, intensity is the only variable. */
+export function mix(
+  hex: string,
+  toward: readonly [number, number, number],
+  t: number,
+): string {
+  const n = hex.replace("#", "")
+  const r = Number.parseInt(n.slice(0, 2), 16)
+  const g = Number.parseInt(n.slice(2, 4), 16)
+  const b = Number.parseInt(n.slice(4, 6), 16)
+  const c = (a: number, z: number) => Math.round(a + (z - a) * t)
+  return `#${[c(r, toward[0]), c(g, toward[1]), c(b, toward[2])]
+    .map((v) => v.toString(16).padStart(2, "0"))
+    .join("")}`
+}
+
+export const BLACK = [0, 0, 0] as const
+export const WHITE = [255, 255, 255] as const
+
+export interface TerminalPalette {
+  accent: string
+  bg: string
+  bar: string
+  dot: string
+  prompt: string
+  muted: string
+  command: string
+}
+
+/** The phosphor palette every terminal wears (default accent: phosphor green).
+ *  Mix ratios are LOAD-BEARING: committed stills were rendered with them, so a
+ *  change here re-colors published media on next render. */
+export function terminalPalette(accent = "#38ff6e"): TerminalPalette {
+  return {
+    accent,
+    bg: mix(accent, BLACK, 0.955),
+    bar: mix(accent, BLACK, 0.925),
+    dot: mix(accent, BLACK, 0.8),
+    prompt: mix(accent, BLACK, 0.55),
+    muted: mix(accent, WHITE, 0.4),
+    command: mix(accent, WHITE, 0.82),
+  }
+}
+
+/** Line pitch shared by both emitters, in em. */
+export const LINE_HEIGHT = 1.68
+
+// ── the timeline: lines → milliseconds ──
+//
+// Commands type char by char; output lines land whole after a beat; blanks are a
+// short breath; `@ms` adds a pause before the line. The unit is milliseconds, so a
+// script's natural duration is the sum, and `progress` (0..1) scrubs it.
+
+export const TYPE_MS = 28
+export const LAND_MS = 140
+export const BLANK_MS = 90
+
+export interface SessionTimeline {
+  lines: SessionLine[]
+  /** Time (ms) at which each line STARTS landing (after its delay). */
+  starts: number[]
+  /** Time (ms) at which each line is complete. */
+  ends: number[]
+  total: number
+}
+
+export function sessionTimeline(lines: SessionLine[]): SessionTimeline {
+  let at = 0
+  const starts: number[] = []
+  const ends: number[] = []
+  for (const l of lines) {
+    at += l.delay
+    starts.push(at)
+    at +=
+      l.kind === "command"
+        ? l.text.length * TYPE_MS + LAND_MS
+        : l.kind === "blank"
+          ? BLANK_MS
+          : LAND_MS
+    ends.push(at)
+  }
+  return { lines, starts, ends, total: Math.max(1, at) }
+}
+
+// ── the still: a session as one SVG frame ──
+
+export interface StillOptions {
+  accent?: string
+  fontSize?: number
+  width?: number
+  height?: number
+}
+
+const esc = (s: string) =>
+  s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+
+/** Render a session as a phosphor terminal frame (title bar, three dots, the lines,
+ *  a block-cursor prompt at the end). Throws when the session overflows the frame:
+ *  cut lines or shrink the font, never clip silently. */
+export function renderSessionSvg(
+  lines: SessionLine[],
+  {
+    accent = "#38ff6e",
+    fontSize = 38,
+    width = 1920,
+    height = 1200,
+  }: StillOptions = {},
+): string {
+  const { bg, bar, dot, prompt, muted, command } = terminalPalette(accent)
+  const step = Math.round(fontSize * LINE_HEIGHT)
+  const x = 96
+  let y = 96 + Math.round(fontSize * 3.2)
+  const rows: string[] = []
+  for (const line of lines) {
+    if (line.kind === "blank") {
+      y += step
+      continue
+    }
+    if (line.kind === "command") {
+      rows.push(
+        `<text x="${x}" y="${y}" fill="${prompt}">$ <tspan fill="${command}">${esc(line.text)}</tspan></text>`,
+      )
+    } else {
+      const fill = line.kind === "muted" ? muted : accent
+      rows.push(
+        `<text x="${x}" y="${y}" fill="${fill}">${esc(line.text)}</text>`,
+      )
+    }
+    y += step
+  }
+  y += step
+  rows.push(
+    `<text x="${x}" y="${y}" fill="${prompt}">$ <tspan fill="${dot}">█</tspan></text>`,
+  )
+  if (y > height - 64) {
+    throw new Error(
+      `session overflows the frame (${y} > ${height - 64}): cut lines or shrink fontSize`,
+    )
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
+  <rect width="${width}" height="${height}" fill="${bg}"/>
+  <rect width="${width}" height="96" fill="${bar}"/>
+  <circle cx="64" cy="48" r="13" fill="${dot}"/>
+  <circle cx="108" cy="48" r="13" fill="${dot}"/>
+  <circle cx="152" cy="48" r="13" fill="${dot}"/>
+  <g font-family="Menlo, Monaco, monospace" font-size="${fontSize}" xml:space="preserve">
+    ${rows.join("\n    ")}
+  </g>
+</svg>
+`
+}
+
+// Runnable example: `bun registry/base-nova/lib/session-dsl.ts` prints the SVG of a
+// sample session to stdout and its timeline to stderr.
+if (import.meta.main) {
+  const sample = `$ trash thesis-draft.txt
+trashed: ~/Desktop/thesis-draft.txt
+
+@600 $ trash list
+thesis-draft.txt  2026-08-20 14:27  ~/Desktop/thesis-draft.txt
+~ 1 item`
+  const lines = parseSession(sample)
+  const t = sessionTimeline(lines)
+  console.error(`${lines.length} lines, ${t.total} ms`)
+  process.stdout.write(renderSessionSvg(lines))
+}
