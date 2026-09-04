@@ -29,6 +29,24 @@ The site deploys on every push to main (Vercel project `ui`, team adriangalileas
 - Headless Chrome over CDP (bun scripts, `/tmp/lb-*.ts` shape) is the regression rig: drive the demo with `?debug`, read the trace and the active layer's computed matrix, run the same script against the deployed site to diff behavior. A CDP keyup lands the same ms as the keydown, which is how the settle bug surfaced.
 - The architecture debt and the extraction plan are in the todo below; do them before adopting the item in a site.
 
+### The trackpad swipe is BAD. Do not iterate on it again.
+
+Read this before touching the track. It is the honest state, not a caveat.
+
+Swiping between slides on a trackpad is bad UX. Not rough, not nearly there: bad. It overshoots, it oscillates, one swipe covers one slide or two depending on nothing the reader can perceive, and a run of them reads as fighting the thing rather than using it. `released 5→3.27 v -12.14 sum -2.23 far → 3` next to `released 3→4.32 v 9.25 sum 1.82 → 4` is a reader trying to go one slide back and being thrown two, then overcorrecting. Everything else in this component is good; this one gesture is not, and it is the gesture a reader uses most.
+
+**It got worse through iteration, and that is the lesson.** It was rebuilt from a JS-driven track (tag `lightbox-js-track`) onto a real scroll container, which was right. Then roughly a dozen rounds followed, each one changing a constant or a rule in response to one report of how it felt: the commit threshold, the momentum cap, the axis lock, the landing curve, the drag gain. Every round fixed the thing that was named and moved the problem somewhere else, because there was no model of what correct is to check against. Tuning by a single reader's reaction, one round at a time, converges on nothing. The commit log from `2c73650` to `845c463` is that process; read it as a record of how not to do this.
+
+**Before any further work, research.** Not another constant. The questions that were never answered:
+
+- What do the good ones actually do, in numbers? iOS `UIScrollView` paging and `targetContentOffset(forProposedContentOffset:withScrollingVelocity:)`, Android `ViewPager2` and `PagerSnapHelper`, Embla, Swiper, Flicking, Motion's carousel. Their commit thresholds, their velocity thresholds, their durations and curves, and how they weigh distance against speed.
+- Whether the drag should be amplified at all, and if so by how much and with what curve. This has 2.6x easing to 1:1 across a slide and it is too much; nobody checked what a trackpad's own acceleration already contributes before adding to it.
+- What one gesture is allowed to move. One slide, or as many as it was thrown? Both were asked for here at different times and they are not compatible without a rule that distinguishes them, which nothing here has.
+- What macOS momentum actually looks like per device, measured. The detector is inherited from wheel-gestures and its latency is felt directly, but nobody has logged real streams and looked at them.
+- Whether the wheel's vertical dismiss should exist at all. It competes with the swipe for the same gesture and the axis lock is a guess arbitrating between them.
+
+Then decide on paper, write the rule down with the numbers in it, and only then change the code. Rollback points: `lightbox-js-track` for the whole pre-scroll-container engine, `19df088` for the last state that was called "99% right".
+
 ## Verbs
 
 `mise dev` (:3100) · `mise check` · `mise build` · `mise add <item> [consumer-dir]` (builds, then `shadcn add` from the local `public/r`). package.json keeps `build` for Vercel only. Runnable examples live in `scripts/examples/` (`bun scripts/examples/session-still.ts`), never inside a lib file.
