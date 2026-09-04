@@ -71,12 +71,14 @@ import {
   PINCH_CLOSE,
   PINCH_PASSED,
   type Point,
+  type Pose,
   panBounds,
   pinchProgress,
   project,
   QUICK,
   RELOCK,
   type Rect,
+  rawPan,
   rubber,
   SAMPLES,
   type Sample,
@@ -92,18 +94,19 @@ import {
   TAP_TRAVEL,
   type Tuning,
   type Tunings,
-  unovershoot,
   type View,
   velocity,
   WHEEL_GUARD,
   WHEEL_SILENCE,
-  WHEEL_ZOOM,
-  wheelIsHand,
-  wheelPx,
-  wheelTick,
   zoomAt,
   zoomMax as zoomCeiling,
 } from "@/registry/base-nova/lib/lightbox-motion"
+import {
+  type WheelCtx,
+  type WheelSession,
+  wheelRelease,
+  wheelTick,
+} from "@/registry/base-nova/lib/lightbox-wheel"
 import "./lightbox.css"
 
 export type Source = {
@@ -574,7 +577,6 @@ type StageProps = {
   debug: boolean
 }
 
-type Pose = { x: number; y: number; s: number; p: number }
 const POSE_EPS: Pose = { x: 0.5, y: 0.5, s: 0.001, p: 0.002 }
 /** A zoom within this share of the sharp scale IS the original. */
 const SHARP_EPS = 0.01
@@ -1479,11 +1481,8 @@ function Stage(props: StageProps) {
       const list = "getCoalescedEvents" in e ? e.getCoalescedEvents() : []
       return list.length > 0 ? list : [e]
     }
-    const rawOf = (v: Pose): Point => {
-      const { fitted, band } = L.current
-      const b = panBounds(v, fitted, band)
-      return { x: unovershoot(v.x, b.x), y: unovershoot(v.y, b.y) }
-    }
+    const rawOf = (v: Pose): Point =>
+      rawPan(v, L.current.fitted, L.current.band)
     // A gesture that takes the stage off the x axis (a pan, a pinch, a vertical
     // drag, a zoom or pan wheel) drops any committing slide first; only an x-axis
     // gesture keeps it frozen, to re-aim it on release.
@@ -1518,7 +1517,7 @@ function Stage(props: StageProps) {
         // is released, not dropped: its zoom reaches React, its rubber is undone,
         // and the grab below takes the release flight at frame 0.
         if (W) {
-          clearTimeout(W.timer)
+          clearTimeout(wheelTimer)
           endWheel()
         }
         beginGesture()
@@ -1816,64 +1815,55 @@ function Stage(props: StageProps) {
       stepTo(index + d, HAND, v.x)
     }
 
-    // ---- wheel
-    // A wheel session applies its accumulated delta (`x`, `y`) to the pose the hand
-    // found (`grab`, or `slide0` for the track), the way a drag offsets from its
-    // grab; the content follows the fingers on every axis. `last` is the accepted
-    // tick the velocity window is measured against; `at` the last cursor; `live`
-    // whether the session ever moved anything (a vertical session at fit is held
-    // back until the inertia guard passes, and decides nothing if it never did). A
-    // slide or dismiss commits the moment its rule is met, not at silence: a
-    // trackpad's inertia tail is then `pass`ed, so a flick steps at once and never
-    // overshoots the neighbour.
-    type W = {
-      axis: "zoom" | "pan" | "x" | "y" | "pass"
-      live: boolean
-      ticks: number[]
-      y: number
-      x: number
-      grab: Pose
-      /** The grab read back through the pan rubber (see G.raw0). */
-      raw0: Point
-      slide0: number
-      /** The raw scale the ticks accumulated; the pose wears it rubbered. */
-      zoom: number
-      samples: Sample[]
-      last: number
-      at: Point
-      timer: number
+    // ---- wheel (lightbox-wheel): the session is data, the binder owns the silence
+    // timer and applies the effects. The pose handed to the reducer is the one the
+    // eye sees: a flight in progress is read at its clock, not the last tick's copy.
+    let W: WheelSession | null = null
+    let wheelTimer = 0
+    const wheelCtx = (): WheelCtx => {
+      const { fitted, band, zoomMax, ids, index, loop, entry } = L.current
+      return {
+        pose: S.flight
+          ? (readFlight(S.flight).frame.value as Pose)
+          : pose.value,
+        slideX: slide.value.x,
+        fitted,
+        band,
+        zoomMax,
+        can: neighbours(index, ids.length, loop),
+        vh: vh(),
+        frame: entry.media.kind === "frame",
+      }
     }
-    let W: W | null = null
     const endWheel = () => {
       const w = W
       W = null
       if (!w) return
-      const { fitted, band } = L.current
       endGesture()
-      const v = velocity(w.samples, w.last)
-      switch (w.axis) {
-        case "pass":
+      const r = wheelRelease(w, wheelCtx())
+      switch (r.kind) {
+        case "none":
+          return
+        case "fit":
+          animate(FIT, 1, MACHINE)
+          setZoom(1)
           return
         case "zoom":
-          // Under fit the rubber lets go and the image springs back; a wheel or a
-          // trackpad pinch never dismisses (that is a finger's gesture).
-          if (pose.value.s < 1) {
-            animate(FIT, 1, MACHINE)
-            setZoom(1)
-            return
-          }
-          releaseZoom({ x: 0, y: 0 }, w.at)
+          releaseZoom({ x: 0, y: 0 }, r.at)
           return
         case "pan":
-          animate(clampPan(pose.value, fitted, band), 1, MACHINE)
+          animate(r.target, 1, MACHINE)
           return
-        case "y":
-          if (!w.live) return
-          animate(FIT, 1, HAND, v)
+        case "cancel":
+          animate(FIT, 1, HAND, r.vel)
           return
-        case "x": {
-          animateSlide(0, HAND, v.x)
+        case "home":
+          animateSlide(0, HAND, r.vx)
           resume()
+          return
+        default: {
+          const never: never = r
+          throw new Error(`lightbox: wheel release ${String(never)}`)
         }
       }
     }
@@ -1888,118 +1878,47 @@ function Stage(props: StageProps) {
       e.preventDefault()
       if (performance.now() - S.enterAt < WHEEL_GUARD) return
       if (G) return
-      if (W) clearTimeout(W.timer)
-      const { fitted, band, zoomMax, ids, index, loop, entry } = L.current
-      // Lines and pages become px here; the guard reads the tick the device sent,
-      // motion reads it bounded.
-      const rawX = wheelPx(e.deltaX, e.deltaMode, band.h)
-      const rawY = wheelPx(e.deltaY, e.deltaMode, band.h)
-      const dx = wheelTick(rawX)
-      const dy = wheelTick(rawY)
-      if (!W) {
-        const axis: W["axis"] = e.ctrlKey
-          ? "zoom"
-          : pose.value.s > 1.01
-            ? "pan"
-            : Math.abs(dx) > Math.abs(dy)
-              ? "x"
-              : "y"
-        if (axis === "zoom" && entry.media.kind === "frame") return
-        W = {
-          axis,
-          live: axis !== "y",
-          ticks: [],
-          y: 0,
-          x: 0,
-          grab: pose.value,
-          raw0: rawOf(pose.value),
-          slide0: slide.value.x,
-          zoom: pose.value.s,
-          samples: [],
-          last: 0,
+      clearTimeout(wheelTimer)
+      const next = wheelTick(
+        W,
+        {
+          deltaX: e.deltaX,
+          deltaY: e.deltaY,
+          deltaMode: e.deltaMode,
+          ctrl: e.ctrlKey,
           at: rel(e.clientX, e.clientY),
-          timer: 0,
-        }
-        if (axis !== "y") beginGesture()
-        if (axis === "zoom" || axis === "pan") dropSlide()
-      }
-      W.timer = window.setTimeout(endWheel, WHEEL_SILENCE)
-      if (W.axis === "pass") return
-      const now = performance.now()
-      W.last = now
-      W.at = rel(e.clientX, e.clientY)
-      switch (W.axis) {
-        case "zoom": {
-          // The raw accumulator rubbers (soft floor 0.85 under fit, stiff over the
-          // ceiling), the way a drag offsets from its grab.
-          W.zoom *= Math.exp(-dy * WHEEL_ZOOM)
-          const v = zoomAt(pose.value, rubber(W.zoom, 1, zoomMax), W.at)
-          pose.value = { ...v, p: pose.value.p }
-          write()
-          return
-        }
-        case "pan": {
-          // The raw accumulator rubbers, the way a drag offsets from its grab.
-          const b = panBounds(pose.value, fitted, band)
-          W.x -= dx
-          W.y -= dy
-          pose.value = {
-            ...pose.value,
-            x: overshoot(W.raw0.x + W.x, b.x),
-            y: overshoot(W.raw0.y + W.y, b.y),
-          }
-          write()
-          return
-        }
-        case "x": {
-          const can = neighbours(index, ids.length, loop)
-          W.x -= dx
-          let x = W.slide0 + W.x
-          if ((x > 0 && !can.prev) || (x < 0 && !can.next)) x *= 0.35
-          // Never past the neighbour's slot: nothing is mounted beyond it.
-          x = overshoot(x, band.w + SLIDE_GAP)
-          slide.value = { x }
-          writeSlide()
-          W.samples.push({ x, y: 0, t: now })
-          const vx = velocity(W.samples, now).x
-          const d = slideCommit(x, vx, band.w, can)
-          if (d !== 0) {
-            W.axis = "pass"
-            stepTo(index + d, HAND, vx)
-          }
-          return
-        }
-        case "y": {
-          // Nothing accumulates before the guard decides: a session it rejects is
-          // passed through whole, one it accepts starts from its first applied tick,
-          // offsetting the pose it finds there.
-          if (!W.live) {
-            W.ticks.push(Math.abs(rawY))
-            if (W.ticks.length < 3) return
-            if (!wheelIsHand(W.ticks)) {
-              W.axis = "pass"
-              return
-            }
+          now: performance.now(),
+        },
+        wheelCtx(),
+      )
+      W = next.session
+      if (!W) return
+      wheelTimer = window.setTimeout(endWheel, WHEEL_SILENCE)
+      for (const f of next.effects) {
+        switch (f.kind) {
+          case "grab":
             beginGesture()
+            break
+          case "drop":
             dropSlide()
-            W.live = true
-            W.grab = pose.value
-          }
-          W.y -= dy
-          const h = vh()
-          const grab = W.grab
-          pose.value = {
-            x: grab.x,
-            y: grab.y + W.y,
-            s: grab.s * dragScale(W.y, h),
-            p: grab.p * dragProgress(W.y, h),
-          }
-          W.samples.push({ x: 0, y: W.y, t: now })
-          write()
-          const v = velocity(W.samples, now)
-          if (dismissCommit(W.y, v.y, h)) {
-            W.axis = "pass"
-            beginExit({ x: 0, y: v.y })
+            break
+          case "pose":
+            pose.value = f.pose
+            write()
+            break
+          case "slide":
+            slide.value = { x: f.x }
+            writeSlide()
+            break
+          case "step":
+            stepTo(L.current.index + f.d, HAND, f.vx)
+            break
+          case "exit":
+            beginExit({ x: 0, y: f.vy })
+            break
+          default: {
+            const never: never = f
+            throw new Error(`lightbox: wheel effect ${String(never)}`)
           }
         }
       }
@@ -2253,7 +2172,7 @@ function Stage(props: StageProps) {
       if (S.raf) cancelAnimationFrame(S.raf)
       if (bandRaf) cancelAnimationFrame(bandRaf)
       clearTimeout(tapTimer)
-      if (W) clearTimeout(W.timer)
+      clearTimeout(wheelTimer)
       rootEl.removeEventListener("pointerdown", onDown)
       rootEl.removeEventListener("pointermove", onMove)
       rootEl.removeEventListener("pointerup", onUp)

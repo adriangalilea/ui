@@ -4,6 +4,8 @@
 // clock. `bun scripts/examples/lightbox-motion.ts` exercises every invariant.
 
 export type View = { x: number; y: number; s: number }
+/** The view plus `p`, how far the room is lit: 0 at the source, 1 at rest. */
+export type Pose = View & { p: number }
 export type Size = { w: number; h: number }
 export type Rect = {
   x: number
@@ -168,6 +170,13 @@ export function unovershoot(value: number, bound: number): number {
 export function clampPan(view: View, fitted: Size, band: Band): View {
   const b = panBounds(view, fitted, band)
   return { x: clamp(view.x, -b.x, b.x), y: clamp(view.y, -b.y, b.y), s: view.s }
+}
+
+/** A grab's pan read back through the rubber: the raw offset a session adds its
+ *  deltas to before rubbering the sum (see `unovershoot`). */
+export function rawPan(view: View, fitted: Size, band: Band): Point {
+  const b = panBounds(view, fitted, band)
+  return { x: unovershoot(view.x, b.x), y: unovershoot(view.y, b.y) }
 }
 
 /** Where a flick comes to rest on its own. */
