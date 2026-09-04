@@ -56,7 +56,7 @@ import {
   GONE,
   HAND,
   INTENT,
-  KEY_PAN,
+  KEY_PAN_SPEED,
   MACHINE,
   neighbours,
   type Obstruction,
@@ -1324,24 +1324,12 @@ function Stage(props: StageProps) {
         case "pan.left":
         case "pan.right":
         case "pan.up":
-        case "pan.down": {
-          const dx =
-            id === "pan.left" ? KEY_PAN : id === "pan.right" ? -KEY_PAN : 0
-          const dy =
-            id === "pan.up" ? KEY_PAN : id === "pan.down" ? -KEY_PAN : 0
-          const { fitted, band } = L.current
-          sync()
-          animate(
-            clampPan(
-              { ...pose.value, x: pose.value.x + dx, y: pose.value.y + dy },
-              fitted,
-              band,
-            ),
-            1,
-            MACHINE,
-          )
+        case "pan.down":
+          // A pan key is a HELD verb: it enters the pan loop and leaves on keyup;
+          // the buttons and the sheet dispatch it as one 200 ms press.
+          holdPan(id, `dispatch:${id}`)
+          window.setTimeout(() => releasePan(`dispatch:${id}`), 200)
           return
-        }
         case "rail": {
           if (unavailable.has(id)) return
           const { onRailChange, rail } = L.current
@@ -1968,6 +1956,52 @@ function Stage(props: StageProps) {
     // walked by hand over the dialog's own tabbables: Safari's Tab visits only
     // fields by default and would leave for the address bar, so the browser never
     // gets it. A key that is part of an IME composition belongs to the composition.
+    // ---- the pan loop: arrows held while zoomed move the image at a constant speed,
+    // every held arrow adding its axis, so up + left is a diagonal and a held key is
+    // one fluent glide, not a spring restarted on every repeat. Keys are tracked by
+    // the physical key that went down, so a layer change mid-hold still releases.
+    const held = new Map<string, ActionId>()
+    let panRaf = 0
+    let panLast = 0
+    const panTick = (t: number) => {
+      const dt = Math.min(32, t - panLast)
+      panLast = t
+      let dx = 0
+      let dy = 0
+      for (const id of held.values()) {
+        if (id === "pan.left") dx += KEY_PAN_SPEED * dt
+        else if (id === "pan.right") dx -= KEY_PAN_SPEED * dt
+        else if (id === "pan.up") dy += KEY_PAN_SPEED * dt
+        else if (id === "pan.down") dy -= KEY_PAN_SPEED * dt
+      }
+      sync()
+      const { fitted, band } = L.current
+      const v = clampPan(
+        { ...pose.value, x: pose.value.x + dx, y: pose.value.y + dy },
+        fitted,
+        band,
+      )
+      pose.value = { ...v, p: pose.value.p }
+      pose.vel = ZERO
+      write()
+      panRaf = held.size > 0 ? requestAnimationFrame(panTick) : 0
+    }
+    const holdPan = (id: ActionId, key: string) => {
+      if (held.has(key)) return
+      held.set(key, id)
+      if (panRaf === 0) {
+        panLast = performance.now()
+        panRaf = requestAnimationFrame(panTick)
+      }
+    }
+    const releasePan = (key: string) => {
+      held.delete(key)
+    }
+    const releaseAllPan = () => {
+      held.clear()
+    }
+    const onKeyUp = (e: KeyboardEvent) => releasePan(e.key)
+
     const onKey = (e: KeyboardEvent) => {
       if (e.isComposing || e.keyCode === 229) return
       S.input = "key"
@@ -2024,6 +2058,10 @@ function Stage(props: StageProps) {
       e.preventDefault()
       if (e.repeat && a.repeat === false) return
       if (unavailable.has(a.id as ActionId)) return
+      if (a.id.startsWith("pan.")) {
+        holdPan(a.id as ActionId, e.key)
+        return
+      }
       dispatch(a.id as ActionId)
     }
 
@@ -2065,6 +2103,8 @@ function Stage(props: StageProps) {
     rootEl.addEventListener("pointercancel", onUp)
     rootEl.addEventListener("wheel", onWheel, { passive: false })
     document.addEventListener("keydown", onKey, { capture: true })
+    document.addEventListener("keyup", onKeyUp, { capture: true })
+    window.addEventListener("blur", releaseAllPan)
     document.addEventListener("fullscreenchange", onFullscreen)
     const vv = window.visualViewport
     assert(vv, "visualViewport")
@@ -2154,6 +2194,9 @@ function Stage(props: StageProps) {
       rootEl.removeEventListener("pointercancel", onUp)
       rootEl.removeEventListener("wheel", onWheel)
       document.removeEventListener("keydown", onKey, { capture: true })
+      document.removeEventListener("keyup", onKeyUp, { capture: true })
+      window.removeEventListener("blur", releaseAllPan)
+      if (panRaf) cancelAnimationFrame(panRaf)
       watcher?.destroy()
       document.removeEventListener("fullscreenchange", onFullscreen)
       vv.removeEventListener("resize", onViewport)

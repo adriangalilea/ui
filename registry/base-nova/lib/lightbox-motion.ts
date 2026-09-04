@@ -51,7 +51,8 @@ export const DISMISS_COMMIT = 0.4
 export const PINCH_CLOSE = 0.75
 export const PINCH_PASSED = 1.067
 export const SLIDE_VELOCITY = 0.5
-export const KEY_PAN = 50
+/** A held arrow pans at this speed (px per ms); two arrows add up to a diagonal. */
+export const KEY_PAN_SPEED = 0.9
 export const WHEEL_SILENCE = 150
 export const WHEEL_GUARD = 400
 export const WHEEL_ZOOM = 0.01
