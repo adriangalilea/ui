@@ -126,10 +126,18 @@
       "name": "lightbox-motion",
       "type": "registry:lib",
       "title": "lightbox-motion",
-      "description": "the lightbox's math: fit, source view, zoom at a point, rubber, pan bounds, momentum, commit rules, the stage band and one interruptible spring. framework-free",
+      "description": "the lightbox's engine, framework-free: fit, source view, zoom at a point, rubber, pan bounds, momentum, commit rules, the stage band and one interruptible spring; the compositor flight (table, clock, landing); the held-key loop",
       "files": [
         {
           "path": "registry/base-nova/lib/lightbox-motion.ts",
+          "type": "registry:lib"
+        },
+        {
+          "path": "registry/base-nova/lib/lightbox-flight.ts",
+          "type": "registry:lib"
+        },
+        {
+          "path": "registry/base-nova/lib/lightbox-hold.ts",
           "type": "registry:lib"
         }
       ]

@@ -18,13 +18,15 @@ The site deploys on every push to main (Vercel project `ui`, team adriangalileas
 
 ## Lightbox
 
-`ui/lightbox.tsx` is the binder; `lib/lightbox-motion.ts` (fit, source view, zoom, rubber, springs, flight sampling, `frameAt`) and `lib/lightbox-actions.ts` (the key table: keys, layers, `resolve`, the escape ladder, `sheet()`) are framework-free and proven by `scripts/examples/lightbox-motion.ts`. Every pose move is a Web Animation sampled from the spring (compositor properties only: transform, and the cover crop as two counter-scaled transforms); a gesture reads the animation's clock and takes over. React state changes on checkpoints.
+`ui/lightbox.tsx` is the binder. The framework-free libs, each proven by its `scripts/examples/lightbox-*.ts` (run by `mise check`): `lib/lightbox-motion.ts` (fit, source view, zoom, rubber, springs, flight sampling, `frameAt`), `lib/lightbox-flight.ts` (the flight as a table plus a `Clock`: plan, read, landing rule), `lib/lightbox-hold.ts` (held keys to a view per frame), `lib/lightbox-actions.ts` (the key table: keys, layers, `resolve`, the escape ladder, `sheet()`). The three motion libs ship as one registry item, `lightbox-motion`. Every pose move is a Web Animation sampled from the spring (compositor properties only: transform, and the cover crop as two counter-scaled transforms); a gesture reads the animation's clock and takes over. React state changes on checkpoints.
 
 - **WebKit hands `Animation.currentTime` back a hair under the duration** (seconds in, milliseconds out): a frame table indexed by time treats anything within `TIME_EPS` of the last frame as the last frame, or every flight on iOS fails to land and the frame loop dies. `frameAt` clamps its index and screams on a non-finite time.
 - `debug` prop (demo: `?debug`) draws the engine's trace on the stage: pointer, gesture and dispatch decisions with the live pose, the layer's computed matrix, the live animation count, and page errors with a stack. This is how iOS bugs get diagnosed; production source maps are on for the same reason.
 - iOS selects an image on a double tap unless the stage takes the default on pointerdown and the media carries `user-select: none` and no touch callout.
 - Safari's Tab visits only fields: the dialog walks Tab over its own tabbables.
 - History is replace-only (`#lb=id`); pushState made the iOS edge swipe double-animate a close. Android Back closes via CloseWatcher.
+- Only a HOLD settles the zoom state on keyup (`releasePan` checks the key was held). A tapped + or - lifts while its spring is a few frames in; settling there recorded a mid-flight zoom, so `-` to fit left the chrome in zoomed mode.
+- Headless Chrome over CDP (bun scripts, `/tmp/lb-*.ts` shape) is the regression rig: drive the demo with `?debug`, read the trace and the active layer's computed matrix, run the same script against the deployed site to diff behavior. A CDP keyup lands the same ms as the keydown, which is how the settle bug surfaced.
 - The architecture debt and the extraction plan are in the todo below; do them before adopting the item in a site.
 
 ## Verbs
@@ -39,15 +41,13 @@ pnpm's 7-day quarantine and no-downgrade trust policy apply. `pnpm-workspace.yam
 
 ### lightbox: extract the engine (before any site adopts it)
 
-`ui/lightbox.tsx` is ~3,000 lines whose heart is one `useLayoutEffect` holding some sixty closures over three mutable bags (engine `S`, gesture `G`, wheel `W`). It works, but nothing in it runs outside a browser and every fix lands as another closure. Extract framework-free modules in the shape of `lightbox-motion`, each with its case in `scripts/examples/`, behavior unchanged:
+`ui/lightbox.tsx` is ~2,900 lines whose heart is one `useLayoutEffect` holding closures over mutable bags (engine `S`, gesture `G`, wheel `W`). The flight and the hold loop are extracted (`lightbox-flight`, `lightbox-hold`); two remain, each a framework-free reducer in the shape of `lightbox-motion` with its case in `scripts/examples/`, behavior unchanged:
 
-- `lib/lightbox-flight.ts`: the Web Animation flight, its clock, landing, the mid-flight takeover (pose + velocity off the table).
-- `lib/lightbox-gesture.ts`: the pointer state machine as a pure reducer: events in, intents out (pan, slide, dismiss, pinch, tap, double tap), the axis locks and relocks, the release rules.
-- `lib/lightbox-wheel.ts`: the trackpad session, the inertia guard, the release.
-- `lib/lightbox-hold.ts`: the held-key loop (arrows pan, + and - zoom, axes add).
+- `lib/lightbox-wheel.ts`: the `W` session (axis zoom | pan | x | y | pass, the inertia guard, accumulators, samples) as `wheelTick(session, event, ctx) → { session, effect }` and `wheelRelease(session, ctx) → effect`; the binder keeps the WHEEL_SILENCE timer and applies effects (pose, slide, step, exit, begin, drop, pass).
+- `lib/lightbox-gesture.ts`: the `G` pointer state machine as `gestureDown` / `gestureMove` / `gestureUp` reducers emitting intents (pan, slide, dismiss, pinch, tap, double tap), the axis locks and relocks, the release rules; `tapIntent` owns the tap ladder (pointer: one click toggles zoom; touch: one tap chrome, two zoom; backdrop at fit escapes).
 - `ui/lightbox.tsx` stays the binder: DOM listeners in, intents to the modules, React state at checkpoints only.
 
-The new modules ship as extra files of the `lightbox-motion` item (one item, one demo); libs take a `Clock = { currentTime: unknown }` or numbers, never `window`, `document` or `requestAnimationFrame`. Three stages, each gated and committed: flight + hold, then wheel, then gesture. Behavior must not change; Adrian re-verifies in the browser, iPhone included, with `?debug`.
+New modules ship as extra files of the `lightbox-motion` item (one item, one demo); libs take a `Clock = { currentTime: unknown }` or numbers, never `window`, `document` or `requestAnimationFrame`. One gated commit per module (`mise check`, `pnpm next build`, the CDP rig against the deployed build). Adrian re-verifies in the browser, iPhone included, with `?debug`.
 
 Also on the item: the demo streams a 17.8 MB trailer from blender.org on every open (host a short clip on the site); Safari frame pacing is unmeasured (needs Develop → Allow Remote Automation, then WebDriver); the sign-off list is `unverified` for Android.
 

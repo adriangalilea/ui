@@ -38,6 +38,16 @@ import {
   sheet as sheetOf,
 } from "@/registry/base-nova/lib/lightbox-actions"
 import {
+  type Flight as MotionFlight,
+  planFlight,
+  readFlight,
+} from "@/registry/base-nova/lib/lightbox-flight"
+import {
+  applyHold,
+  type HoldVerb,
+  holdDelta,
+} from "@/registry/base-nova/lib/lightbox-hold"
+import {
   assert,
   assertSize,
   type Band,
@@ -50,14 +60,10 @@ import {
   dragProgress,
   dragScale,
   FIT,
-  type Frame,
   fit,
-  frameAt,
   GONE,
   HAND,
   INTENT,
-  KEY_PAN_SPEED,
-  KEY_ZOOM_MS,
   MACHINE,
   neighbours,
   type Obstruction,
@@ -79,13 +85,11 @@ import {
   type SourceView,
   Spring,
   STILL,
-  sampleFlight,
   sharpScale,
   slideCommit,
   sourceView,
   stageBand,
   TAP_TRAVEL,
-  TIME_EPS,
   type Tuning,
   type Tunings,
   unovershoot,
@@ -768,15 +772,9 @@ function Stage(props: StageProps) {
       vel: ZERO,
     }
     const slide = new Spring<"x">({ x: 0 }, { x: 0.5 })
-    /** A sampled spring playing on the compositor. `settles`: reaching `target` is
-     *  the pending checkpoint (settle the enter, close, clear pending); a flight
-     *  that merely returns the image to a grab is not. */
-    type Flight = {
-      frames: Frame<keyof Pose>[]
-      anims: Animation[]
-      target: Pose
-      settles: boolean
-    }
+    /** A flight on the compositor: the table and its clock (lightbox-flight) plus
+     *  the animations that play it, kept to cancel them. */
+    type Flight = MotionFlight<keyof Pose> & { anims: Animation[] }
     const S = {
       raf: 0,
       last: 0,
@@ -929,11 +927,6 @@ function Stage(props: StageProps) {
     const writeSlide = () => {
       trackEl.style.transform = `translate3d(${slide.value.x}px, 0, 0)`
     }
-    const flightTime = (f: Flight) => {
-      const t = (f.anims[0] as Animation).currentTime
-      assert(typeof t === "number", "flight without a clock")
-      return t
-    }
     // The flight ends: the pose IS the target, inline, and the animations go. The
     // inline write lands in the same frame the fill-forwards effect is cancelled, so
     // nothing flashes.
@@ -957,9 +950,9 @@ function Stage(props: StageProps) {
     const sync = () => {
       const f = S.flight
       if (!f) return
-      const fr = frameAt(f.frames, flightTime(f))
-      pose.value = fr.value
-      pose.vel = fr.vel
+      const { frame } = readFlight(f)
+      pose.value = frame.value
+      pose.vel = frame.vel
       S.flight = null
       writePose()
       for (const a of f.anims) a.cancel()
@@ -968,17 +961,11 @@ function Stage(props: StageProps) {
       const dt = S.last ? t - S.last : 16
       S.last = t
       if (S.flight) {
-        const f = S.flight
-        const now = flightTime(f)
-        const fr = frameAt(f.frames, now)
-        pose.value = fr.value
-        pose.vel = fr.vel
+        const { frame, done } = readFlight(S.flight)
+        pose.value = frame.value
+        pose.vel = frame.vel
         writeP()
-        if (
-          now >=
-          (f.frames[f.frames.length - 1] as Frame<keyof Pose>).t - TIME_EPS
-        )
-          land()
+        if (done) land()
       }
       if (S.slideOn) {
         const done = slide.step(dt)
@@ -1016,7 +1003,7 @@ function Stage(props: StageProps) {
       settles: boolean,
     ) => {
       sync()
-      const frames = sampleFlight(
+      const { frames, duration } = planFlight(
         pose.value,
         vel ?? pose.vel,
         target,
@@ -1024,19 +1011,18 @@ function Stage(props: StageProps) {
         POSE_EPS,
       )
       const el = layerEl()
-      const duration = (frames[frames.length - 1] as Frame<keyof Pose>).t
       const timing: KeyframeAnimationOptions = {
         duration,
         easing: "linear",
         fill: "forwards",
       }
       const crop = cropEl(el)
-      const anims = [
-        el.animate(
-          frames.map((f) => ({ transform: transformOf(f.value) })),
-          timing,
-        ),
-      ]
+      // The layer's transform is the clock every other effect (and the engine) reads.
+      const clock = el.animate(
+        frames.map((f) => ({ transform: transformOf(f.value) })),
+        timing,
+      )
+      const anims = [clock]
       if (cropped())
         anims.push(
           crop.animate(
@@ -1055,7 +1041,7 @@ function Stage(props: StageProps) {
             timing,
           ),
         )
-      S.flight = { frames, anims, target, settles }
+      S.flight = { frames, anims, target, settles, clock }
       el.style.willChange = "transform"
       start()
     }
@@ -2029,45 +2015,30 @@ function Stage(props: StageProps) {
     // walked by hand over the dialog's own tabbables: Safari's Tab visits only
     // fields by default and would leave for the address bar, so the browser never
     // gets it. A key that is part of an IME composition belongs to the composition.
-    // ---- the hold loop: a key held while zoomed drives the image at a constant
-    // rate until keyup. Arrows pan, every held arrow adding its axis, so up + left
-    // is a diagonal; + and - zoom about the center, doubling every KEY_ZOOM_MS.
-    // One glide, not a spring restarted on every repeat. Keys are tracked by the
+    // ---- the hold loop (lightbox-hold): a key held while zoomed drives the image at
+    // a constant rate until keyup, one glide per frame. Keys are tracked by the
     // physical key that went down, so a layer change mid-hold still releases; the
-    // zoom state (chrome, layers) is written once, on release.
-    const held = new Map<string, ActionId>()
+    // zoom state (chrome, layers) is written once, when the LAST held key lifts.
+    // Only a hold settles: the keyup of a tapped + or - arrives while its spring is
+    // a few frames in, and reading the pose there would record a mid-flight zoom
+    // (or, within the first frames, cancel the step back to fit).
+    const held = new Map<string, HoldVerb>()
     let panRaf = 0
     let panLast = 0
     const holdTick = (t: number) => {
-      const dt = Math.min(32, t - panLast)
+      const delta = holdDelta(held.values(), t - panLast)
       panLast = t
-      let dx = 0
-      let dy = 0
-      let k = 1
-      for (const id of held.values()) {
-        if (id === "pan.left") dx += KEY_PAN_SPEED * dt
-        else if (id === "pan.right") dx -= KEY_PAN_SPEED * dt
-        else if (id === "pan.up") dy += KEY_PAN_SPEED * dt
-        else if (id === "pan.down") dy -= KEY_PAN_SPEED * dt
-        else if (id === "zoom.in") k *= 2 ** (dt / KEY_ZOOM_MS)
-        else if (id === "zoom.out") k /= 2 ** (dt / KEY_ZOOM_MS)
-      }
       sync()
       const { fitted, band, zoomMax } = L.current
-      const s = Math.min(zoomMax, Math.max(1, pose.value.s * k))
-      const zoomed =
-        k === 1 ? pose.value : zoomAt(pose.value, s, { x: 0, y: 0 })
-      const v = clampPan(
-        { ...zoomed, x: zoomed.x + dx, y: zoomed.y + dy },
-        fitted,
-        band,
-      )
-      pose.value = { ...v, p: pose.value.p }
+      pose.value = {
+        ...applyHold(pose.value, delta, fitted, band, zoomMax),
+        p: pose.value.p,
+      }
       pose.vel = ZERO
       write()
       panRaf = held.size > 0 ? requestAnimationFrame(holdTick) : 0
     }
-    const holdPan = (id: ActionId, key: string) => {
+    const holdPan = (id: HoldVerb, key: string) => {
       if (held.has(key)) return
       held.set(key, id)
       if (panRaf === 0) {
@@ -2082,10 +2053,10 @@ function Stage(props: StageProps) {
       if (s <= 1.01) animate(FIT, 1, MACHINE)
     }
     const releasePan = (key: string) => {
-      held.delete(key)
-      settleHold()
+      if (held.delete(key)) settleHold()
     }
     const releaseAllPan = () => {
+      if (held.size === 0) return
       held.clear()
       settleHold()
     }
@@ -2148,7 +2119,7 @@ function Stage(props: StageProps) {
       if (e.repeat && a.repeat === false) return
       if (unavailable.has(a.id as ActionId)) return
       if (a.id.startsWith("pan.")) {
-        holdPan(a.id as ActionId, e.key)
+        holdPan(a.id as HoldVerb, e.key)
         return
       }
       // A zoom key: the first press is one step (a spring), the hold that follows
