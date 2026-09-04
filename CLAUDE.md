@@ -47,6 +47,8 @@ pnpm's 7-day quarantine and no-downgrade trust policy apply. `pnpm-workspace.yam
 - `lib/lightbox-hold.ts`: the held-key loop (arrows pan, + and - zoom, axes add).
 - `ui/lightbox.tsx` stays the binder: DOM listeners in, intents to the modules, React state at checkpoints only.
 
+The new modules ship as extra files of the `lightbox-motion` item (one item, one demo); libs take a `Clock = { currentTime: unknown }` or numbers, never `window`, `document` or `requestAnimationFrame`. Three stages, each gated and committed: flight + hold, then wheel, then gesture. Behavior must not change; Adrian re-verifies in the browser, iPhone included, with `?debug`.
+
 Also on the item: the demo streams a 17.8 MB trailer from blender.org on every open (host a short clip on the site); Safari frame pacing is unmeasured (needs Develop → Allow Remote Automation, then WebDriver); the sign-off list is `unverified` for Android.
 
 ### then: adopt, wave 2, wave 3
