@@ -3,11 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "biome check",
-    "format": "biome format --write"
+    "build": "shadcn build && next build",
+    "start": "next start"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
