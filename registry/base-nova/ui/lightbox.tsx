@@ -807,8 +807,17 @@ function Stage(props: StageProps) {
     const trace = (m: string) => {
       if (!L.current.debug) return
       const { x, y, s, p } = pose.value
+      // The screen's truth beside the engine's: the layer's computed matrix and how
+      // many animations still hold it.
+      const el = layers.current.get(L.current.ids[L.current.index] as string)
+      const seen = el
+        ? `${getComputedStyle(el)
+            .transform.replace(/^matrix\(/, "m(")
+            .replace(/, /g, ",")
+            .slice(0, 40)} anims ${el.getAnimations({ subtree: true }).length}`
+        : "no layer"
       L.current.trace(
-        `${m} · s ${s.toFixed(2)} x ${Math.round(x)} y ${Math.round(y)} p ${p.toFixed(2)}`,
+        `${m} · s ${s.toFixed(2)} x ${Math.round(x)} y ${Math.round(y)} p ${p.toFixed(2)} · ${seen}`,
       )
     }
 
