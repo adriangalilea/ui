@@ -947,6 +947,8 @@ function Stage(props: StageProps) {
         Math.max(0, Math.round(trackEl.scrollLeft / slotW())),
       )
     const commitIndex = (i: number) => {
+      // The next swipe is measured from the slide this one arrived at.
+      trackFrom = i
       if (i === L.current.index) return
       aimAt(i)
       L.current.onIndex(i)
@@ -1000,6 +1002,10 @@ function Stage(props: StageProps) {
      *  `vx` is the speed the throw still had when it was handed over. */
     const glideTo = (i: number, vx = 0, tuning?: Tuning) => {
       stopGlide()
+      // Where the track is HEADING is where the next gesture counts from. Taking it
+      // from the live position instead means a swipe begun mid-landing measures from
+      // whatever slide it happened to be flying over.
+      trackFrom = i
       const to = i * slotW()
       if (reduced || Math.abs(trackEl.scrollLeft - to) < 0.5) {
         trackEl.scrollLeft = to
@@ -1722,6 +1728,8 @@ function Stage(props: StageProps) {
     let trackFrom = 0
     /** The axis this wheel stream belongs to, once its travel has said. */
     let streamAxis: "x" | "y" | null = null
+    /** When the last wheel event arrived: a lull is not the end of a gesture. */
+    let lastWheelAt = 0
     const wheelCtx = (): WheelCtx => {
       const { fitted, band, zoomMax, entry } = L.current
       return {
@@ -1799,8 +1807,11 @@ function Stage(props: StageProps) {
       }
       // Where this gesture began. A swipe is counted from here, not from wherever
       // the free scroll had reached by the time the hand let go.
+      lastWheelAt = input.now
       if (fed.read.start) {
-        trackFrom = landedSlot()
+        // Mid-landing, the destination is already the origin: only a track sitting
+        // still has to be asked where it is.
+        if (!glide) trackFrom = landedSlot()
         streamAxis = null
       }
       // One axis for the whole stream, read off the travel and then LOCKED. Deciding
@@ -2046,6 +2057,18 @@ function Stage(props: StageProps) {
     // between one gesture and the next actually was.
     const onScrollSettled = () => {
       if (S.ph !== "idle" || glide) return
+      // A hand still on the trackpad is not an ending. `scrollend` fires in any lull
+      // between events, and deciding there lands the track mid-swipe and then fights
+      // the fingers that are still going.
+      const quiet = performance.now() - lastWheelAt
+      if (quiet < wheelPhase.endsIn) {
+        clearTimeout(scrollTimer)
+        scrollTimer = window.setTimeout(
+          onScrollSettled,
+          wheelPhase.endsIn - quiet,
+        )
+        return
+      }
       landTrack("ended", 0)
     }
     const hasScrollEnd = "onscrollend" in window
