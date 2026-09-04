@@ -53,6 +53,9 @@ export const DISMISS_COMMIT = 0.4
 export const PINCH_CLOSE = 0.75
 export const PINCH_PASSED = 1.067
 export const SLIDE_VELOCITY = 0.5
+/** Share of a slide a swipe must cover to arrive at the next one. Rounding alone
+ *  would ask for half, which is a shove; a quarter is a swipe. */
+export const SLIDE_TRAVEL = 0.25
 /** A held arrow pans at this speed (px per ms); two arrows add up to a diagonal. */
 export const KEY_PAN_SPEED = 0.9
 /** A held + or - doubles (halves) the zoom every this many ms. */

@@ -80,6 +80,7 @@ import {
   type Sample,
   type Size,
   SLIDE_GAP,
+  SLIDE_TRAVEL,
   type SourceView,
   Spring,
   STILL,
@@ -1772,20 +1773,23 @@ function Stage(props: StageProps) {
           // it can only decide whether the one you are over is the one you get, so
           // the count is the distance your hand covered and nothing else.
           const carried = clamp(project(0, fed.read.velocity.x) / w, -0.5, 0.5)
-          // And one gesture pages ONE, measured from where it began: macOS
-          // accelerates a flick into more than a slide's worth of pixels, so free
-          // scrolling alone would skip. A hand that deliberately drags past a slide
-          // and a half is not flicking, and keeps everything it travelled.
+          const total = at - trackFrom + carried
+          // A swipe that clearly went somewhere ALWAYS arrives. Rounding alone asks
+          // for half a slide, which is a shove; a quarter is a swipe, and having to
+          // shove for every single slide is the worst of this to use.
+          let n = Math.round(total)
+          if (n === 0 && Math.abs(total) > SLIDE_TRAVEL) n = Math.sign(total)
+          // One gesture pages ONE, measured from where it began: macOS accelerates a
+          // flick into more than a slide's worth of pixels, so free scrolling alone
+          // would skip. A hand that deliberately drags past a slide and a half is not
+          // flicking, and keeps everything it travelled.
           const far = Math.abs(at - trackFrom) > 1.5
-          const to = clamp(
-            Math.round(at + carried),
-            far ? 0 : trackFrom - 1,
-            far ? L.current.ids.length - 1 : trackFrom + 1,
-          )
+          if (!far) n = clamp(n, -1, 1)
+          const to = clamp(trackFrom + n, 0, L.current.ids.length - 1)
           trace(
-            `released ${trackFrom}→${at.toFixed(2)} v ${fed.read.velocity.x.toFixed(2)}${far ? " far" : ""} → ${to}`,
+            `released ${trackFrom}→${at.toFixed(2)} v ${fed.read.velocity.x.toFixed(2)} sum ${total.toFixed(2)}${far ? " far" : ""} → ${to}`,
           )
-          glideTo(clamp(to, 0, L.current.ids.length - 1), fed.read.velocity.x)
+          glideTo(to, fed.read.velocity.x)
           return
         }
         // Still coasting after that: the browser must not add to it.

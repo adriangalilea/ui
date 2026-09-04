@@ -23,8 +23,14 @@ export const ACC_MAX = 0.96
 /** Events are averaged in pairs before velocity: one raw wheel event is too noisy to
  *  take a ratio of. */
 export const MERGE = 2
-/** How many consecutive merged points must agree before we believe it is momentum. */
-export const ANALYZE = 5
+/** How many consecutive merged points must agree before we believe it is momentum.
+ *  Every one of them is two wheel events, so this is the LATENCY of knowing the hand
+ *  has let go, and that latency is felt directly: until it fires the device is still
+ *  coasting and the reader cannot tell where they will land. Three, not five. A hand
+ *  that decelerates evenly enough to be mistaken for a model over six events was
+ *  stopping anyway, and if it pushes again `interrupted` hands the stream straight
+ *  back. */
+export const ANALYZE = 3
 /** No single event moves more than this; a device reporting more is lying. */
 export const DELTA_MAX = 700
 /** Before the first two events time the stream, assume a slow mouse: a long window,
