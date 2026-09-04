@@ -87,6 +87,7 @@ import {
   sharpScale,
   sourceView,
   stageBand,
+  type Tuning,
   type Tunings,
   type View,
   WHEEL_GUARD,
@@ -205,6 +206,7 @@ const INSET_X = 16
 const THUMB_H = 32
 const clamp = (v: number, lo: number, hi: number) =>
   Math.min(hi, Math.max(lo, v))
+const TAU = 2 * Math.PI
 /** Slides each side of the one on screen that hold decoded media. Two, not one: a
  *  throw crosses its neighbour and is already looking at the next one by the time
  *  anything commits. */
@@ -954,12 +956,19 @@ function Stage(props: StageProps) {
       cancelAnimationFrame(glide)
       glide = 0
     }
-    /** The landing. The browser carried the throw; this is the pull into the slide
-     *  at the end of it, and the same spring the image itself moves under, so the
-     *  track arrives with weight instead of stopping flat. `vx` is the speed the
-     *  hand or the momentum still had, so the pull continues the motion rather than
-     *  restarting it. */
-    const glideTo = (i: number, vx = 0) => {
+    /** A landing that CONTINUES the throw instead of restarting it. A critically
+     *  damped spring covers its distance at about ω·d, so handing it a speed the
+     *  frequency does not match is felt as a shove: the track decelerates with the
+     *  device, then jumps. Matching ω to v/d makes the handover invisible. Clamped
+     *  at both ends, because the true match would take a second to finish a long
+     *  throw, and forever to close a short gap left by a slow release. */
+    const landing = (d: number, v: number): Tuning => ({
+      zeta: 1,
+      f: clamp((Math.abs(v) / Math.max(1, Math.abs(d))) * (1000 / TAU), 2.5, 7),
+    })
+    /** The pull into the slide, under the same spring the image itself moves with.
+     *  `vx` is the speed the throw still had when it was handed over. */
+    const glideTo = (i: number, vx = 0, tuning?: Tuning) => {
       stopGlide()
       const to = i * slotW()
       if (reduced || Math.abs(trackEl.scrollLeft - to) < 0.5) {
@@ -968,7 +977,7 @@ function Stage(props: StageProps) {
         return
       }
       const s = new Spring<"x">({ x: trackEl.scrollLeft }, { x: 0.5 })
-      s.aim({ x: to }, QUICK, { x: vx })
+      s.aim({ x: to }, tuning ?? QUICK, { x: vx })
       let last = performance.now()
       const step = (t: number) => {
         const done = s.step(t - last)
@@ -1786,10 +1795,12 @@ function Stage(props: StageProps) {
           const far = Math.abs(at - trackFrom) > 1.5
           if (!far) n = clamp(n, -1, 1)
           const to = clamp(trackFrom + n, 0, L.current.ids.length - 1)
+          const v = fed.read.velocity.x
+          const tune = landing(to * w - trackEl.scrollLeft, v)
           trace(
-            `released ${trackFrom}→${at.toFixed(2)} v ${fed.read.velocity.x.toFixed(2)} sum ${total.toFixed(2)}${far ? " far" : ""} → ${to}`,
+            `released ${trackFrom}→${at.toFixed(2)} v ${v.toFixed(2)} sum ${total.toFixed(2)}${far ? " far" : ""} → ${to} f ${tune.f.toFixed(1)}`,
           )
-          glideTo(to, fed.read.velocity.x)
+          glideTo(to, v, tune)
           return
         }
         // Still coasting after that: the browser must not add to it.
