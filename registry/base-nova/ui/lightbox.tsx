@@ -57,6 +57,7 @@ import {
   HAND,
   INTENT,
   KEY_PAN_SPEED,
+  KEY_ZOOM_MS,
   MACHINE,
   neighbours,
   type Obstruction,
@@ -1956,49 +1957,65 @@ function Stage(props: StageProps) {
     // walked by hand over the dialog's own tabbables: Safari's Tab visits only
     // fields by default and would leave for the address bar, so the browser never
     // gets it. A key that is part of an IME composition belongs to the composition.
-    // ---- the pan loop: arrows held while zoomed move the image at a constant speed,
-    // every held arrow adding its axis, so up + left is a diagonal and a held key is
-    // one fluent glide, not a spring restarted on every repeat. Keys are tracked by
-    // the physical key that went down, so a layer change mid-hold still releases.
+    // ---- the hold loop: a key held while zoomed drives the image at a constant
+    // rate until keyup. Arrows pan, every held arrow adding its axis, so up + left
+    // is a diagonal; + and - zoom about the center, doubling every KEY_ZOOM_MS.
+    // One glide, not a spring restarted on every repeat. Keys are tracked by the
+    // physical key that went down, so a layer change mid-hold still releases; the
+    // zoom state (chrome, layers) is written once, on release.
     const held = new Map<string, ActionId>()
     let panRaf = 0
     let panLast = 0
-    const panTick = (t: number) => {
+    const holdTick = (t: number) => {
       const dt = Math.min(32, t - panLast)
       panLast = t
       let dx = 0
       let dy = 0
+      let k = 1
       for (const id of held.values()) {
         if (id === "pan.left") dx += KEY_PAN_SPEED * dt
         else if (id === "pan.right") dx -= KEY_PAN_SPEED * dt
         else if (id === "pan.up") dy += KEY_PAN_SPEED * dt
         else if (id === "pan.down") dy -= KEY_PAN_SPEED * dt
+        else if (id === "zoom.in") k *= 2 ** (dt / KEY_ZOOM_MS)
+        else if (id === "zoom.out") k /= 2 ** (dt / KEY_ZOOM_MS)
       }
       sync()
-      const { fitted, band } = L.current
+      const { fitted, band, zoomMax } = L.current
+      const s = Math.min(zoomMax, Math.max(1, pose.value.s * k))
+      const zoomed =
+        k === 1 ? pose.value : zoomAt(pose.value, s, { x: 0, y: 0 })
       const v = clampPan(
-        { ...pose.value, x: pose.value.x + dx, y: pose.value.y + dy },
+        { ...zoomed, x: zoomed.x + dx, y: zoomed.y + dy },
         fitted,
         band,
       )
       pose.value = { ...v, p: pose.value.p }
       pose.vel = ZERO
       write()
-      panRaf = held.size > 0 ? requestAnimationFrame(panTick) : 0
+      panRaf = held.size > 0 ? requestAnimationFrame(holdTick) : 0
     }
     const holdPan = (id: ActionId, key: string) => {
       if (held.has(key)) return
       held.set(key, id)
       if (panRaf === 0) {
         panLast = performance.now()
-        panRaf = requestAnimationFrame(panTick)
+        panRaf = requestAnimationFrame(holdTick)
       }
+    }
+    const settleHold = () => {
+      if (held.size > 0) return
+      const s = pose.value.s
+      setZoom(s <= 1.01 ? 1 : s)
+      if (s <= 1.01) animate(FIT, 1, MACHINE)
     }
     const releasePan = (key: string) => {
       held.delete(key)
+      settleHold()
     }
     const releaseAllPan = () => {
       held.clear()
+      settleHold()
     }
     const onKeyUp = (e: KeyboardEvent) => releasePan(e.key)
 
@@ -2060,6 +2077,12 @@ function Stage(props: StageProps) {
       if (unavailable.has(a.id as ActionId)) return
       if (a.id.startsWith("pan.")) {
         holdPan(a.id as ActionId, e.key)
+        return
+      }
+      // A zoom key: the first press is one step (a spring), the hold that follows
+      // is the loop, continuing from wherever that spring is.
+      if ((a.id === "zoom.in" || a.id === "zoom.out") && e.repeat) {
+        holdPan(a.id, e.key)
         return
       }
       dispatch(a.id as ActionId)
