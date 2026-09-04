@@ -947,8 +947,10 @@ function Stage(props: StageProps) {
         Math.max(0, Math.round(trackEl.scrollLeft / slotW())),
       )
     const commitIndex = (i: number) => {
-      // The next swipe is measured from the slide this one arrived at.
+      // The next swipe is measured from the slide this one arrived at, and the track
+      // is free again: a mouse wheel never coasts, so nothing else would release it.
       trackFrom = i
+      swipe = "idle"
       if (i === L.current.index) return
       aimAt(i)
       L.current.onIndex(i)
@@ -973,6 +975,7 @@ function Stage(props: StageProps) {
      *  gesture can end comes through here, because two rules reading the same swipe
      *  differently is felt as the thing not being attached to the hand. */
     const landTrack = (why: string, v: number) => {
+      swipe = "decided"
       const w = slotW()
       const at = trackEl.scrollLeft / w
       // Momentum breaks the TIE, it does not add slides. Capped at half a slot, it
@@ -1722,8 +1725,12 @@ function Stage(props: StageProps) {
     // The whole wheel stream's phase, kept across sessions because the track has no
     // session of its own: it is the browser's until the hand lets go.
     let wheelPhase = phaseStart()
-    /** The hand let go on the track and we took its momentum over. */
-    let coasting = false
+    // ---- ONE arbiter for the track. `idle`: nothing of ours is happening and the
+    // browser may scroll. `hand`: a gesture is live, still the browser's. `decided`:
+    // the landing has been chosen and NOTHING else may choose again until a new
+    // gesture opens. Every way a swipe can end goes through the same transition, so
+    // there is never a second opinion racing the first.
+    let swipe: "idle" | "hand" | "decided" = "idle"
     /** The slide this gesture started from. */
     let trackFrom = 0
     /** The axis this wheel stream belongs to, once its travel has said. */
@@ -1801,18 +1808,14 @@ function Stage(props: StageProps) {
       // A HAND on the track takes over from a landing in flight. A coast never does:
       // cancelling the landing on every tail event is what made a swipe crawl for a
       // second and then jump back.
-      if (!fed.read.momentum) {
-        stopGlide()
-        coasting = false
-      }
-      // Where this gesture began. A swipe is counted from here, not from wherever
-      // the free scroll had reached by the time the hand let go.
+      if (!fed.read.momentum) stopGlide()
       lastWheelAt = input.now
       if (fed.read.start) {
+        swipe = "idle"
+        streamAxis = null
         // Mid-landing, the destination is already the origin: only a track sitting
         // still has to be asked where it is.
         if (!glide) trackFrom = landedSlot()
-        streamAxis = null
       }
       // One axis for the whole stream, read off the travel and then LOCKED. Deciding
       // per event handed the same swipe to the track and to the dismiss by turns,
@@ -1829,18 +1832,25 @@ function Stage(props: StageProps) {
         wheelIsTrackable(input, ctx) &&
         streamAxis === "x"
       ) {
-        // The hand let go. Its momentum is ours from here: the browser's own tail is
-        // long and arrives flat, so it is cut off (preventDefault) and the track is
-        // thrown to where that momentum was going, under the spring.
-        if (fed.read.released) {
-          coasting = true
+        // A gesture is decided ONCE. Everything the device sends after that is the
+        // tail of a question already answered, and letting any of it through is what
+        // had two landings racing over the same swipe.
+        if (swipe === "decided") {
           e.preventDefault()
-          landTrack("released", fed.read.velocity.x)
           return
         }
-        // Still coasting after that: the browser must not add to it.
-        if (coasting) {
+        // A coast with no gesture behind it is leftover, never the start of one.
+        if (fed.read.momentum) {
           e.preventDefault()
+          return
+        }
+        swipe = "hand"
+        // The hand let go. Its momentum is ours from here: the browser's own tail is
+        // long and arrives flat, so it is cut off and the track is thrown to where
+        // that momentum was going, under the spring.
+        if (fed.read.released) {
+          e.preventDefault()
+          landTrack("released", fed.read.velocity.x)
           return
         }
         // Under the fingers: the browser scrolls, natively and one to one.
@@ -2056,7 +2066,7 @@ function Stage(props: StageProps) {
     // swipe means the same thing whichever way it ends: two rules is what the jank
     // between one gesture and the next actually was.
     const onScrollSettled = () => {
-      if (S.ph !== "idle" || glide) return
+      if (S.ph !== "idle" || glide || swipe === "decided") return
       // A hand still on the trackpad is not an ending. `scrollend` fires in any lull
       // between events, and deciding there lands the track mid-swipe and then fights
       // the fingers that are still going.
