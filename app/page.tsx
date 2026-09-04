@@ -35,7 +35,8 @@ export default function Home() {
             </span>
             <span className="font-semibold">lab</span>
             <span className="text-sm text-foreground/60">
-              a whole project page on the primitives, where scroll work lands first
+              a whole project page on the primitives, where scroll work lands
+              first
             </span>
           </Link>
         </li>
