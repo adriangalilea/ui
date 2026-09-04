@@ -59,9 +59,11 @@ pnpm's 7-day quarantine and no-downgrade trust policy apply. `pnpm-workspace.yam
 
 ### lightbox
 
-The engine is extracted: `lightbox.tsx` is the binder (DOM listeners in, effects out, React state at checkpoints), and every rule lives in a lib that runs in bun. Adrian re-verifies the extraction in the browser and on the iPhone with `?debug` before the item is adopted anywhere.
+**Blocked on the trackpad swipe**, which is bad and must be researched rather than tuned: see "The trackpad swipe is BAD" above. Nothing adopts this item until that is settled, because it is the gesture a reader uses most.
 
-Left on the item: the demo streams a 17.8 MB trailer from blender.org on every open (host a short clip on the site); Safari frame pacing is unmeasured (needs Develop → Allow Remote Automation, then WebDriver); the sign-off list is `unverified` for Android.
+The engine is extracted: `lightbox.tsx` is the binder (DOM listeners in, effects out, React state at checkpoints), and every rule lives in a lib that runs in bun.
+
+Left on the item once the swipe is: the demo streams a 17.8 MB trailer from blender.org on every open (host a short clip on the site); Safari frame pacing is unmeasured (needs Develop → Allow Remote Automation, then WebDriver); the sign-off list is `unverified` for Android.
 
 ### then: adopt, wave 2, wave 3
 
