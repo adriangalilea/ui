@@ -4,6 +4,9 @@ import {
   assert,
   COAST,
   clampPan,
+  DRAG_GAIN_MAX,
+  DRAG_GAIN_MIN,
+  dragGain,
   FLIGHT_DT,
   frameAt,
   glide,
@@ -229,6 +232,22 @@ for (const v of [-79, -50, 0, 37, 50, 120]) {
   assert(speed(thrown, 0.9) < speed(thrown, 0.1), "and it eases out from there")
   for (const m0 of [0, 500, 2500, -800])
     assert(Math.abs(glide(1000, m0, 1) - 1000) < 1e-9, `arrives whatever ${m0}`)
+}
+// The drag leaves fast and arrives slow, both ways, every slide.
+{
+  assert(dragGain(0) === DRAG_GAIN_MAX, "it leaves at full gain")
+  assert(Math.abs(dragGain(0.999) - DRAG_GAIN_MIN) < 0.01, "and arrives at 1:1")
+  assert(dragGain(-0.25) === dragGain(0.25), "the same in both directions")
+  assert(
+    dragGain(3.25) === dragGain(0.25),
+    "and on every slide after the first",
+  )
+  let prev = Number.POSITIVE_INFINITY
+  for (let p = 0; p < 1; p += 0.05) {
+    assert(dragGain(p) <= prev, `the gain only ever eases off, at ${p}`)
+    prev = dragGain(p)
+  }
+  assert(DRAG_GAIN_MIN >= 1, "and the track never lags the fingers")
 }
 assert(
   slideCommit(-10, -0.8, 800, { prev: true, next: true }) === 1,

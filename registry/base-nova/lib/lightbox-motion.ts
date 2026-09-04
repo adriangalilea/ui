@@ -65,6 +65,20 @@ export const GLIDE_MAX = 420
  *  and come back for it. */
 export const GLIDE_ENTRY = 3
 
+/** The track moves FASTER than the fingers, and how much faster depends on where it
+ *  is between two slides. Leaving, it is at DRAG_GAIN_MAX: a slide is a whole screen
+ *  wide, and 1:1 means dragging a whole screen to see the next one, which is the
+ *  "slow, slow, slow" of it. Arriving, it is back to 1:1, so the last part of the
+ *  move is precise and the reader can see what they are choosing. */
+export const DRAG_GAIN_MAX = 2.6
+export const DRAG_GAIN_MIN = 1
+
+/** `travelled` is how far the gesture has come, in slides. */
+export function dragGain(travelled: number): number {
+  const into = Math.abs(travelled) % 1
+  return DRAG_GAIN_MAX - (DRAG_GAIN_MAX - DRAG_GAIN_MIN) * into
+}
+
 export const SLIDE_VELOCITY = 0.5
 /** Share of a slide a swipe must cover to arrive at the next one. Rounding alone
  *  would ask for half, which is a shove; a quarter is a swipe. */

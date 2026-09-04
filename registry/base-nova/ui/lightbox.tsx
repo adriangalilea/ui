@@ -65,6 +65,7 @@ import {
   type Band,
   COAST,
   clampPan,
+  dragGain,
   FIT,
   fit,
   GLIDE,
@@ -1844,6 +1845,9 @@ function Stage(props: StageProps) {
       // which is why it stopped feeling attached to the hand at all.
       if (wheelIsTrackable(input, ctx) && streamAxis === null) {
         streamAxis = wheelAxisOf(fed.read.movement)
+        // The browser may not scroll on a guess: the first px of a swipe would go at
+        // 1:1 and the rest at the gain below, and the seam is felt.
+        e.preventDefault()
         if (!streamAxis) return
         trace(`wheel axis ${streamAxis}`)
       }
@@ -1864,23 +1868,30 @@ function Stage(props: StageProps) {
         // The hand let go ON THIS EVENT, which is also the first event of the coast:
         // this has to be asked BEFORE the coast is turned away, or the one moment
         // worth deciding at is the one moment thrown out.
+        // EVERY track event is ours from here. The browser's own scrolling is 1:1,
+        // and a slide is a whole screen wide, so 1:1 means dragging a whole screen to
+        // see the next picture. Its momentum cannot be amplified either, and cannot
+        // be stopped once it is running, which is how the track kept drifting past a
+        // slide long after the fingers had left.
+        e.preventDefault()
+        const w = slotW()
+        const travelled = trackEl.scrollLeft / w - trackFrom
+        const gain = dragGain(travelled)
         if (fed.read.released) {
-          e.preventDefault()
-          landTrack("released", fed.read.velocity.x)
+          landTrack("released", fed.read.velocity.x * gain)
           return
         }
         // A coast with no gesture behind it is leftover, never the start of one.
-        if (fed.read.momentum) {
-          e.preventDefault()
-          return
-        }
+        if (fed.read.momentum) return
         // A hand back on the glass, on THIS axis, past the point where the direction
         // is known: only here is a landing in flight worth cutting short. Doing it
         // any earlier let a stray event with no direction yet kill a landing and
         // leave the track standing between two slides with nothing left to move it.
         stopGlide()
-        // Under the fingers: the browser scrolls, natively and one to one.
         swipe = "hand"
+        // Under the fingers, and faster than them: quick to leave the slide it is on,
+        // back to 1:1 as it reaches the next, so the choice is made at walking pace.
+        trackEl.scrollLeft += wheelPx(e.deltaX, e.deltaMode, ctx.band.h) * gain
         return
       }
       e.preventDefault()
