@@ -57,7 +57,6 @@ export const SLIDE_VELOCITY = 0.5
 export const KEY_PAN_SPEED = 0.9
 /** A held + or - doubles (halves) the zoom every this many ms. */
 export const KEY_ZOOM_MS = 700
-export const WHEEL_SILENCE = 150
 export const WHEEL_GUARD = 400
 export const WHEEL_ZOOM = 0.01
 /** One wheel event moves at most this many px: a mouse notch (100 px in Chrome) is a
@@ -283,23 +282,6 @@ export function wheelIsHand(ticks: readonly number[]): boolean {
   const [a, b, c] = ticks as [number, number, number]
   return !(a > b && b > c)
 }
-
-/** Sideways wheel travel that asks for the next slide. The horizontal axis is a
- *  STEPPER, not a drag: a wheel stream never says when the hand left the trackpad,
- *  so a track following the fingers 1:1 can only GUESS when to snap, and every guess
- *  is either premature or parks the image between two slides. Accumulating to a
- *  threshold and stepping once is exact. One swipe moves one slide, the track is
- *  never off a lock, and it lands with the motion the arrow keys already use.
- *  Raw px, not the bounded tick: the threshold must mean the same finger travel
- *  whatever speed it arrives at. */
-export const WHEEL_STEP = 80
-
-/** A committed session swallows the device's inertia so the tail cannot step again,
- *  and lets go this long after the stream pauses. Momentum events run continuously
- *  (~16 ms apart) and putting fingers back on the trackpad cancels them, so any real
- *  pause means the tail is over and whatever follows is a new swipe. Far shorter
- *  than WHEEL_SILENCE: nothing is being dragged, there is nothing to wait for. */
-export const WHEEL_PASS_SILENCE = 50
 
 export type Obstruction = { side: "top" | "bottom"; edge: number }
 

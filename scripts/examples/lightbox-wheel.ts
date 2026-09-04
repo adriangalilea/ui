@@ -5,7 +5,6 @@ import {
   assert,
   FIT,
   MOMENTUM,
-  WHEEL_STEP,
 } from "../../registry/base-nova/lib/lightbox-motion"
 import {
   type WheelCtx,
@@ -21,6 +20,7 @@ const fitted = { w: 800, h: 600 }
 const atFit = { ...FIT, p: 1 }
 const ctx = (over: Partial<WheelCtx> = {}): WheelCtx => ({
   pose: atFit,
+  slideX: 0,
   fitted,
   band,
   zoomMax: 3,
@@ -58,6 +58,7 @@ const run = (
     all.push(...next.effects)
     for (const e of next.effects) {
       if (e.kind === "pose") cur = { ...cur, pose: e.pose }
+      if (e.kind === "slide") cur = { ...cur, slideX: e.x }
     }
   }
   return { session, effects: all, ctx: cur }
@@ -111,74 +112,90 @@ const run = (
 }
 console.log("inertia tail passed, hand accepted, dismiss commits once")
 
-// Horizontal is a STEPPER: nothing follows the fingers, travel accumulates, and one
-// step fires at WHEEL_STEP. A slow swipe and a fast swipe cross the same threshold,
-// so both step, and neither can leave the image between two slides.
+// A trackpad swipe as the device really sends it: fingers pushing at a roughly even
+// rate, then, once they lift, a tail the OS decays by a fixed ratio every frame.
+const HZ = 16
+const hand = (n: number, px: number, t0 = 0) =>
+  Array.from({ length: n }, (_, i) => tick(px, 0, t0 + i * HZ))
+const tail = (from: number, t0: number, decay = 0.9, floor = 0.4) => {
+  const out: WheelInput[] = []
+  for (let d = from * decay, t = t0; d > floor; d *= decay, t += HZ)
+    out.push(tick(d, 0, t))
+  return out
+}
+
+// The track follows the fingers 1:1 while they are down, and nothing is decided:
+// the hand's own rate is irregular, so it never reads as a coast.
 {
-  const short = run([tick(30, 0, 0), tick(30, 0, 16)], ctx())
+  const r = run(hand(8, 30), ctx())
+  assert(r.session?.axis === "x", `x locked: ${r.session?.axis}`)
+  assert(r.ctx.slideX === -8 * 30, `1:1 under the fingers: ${r.ctx.slideX}`)
   assert(
-    short.effects.length === 0 && short.session?.axis === "x",
-    `under the threshold nothing happens: ${kinds(short.effects)}`,
+    r.effects.every((e) => e.kind !== "step" && e.kind !== "home"),
+    `nothing decided while the hand is down: ${kinds(r.effects)}`,
   )
-  const stepped = run([tick(30, 0, 0), tick(30, 0, 16), tick(30, 0, 32)], ctx())
-  const steps = stepped.effects.filter((e) => e.kind === "step")
-  assert(steps.length === 1, `90 px steps once: ${steps.length}`)
+}
+// The fingers lift and the OS coasts. The decay gives it away, the step fires ONCE
+// on that event, and every coasting event after it moves nothing at all.
+{
+  const swipe = hand(10, 30)
+  const r = run([...swipe, ...tail(30, 10 * HZ)], ctx())
+  const steps = r.effects.filter((e) => e.kind === "step")
+  assert(steps.length === 1, `one swipe, one step: ${steps.length}`)
   assert((steps[0] as { d: number }).d === 1, "a leftward swipe goes next")
-  assert(stepped.session?.axis === "pass", "and then swallows the tail")
-  // The same travel arriving slowly steps too: 80 px of fingers is 80 px.
-  const slow = run(
-    Array.from({ length: 12 }, (_, i) => tick(7, 0, i * 60)),
-    ctx(),
-  )
+  assert(r.session?.axis === "pass", "and the rest of the coast is ignored")
+  const after = r.effects
+    .slice(r.effects.indexOf(steps[0] as WheelEffect))
+    .filter((e) => e.kind === "slide")
   assert(
-    slow.effects.filter((e) => e.kind === "step").length === 1,
-    "a slow swipe steps at the same travel",
-  )
-  // It never grabs the image: no flight is paused, no gesture flag, no slide drop.
-  assert(
-    stepped.effects.every((e) => e.kind === "step"),
-    `the stepper touches nothing else: ${kinds(stepped.effects)}`,
-  )
-  assert(
-    wheelRelease(stepped.session as WheelSession, ctx()).kind === "none",
-    "the stepper never left the track off a lock, so silence decides nothing",
+    after.length === 0,
+    `the coast moves the track no further: ${after.length}`,
   )
 }
-// No neighbour that way: the accumulator fires nothing and never runs away.
+// A gentle swipe that never coasts is decided when the stream stops instead. It is
+// still a decision: the track goes to a neighbour or home, never left in between.
 {
-  const r = run(
-    Array.from({ length: 20 }, (_, i) => tick(-30, 0, i * 16)),
-    ctx({ can: { prev: false, next: true } }),
-  )
+  const r = run(hand(6, 5), ctx())
   assert(
-    r.effects.length === 0 && Math.abs(r.session?.x ?? 0) < WHEEL_STEP,
-    "no step, and the travel is spent, not banked",
+    r.effects.every((e) => e.kind !== "step"),
+    "nothing fired: the device never coasted",
+  )
+  const rel = wheelRelease(r.session as WheelSession, r.ctx)
+  assert(rel.kind === "slide", `silence decides: ${rel.kind}`)
+  assert(rel.kind === "slide" && rel.d === 0, "30 px is not enough, so home")
+  const far = run(hand(20, 30), ctx())
+  const relFar = wheelRelease(far.session as WheelSession, far.ctx)
+  assert(
+    relFar.kind === "slide" && relFar.d === 1,
+    `600 px of travel steps: ${JSON.stringify(relFar)}`,
   )
 }
-// One swipe is ONE step: the whole inertia tail behind it is swallowed, however long
-// and however ragged. Only a pause (the binder's WHEEL_PASS_SILENCE) ends it.
+// The hand comes back while the device is still coasting: that event opens a NEW
+// session on the settled track, so a second swipe is never swallowed by the first.
 {
-  const flick = Array.from({ length: 40 }, (_, i) => tick(30, 0, i * 8))
-  const r = run(flick, ctx())
+  const swipe = hand(10, 30)
+  const coast = tail(30, 10 * HZ)
+  const r = run([...swipe, ...coast], ctx())
+  const t = 10 * HZ + coast.length * HZ
+  const back = wheelTick(r.session, tick(30, 0, t), ctx())
   assert(
-    r.effects.filter((e) => e.kind === "step").length === 1,
-    "40 ticks of continuous swiping is one step",
+    back.session?.axis === "x",
+    `a new swipe is heard: ${back.session?.axis}`,
   )
-  let s: WheelSession | null = r.session
-  let more = 0
-  let t = 400
-  for (let d = 28; d > 0.5; d = d * 0.92, t += 8) {
-    const out = wheelTick(s, tick(d, 0, t), ctx())
-    s = out.session
-    more += out.effects.length
-  }
   assert(
-    more === 0 && s?.axis === "pass",
-    `the tail is swallowed whole: ${more}`,
+    back.session?.slide0 === 0,
+    "and it grabs the track where the step left it",
   )
+}
+// No neighbour that way: the track gives a third of the travel and never commits.
+{
+  const r = run(hand(10, -30), ctx({ can: { prev: false, next: true } }))
+  assert(r.ctx.slideX === 300 * 0.35, `a third: ${r.ctx.slideX}`)
+  const rel = wheelRelease(r.session as WheelSession, r.ctx)
+  assert(rel.kind === "slide" && rel.d === 0, "and it goes home")
 }
 console.log(
-  `one swipe is one step at ${WHEEL_STEP} px, fast or slow, and the tail is swallowed`,
+  "the track follows the hand, the coast decides once and then moves nothing",
 )
 // ctrl + wheel is zoom: up zooms in at the cursor, the accumulator rubbers past the
 // ceiling and under fit, and the release under fit springs to fit (a wheel never

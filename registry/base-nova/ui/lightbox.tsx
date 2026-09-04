@@ -90,8 +90,6 @@ import {
   type Tunings,
   type View,
   WHEEL_GUARD,
-  WHEEL_PASS_SILENCE,
-  WHEEL_SILENCE,
   zoomAt,
   zoomMax as zoomCeiling,
 } from "@/registry/base-nova/lib/lightbox-motion"
@@ -1682,6 +1680,7 @@ function Stage(props: StageProps) {
         pose: S.flight
           ? (readFlight(S.flight).frame.value as Pose)
           : pose.value,
+        slideX: slide.value.x,
         fitted,
         band,
         zoomMax,
@@ -1689,6 +1688,14 @@ function Stage(props: StageProps) {
         vh: vh(),
         frame: entry.media.kind === "frame",
       }
+    }
+    const slideRelease = (d: -1 | 0 | 1, vx: number) => {
+      if (d === 0) {
+        animateSlide(0, HAND, vx)
+        resume()
+        return
+      }
+      stepTo(L.current.index + d, HAND, vx)
     }
     const endWheel = () => {
       const w = W
@@ -1711,6 +1718,9 @@ function Stage(props: StageProps) {
           return
         case "cancel":
           animate(FIT, 1, HAND, r.vel)
+          return
+        case "slide":
+          slideRelease(r.d, r.vx)
           return
         default: {
           const never: never = r
@@ -1744,13 +1754,10 @@ function Stage(props: StageProps) {
       )
       W = next.session
       if (!W) return
-      // A session that already stepped is only swallowing inertia: it lets go a
-      // breath after the stream pauses, so the next swipe is heard at once. One
-      // still holding the image waits the full silence before it decides.
-      wheelTimer = window.setTimeout(
-        endWheel,
-        W.axis === "pass" ? WHEEL_PASS_SILENCE : WHEEL_SILENCE,
-      )
+      // How long silence must last to mean the stream is over is the device's own
+      // answer, not a constant: the phase detector sizes it from the rate this
+      // device is actually emitting at, and tightens it once the hand has let go.
+      wheelTimer = window.setTimeout(endWheel, W.phase.endsIn)
       for (const f of next.effects) {
         switch (f.kind) {
           case "grab":
@@ -1766,10 +1773,13 @@ function Stage(props: StageProps) {
             pose.value = f.pose
             write()
             break
+          case "slide":
+            slide.value = { x: f.x }
+            writeSlide()
+            break
           case "step":
-            // The same motion the arrow keys use: a swipe and a key press are the
-            // same verb, so they must not land differently.
-            stepTo(L.current.index + f.d, QUICK)
+          case "home":
+            slideRelease(f.kind === "home" ? 0 : f.d, f.vx)
             break
           case "exit":
             beginExit({ x: 0, y: f.vy })

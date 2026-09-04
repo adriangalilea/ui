@@ -30,7 +30,11 @@ for (const item of registry.items) {
     if (f.type === "registry:file" && !f.target)
       fail(`${item.name}: registry:file needs a target (${f.path})`)
     if (f.path.includes("/lib/") && f.path.endsWith(".ts")) {
+      // The rule is about what the CODE reaches for, so comments are stripped
+      // first: a lib is free to explain the DOM it deliberately never touches.
       const src = readFileSync(abs, "utf8")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/(^|[^:])\/\/.*$/gm, "$1")
       if (
         /from ["']react["']/.test(src) ||
         /\bdocument\b/.test(src) ||
