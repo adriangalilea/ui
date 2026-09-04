@@ -89,6 +89,7 @@ import {
   type Tunings,
   type View,
   WHEEL_GUARD,
+  wheelPx,
   zoomAt,
   zoomMax as zoomCeiling,
 } from "@/registry/base-nova/lib/lightbox-motion"
@@ -99,6 +100,10 @@ import {
   wheelRelease,
   wheelTick,
 } from "@/registry/base-nova/lib/lightbox-wheel"
+import {
+  phaseFeed,
+  phaseStart,
+} from "@/registry/base-nova/lib/lightbox-wheel-phase"
 import "./lightbox.css"
 
 export type Source = {
@@ -1666,6 +1671,11 @@ function Stage(props: StageProps) {
     // eye sees: a flight in progress is read at its clock, not the last tick's copy.
     let W: WheelSession | null = null
     let wheelTimer = 0
+    // The whole wheel stream's phase, kept across sessions because the track has no
+    // session of its own: it is the browser's until the hand lets go.
+    let wheelPhase = phaseStart()
+    /** The hand let go on the track and we took its momentum over. */
+    let coasting = false
     const wheelCtx = (): WheelCtx => {
       const { fitted, band, zoomMax, entry } = L.current
       return {
@@ -1717,13 +1727,6 @@ function Stage(props: StageProps) {
       // motion, never the ownership.
       if (e.ctrlKey) e.preventDefault()
       if (chromeTarget(e.target)) return
-      // The reader took over mid-glide: theirs, immediately. This is what made
-      // chained swipes feel blocked.
-      stopGlide()
-      // A sideways wheel at fit is the TRACK's. It is the one event we hand back to
-      // the browser, because the browser is the only one that knows when the fingers
-      // left the trackpad, and so the only one that can carry the momentum and land
-      // on a snap point. Not preventing the default IS the feature.
       const ctx = wheelCtx()
       const input = {
         deltaX: e.deltaX,
@@ -1733,8 +1736,49 @@ function Stage(props: StageProps) {
         at: rel(e.clientX, e.clientY),
         now: performance.now(),
       }
+      // Hand or coast, for EVERY wheel event, the track's included: the answer
+      // decides who owns the rest of this stream.
+      const fed = phaseFeed(wheelPhase, {
+        dx: wheelPx(e.deltaX, e.deltaMode, ctx.band.h),
+        dy: wheelPx(e.deltaY, e.deltaMode, ctx.band.h),
+        t: input.now,
+      })
+      wheelPhase = fed.phase
+      // A HAND on the track takes over from a landing in flight. A coast never does:
+      // cancelling the landing on every tail event is what made a swipe crawl for a
+      // second and then jump back.
+      if (!fed.read.momentum) {
+        stopGlide()
+        coasting = false
+      }
       const guarded = performance.now() - S.enterAt < WHEEL_GUARD
-      if (!guarded && !G && wheelIsTrack(input, ctx)) return
+      if (!guarded && !G && wheelIsTrack(input, ctx)) {
+        // The hand let go. Its momentum is ours from here: the browser's own tail is
+        // long and arrives flat, so it is cut off (preventDefault) and the track is
+        // thrown to where that momentum was going, under the spring.
+        if (fed.read.released) {
+          coasting = true
+          e.preventDefault()
+          const from = trackEl.scrollLeft
+          const flung = project(from, fed.read.velocity.x)
+          const to = Math.min(
+            L.current.ids.length - 1,
+            Math.max(0, Math.round(flung / slotW())),
+          )
+          trace(
+            `released at ${(from / slotW()).toFixed(2)} v ${fed.read.velocity.x.toFixed(2)} → ${to}`,
+          )
+          glideTo(to, fed.read.velocity.x)
+          return
+        }
+        // Still coasting after that: the browser must not add to it.
+        if (coasting) {
+          e.preventDefault()
+          return
+        }
+        // Under the fingers: the browser scrolls, natively and one to one.
+        return
+      }
       e.preventDefault()
       if (guarded || G) return
       clearTimeout(wheelTimer)
