@@ -24,6 +24,7 @@ run = [
   "bun scripts/examples/lightbox-flight.ts",
   "bun scripts/examples/lightbox-hold.ts",
   "bun scripts/examples/lightbox-wheel.ts",
+  "bun scripts/examples/lightbox-gesture.ts",
 ]
 
 [tasks.format]

@@ -43,6 +43,18 @@ import {
   readFlight,
 } from "@/registry/base-nova/lib/lightbox-flight"
 import {
+  type Gesture,
+  type GestureCtx,
+  type GestureEffect,
+  type GestureRelease,
+  gestureDown,
+  gestureMove,
+  gestureUp,
+  midOf,
+  type PointerInput,
+  tapIntent,
+} from "@/registry/base-nova/lib/lightbox-gesture"
+import {
   applyHold,
   type HoldVerb,
   holdDelta,
@@ -53,34 +65,18 @@ import {
   type Band,
   COAST,
   clampPan,
-  DOUBLE_MOUSE,
-  DOUBLE_TOUCH,
-  DOUBLE_TRAVEL,
-  dismissCommit,
-  dragProgress,
-  dragScale,
   FIT,
   fit,
   GONE,
   HAND,
-  INTENT,
   MACHINE,
   neighbours,
   type Obstruction,
-  overshoot,
-  PINCH_CLOSE,
-  PINCH_PASSED,
   type Point,
   type Pose,
-  panBounds,
-  pinchProgress,
   project,
   QUICK,
-  RELOCK,
   type Rect,
-  rawPan,
-  rubber,
-  SAMPLES,
   type Sample,
   type Size,
   SLIDE_GAP,
@@ -88,14 +84,11 @@ import {
   Spring,
   STILL,
   sharpScale,
-  slideCommit,
   sourceView,
   stageBand,
-  TAP_TRAVEL,
   type Tuning,
   type Tunings,
   type View,
-  velocity,
   WHEEL_GUARD,
   WHEEL_SILENCE,
   zoomAt,
@@ -1421,68 +1414,84 @@ function Stage(props: StageProps) {
       }
     }
 
-    // ---- pointer
-    // `samples` hold ONE trajectory: the finger, or the pinch midpoint; the window is
-    // emptied whenever the pointer count changes. `anchor` is the last point the hand
-    // was at, relative to the band center: where a rubbered zoom is undone. `raw0` is
-    // the grab read back through the pan rubber: a drag offsets it and rubbers the
-    // sum, so a grab taken mid-bounce moves under the finger from its first px.
-    type G = {
-      pts: Map<number, Point>
-      start: Sample
-      samples: Sample[]
-      prev: Point
-      grab: Pose
-      raw0: Point
-      slide0: number
-      axis: "x" | "y" | null
-      mode: "pan" | "fit"
-      pinch: {
-        s0: number
-        p0: number
-        d0: number
-        mid0: Point
-        view0: View
-      } | null
-      pinched: boolean
-      pinchMax: number
-      anchor: Point
-      onMedia: boolean
-      type: string
-    }
-    let G: G | null = null
+    // ---- pointer (lightbox-gesture): the state machine is data, the binder owns
+    // capture, the DOM and the clock, and applies the effects it returns.
+    let G: Gesture | null = null
     let lastTap: Sample | null = null
     let tapTimer = 0
     const chromeTarget = (t: EventTarget | null) =>
       t instanceof Element &&
       !!t.closest("[data-lb-chrome], input, textarea, [contenteditable]")
-    const dist = (pts: Map<number, Point>) => {
-      const [a, b] = [...pts.values()] as [Point, Point]
-      return Math.hypot(a.x - b.x, a.y - b.y)
-    }
-    const midScreen = (pts: Map<number, Point>): Point => {
-      const [a, b] = [...pts.values()] as [Point, Point]
-      return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
-    }
-    const mid = (pts: Map<number, Point>) => {
-      const m = midScreen(pts)
-      return rel(m.x, m.y)
-    }
-    const sample = (g: G, x: number, y: number, t: number) => {
-      g.samples.push({ x, y, t })
-      if (g.samples.length > SAMPLES) g.samples.shift()
-    }
     // The hand, not the dispatch: a frame the main thread dropped still delivered
     // its 8 ms samples, coalesced into the one move that got through, each with its
     // own position and time, so the release velocity measures the hand across a
     // stall. A move with nothing coalesced (an engine without the method, an
     // untrusted event) is its own sample.
-    const handOf = (e: PointerEvent): readonly PointerEvent[] => {
+    const handOf = (e: PointerEvent): readonly Sample[] => {
       const list = "getCoalescedEvents" in e ? e.getCoalescedEvents() : []
-      return list.length > 0 ? list : [e]
+      const events = list.length > 0 ? list : [e]
+      return events.map((c) => ({ x: c.clientX, y: c.clientY, t: c.timeStamp }))
     }
-    const rawOf = (v: Pose): Point =>
-      rawPan(v, L.current.fitted, L.current.band)
+    const gestureCtx = (): GestureCtx => {
+      const { fitted, band, zoomMax, ids, index, loop, entry } = L.current
+      return {
+        pose: pose.value,
+        slideX: slide.value.x,
+        fitted,
+        band,
+        zoomMax,
+        can: neighbours(index, ids.length, loop),
+        vh: vh(),
+        frame: entry.media.kind === "frame",
+      }
+    }
+    const inputOf = (e: PointerEvent, extra: Partial<PointerInput> = {}) => {
+      const pts = G ? new Map(G.pts) : new Map<number, Point>()
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY })
+      const m = pts.size >= 2 ? midOf(pts) : null
+      return {
+        id: e.pointerId,
+        x: e.clientX,
+        y: e.clientY,
+        at: rel(e.clientX, e.clientY),
+        t: e.timeStamp,
+        type: e.pointerType,
+        onMedia:
+          e.target instanceof Element && !!e.target.closest(".ag-lb-layer"),
+        ...(m ? { mid: rel(m.x, m.y) } : {}),
+        ...extra,
+      } satisfies PointerInput
+    }
+    const applyGesture = (effects: GestureEffect[]) => {
+      for (const f of effects) {
+        switch (f.kind) {
+          case "drop":
+            dropSlide()
+            break
+          case "sync":
+            sync()
+            break
+          case "pose":
+            pose.value = f.pose
+            write()
+            break
+          case "slide":
+            slide.value = { x: f.x }
+            writeSlide()
+            break
+          case "unpose":
+            fly(f.target, MACHINE, undefined, false)
+            break
+          case "trace":
+            trace(f.text)
+            break
+          default: {
+            const never: never = f
+            throw new Error(`lightbox: gesture effect ${String(never)}`)
+          }
+        }
+      }
+    }
     // A gesture that takes the stage off the x axis (a pan, a pinch, a vertical
     // drag, a zoom or pan wheel) drops any committing slide first; only an x-axis
     // gesture keeps it frozen, to re-aim it on release.
@@ -1511,7 +1520,6 @@ function Stage(props: StageProps) {
       // The stage owns this pointer: no selection (iOS selects an image on a double
       // tap and then hands every drag to the selection handles), no image drag.
       e.preventDefault()
-      const kind = L.current.entry.media.kind
       if (!G) {
         // A finger landing ends any wheel session: one hand at a time. The session
         // is released, not dropped: its zoom reaches React, its rubber is undone,
@@ -1521,141 +1529,17 @@ function Stage(props: StageProps) {
           endWheel()
         }
         beginGesture()
-        G = {
-          pts: new Map(),
-          start: { x: e.clientX, y: e.clientY, t: e.timeStamp },
-          samples: [],
-          prev: { x: e.clientX, y: e.clientY },
-          grab: pose.value,
-          raw0: rawOf(pose.value),
-          slide0: slide.value.x,
-          axis: null,
-          mode: pose.value.s > 1.01 ? "pan" : "fit",
-          pinch: null,
-          pinched: false,
-          pinchMax: pose.value.s,
-          anchor: rel(e.clientX, e.clientY),
-          onMedia:
-            e.target instanceof Element && !!e.target.closest(".ag-lb-layer"),
-          type: e.pointerType,
-        }
-        if (G.mode === "pan") dropSlide()
-        trace(
-          `down ${e.pointerType} #${e.pointerId} ${G.mode} ${G.onMedia ? "media" : "backdrop"} ${
-            e.target instanceof Element ? e.target.tagName.toLowerCase() : "?"
-          }`,
-        )
-      } else trace(`down ${e.pointerType} #${e.pointerId} +finger`)
-      G.pts.set(e.pointerId, { x: e.clientX, y: e.clientY })
-      if (G.pts.size === 2 && kind !== "frame") {
-        // The pinch is computed FROM the pose: a flight in progress (the y-to-x
-        // relock) is read and dropped first, so s0 and view0 are the live pose.
-        sync()
-        dropSlide()
-        G.pinch = {
-          s0: pose.value.s,
-          p0: pose.value.p,
-          d0: dist(G.pts),
-          mid0: mid(G.pts),
-          view0: pose.value,
-        }
-        G.pinched = true
-        G.axis = null
-        G.samples = []
-        trace("pinch start")
       }
+      const next = gestureDown(G, inputOf(e), gestureCtx())
+      G = next.gesture
+      applyGesture(next.effects)
     }
     const onMove = (e: PointerEvent) => {
       if (!G?.pts.has(e.pointerId)) return
       if (G.samples.length === 0) rootEl.setPointerCapture(e.pointerId)
-      G.pts.set(e.pointerId, { x: e.clientX, y: e.clientY })
-      const { fitted, band, zoomMax } = L.current
-      if (G.pinch && G.pts.size >= 2) {
-        const ms = midScreen(G.pts)
-        sample(G, ms.x, ms.y, e.timeStamp)
-        const raw = (G.pinch.s0 * dist(G.pts)) / G.pinch.d0
-        G.pinchMax = Math.max(G.pinchMax, raw)
-        // From fit, pinching in is the dismiss gesture and follows the fingers,
-        // lighting the room, the same rule the release closes by; a pinch that went
-        // past the ceiling first, or one from a zoom, rubbers under 1 and springs
-        // back, the room untouched.
-        const dismissing =
-          G.pinch.s0 <= 1.01 && raw < 1 && G.pinchMax < PINCH_PASSED
-        const s = dismissing ? raw : rubber(raw, 1, zoomMax)
-        const m = mid(G.pts)
-        G.anchor = m
-        const v = zoomAt(G.pinch.view0, s, G.pinch.mid0)
-        // A pinch that starts mid-drag carries the drag's darkness: p never jumps.
-        pose.value = {
-          x: v.x + m.x - G.pinch.mid0.x,
-          y: v.y + m.y - G.pinch.mid0.y,
-          s,
-          p: dismissing ? Math.min(G.pinch.p0, pinchProgress(s)) : G.pinch.p0,
-        }
-        write()
-        return
-      }
-      if (G.pts.size !== 1) return
-      for (const c of handOf(e)) sample(G, c.clientX, c.clientY, c.timeStamp)
-      G.anchor = rel(e.clientX, e.clientY)
-      const dx = e.clientX - G.start.x
-      const dy = e.clientY - G.start.y
-      const mx = e.clientX - G.prev.x
-      const my = e.clientY - G.prev.y
-      G.prev = { x: e.clientX, y: e.clientY }
-      if (G.mode === "pan") {
-        const b = panBounds(G.grab, fitted, band)
-        pose.value = {
-          ...G.grab,
-          x: overshoot(G.raw0.x + dx, b.x),
-          y: overshoot(G.raw0.y + dy, b.y),
-        }
-        write()
-        return
-      }
-      // The finger left after a pinch drifts a few px: that is never a slide.
-      if (G.axis === null) {
-        if (Math.abs(dx) + Math.abs(dy) < INTENT) return
-        G.axis = G.pinched || Math.abs(dx) <= Math.abs(dy) ? "y" : "x"
-        if (G.axis === "y") dropSlide()
-      } else if (
-        G.axis === "x" &&
-        Math.abs(my) > RELOCK &&
-        Math.abs(my) > 3 * Math.abs(mx)
-      ) {
-        G.axis = "y"
-        trace("axis y")
-        sync()
-        dropSlide()
-      } else if (
-        G.axis === "y" &&
-        !G.pinched &&
-        Math.abs(mx) > RELOCK &&
-        Math.abs(mx) > 3 * Math.abs(my)
-      ) {
-        // The image flies back to the grab while the track takes the hand; the
-        // release re-aims the pose from S.pending, so this flight settles nothing.
-        G.axis = "x"
-        trace("axis x (relock)")
-        fly(G.grab, MACHINE, undefined, false)
-      }
-      if (G.axis === "y") {
-        const h = vh()
-        pose.value = {
-          x: G.grab.x,
-          y: G.grab.y + dy,
-          s: G.grab.s * dragScale(dy, h),
-          p: G.grab.p * dragProgress(dy, h),
-        }
-        write()
-      } else {
-        const { ids, index, loop } = L.current
-        const can = neighbours(index, ids.length, loop)
-        let x = G.slide0 + dx
-        if ((x > 0 && !can.prev) || (x < 0 && !can.next)) x *= 0.35
-        slide.value = { x }
-        writeSlide()
-      }
+      const next = gestureMove(G, inputOf(e, { hand: handOf(e) }), gestureCtx())
+      G = next.gesture
+      applyGesture(next.effects)
     }
     // What a tap leaves behind. A hand on a coasting image stops it: a pan flight
     // (coast, wall bounce, key pan: the pending target keeps the scale) settles
@@ -1671,59 +1555,49 @@ function Stage(props: StageProps) {
         animate(clampPan(pose.value, fitted, band), 1, MACHINE)
       else resume()
     }
-    const tap = (G: G, e: PointerEvent) => {
-      const { entry } = L.current
-      if (!G.onMedia) {
-        if (pose.value.s <= 1.01) dispatch("escape")
-        else afterTap()
-        return
-      }
-      // A tap on a video is the video's (its controls, the platform's play toggle);
-      // a tap on a frame is the frame's.
-      if (entry.media.kind === "video" || entry.media.kind === "frame") {
-        afterTap()
-        return
-      }
-      const now = e.timeStamp
-      const window_ = G.type === "touch" ? DOUBLE_TOUCH : DOUBLE_MOUSE
-      const at = rel(e.clientX, e.clientY)
-      const again =
-        lastTap !== null &&
-        now - lastTap.t < window_ &&
-        Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < DOUBLE_TRAVEL
-      // A pointer with a cursor is told what a click does (zoom-in, zoom-out): one
-      // click toggles the zoom at the point. The second click of a double click is
-      // the same intent, already served, so it settles and does nothing more.
-      if (G.type !== "touch") {
-        if (again) {
-          lastTap = null
-          afterTap()
-          return
-        }
-        lastTap = { x: e.clientX, y: e.clientY, t: now }
-        dispatch("zoom.toggle", at)
-        return
-      }
-      // A finger has no cursor: one tap toggles the chrome, two toggle the zoom.
-      if (again) {
-        clearTimeout(tapTimer)
-        lastTap = null
-        trace("double tap")
-        dispatch("zoom.toggle", at)
-        return
-      }
-      trace(
-        `tap ${lastTap ? `${Math.round(now - lastTap.t)}ms late` : "first"}`,
+    // A tap: the ladder is lightbox-gesture's, the timer and the dispatches are the
+    // binder's. The pending single-tap wait is always cleared first: whatever this
+    // tap decided supersedes it.
+    const tap = (g: Gesture, r: Extract<GestureRelease, { kind: "tap" }>) => {
+      clearTimeout(tapTimer)
+      const next = tapIntent(
+        lastTap,
+        { at: r.at, x: r.x, y: r.y, t: r.t, type: g.type },
+        g,
+        { pose: pose.value, kind: L.current.entry.media.kind },
       )
-      lastTap = { x: e.clientX, y: e.clientY, t: now }
-      if (pose.value.s <= 1.01) {
-        clearTimeout(tapTimer)
-        tapTimer = window.setTimeout(() => {
-          lastTap = null
-          dispatch("chrome")
-        }, DOUBLE_TOUCH)
+      trace(
+        `tap ${lastTap ? `${Math.round(r.t - lastTap.t)}ms late` : "first"} → ${next.intents
+          .map((i) => i.kind)
+          .join("+")}`,
+      )
+      lastTap = next.last
+      for (const i of next.intents) {
+        switch (i.kind) {
+          case "settle":
+            afterTap()
+            break
+          case "escape":
+            dispatch("escape")
+            break
+          case "zoom":
+            dispatch("zoom.toggle", i.at)
+            break
+          case "chrome":
+            dispatch("chrome")
+            break
+          case "wait":
+            tapTimer = window.setTimeout(() => {
+              lastTap = null
+              dispatch("chrome")
+            }, i.ms)
+            break
+          default: {
+            const never: never = i
+            throw new Error(`lightbox: tap intent ${String(never)}`)
+          }
+        }
       }
-      afterTap()
     }
     const onCancel = (e: PointerEvent) => {
       trace(`cancel ${e.pointerType} #${e.pointerId}`)
@@ -1731,88 +1605,52 @@ function Stage(props: StageProps) {
     }
     const onUp = (e: PointerEvent) => {
       if (!G?.pts.has(e.pointerId)) return
-      G.pts.delete(e.pointerId)
-      if (G.pts.size === 1) {
-        const [p] = [...G.pts.values()] as [Point]
-        G.pinch = null
-        G.samples = []
-        G.grab = pose.value
-        G.raw0 = rawOf(pose.value)
-        G.start = { x: p.x, y: p.y, t: e.timeStamp }
-        G.prev = p
-        G.axis = null
-        G.mode = pose.value.s > 1.01 ? "pan" : "fit"
+      const g = G
+      const r = gestureUp(g, inputOf(e), gestureCtx())
+      if (r.kind === "hold") {
+        G = r.gesture
         return
       }
-      if (G.pts.size > 0) return
-      endGesture()
-      const g = G
       G = null
-      // The release instant is the clock, not a sample: a hand held still before
-      // lifting reads as stopped, a mouse button lifting late keeps the hand's speed.
-      const v = velocity(g.samples, e.timeStamp)
+      endGesture()
       trace(
         `up ${e.type} ${g.mode} axis ${g.axis ?? "-"} pinched ${g.pinched} samples ${g.samples.length} travel ${Math.round(
           Math.hypot(e.clientX - g.start.x, e.clientY - g.start.y),
-        )} v ${v.x.toFixed(2)},${v.y.toFixed(2)}`,
+        )} → ${r.kind}`,
       )
-      const { fitted, band, ids, index, loop } = L.current
-      if (g.pinched) {
-        const s = pose.value.s
-        if (s < PINCH_CLOSE && g.pinchMax < PINCH_PASSED) {
-          beginExit(v)
+      switch (r.kind) {
+        case "exit":
+          beginExit(r.vel)
           return
-        }
-        if (s < 1) {
-          animate(FIT, 1, HAND, v)
-          setZoom(1)
+        case "cancel":
+          animate(FIT, 1, HAND, r.vel)
+          if (r.zoomed) setZoom(1)
           return
+        case "zoom":
+          releaseZoom(r.vel, r.at)
+          return
+        case "tap":
+          tap(g, r)
+          return
+        case "coast":
+          animate(r.target, 1, coastOrWall(r.coast, r.target), r.vel)
+          return
+        case "resume":
+          resume()
+          return
+        case "slide":
+          if (r.d === 0) {
+            animateSlide(0, HAND, r.vx)
+            resume()
+            return
+          }
+          stepTo(L.current.index + r.d, HAND, r.vx)
+          return
+        default: {
+          const never: never = r
+          throw new Error(`lightbox: gesture release ${String(never)}`)
         }
-        releaseZoom(v, g.anchor)
-        return
       }
-      const travel = Math.hypot(e.clientX - g.start.x, e.clientY - g.start.y)
-      if (g.axis === null && travel < TAP_TRAVEL) {
-        tap(g, e)
-        return
-      }
-      // A pan has no axis (it moves on both): its release is the coast, before the
-      // axis test, or a flick would resume a stale aim and stop dead past the bound.
-      if (g.mode === "pan") {
-        const coast = {
-          x: project(pose.value.x, v.x),
-          y: project(pose.value.y, v.y),
-          s: pose.value.s,
-        }
-        const target = clampPan(coast, fitted, band)
-        animate(target, 1, coastOrWall(coast, target), v)
-        return
-      }
-      if (g.axis === null) {
-        resume()
-        return
-      }
-      if (g.axis === "y") {
-        // The rule is about drag distance: mid-fly the absolute y still holds the
-        // source offset, so the delta from the grab is what is tested. The axis is
-        // locked: lateral hand speed never reaches the spring.
-        const vy = { x: 0, y: v.y }
-        if (dismissCommit(pose.value.y - g.grab.y, v.y, vh())) beginExit(vy)
-        else animate(FIT, 1, HAND, vy)
-        return
-      }
-      const d = slideCommit(
-        slide.value.x,
-        v.x,
-        band.w,
-        neighbours(index, ids.length, loop),
-      )
-      if (d === 0) {
-        animateSlide(0, HAND, v.x)
-        resume()
-        return
-      }
-      stepTo(index + d, HAND, v.x)
     }
 
     // ---- wheel (lightbox-wheel): the session is data, the binder owns the silence
