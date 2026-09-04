@@ -29,13 +29,13 @@ export default function Home() {
           </li>
         ))}
         <li>
-          <Link href="/lab/lore" className="flex items-baseline gap-4 py-4">
+          <Link href="/lab" className="flex items-baseline gap-4 py-4">
             <span className="w-40 shrink-0 font-mono text-xs text-muted-foreground">
-              lab
+              page
             </span>
-            <span className="font-semibold">lore</span>
+            <span className="font-semibold">lab</span>
             <span className="text-sm text-foreground/60">
-              a project page rebuilt on the primitives
+              a whole project page on the primitives, where scroll work lands first
             </span>
           </Link>
         </li>

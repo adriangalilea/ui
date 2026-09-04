@@ -4,16 +4,17 @@ import { Scrims } from "@/registry/base-nova/ui/scrims"
 import { Terminal } from "@/registry/base-nova/ui/terminal"
 import { Storyboard } from "./storyboard"
 
-// The lab: a project page (untitled.garden/lore's shape) rebuilt on the primitives.
-// Hero with a lead demo, sections that arrive, a pinned storyboard, a changelog.
-// Nothing here is real lore content; the point is the scroll.
+// The lab: a whole project page in the shape untitled.garden renders (hero with a
+// lead demo, sections that arrive, a pinned storyboard, a changelog), built on the
+// primitives alone. Scroll work is proven here before any site adopts it. The copy
+// is invented; the point is the scroll.
 
-const HERO = `$ lore add youtube.com/watch?v=zjkBMFhNj_g
+const HERO = `$ archive add youtube.com/watch?v=zjkBMFhNj_g
 fetching · Intro to Large Language Models · 59:47
 transcript · 8,412 words · en
-~ stored in ~/Movies/lore/2026/09
+~ stored in ~/Movies/archive/2026/09
 
-@600 $ lore search "zip file of the internet"
+@600 $ archive search "zip file of the internet"
 00:04:12  LLMs: the 140GB "zip file" of the internet
 00:41:03  tool use, the browser, the calculator
 ~ 2 hits`
@@ -82,9 +83,9 @@ export default function Lab() {
         className="grid gap-12 lg:min-h-[80svh] lg:grid-cols-[1fr_2fr] lg:items-center"
       >
         <div className="space-y-6">
-          <h1 className="text-5xl font-bold tracking-tight">lore</h1>
+          <h1 className="text-5xl font-bold tracking-tight">archive</h1>
           <p className="font-typewriter text-xl text-foreground/80">
-            a local-first video archive for macOS
+            an invented app, a real page shape
           </p>
           <a
             href="#features"
@@ -98,7 +99,7 @@ export default function Lab() {
           <Terminal
             session={HERO}
             rows={16}
-            alt="A terminal: lore adds a video, then finds a phrase in its transcript."
+            alt="A terminal: a video is added, then a phrase is found in its transcript."
           />
           <figcaption className="text-sm italic text-muted-foreground/80">
             add a link, keep the video and its words, search the words.
