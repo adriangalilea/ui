@@ -617,6 +617,8 @@ function Stage(props: StageProps) {
   const stage = React.useRef<HTMLDivElement>(null)
   const track = React.useRef<HTMLDivElement>(null)
   const layers = React.useRef(new Map<string, HTMLDivElement>())
+  /** The layer the engine last wrote a pose to, for the debug flush to read back. */
+  const activeLayer = React.useRef<HTMLDivElement | null>(null)
   const video = React.useRef<HTMLVideoElement | null>(null)
 
   // The strip shows when there is somewhere to go; `t` folds it.
@@ -653,7 +655,23 @@ function Stage(props: StageProps) {
     if (logRaf.current === 0)
       logRaf.current = requestAnimationFrame(() => {
         logRaf.current = 0
-        setLog(logRef.current)
+        // The screen's truth beside the engine's: the active layer's computed matrix
+        // and how many animations still hold it. ONE reading per frame, taken after
+        // the pose was written, and stamped on the last line: there is only one
+        // painted state per frame, so every line in a frame shares this one anyway.
+        const el = activeLayer.current
+        const seen = el
+          ? `${getComputedStyle(el)
+              .transform.replace(/^matrix\(/, "m(")
+              .replace(/, /g, ",")
+              .slice(
+                0,
+                40,
+              )} anims ${el.getAnimations({ subtree: true }).length}`
+          : "no layer"
+        const lines = logRef.current.slice()
+        lines[lines.length - 1] = `${lines[lines.length - 1]} · ${seen}`
+        setLog(lines)
       })
   }, [])
 
@@ -812,26 +830,22 @@ function Stage(props: StageProps) {
       /** The page's own hash at open, restored on close; a `#lb=` hash is ours. */
       hash0: /^#lb=/.test(window.location.hash) ? "" : window.location.hash,
     }
-    // The debug trace: a decision, stamped with the live pose. Nothing when off.
+    // The debug trace: a decision, stamped with the live pose. Nothing when off, and
+    // NOTHING read from the DOM: the screen's truth is read once a frame, by the
+    // flush. Reading it here cost a forced style recalc per event, against the very
+    // element the pan was writing a transform to, a hundred times a second, and the
+    // instrumentation became the thing it was measuring.
     const trace = (m: string) => {
       if (!L.current.debug) return
       const { x, y, s, p } = pose.value
-      // The screen's truth beside the engine's: the layer's computed matrix and how
-      // many animations still hold it.
-      const el = layers.current.get(L.current.ids[L.current.index] as string)
-      const seen = el
-        ? `${getComputedStyle(el)
-            .transform.replace(/^matrix\(/, "m(")
-            .replace(/, /g, ",")
-            .slice(0, 40)} anims ${el.getAnimations({ subtree: true }).length}`
-        : "no layer"
       L.current.trace(
-        `${m} · s ${s.toFixed(2)} x ${Math.round(x)} y ${Math.round(y)} p ${p.toFixed(2)} · ${seen}`,
+        `${m} · s ${s.toFixed(2)} x ${Math.round(x)} y ${Math.round(y)} p ${p.toFixed(2)}`,
       )
     }
 
     const layerEl = () => {
       const el = layers.current.get(L.current.ids[L.current.index] as string)
+      activeLayer.current = el ?? null
       assert(el, "active layer missing")
       return el
     }
