@@ -192,9 +192,8 @@ const StateContext = React.createContext<State | null>(null)
 /** Reserved for the bar and the caption; consumer chrome is declared via data-obstructs. */
 const INSET_Y = 48
 const INSET_X = 16
-/** The thumbnail strip under the bar, above the media: 48px thumbs in 12px of air. */
-const STRIP_H = 72
-const THUMB_H = 48
+/** Thumbnails ride the bar, between the counter and the buttons: 32px tall. */
+const THUMB_H = 32
 const FRAME_GUTTER = 32
 /** The rail beside the media at lg (px), under it below (share of the stage). The
  *  css reads both from the root (--lb-rail-w, --lb-rail-h). */
@@ -268,7 +267,7 @@ function rectOf(el: HTMLElement): Rect {
   return { x: r.left, y: r.top, w: r.width, h: r.height, radius }
 }
 
-function measureBand(rail: boolean, strip: boolean): Band {
+function measureBand(rail: boolean): Band {
   const vv = window.visualViewport
   assert(vv, "visualViewport")
   const base: Band = {
@@ -295,14 +294,7 @@ function measureBand(rail: boolean, strip: boolean): Band {
     : window.matchMedia(LG).matches
       ? { ...b, w: b.w - RAIL_W }
       : { ...b, h: b.h * (1 - RAIL_H) }
-  // The strip sits under the bar, above the media: the caption stays glued to the
-  // image it explains. Its height leaves the band from the top.
-  const stripH = strip ? STRIP_H : 0
-  return {
-    ...lane,
-    top: lane.top + INSET_Y + stripH,
-    h: lane.h - 2 * INSET_Y - stripH,
-  }
+  return { ...lane, top: lane.top + INSET_Y, h: lane.h - 2 * INSET_Y }
 }
 
 const sameBand = (a: Band, b: Band) =>
@@ -323,9 +315,7 @@ function prime(entry: Entry, rail: boolean) {
   const img = new Image()
   if (source.srcset) {
     img.srcset = source.srcset
-    // Without the strip: the fit it yields is the larger one, and a decode a size
-    // up is never wasted.
-    img.sizes = `${Math.round(fitOf(m, measureBand(rail, false)).w)}px`
+    img.sizes = `${Math.round(fitOf(m, measureBand(rail)).w)}px`
   }
   img.src = source.full
   // The live element reports a broken original; a primer has nothing to add.
@@ -612,7 +602,7 @@ function Stage(props: StageProps) {
   // The strip shows when there is somewhere to go; `t` folds it.
   const [strip, setStrip] = React.useState(count > 1)
   const stripOn = strip && count > 1
-  const [band, setBand] = React.useState<Band>(() => measureBand(rail, stripOn))
+  const [band, setBand] = React.useState<Band>(() => measureBand(rail))
   const [phase, setPhase] = React.useState<Phase>(rest ? "idle" : "enter")
   const [zoom, setZoom] = React.useState(1)
   const [chrome, setChrome] = React.useState(true)
@@ -697,7 +687,6 @@ function Stage(props: StageProps) {
     layerSet,
     unavailable,
     rail,
-    stripOn,
     loop,
     history,
     onRailChange,
@@ -714,7 +703,6 @@ function Stage(props: StageProps) {
     layerSet,
     unavailable,
     rail,
-    stripOn,
     loop,
     history,
     onRailChange,
@@ -2060,7 +2048,7 @@ function Stage(props: StageProps) {
       if (bandRaf) return
       bandRaf = requestAnimationFrame(() => {
         bandRaf = 0
-        const next = measureBand(L.current.rail, L.current.stripOn)
+        const next = measureBand(L.current.rail)
         if (!sameBand(next, L.current.band)) setBand(next)
       })
     }
@@ -2218,11 +2206,11 @@ function Stage(props: StageProps) {
     if (sameBand(prev.band, band)) return
     engine.current?.refit(prev)
   }, [band])
-  // biome-ignore lint/correctness/useExhaustiveDependencies: rail and strip flip the band
+  // biome-ignore lint/correctness/useExhaustiveDependencies: rail flips the band
   React.useLayoutEffect(() => {
-    const next = measureBand(rail, stripOn)
+    const next = measureBand(rail)
     if (!sameBand(next, band)) setBand(next)
-  }, [rail, stripOn])
+  }, [rail])
 
   const dispatch = (a: ActionId) => engine.current?.dispatch(a)
   // The sheet owns the keyboard while up: its siblings are inert, so Tab has
@@ -2305,10 +2293,10 @@ function Stage(props: StageProps) {
         data-lb-chrome
         inert={sheet || undefined}
         style={{
-          top: band.top - INSET_Y - (stripOn ? STRIP_H : 0),
+          top: band.top - INSET_Y,
           left: band.left,
           width: band.w,
-          height: band.h + 2 * INSET_Y + (stripOn ? STRIP_H : 0),
+          height: band.h + 2 * INSET_Y,
         }}
       >
         <div className="ag-lb-bar">
@@ -2316,7 +2304,26 @@ function Stage(props: StageProps) {
             {index + 1} / {count}
           </span>
           {status && <span className="ag-lb-status">{status}</span>}
-          <span className="ag-lb-spacer" />
+          {stripOn ? (
+            <Strip
+              ids={ids}
+              index={index}
+              entryOf={entryOf}
+              jump={(to) => engine.current?.jump(to)}
+            />
+          ) : (
+            <span className="ag-lb-spacer" />
+          )}
+          <Button
+            id="rail"
+            dispatch={dispatch}
+            unavailable={unavailable}
+            pressed={rail}
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M8 7v5M8 4.5v.5" />
+            </svg>
+          </Button>
           <Button id="close" dispatch={dispatch} unavailable={unavailable}>
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M4 4l8 8M12 4l-8 8" />
@@ -2345,25 +2352,6 @@ function Stage(props: StageProps) {
             <path d="M6 3l5 5-5 5" />
           </svg>
         </Button>
-        <Button
-          id="rail"
-          dispatch={dispatch}
-          unavailable={unavailable}
-          className="ag-lb-details"
-          pressed={rail}
-        >
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M8 7v5M8 4.5v.5" />
-          </svg>
-        </Button>
-        {stripOn && (
-          <Strip
-            ids={ids}
-            index={index}
-            entryOf={entryOf}
-            jump={(to) => engine.current?.jump(to)}
-          />
-        )}
         <div className="ag-lb-caption">{caption}</div>
       </div>
       <div className="ag-lb-live" aria-live="polite">

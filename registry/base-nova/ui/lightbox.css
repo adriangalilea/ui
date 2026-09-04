@@ -251,11 +251,6 @@
 .ag-lb-nav[data-side="right"] {
   right: 8px;
 }
-.ag-lb-details {
-  position: absolute;
-  top: 8px;
-  right: 48px;
-}
 /* Present only when it explains: the figure's caption, hidden while zoomed or flying. */
 .ag-lb-caption {
   position: absolute;
@@ -392,16 +387,15 @@
   font: inherit;
 }
 
-/* The thumbnail strip: under the bar, above the media, so the caption stays with
-   the image it explains. One row that scrolls sideways with the active thumb kept
-   centered. Monochrome: the alpha ladder alone tells the active one. Gone while
-   zoomed or under a hand, like the caption. */
+/* The thumbnail strip rides the bar, between the counter and the buttons: one row
+   that takes the room left, scrolls sideways with the active thumb kept centered.
+   Monochrome: the alpha ladder alone tells the active one. Gone while zoomed or
+   under a hand, like the caption. */
 .ag-lb-strip {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 48px;
-  height: 72px;
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 48px;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
@@ -417,23 +411,23 @@
   mask-image: linear-gradient(
     to right,
     transparent,
-    black 32px,
-    black calc(100% - 32px),
+    black 24px,
+    black calc(100% - 24px),
     transparent
   );
 }
 .ag-lb-strip-row {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   width: max-content;
-  padding: 12px 16px;
+  padding: 8px 16px;
 }
 .ag-lb-thumb {
   position: relative;
   flex: none;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: 4px;
   overflow: hidden;
   background: color-mix(
     in oklch,
@@ -466,11 +460,11 @@
   display: block;
   width: 100%;
   height: 100%;
-  padding: 0 8px;
+  padding: 0 6px;
   font-family: var(--font-mono);
   font-size: 0.625rem;
   text-transform: lowercase;
-  line-height: 48px;
+  line-height: 32px;
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
@@ -480,10 +474,10 @@
 .ag-lb-thumb[data-kind="video"]::after {
   content: "";
   position: absolute;
-  right: 5px;
-  bottom: 5px;
-  width: 9px;
-  height: 10px;
+  right: 3px;
+  bottom: 3px;
+  width: 7px;
+  height: 8px;
   background: #fff;
   clip-path: polygon(0 0, 100% 50%, 0 100%);
   filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.6));
