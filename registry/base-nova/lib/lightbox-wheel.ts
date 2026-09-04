@@ -82,6 +82,9 @@ export type WheelCtx = {
   pose: Pose
   /** Where the track sits right now, in px. */
   slideX: number
+  /** A step is still landing. The hand does not fight it: the travel is banked and
+   *  spent on release, where stepTo can queue it as one continuous motion. */
+  sliding: boolean
   fitted: Size
   band: Band
   zoomMax: number
@@ -138,8 +141,14 @@ const begin = (
     at: input.at,
     phase,
   }
+  // Only an axis that moves the POSE takes the image: it pauses the flight loop and
+  // sends a committing slide home. The slide axis must do neither. It owns the
+  // track, not the pose, and pausing the loop freezes a slide mid-flight with nobody
+  // left to finish it, which is how the image ends up parked between two slides.
   const effects: WheelEffect[] =
-    axis === "y" ? [] : [{ kind: "grab" }, { kind: "drop" }]
+    axis === "zoom" || axis === "pan"
+      ? [{ kind: "grab" }, { kind: "drop" }]
+      : []
   return { session, effects }
 }
 
@@ -225,7 +234,8 @@ export function wheelTick(
       if (fed.read.momentum) return { session: w, effects }
       // Under the fingers: raw px, no per-tick bound, the track goes where they go.
       w = { ...w, x: w.x - rawX }
-      effects.push({ kind: "slide", x: trackAt(w.slide0, w.x, ctx) })
+      if (!ctx.sliding)
+        effects.push({ kind: "slide", x: trackAt(w.slide0, w.x, ctx) })
       return { session: w, effects }
     }
     case "y": {

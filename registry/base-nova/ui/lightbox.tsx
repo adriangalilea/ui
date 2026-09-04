@@ -1681,6 +1681,7 @@ function Stage(props: StageProps) {
           ? (readFlight(S.flight).frame.value as Pose)
           : pose.value,
         slideX: slide.value.x,
+        sliding: S.slideOn,
         fitted,
         band,
         zoomMax,
@@ -1689,6 +1690,7 @@ function Stage(props: StageProps) {
         frame: entry.media.kind === "frame",
       }
     }
+    const fedRead = (w: WheelSession) => (w.phase.momentum ? " coast" : " hand")
     const slideRelease = (d: -1 | 0 | 1, vx: number) => {
       if (d === 0) {
         animateSlide(0, HAND, vx)
@@ -1703,6 +1705,7 @@ function Stage(props: StageProps) {
       if (!w) return
       endGesture()
       const r = wheelRelease(w, wheelCtx())
+      trace(`wheel end ${w.axis}${fedRead(w)} → ${r.kind}`)
       switch (r.kind) {
         case "none":
           return
@@ -1754,6 +1757,16 @@ function Stage(props: StageProps) {
       )
       W = next.session
       if (!W) return
+      // The swipe, on screen: which axis owns it, whether the hand or the device is
+      // driving, how far the track has been taken, and what the release decided.
+      // Without this a wheel gesture is the one thing the trace cannot see.
+      trace(
+        `wheel ${W.axis}${fedRead(W)} track ${Math.round(slide.value.x)} v ${(-W.phase.velocity.x).toFixed(2)} ends ${W.phase.endsIn}${
+          next.effects.length
+            ? ` → ${next.effects.map((e) => e.kind).join(",")}`
+            : ""
+        }`,
+      )
       // How long silence must last to mean the stream is over is the device's own
       // answer, not a constant: the phase detector sizes it from the rate this
       // device is actually emitting at, and tightens it once the hand has let go.

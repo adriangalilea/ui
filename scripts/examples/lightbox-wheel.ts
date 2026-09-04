@@ -21,6 +21,7 @@ const atFit = { ...FIT, p: 1 }
 const ctx = (over: Partial<WheelCtx> = {}): WheelCtx => ({
   pose: atFit,
   slideX: 0,
+  sliding: false,
   fitted,
   band,
   zoomMax: 3,
