@@ -81,7 +81,8 @@ export function ScrollStage({
       const rect = el.getBoundingClientRect()
       const pacePx = paceNode.offsetHeight
       let act: number
-      if (!pinned.matches) {
+      if (!pinned.matches || pacePx === 0) {
+        // Unpinned, or a collapsed track (pace 0): the completed state.
         act = acts - 1
         if (!css) el.style.removeProperty("--stage-p")
       } else {
