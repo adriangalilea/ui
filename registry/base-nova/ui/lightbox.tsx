@@ -967,6 +967,35 @@ function Stage(props: StageProps) {
       zeta: 1,
       f: clamp((Math.abs(v) / Math.max(1, Math.abs(d))) * (1000 / TAU), 2.5, 7),
     })
+    /** Where a swipe means to arrive, and the ONE place that is decided. Every way a
+     *  gesture can end comes through here, because two rules reading the same swipe
+     *  differently is felt as the thing not being attached to the hand. */
+    const landTrack = (why: string, v: number) => {
+      const w = slotW()
+      const at = trackEl.scrollLeft / w
+      // Momentum breaks the TIE, it does not add slides. Capped at half a slot, it
+      // can only decide whether the slide you are over is the one you get, so the
+      // count is the distance your hand covered and nothing else.
+      const carried = clamp(project(0, v) / w, -0.5, 0.5)
+      const total = at - trackFrom + carried
+      // A swipe that clearly went somewhere ALWAYS arrives. Rounding alone asks for
+      // half a slide, which is a shove, and shoving for every single slide is the
+      // worst of this to use.
+      let n = Math.round(total)
+      if (n === 0 && Math.abs(total) > SLIDE_TRAVEL) n = Math.sign(total)
+      // One gesture pages ONE, measured from where it began: macOS accelerates a
+      // flick into more than a slide's worth of pixels, so free scrolling alone
+      // would skip. A hand that deliberately drags past a slide and a half is not
+      // flicking, and keeps everything it travelled.
+      const far = Math.abs(at - trackFrom) > 1.5
+      if (!far) n = clamp(n, -1, 1)
+      const to = clamp(trackFrom + n, 0, L.current.ids.length - 1)
+      const tune = landing(to * w - trackEl.scrollLeft, v)
+      trace(
+        `${why} ${trackFrom}→${at.toFixed(2)} v ${v.toFixed(2)} sum ${total.toFixed(2)}${far ? " far" : ""} → ${to} f ${tune.f.toFixed(1)}`,
+      )
+      glideTo(to, v, tune)
+    }
     /** The pull into the slide, under the same spring the image itself moves with.
      *  `vx` is the speed the throw still had when it was handed over. */
     const glideTo = (i: number, vx = 0, tuning?: Tuning) => {
@@ -1795,31 +1824,7 @@ function Stage(props: StageProps) {
         if (fed.read.released) {
           coasting = true
           e.preventDefault()
-          const w = slotW()
-          const at = trackEl.scrollLeft / w
-          // Momentum breaks the TIE, it does not add slides. Capped at half a slot,
-          // it can only decide whether the one you are over is the one you get, so
-          // the count is the distance your hand covered and nothing else.
-          const carried = clamp(project(0, fed.read.velocity.x) / w, -0.5, 0.5)
-          const total = at - trackFrom + carried
-          // A swipe that clearly went somewhere ALWAYS arrives. Rounding alone asks
-          // for half a slide, which is a shove; a quarter is a swipe, and having to
-          // shove for every single slide is the worst of this to use.
-          let n = Math.round(total)
-          if (n === 0 && Math.abs(total) > SLIDE_TRAVEL) n = Math.sign(total)
-          // One gesture pages ONE, measured from where it began: macOS accelerates a
-          // flick into more than a slide's worth of pixels, so free scrolling alone
-          // would skip. A hand that deliberately drags past a slide and a half is not
-          // flicking, and keeps everything it travelled.
-          const far = Math.abs(at - trackFrom) > 1.5
-          if (!far) n = clamp(n, -1, 1)
-          const to = clamp(trackFrom + n, 0, L.current.ids.length - 1)
-          const v = fed.read.velocity.x
-          const tune = landing(to * w - trackEl.scrollLeft, v)
-          trace(
-            `released ${trackFrom}→${at.toFixed(2)} v ${v.toFixed(2)} sum ${total.toFixed(2)}${far ? " far" : ""} → ${to} f ${tune.f.toFixed(1)}`,
-          )
-          glideTo(to, v, tune)
+          landTrack("released", fed.read.velocity.x)
           return
         }
         // Still coasting after that: the browser must not add to it.
@@ -2035,15 +2040,13 @@ function Stage(props: StageProps) {
     // it the current one. `scrollend` is the exact signal; where it is missing, a
     // quiet stretch of `scroll` says the same thing a little later.
     let scrollTimer = 0
-    // The momentum died wherever it died. Pull the track into the nearest slide;
-    // once it is there, that slide is the current one.
+    // The scroll stopped without the coast ever being recognised (a short swipe the
+    // detector could not read, a mouse wheel, a drag let go slowly). Same rule, so a
+    // swipe means the same thing whichever way it ends: two rules is what the jank
+    // between one gesture and the next actually was.
     const onScrollSettled = () => {
       if (S.ph !== "idle" || glide) return
-      const landed = landedSlot()
-      trace(
-        `throw ended at ${(trackEl.scrollLeft / slotW()).toFixed(2)} → ${landed}`,
-      )
-      glideTo(landed)
+      landTrack("ended", 0)
     }
     const hasScrollEnd = "onscrollend" in window
     const onScrollEnd = () => onScrollSettled()
