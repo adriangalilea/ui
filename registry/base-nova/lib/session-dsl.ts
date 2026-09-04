@@ -194,17 +194,4 @@ export function renderSessionSvg(
 `
 }
 
-// Runnable example: `bun registry/base-nova/lib/session-dsl.ts` prints the SVG of a
-// sample session to stdout and its timeline to stderr.
-if (import.meta.main) {
-  const sample = `$ trash thesis-draft.txt
-trashed: ~/Desktop/thesis-draft.txt
-
-@600 $ trash list
-thesis-draft.txt  2026-08-20 14:27  ~/Desktop/thesis-draft.txt
-~ 1 item`
-  const lines = parseSession(sample)
-  const t = sessionTimeline(lines)
-  console.error(`${lines.length} lines, ${t.total} ms`)
-  process.stdout.write(renderSessionSvg(lines))
-}
+// Runnable example: scripts/examples/session-still.ts (the lib carries no runtime).
