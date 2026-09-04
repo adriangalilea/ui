@@ -11,7 +11,8 @@ import {
   type WheelEffect,
   type WheelInput,
   type WheelSession,
-  wheelIsTrack,
+  wheelAxisOf,
+  wheelIsTrackable,
   wheelRelease,
   wheelTick,
 } from "../../registry/base-nova/lib/lightbox-wheel"
@@ -114,26 +115,39 @@ console.log("inertia tail passed, hand accepted, dismiss commits once")
 // the browser scrolls, snaps and carries the momentum itself.
 {
   const sideways = tick(30, 0, 0)
-  assert(wheelIsTrack(sideways, ctx()), "sideways at fit belongs to the track")
-  const r = wheelTick(null, sideways, ctx())
-  assert(
-    r.session?.axis === "y" && r.effects.length === 0,
-    "and the reducer has no horizontal axis left to give it",
-  )
+  assert(wheelIsTrackable(sideways, ctx()), "at fit, the track may have it")
   // Zoomed, the same event pans the image: the track must not steal it.
   const zoomed = ctx({ pose: { ...atFit, s: 2 } })
-  assert(!wheelIsTrack(sideways, zoomed), "zoomed, sideways pans the image")
+  assert(!wheelIsTrackable(sideways, zoomed), "zoomed, sideways pans the image")
   assert(
     wheelTick(null, sideways, zoomed).session?.axis === "pan",
     "which is the pan axis",
   )
   // ctrl is always a zoom, whichever way it points.
   assert(
-    !wheelIsTrack(tick(30, 0, 0, true), ctx()),
+    !wheelIsTrackable(tick(30, 0, 0, true), ctx()),
     "ctrl is a zoom, never the track",
   )
 }
-console.log("sideways at fit is the scroll container's, and only then")
+// The axis comes from the TRAVEL and is undecided until there is enough of it. One
+// event of a two-finger swipe says almost nothing, which is how horizontal swipes
+// were being handed to the dismiss and back at random.
+{
+  assert(wheelAxisOf({ x: 3, y: 2 }) === null, "too small to have a direction")
+  assert(wheelAxisOf({ x: 40, y: 6 }) === "x", "sideways is the track's")
+  assert(wheelAxisOf({ x: 2, y: 40 }) === "y", "clearly down is the dismiss")
+  // A swipe that drifts is still a swipe: sideways is the common verb, so vertical
+  // has to win outright, not by a nose.
+  assert(
+    wheelAxisOf({ x: 20, y: 24 }) === "x",
+    "a drifting swipe stays a swipe",
+  )
+  assert(
+    wheelAxisOf({ x: 20, y: 40 }) === "y",
+    "a real drag down is a drag down",
+  )
+}
+console.log("the track's when trackable, and only once the travel has said so")
 // ctrl + wheel is zoom: up zooms in at the cursor, the accumulator rubbers past the
 // ceiling and under fit, and the release under fit springs to fit (a wheel never
 // dismisses); over fit it hands off to the zoom release at the cursor.

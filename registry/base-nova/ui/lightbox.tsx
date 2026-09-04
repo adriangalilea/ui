@@ -98,7 +98,8 @@ import {
 import {
   type WheelCtx,
   type WheelSession,
-  wheelIsTrack,
+  wheelAxisOf,
+  wheelIsTrackable,
   wheelRelease,
   wheelTick,
 } from "@/registry/base-nova/lib/lightbox-wheel"
@@ -1690,6 +1691,8 @@ function Stage(props: StageProps) {
     let coasting = false
     /** The slide this gesture started from. */
     let trackFrom = 0
+    /** The axis this wheel stream belongs to, once its travel has said. */
+    let streamAxis: "x" | "y" | null = null
     const wheelCtx = (): WheelCtx => {
       const { fitted, band, zoomMax, entry } = L.current
       return {
@@ -1767,9 +1770,25 @@ function Stage(props: StageProps) {
       }
       // Where this gesture began. A swipe is counted from here, not from wherever
       // the free scroll had reached by the time the hand let go.
-      if (fed.read.start) trackFrom = landedSlot()
+      if (fed.read.start) {
+        trackFrom = landedSlot()
+        streamAxis = null
+      }
+      // One axis for the whole stream, read off the travel and then LOCKED. Deciding
+      // per event handed the same swipe to the track and to the dismiss by turns,
+      // which is why it stopped feeling attached to the hand at all.
+      if (wheelIsTrackable(input, ctx) && streamAxis === null) {
+        streamAxis = wheelAxisOf(fed.read.movement)
+        if (!streamAxis) return
+        trace(`wheel axis ${streamAxis}`)
+      }
       const guarded = performance.now() - S.enterAt < WHEEL_GUARD
-      if (!guarded && !G && wheelIsTrack(input, ctx)) {
+      if (
+        !guarded &&
+        !G &&
+        wheelIsTrackable(input, ctx) &&
+        streamAxis === "x"
+      ) {
         // The hand let go. Its momentum is ours from here: the browser's own tail is
         // long and arrives flat, so it is cut off (preventDefault) and the track is
         // thrown to where that momentum was going, under the spring.

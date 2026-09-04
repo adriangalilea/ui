@@ -20,6 +20,7 @@ import {
   dismissCommit,
   dragProgress,
   dragScale,
+  INTENT,
   overshoot,
   type Point,
   type Pose,
@@ -97,15 +98,21 @@ export type WheelEffect =
   | { kind: "pose"; pose: Pose }
   | { kind: "exit"; vy: number }
 
-/** A sideways wheel at fit is the scroll container's, not ours: no session opens and
- *  the binder leaves the event alone so the browser scrolls, snaps and carries the
- *  momentum itself. */
-export function wheelIsTrack(input: WheelInput, ctx: WheelCtx): boolean {
-  return (
-    !input.ctrl &&
-    ctx.pose.s <= 1.01 &&
-    Math.abs(input.deltaX) > Math.abs(input.deltaY)
-  )
+/** At fit, with no ctrl held, a wheel is the TRACK's or the dismiss drag's, and
+ *  which one is decided from the travel so far, not from one event: the first event
+ *  of a two-finger swipe carries whatever the fingers happened to be doing, so
+ *  reading the axis off it hands horizontal swipes to the dismiss and back again at
+ *  random. Vertical must also WIN clearly, because sideways is the common verb here
+ *  and a swipe that drifts a little must not become a dismiss. */
+export function wheelIsTrackable(input: WheelInput, ctx: WheelCtx): boolean {
+  return !input.ctrl && ctx.pose.s <= 1.01
+}
+
+/** Undecided until the travel is worth reading. `null` while the stream is still
+ *  too small to have a direction. */
+export function wheelAxisOf(travel: Point): "x" | "y" | null {
+  if (Math.max(Math.abs(travel.x), Math.abs(travel.y)) < INTENT) return null
+  return Math.abs(travel.y) > 1.5 * Math.abs(travel.x) ? "y" : "x"
 }
 
 const begin = (input: WheelInput, ctx: WheelCtx, phase: Phase) => {
