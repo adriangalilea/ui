@@ -2157,8 +2157,11 @@ function Stage(props: StageProps) {
     // Frame one: the source pose, written before paint. The engine is the only
     // writer of data-z and --lb-p.
     rootEl.dataset.z = S.z
-    // The scroller starts under the opened slide, before anything paints.
-    trackEl.scrollTo({ left: L.current.index * slotW(), behavior: "instant" })
+    // The scroller starts under the opened slide, before anything paints, and that
+    // slide is where the first swipe counts from. Left at zero, the `scrollend` this
+    // very scroll emits reads the whole way here as one enormous gesture.
+    trackFrom = L.current.index
+    trackEl.scrollTo({ left: trackFrom * slotW(), behavior: "instant" })
     if (!rest) {
       const sv = source()
       assert(sv, "open without a trigger rect")
