@@ -151,19 +151,31 @@ export function panBounds(view: View, fitted: Size, band: Band): Point {
   }
 }
 
-/** Pan overshoot while the finger is down: the excess past the bound × 0.35. */
+/** A rubber band ASYMPTOTES. Resistance that is merely proportional (excess × 0.35)
+ *  keeps giving forever, so a long trackpad pan walks the image hundreds of px off
+ *  its own edge and the edge stops meaning anything. Past the bound the give shrinks
+ *  toward nothing and the offset can never exceed OVERSHOOT_MAX, so pulling harder
+ *  is felt as the edge pulling back. The slope at the bound is still OVERSHOOT, so
+ *  the first px past it feels exactly as it did. */
+export const OVERSHOOT_MAX = 96
+
+const band_ = (excess: number) =>
+  (1 - 1 / ((excess * OVERSHOOT) / OVERSHOOT_MAX + 1)) * OVERSHOOT_MAX
+
 export function overshoot(value: number, bound: number): number {
-  if (value > bound) return bound + (value - bound) * OVERSHOOT
-  if (value < -bound) return -bound + (value + bound) * OVERSHOOT
-  return value
+  const excess = Math.abs(value) - bound
+  if (excess <= 0) return value
+  return Math.sign(value) * (bound + band_(excess))
 }
 /** The exact inverse: a grab taken past the bound (mid-bounce, or a rubbered wheel
  *  pan) is read back to the raw offset it rubbered from, so a drag that offsets the
  *  raw grab and rubbers the sum is continuous at dx = 0. */
 export function unovershoot(value: number, bound: number): number {
-  if (value > bound) return bound + (value - bound) / OVERSHOOT
-  if (value < -bound) return -bound + (value + bound) / OVERSHOOT
-  return value
+  const given = Math.abs(value) - bound
+  if (given <= 0) return value
+  assert(given < OVERSHOOT_MAX, `${given} px past the bound cannot be reached`)
+  const excess = (given * OVERSHOOT_MAX) / (OVERSHOOT * (OVERSHOOT_MAX - given))
+  return Math.sign(value) * (bound + excess)
 }
 
 export function clampPan(view: View, fitted: Size, band: Band): View {

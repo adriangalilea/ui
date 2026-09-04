@@ -9,6 +9,8 @@ import {
   HAND,
   MACHINE,
   neighbours,
+  OVERSHOOT,
+  OVERSHOOT_MAX,
   overshoot,
   project,
   rubber,
@@ -182,6 +184,24 @@ for (const v of [-79, -50, 0, 37, 50, 120]) {
     moved > -79 && moved - -79 < 1,
     `a grab past the bound jumped on its first move: ${moved}`,
   )
+}
+// The band asymptotes: pull for a mile and the image still cannot leave its edge by
+// more than OVERSHOOT_MAX, and the harder it is pulled the less it gives. At the
+// bound itself the give is still OVERSHOOT, so the edge feels the same as it did.
+{
+  const far = overshoot(50 + 100000, 50) - 50
+  assert(far < OVERSHOOT_MAX && far > OVERSHOOT_MAX * 0.99, `capped: ${far}`)
+  const first = overshoot(50 + 1, 50) - 50
+  assert(
+    Math.abs(first - OVERSHOOT) < 0.01,
+    `the first px past the bound still gives ${OVERSHOOT}: ${first}`,
+  )
+  let prev = Number.POSITIVE_INFINITY
+  for (let e = 1; e < 400; e += 20) {
+    const give = overshoot(50 + e + 1, 50) - overshoot(50 + e, 50)
+    assert(give < prev && give > 0, `the give must keep shrinking at ${e}`)
+    prev = give
+  }
 }
 assert(
   slideCommit(-10, -0.8, 800, { prev: true, next: true }) === 1,

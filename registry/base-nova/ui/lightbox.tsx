@@ -197,6 +197,10 @@ const INSET_Y = 48
 const INSET_X = 16
 /** Thumbnails ride the bar, between the counter and the buttons: 32px tall. */
 const THUMB_H = 32
+/** Slides each side of the one on screen that hold decoded media. Two, not one: a
+ *  throw crosses its neighbour and is already looking at the next one by the time
+ *  anything commits. */
+const LOADED = 2
 const FRAME_GUTTER = 32
 /** The rail beside the media at lg (px), under it below (share of the stage). The
  *  css reads both from the root (--lb-rail-w, --lb-rail-h). */
@@ -615,6 +619,9 @@ function Stage(props: StageProps) {
   const [sheet, setSheet] = React.useState(false)
   const [fullscreen, setFullscreen] = React.useState(false)
   const [warm, setWarm] = React.useState(rest)
+  // The slide under the reader's eyes RIGHT NOW, which runs ahead of `index`: the
+  // index commits only once the track has landed. Media loads around this.
+  const [passing, setPassing] = React.useState(index)
   // Where the hand pointed, ahead of the stage: the slide takes ~200 ms and queued
   // steps chain, so a strip and a counter that waited for `index` would trail a
   // fast reader by slides. They are an INDEX, not the content, and must read as
@@ -923,38 +930,48 @@ function Stage(props: StageProps) {
     // `scroll-behavior: smooth` has no duration and reads as a crawl next to the rest
     // of this thing. The same spring the pose uses, so a step feels like a step.
     const slotW = () => trackEl.clientWidth + SLIDE_GAP
-    const landedSlot = () => Math.round(trackEl.scrollLeft / slotW())
+    const landedSlot = () =>
+      Math.min(
+        L.current.ids.length - 1,
+        Math.max(0, Math.round(trackEl.scrollLeft / slotW())),
+      )
+    const commitIndex = (i: number) => {
+      if (i === L.current.index) return
+      aimAt(i)
+      L.current.onIndex(i)
+    }
     let glide = 0
     const stopGlide = () => {
       if (!glide) return
       cancelAnimationFrame(glide)
       glide = 0
-      trackEl.style.scrollSnapType = ""
     }
-    const glideTo = (i: number) => {
+    /** The landing. The browser carried the throw; this is the pull into the slide
+     *  at the end of it, and the same spring the image itself moves under, so the
+     *  track arrives with weight instead of stopping flat. `vx` is the speed the
+     *  hand or the momentum still had, so the pull continues the motion rather than
+     *  restarting it. */
+    const glideTo = (i: number, vx = 0) => {
       stopGlide()
       const to = i * slotW()
-      if (reduced) {
-        trackEl.scrollTo({ left: to, behavior: "instant" })
+      if (reduced || Math.abs(trackEl.scrollLeft - to) < 0.5) {
+        trackEl.scrollLeft = to
+        commitIndex(i)
         return
       }
-      // Mandatory snap re-snaps after every programmatic write, which would fight a
-      // per-frame glide; it goes back on at the end, exactly on a snap point.
-      trackEl.style.scrollSnapType = "none"
       const s = new Spring<"x">({ x: trackEl.scrollLeft }, { x: 0.5 })
-      s.aim({ x: to }, QUICK)
+      s.aim({ x: to }, QUICK, { x: vx })
       let last = performance.now()
       const step = (t: number) => {
         const done = s.step(t - last)
         last = t
         trackEl.scrollLeft = s.value.x
-        if (done) {
-          glide = 0
-          trackEl.style.scrollSnapType = ""
-          onScrollSettled()
+        if (!done) {
+          glide = requestAnimationFrame(step)
           return
         }
-        glide = requestAnimationFrame(step)
+        glide = 0
+        commitIndex(i)
       }
       glide = requestAnimationFrame(step)
     }
@@ -1923,18 +1940,28 @@ function Stage(props: StageProps) {
     // it the current one. `scrollend` is the exact signal; where it is missing, a
     // quiet stretch of `scroll` says the same thing a little later.
     let scrollTimer = 0
+    // The momentum died wherever it died. Pull the track into the nearest slide;
+    // once it is there, that slide is the current one.
     const onScrollSettled = () => {
-      if (S.ph !== "idle") return
-      const { index, ids } = L.current
-      const landed = Math.min(ids.length - 1, Math.max(0, landedSlot()))
-      if (landed === index) return
-      trace(`track landed on ${landed} · ${ids[landed]}`)
-      aimAt(landed)
-      L.current.onIndex(landed)
+      if (S.ph !== "idle" || glide) return
+      const landed = landedSlot()
+      trace(
+        `throw ended at ${(trackEl.scrollLeft / slotW()).toFixed(2)} → ${landed}`,
+      )
+      glideTo(landed)
     }
     const hasScrollEnd = "onscrollend" in window
     const onScrollEnd = () => onScrollSettled()
+    // Every scroll frame, cheaply: which slide is under the reader, so its
+    // neighbours are decoded before the throw arrives. React sees a change only
+    // when the answer actually changes.
+    let passRaf = 0
     const onScroll = () => {
+      if (!passRaf)
+        passRaf = requestAnimationFrame(() => {
+          passRaf = 0
+          setPassing(landedSlot())
+        })
       if (hasScrollEnd) return
       clearTimeout(scrollTimer)
       scrollTimer = window.setTimeout(onScrollSettled, 120)
@@ -2030,6 +2057,7 @@ function Stage(props: StageProps) {
       clearTimeout(wheelTimer)
       clearTimeout(scrollTimer)
       if (glide) cancelAnimationFrame(glide)
+      if (passRaf) cancelAnimationFrame(passRaf)
       trackEl.removeEventListener("scrollend", onScrollEnd)
       trackEl.removeEventListener("scroll", onScroll)
       rootEl.removeEventListener("pointerdown", onDown)
@@ -2152,8 +2180,10 @@ function Stage(props: StageProps) {
         inert={sheet || undefined}
         style={{ inset: 0 }}
       >
-        {/* Every slide, in order: the scroll offset IS the index. Only the ones
-            beside the current slide decode their media. */}
+        {/* Every slide, in order: the scroll offset IS the index. Media is decoded
+            around where the reader ACTUALLY is, not where the index has committed
+            to: a throw crosses slides long before it lands, and a slide with no
+            pixels is a grey hole. */}
         <div ref={track} className="ag-lb-track">
           {ids.map((lid, i) => (
             <div key={lid} className="ag-lb-slot">
@@ -2161,7 +2191,7 @@ function Stage(props: StageProps) {
                 entry={entryOf(lid)}
                 band={band}
                 active={i === index}
-                near={Math.abs(i - index) <= 1 && warm}
+                near={warm && Math.abs(i - passing) <= LOADED}
                 layers={layers}
                 video={video}
               />
