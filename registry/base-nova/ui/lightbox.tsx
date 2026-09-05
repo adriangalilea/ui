@@ -1767,6 +1767,9 @@ function Stage(props: StageProps) {
     /** Commits so far in this stream. Exactly one is allowed: hand or coast, a gesture
      *  buys one slide, however hard it was thrown and however far it kept going. */
     let swipeCommits = 0
+    /** Which way the last commit went, so a reader turning round is told apart from a
+     *  hand carrying straight on, without asking a clock. */
+    let swipeDir = 0
     let swipeTimer = 0
     const endSwipe = () => {
       swipe = false
@@ -1866,6 +1869,7 @@ function Stage(props: StageProps) {
         e.preventDefault()
         const w = slotW()
         const n = L.current.ids.length
+        const dx = wheelPx(e.deltaX, e.deltaMode, ctx.band.h)
         // A coast is a hand that has let go, not a hand that has arrived: the phase is
         // asked ONE question here, and only about when a new gesture may begin.
         const coasting = fed.read.momentum && !fed.read.interrupted
@@ -1873,11 +1877,18 @@ function Stage(props: StageProps) {
         // the tail of a question already decided. Letting the hand keep paying for
         // more slides seems fluent and is not: macOS delivers accelerated deltas every
         // few ms, so one ordinary swipe crosses the line again and again and lands
-        // five slides away. A push that cuts INTO the coast is a genuinely new gesture,
-        // and it is the only thing that reopens one early.
+        // five slides away.
+        //
+        // THREE things end an answered gesture early, and none of them is a clock: the
+        // detector saw a genuinely new stream, a push cut into the coast, or the reader
+        // turned round. A coast can do none of the three, so the tail of a throw still
+        // cannot buy a second slide, and a hand carrying straight on is still one
+        // gesture. Waiting for the silence timer instead swallowed any second swipe
+        // that arrived inside `endsIn`, which is every quick change of direction.
         if (swipe && swipeCommits > 0) {
           armSwipeEnd()
-          if (!fed.read.interrupted) return
+          const turned = !coasting && dx !== 0 && Math.sign(dx) !== swipeDir
+          if (!fed.read.start && !fed.read.interrupted && !turned) return
           swipe = false
         }
         if (!swipe) {
@@ -1896,7 +1907,7 @@ function Stage(props: StageProps) {
         armSwipeEnd()
         // Under the fingers, 1:1. macOS has already put its own acceleration in these
         // deltas; a gain on top of it is a second acceleration, and it felt like one.
-        swipeTravel += wheelPx(e.deltaX, e.deltaMode, ctx.band.h)
+        swipeTravel += dx
         writeTrack()
         if (Math.abs(swipeTravel) < SWIPE_COMMIT * w) return
         const to = clamp(swipeAt + Math.sign(swipeTravel), 0, n - 1)
@@ -1906,6 +1917,7 @@ function Stage(props: StageProps) {
         // Decided, with the hand still on the glass. Nothing noticed a release, and
         // the glide takes over the exact position the fingers had reached, so the
         // moment of the commit moves nothing.
+        swipeDir = Math.sign(swipeTravel)
         swipeAt = to
         swipeCommits++
         trace(
