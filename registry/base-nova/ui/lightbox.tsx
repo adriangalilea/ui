@@ -88,10 +88,12 @@ import {
   SLIDE_GAP,
   type SourceView,
   STILL,
+  SWIPE_END,
   sharpScale,
   sourceView,
   stageBand,
   swipeCommitPx,
+  swipeGive,
   THROW,
   type Tunings,
   type View,
@@ -1005,7 +1007,11 @@ function Stage(props: StageProps) {
     let glide = 0
     const paintTrack = () => {
       const n = L.current.ids.length
-      trackEl.scrollLeft = clamp(base + swipeTravel, 0, (n - 1) * slotW())
+      trackEl.scrollLeft = clamp(
+        base + swipeGive(swipeTravel),
+        0,
+        (n - 1) * slotW(),
+      )
     }
     /** Hand the track back to the machine where it stands. Any path that takes over
      *  from a hand calls this, and nothing after it can jump. */
@@ -1033,7 +1039,7 @@ function Stage(props: StageProps) {
       // Derived from the ground truth, every time. The browser moves this scroller
       // too (a finger's pan, a snap, a resize), and a `base` remembered across that
       // is a stale number the next glide would jump from.
-      base = trackEl.scrollLeft - swipeTravel
+      base = trackEl.scrollLeft - swipeGive(swipeTravel)
       const to = i * slotW()
       const from = base
       const d = to - from
@@ -1949,7 +1955,10 @@ function Stage(props: StageProps) {
     }
     const armSwipeEnd = () => {
       clearTimeout(swipeTimer)
-      swipeTimer = window.setTimeout(endSwipe, wheelPhase.endsIn)
+      swipeTimer = window.setTimeout(
+        endSwipe,
+        Math.min(wheelPhase.endsIn, SWIPE_END),
+      )
     }
     const wheelCtx = (): WheelCtx => {
       const { fitted, band, zoomMax, entry } = L.current

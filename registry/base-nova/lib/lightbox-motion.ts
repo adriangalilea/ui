@@ -99,6 +99,28 @@ export const SWIPE_COMMIT = 0.18
  *  line and glided home having done nothing. */
 export const THROW = 499
 
+/** The pictures LEAN toward the next slide under a swipe, they do not follow it. Past
+ *  the first few px the give is a band that asymptotes, so however long the fingers
+ *  keep coming the pictures are never far from the slide they are on and there is
+ *  never much to wind back.
+ *
+ *  1:1 was the obvious rule and it is wrong for one reason: a trackpad's tail. A
+ *  gesture stops being steered long before it stops emitting, and those 1 px events
+ *  read as a hand for hundreds of ms. Measured, a swipe that had already arrived
+ *  drifted another 145 px off the slide on its own dying tail and then yanked back.
+ *  A lean spends that same tail moving almost nothing. */
+export const SWIPE_GIVE = 16
+export function swipeGive(travel: number): number {
+  return overshoot(travel, SWIPE_GIVE)
+}
+
+/** A swipe is over after this long without a wheel event. Shorter than the wheel
+ *  session's own window, which is doubled while a hand may still be down because
+ *  ending a zoom early is bad. Ending a swipe early is nearly free: the give winds
+ *  back, the slides it bought are already bought, and a hand that comes back starts
+ *  from scratch, which is what it should do anyway. */
+export const SWIPE_END = 110
+
 /** Embla's numbers, all three of them. A SHARE of the slide, but clamped in absolute
  *  px, because a share alone stops being a gesture on a wide screen: 18% of a 1560px
  *  slide is 280px of finger, and a reader making small deliberate trackpad movements
