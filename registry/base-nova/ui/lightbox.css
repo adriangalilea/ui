@@ -569,7 +569,6 @@
   max-width: calc(100% - 16px);
   margin: 0;
   padding: 6px 8px;
-  overflow: hidden;
   border-radius: 6px;
   background: color-mix(in oklab, var(--background) 88%, transparent);
   color: var(--foreground);
@@ -577,7 +576,33 @@
   font-size: 10px;
   line-height: 1.35;
   white-space: pre;
-  pointer-events: none;
+  /* A trajectory table is taller than a log, and the point of one is handing it to
+     someone else, so this scrolls and takes a pointer instead of ignoring it. */
+  max-height: 46vh;
+  overflow: auto;
+  pointer-events: auto;
+  overscroll-behavior: contain;
+}
+.ag-lb-debug pre {
+  margin: 0;
+  /* One tap selects the lot, which is the only usable clipboard on a phone. */
+  user-select: all;
+  -webkit-user-select: all;
+}
+.ag-lb-debug-copy {
+  position: sticky;
+  top: 0;
+  float: right;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--background);
+  color: var(--muted-foreground);
+  font: inherit;
+  cursor: pointer;
+}
+.ag-lb-debug-copy:hover {
+  color: var(--foreground);
 }
 
 /* Reduced motion: the spring assumes its target at once (STILL), the scrim sits at

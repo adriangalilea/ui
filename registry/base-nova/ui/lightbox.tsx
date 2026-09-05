@@ -1013,6 +1013,7 @@ function Stage(props: StageProps) {
       const step = (t: number) => {
         const s = Math.min(1, (t - t0) / ms)
         trackEl.scrollLeft = from + glide_(d, m0, s)
+        shootGlide()
         if (s < 1) {
           glide = requestAnimationFrame(step)
           return
@@ -1021,8 +1022,10 @@ function Stage(props: StageProps) {
         // point, so handing the magnets back is a no-op the reader cannot see.
         glide = 0
         trackEl.scrollLeft = to
+        shootGlide()
         delete trackEl.dataset.stepping
         commitIndex(i)
+        report(`landed on ${i}`)
       }
       glide = requestAnimationFrame(step)
     }
@@ -1772,6 +1775,71 @@ function Stage(props: StageProps) {
     /** The hand is done and the glide has been handed the answer. */
     let swipeLanded = false
     let swipeTimer = 0
+
+    // ---- the trajectory recorder (debug only). What the hand asked for against what
+    // the pictures actually did, sample by sample, so "it feels slow" becomes a number.
+    //
+    // It records NUMBERS ONLY while the gesture runs and formats once at the end. An
+    // instrument that reads the DOM or touches React per event becomes the thing it is
+    // measuring: this component has already been slowed to a crawl once by a trace
+    // that called getComputedStyle on every wheel event.
+    type Shot = {
+      t: number
+      dx: number
+      sum: number
+      at: number
+      coast: boolean
+    }
+    let shots: Shot[] = []
+    let shotT0 = 0
+    const shoot = (dx: number, sum: number, coast: boolean) => {
+      if (!L.current.debug) return
+      const now = performance.now()
+      if (!shots.length) shotT0 = now
+      // scrollLeft was just written on this line, so reading it back is free: the
+      // value is in hand and no style recalculation is forced.
+      shots.push({
+        t: Math.round(now - shotT0),
+        dx: Math.round(dx),
+        sum: Math.round(sum),
+        at: trackEl.scrollLeft / slotW(),
+        coast,
+      })
+    }
+    /** Sample the LANDING, where the hand has stopped asking for anything and the
+     *  pictures are still moving. This is the half a reader calls slow. */
+    const shootGlide = () => {
+      if (!L.current.debug || !shots.length) return
+      shoot(0, (shots[shots.length - 1] as Shot).sum, true)
+    }
+    /** One gesture, as a table anyone can paste. `hand` is what the trackpad sent,
+     *  `track` is where the pictures actually got to; they are the same quantity in
+     *  slides, so the two columns diverging IS the complaint. */
+    const report = (why: string) => {
+      if (!L.current.debug || shots.length < 2) {
+        shots = []
+        return
+      }
+      const w = slotW()
+      const last = shots[shots.length - 1] as Shot
+      const first = shots[0] as Shot
+      const hand = Math.abs(last.sum) / w
+      const moved = Math.abs(last.at - first.at)
+      const handMs = (shots.findLast((s) => !s.coast) ?? first).t
+      const rows = shots.map(
+        (s) =>
+          `${String(s.t).padStart(5)}  ${String(s.dx).padStart(5)}  ${(s.sum / w).toFixed(3).padStart(7)}  ${(s.at - first.at).toFixed(3).padStart(7)}  ${s.coast ? "coast" : "hand"}`,
+      )
+      L.current.trace(
+        [
+          `── swipe ${why} · ${last.t} ms (${handMs} ms of hand, ${last.t - handMs} ms of coast) · ${shots.length} events`,
+          `   hand travelled ${hand.toFixed(2)} slides, pictures moved ${moved.toFixed(2)} · gain ${(moved / (hand || 1)).toFixed(2)}x · ${(Math.abs(last.sum) / Math.max(1, last.t)).toFixed(2)} px/ms`,
+          `   ms     dx    hand   track  phase`,
+          ...rows,
+        ].join("\n"),
+      )
+      shots = []
+    }
     const landSwipe = (vx: number) => {
       if (swipeLanded) return
       swipeLanded = true
@@ -1781,6 +1849,8 @@ function Stage(props: StageProps) {
       if (!swipe) return
       landSwipe(0)
       swipe = false
+      // A stream that asked for no landing still has a trajectory worth reading.
+      if (!glide) report("ended without a landing")
     }
     const armSwipeEnd = () => {
       clearTimeout(swipeTimer)
@@ -1912,6 +1982,7 @@ function Stage(props: StageProps) {
             trace(
               `swipe → ${swipeAt} thrown from ${(swipeTravel / w).toFixed(2)} v ${fed.read.velocity.x.toFixed(2)}`,
             )
+          shoot(dx, swipeTravel, true)
           landSwipe(fed.read.velocity.x)
           return
         }
@@ -1923,6 +1994,7 @@ function Stage(props: StageProps) {
           0,
           (n - 1) * w,
         )
+        shoot(dx, swipeTravel, false)
         const to = clamp(
           swipeOrigin + Math.sign(swipeTravel) * swipeSlides(swipeTravel, w),
           0,
@@ -2544,10 +2616,21 @@ function Debug({ lines }: { lines: string[] }) {
       window.removeEventListener("unhandledrejection", onReject)
     }
   }, [])
+  const text = [...errors, ...lines].join("\n")
   return (
-    <pre className="ag-lb-debug" aria-hidden>
-      {[...errors, ...lines].join("\n") || "debug · waiting for a pointer"}
-    </pre>
+    <div className="ag-lb-debug">
+      {/* Copyable, because the whole point of a trajectory is handing it to someone
+          else. `select-all` on the pre means one tap grabs it on a phone, where there
+          is no clipboard button worth hitting. */}
+      <button
+        type="button"
+        className="ag-lb-debug-copy"
+        onClick={() => navigator.clipboard.writeText(text)}
+      >
+        copy
+      </button>
+      <pre aria-hidden>{text || "debug · waiting for a pointer"}</pre>
+    </div>
   )
 }
 
