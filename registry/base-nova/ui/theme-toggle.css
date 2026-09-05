@@ -30,10 +30,17 @@
 .ag-theme-toggle-option:hover {
   color: var(--foreground);
 }
+/* The chosen one INVERTS. A raised-surface treatment (background on a sidebar track)
+   is the usual segmented-control look and it fails in the dark: --background 0.145 on
+   a --sidebar 0.205 track is a sixtieth of lightness, darker than the track rather
+   than raised, and the selection simply vanishes. Inverting cannot be subtle in the
+   wrong direction, in either theme, at any contrast setting. */
 .ag-theme-toggle-option[data-on] {
-  color: var(--foreground);
-  background: var(--background);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+  color: var(--background);
+  background: var(--foreground);
+}
+.ag-theme-toggle-option[data-on]:hover {
+  color: var(--background);
 }
 /* The input is hidden, so the ring has to be drawn on the label that stands in for
    it, or keyboard focus lands somewhere invisible. */

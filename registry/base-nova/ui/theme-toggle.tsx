@@ -23,13 +23,26 @@ export const THEMES: { value: Theme; label: string; Icon: typeof Sun }[] = [
 export interface ThemeToggleProps {
   /** The chosen theme, `system` included. NOT the resolved one: a control that shows
    *  `dark` when the reader picked `system` at night is reporting a fact they did not
-   *  choose, and the next press then reads as a no-op. */
+   *  choose, and the next press then reads as a no-op.
+   *
+   *  Undefined while a provider is still resolving, which is a real render on every
+   *  load: it falls back to `fallback` rather than showing nothing, because a
+   *  three-way control with no option marked reads as broken, and a reader cannot
+   *  tell it apart from one whose selected state is invisible. */
   value: Theme | undefined
+  /** What an unresolved control shows. The provider's own default. */
+  fallback?: Theme
   onChange: (theme: Theme) => void
   className?: string
 }
 
-export function ThemeToggle({ value, onChange, className }: ThemeToggleProps) {
+export function ThemeToggle({
+  value,
+  fallback = "system",
+  onChange,
+  className,
+}: ThemeToggleProps) {
+  const shown = value ?? fallback
   // Real radios in a real fieldset, not three buttons wearing radio roles. One
   // setting with three values IS a radio group, and the browser then gives arrow-key
   // movement, the roving tab stop and the grouped announcement for free, correctly,
@@ -41,9 +54,7 @@ export function ThemeToggle({ value, onChange, className }: ThemeToggleProps) {
       {THEMES.map(({ value: v, label, Icon }) => (
         <label
           key={v}
-          // Undefined until the provider resolves, so nothing is marked and the
-          // control cannot claim a value the page has not settled on yet.
-          data-on={value === v ? "" : undefined}
+          data-on={shown === v ? "" : undefined}
           title={label}
           className="ag-theme-toggle-option"
         >
@@ -51,7 +62,7 @@ export function ThemeToggle({ value, onChange, className }: ThemeToggleProps) {
             type="radio"
             name={name}
             value={v}
-            checked={value === v}
+            checked={shown === v}
             onChange={() => onChange(v)}
             className="ag-sr-only"
           />
