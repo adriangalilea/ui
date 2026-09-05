@@ -236,22 +236,22 @@ for (const v of [-79, -50, 0, 37, 50, 120]) {
 // asks when the fingers left, which is the question the web cannot answer.
 {
   const w = 1472
-  // The rule the binder runs, event by event: travel accumulates, each crossing of
-  // the line moves ONE slide and spends the travel, and once the hand has let go only
-  // the first crossing counts. One event can never buy more than one slide.
-  const run = (deltas: number[], from: number, n: number, coasting = false) => {
+  // The rule the binder runs, event by event: travel accumulates until it crosses the
+  // line, that buys ONE slide, and everything the stream sends afterwards is the tail
+  // of a question already answered. Hand or coast makes no difference to the count.
+  const run = (deltas: number[], from: number, n: number) => {
     let at = from
     let travel = 0
-    let commits = 0
+    let answered = false
     for (const dx of deltas) {
-      if (coasting && commits > 0) continue
+      if (answered) continue
       travel += dx
       if (Math.abs(travel) < SWIPE_COMMIT * w) continue
       const to = Math.min(n - 1, Math.max(0, at + Math.sign(travel)))
       if (to === at) continue
       at = to
       travel = 0
-      commits++
+      answered = true
     }
     return at
   }
@@ -261,15 +261,11 @@ for (const v of [-79, -50, 0, 37, 50, 120]) {
   assert(run([over], 3, 14) === 4, "past it, the neighbour, and only it")
   assert(run([under, under], 3, 14) === 4, "two nudges add up to one crossing")
   assert(
-    run([over, over, over], 3, 14) === 6,
-    "a hand that keeps going keeps paging, with nothing lifted",
+    run([over, over, over], 3, 14) === 4,
+    "and a gesture that keeps going still buys exactly one",
   )
-  assert(
-    run([over, -over], 3, 14) === 3,
-    "and turning round inside one gesture comes straight back",
-  )
-  assert(run([9 * w], 3, 14, true) === 4, "a throw of nine slides pages once")
-  assert(run([-9 * w], 3, 14, true) === 2, "the same backwards")
+  assert(run([9 * w], 3, 14) === 4, "a throw of nine slides pages once")
+  assert(run([-9 * w], 3, 14) === 2, "the same backwards")
   assert(run([-2 * w], 0, 14) === 0, "and it never walks off either end")
   assert(run([2 * w], 13, 14) === 13, "at the far end too")
   assert(
