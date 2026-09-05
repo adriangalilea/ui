@@ -95,7 +95,6 @@ import {
   swipeGive,
   swipeLinePx,
   swipeStackSlides,
-  THROW,
   type Tunings,
   type View,
   WHEEL_GUARD,
@@ -1841,8 +1840,6 @@ function Stage(props: StageProps) {
     let swipeHand = 0
     let swipeBought = 0
     let swipeDir = 0
-    /** The hand let go and its one last decision has been taken. */
-    let swipeThrown = false
     let swipeTimer = 0
 
     // ---- the trajectory recorder (debug only). What the hand asked for against what
@@ -1965,10 +1962,9 @@ function Stage(props: StageProps) {
     }
     const armSwipeEnd = () => {
       clearTimeout(swipeTimer)
-      swipeTimer = window.setTimeout(
-        endSwipe,
-        Math.min(wheelPhase.endsIn, SWIPE_END),
-      )
+      // A fixed window, not the phase's own: a swipe is over when the DEVICE stops
+      // sending, which is a fact, and the phase has no say in anything here.
+      swipeTimer = window.setTimeout(endSwipe, SWIPE_END)
     }
     const wheelCtx = (): WheelCtx => {
       const { fitted, band, zoomMax, entry } = L.current
@@ -2058,17 +2054,11 @@ function Stage(props: StageProps) {
         e.preventDefault()
         const w = slotW()
         const dx = wheelPx(e.deltaX, e.deltaMode, ctx.band.h)
+        // Only ever a hint, to hand the glide a speed. It decides nothing.
         const vx = fed.read.velocity.x
-        // A coast is a hand that has let go. The phase detector is asked this one
-        // question and nothing else, and being wrong about it costs a threshold's
-        // worth of travel, never a wrong destination.
-        const coasting = fed.read.momentum && !fed.read.interrupted
         if (!swipe) {
-          // Leftover coast from a gesture already answered is not a new one.
-          if (coasting) return
           stopGlide()
           swipe = true
-          swipeThrown = false
           swipeHand = 0
           swipeBought = 0
           swipeDir = 0
@@ -2077,51 +2067,33 @@ function Stage(props: StageProps) {
           swipeAnchor = S.aimIndex ?? landedSlot()
           rebase()
           trackEl.dataset.stepping = ""
-        } else if (fed.read.start || fed.read.interrupted) {
-          // The device says a new stream began: a real gap, or a push cutting into a
-          // coast. It settles nothing and moves nothing — it only stops the offer on
-          // the table being paid for by the next stream's fingers.
-          //
-          // Gliding home here instead is the single worst thing this component has
-          // done. "Coast" is a guess, and on a slow steady drag it is a wrong one:
-          // deltas of 2,2,1,1,2 merge into a decay a model would be proud of, so the
-          // detector calls a release mid-drag, the push after it reads as a break,
-          // and the pictures went back to where they started UNDER THE HAND.
-          swipeThrown = false
-          rebase()
         }
         armSwipeEnd()
-        if (coasting) {
-          // The hand is gone. It stops buying here, because a throw's momentum carries
-          // several slides' worth of deltas and the reader can no longer steer, so the
-          // stream gets ONE last decision: where the momentum was heading, projected
-          // the way UIKit does it rather than waited out.
-          //
-          // A gesture that did not buy anything is not sent home on this signal, only
-          // on real silence. Being early here is free; being wrong is the bug above.
-          if (!swipeThrown) {
-            swipeThrown = true
-            const reach = swipeTravel + vx * THROW
-            const bought = swipeStackSlides(reach, w, swipeBought)
-            if (bought > 0) buySlides(Math.sign(reach), bought, vx)
-          }
-          shoot(dx, swipeHand, true)
-          return
-        }
+        // EVERY DELTA IS TRAVEL. The hand's and the device's alike, at full weight,
+        // and nothing here ever asks which is which.
+        //
+        // Asking was the whole disease. The web does not report a release, so the
+        // phase has to be inferred from the shape of the decay, and that inference
+        // lands wherever it lands: measured on two swipes of the same speed, one was
+        // called coasting at 142 ms while its deltas were still GROWING, the other at
+        // 674 ms in the middle of a 1 px dribble. Every rule built on top of it — the
+        // hand stops paying here, the throw projects from here — inherited that jitter
+        // whole, so the same motion took one picture or two by luck. Predictable is
+        // worth more than clever.
+        //
+        // Nothing is projected either. A trackpad's momentum ARRIVES, as deltas, and
+        // spending it as it comes is exact where a projection was a guess with a
+        // constant in it. It also pays for itself: a flick delivers roughly as much
+        // again as the hand did, so speed buys distance without a coefficient anywhere.
         swipeTravel += dx
         swipeHand += dx
-        // ANSWER THE MOMENT IT IS ASKED, and go on being asked: the glide owns the
-        // slide, the fingers keep owning the offset from it, and the next threshold
-        // is a threshold from HERE. The landing used to wait for the phase detector
-        // to notice the hand had gone, and a trackpad's dying tail is 1px deltas that
-        // read as hand for hundreds of ms: chosen at 180 ms, moving at 1108 ms,
-        // arrived at 1299 ms, the reader long since let go.
         const bought = swipeStackSlides(swipeTravel, w, swipeBought)
         if (bought > 0) buySlides(Math.sign(swipeTravel), bought, vx)
         // 1:1, always. macOS has already put its own acceleration in these deltas,
         // and a gain on top of it is a second acceleration that felt like one.
         paintTrack()
-        shoot(dx, swipeHand, false)
+        // The phase is recorded and believed by nothing: it is a column in the trace.
+        shoot(dx, swipeHand, fed.read.momentum)
         return
       }
       e.preventDefault()

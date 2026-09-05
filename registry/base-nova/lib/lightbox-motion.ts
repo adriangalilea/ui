@@ -90,19 +90,15 @@ export const GLIDE_ENTRY = 3
  *  finger while undoing the first cost 7 px. */
 export const SWIPE_COMMIT = 0.18
 
-/** Where a THROW comes to rest, per px/ms of release speed. MEASURED, on this
- *  platform, by summing what the trackpad's own inertia actually delivered after the
- *  detector called the release: 250 px at 1.5, 270 px at 2.1, 400 px at 2.6. Call it
- *  160, and the projection is roughly the distance the reader is about to see anyway.
+/** A swipe PROJECTS NOTHING. There was a `THROW` constant here, the distance a release
+ *  would coast per px/ms, and every version of it was wrong for the same reason: on a
+ *  wheel there is nothing to project. A trackpad's momentum arrives as deltas, all of
+ *  it, and the binder spends it as it comes. Exact beats estimated, it costs one fewer
+ *  constant, and a flick delivers about as much again as the hand did, so speed buys
+ *  distance without a coefficient existing anywhere. Do not reintroduce it.
  *
- *  It is deliberately NOT UIKit's `v · d/(1−d)` with `d = 0.998`, which is 499 and was
- *  what this used to be. Two reasons it does not transfer. macOS has already applied
- *  pointer acceleration to these deltas, so they are not a finger's velocity and
- *  projecting them with a free-scroll deceleration counts the same acceleration twice.
- *  And UIKit itself never projects a PAGING scroll view: `isPagingEnabled` advances
- *  exactly one page per gesture at any speed. Measured, 499 took two pictures off a
- *  256 px flick that had already paid for one. */
-export const THROW = 160
+ *  (A POINTER release is different and still projects: `project` above, off `MOMENTUM`,
+ *  because a finger that lifts really does stop sending and the coast is ours to run.) */
 
 /** Each slide bought in one motion costs twice what the last one did. Buying is
  *  DELIBERATE or it is an accident: at a flat price the gap between paging one and

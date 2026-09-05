@@ -11,7 +11,6 @@ import {
   glide,
   HAND,
   MACHINE,
-  MOMENTUM,
   neighbours,
   OVERSHOOT,
   OVERSHOOT_MAX,
@@ -30,7 +29,6 @@ import {
   sourceView,
   stageBand,
   swipeCommitPx,
-  THROW,
   unovershoot,
   velocity,
   WHEEL_TICK_MAX,
@@ -290,20 +288,6 @@ for (const v of [-79, -50, 0, 37, 50, 120]) {
       swipeCommitPx(w) < w / 2,
       `a slide always costs less than half of ${w}`,
     )
-  // A throw the hand never carried far enough still buys one, by projecting where the
-  // momentum was heading rather than waiting to watch it arrive.
-  assert(
-    0.05 * 1472 + 4 * THROW > swipeCommitPx(1472),
-    "a hard flick from nowhere near the line still crosses it",
-  )
-  assert(
-    0.05 * 1472 + 0.05 * THROW < swipeCommitPx(1472),
-    "a nudge barely moving does not",
-  )
-  assert(
-    Math.abs(THROW - MOMENTUM) > 20,
-    "a throw's projection is not the coast spring's time constant, whatever their units",
-  )
 }
 assert(
   slideCommit(-10, -0.8, 800, { prev: true, next: true }) === 1,
