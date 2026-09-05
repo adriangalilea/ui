@@ -192,23 +192,35 @@ console.log("the track's when trackable, and only once the travel has said so")
     "a frame refuses zoom",
   )
 }
-// Zoomed: a plain wheel pans from the grab, rubbering past the bounds, and silence
-// clamps back inside.
+// Zoomed: a plain wheel pans from the grab and STOPS at the edge. No rubber band on
+// a trackpad, where nothing is under the finger to feel it: all a band did there was
+// freeze the picture at its cap while the reader kept pushing, and then owe a long
+// way home. And panning back has to move on the first pixel, which is only true if
+// the accumulator was clamped along with the pose rather than running up a debt.
 {
   const zoomed = { x: 0, y: 0, s: 2, p: 1 }
-  const inputs = Array.from({ length: 60 }, (_, i) => tick(30, 0, i * 8))
-  const r = run(inputs, ctx({ pose: zoomed }))
+  const bound = (fitted.w * 2 - band.w) / 2
+  const out = Array.from({ length: 60 }, (_, i) => tick(30, 0, i * 8))
+  const r = run(out, ctx({ pose: zoomed }))
   assert(
     r.session?.axis === "pan" && kinds(r.effects).startsWith("grab,pose"),
     `pan session: ${kinds(r.effects).slice(0, 40)}`,
   )
-  const bound = (fitted.w * 2 - band.w) / 2
   assert(
-    r.ctx.pose.x < -bound && r.ctx.pose.x > -bound - 0.35 * 60 * 30,
-    "rubbered",
+    r.ctx.pose.x === -bound,
+    `the edge holds it exactly, got ${r.ctx.pose.x} for ${-bound}`,
   )
   const rel = wheelRelease(r.session, r.ctx)
-  assert(rel.kind === "pan" && rel.target.x === -bound, "clamped at silence")
+  assert(
+    rel.kind === "pan" && rel.target.x === -bound,
+    "and there is nothing to spring back from",
+  )
+  // One tick the other way, straight after pushing 1800 px into the edge.
+  const back = run([...out, tick(-30, 0, 60 * 8)], ctx({ pose: zoomed }))
+  assert(
+    back.ctx.pose.x > -bound,
+    `panning back must move on the first pixel, got ${back.ctx.pose.x}`,
+  )
 }
 console.log(
   `zoom rubbers and never dismisses, pan clamps · MOMENTUM ${MOMENTUM}`,

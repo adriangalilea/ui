@@ -64,6 +64,7 @@ import {
   assertSize,
   type Band,
   COAST,
+  clamp,
   clampPan,
   FIT,
   fit,
@@ -207,8 +208,6 @@ const INSET_Y = 48
 const INSET_X = 16
 /** Thumbnails ride the bar, between the counter and the buttons: 32px tall. */
 const THUMB_H = 32
-const clamp = (v: number, lo: number, hi: number) =>
-  Math.min(hi, Math.max(lo, v))
 /** Slides each side of the one on screen that hold decoded media. Two, not one: a
  *  throw crosses its neighbour and is already looking at the next one by the time
  *  anything commits. */
@@ -1955,21 +1954,6 @@ function Stage(props: StageProps) {
             const never: never = f
             throw new Error(`lightbox: wheel effect ${String(never)}`)
           }
-        }
-      }
-      // Past the edge with the hand gone: the band returns NOW, not when the device
-      // finally stops sending. macOS and iOS both spring back the instant the fingers
-      // leave, and waiting out the coast instead is what made the edge crawl for a
-      // second and then take an age to come home. There is nothing there to wait for:
-      // a coast can only push further out, and the band gives less the further it
-      // goes, so every one of those events moves the picture by under a pixel.
-      if (W.axis === "pan" && W.phase.momentum) {
-        const p = pose.value
-        const home = clampPan(p, ctx.fitted, ctx.band)
-        if (Math.abs(home.x - p.x) > 0.5 || Math.abs(home.y - p.y) > 0.5) {
-          trace(`wheel pan past the edge, coasting → home`)
-          clearTimeout(wheelTimer)
-          endWheel()
         }
       }
     }

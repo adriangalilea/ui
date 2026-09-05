@@ -115,7 +115,7 @@ export const DOUBLE_TRAVEL = 24
 export const SETTLE_LIMIT = 2000
 export const MAX_DT = 32
 
-const clamp = (v: number, lo: number, hi: number) =>
+export const clamp = (v: number, lo: number, hi: number) =>
   Math.min(hi, Math.max(lo, v))
 
 /** A media box is finite and positive on both axes; anything else is a lie. */

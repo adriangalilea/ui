@@ -16,12 +16,12 @@
 import {
   type Band,
   wheelTick as boundTick,
+  clamp,
   clampPan,
   dismissCommit,
   dragProgress,
   dragScale,
   INTENT,
-  overshoot,
   type Point,
   type Pose,
   panBounds,
@@ -178,15 +178,16 @@ export function wheelTick(
     case "pan": {
       const b = panBounds(ctx.pose, ctx.fitted, ctx.band)
       const dx = boundTick(wheelPx(input.deltaX, input.deltaMode, ctx.band.h))
-      w = { ...w, x: w.x - dx, y: w.y - dy }
-      effects.push({
-        kind: "pose",
-        pose: {
-          ...ctx.pose,
-          x: overshoot(w.raw0.x + w.x, b.x),
-          y: overshoot(w.raw0.y + w.y, b.y),
-        },
-      })
+      // A wheel pan STOPS at the edge. A rubber band is for direct manipulation,
+      // where the image is under a finger and the give is what says "this is the
+      // end"; on a trackpad there is nothing under the finger, so all it does is
+      // freeze the picture at the cap while the reader keeps pushing, and then owe a
+      // long way home. The ACCUMULATOR is clamped along with the pose, so panning
+      // back moves on the very first pixel instead of unwinding a debt.
+      const x = clamp(w.raw0.x + w.x - dx, -b.x, b.x)
+      const y = clamp(w.raw0.y + w.y - dy, -b.y, b.y)
+      w = { ...w, x: x - w.raw0.x, y: y - w.raw0.y }
+      effects.push({ kind: "pose", pose: { ...ctx.pose, x, y } })
       return { session: w, effects }
     }
     case "y": {
