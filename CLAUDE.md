@@ -89,8 +89,18 @@ Left on the item: the demo streams a 17.8 MB trailer from blender.org on every o
 1. adriangalilea.com prose figures (retire its `components/lightbox.tsx`), the garden's feature stills, videoclub.
 2. `scrollspy` (scroll-intent stand-down), `page-exit` / `page-enter` (the faked cross-origin morph: exit animation, Speculation Rules prerender with `Supports-Loading-Mode: credentialed-prerender` on the subdomain, entrance), `keymap` + `cursor-list` / `cursor-grid` (swift-utils Keymap; the lightbox's action table is the first client).
 3. `charts` + `chart-frame` (adriangalilea.com's wrappers are the taste anchor), `particle-charts` as the opt-in playful voice, `narrated` (Sonoscript: real times only, click to seek, opt-in follow).
-4. `theme` (dark mode is DEAD today, see below), `checklist`, `kanban`, `code-scrolly`.
+4. `theme` (dark mode is DEAD today, see below), a frameless `telegram`, `checklist`, `kanban`, `code-scrolly`.
 5. The garden landing (a static grid under a fog that promises content), then later: cover-image with blur and grain, `magic-input`, the media-library kit for videoclub and lore.
+
+### telegram: the phone is in the way of the words
+
+`telegram-chat` always draws the whole iPhone (notch, status bar, header, composer, home indicator) and there is no way to ask it not to. At the width a feature card gives it, the device eats most of the space and the message text lands too small to read, so a component whose entire job is to show what a bot SAID cannot carry its own copy. Fix in this order:
+
+1. **A frameless mode: the messages, big enough to read.** Same script, same bubbles, no device chrome, so the text can take the width the phone was taking. This is the one that unblocks xtldr's feature media.
+2. **Decide what the frameless mode sits on**, which is undecided: bubbles floating on a bare canvas (the wallpaper, or nothing), or a zoomed CROP of the phone with a border, which keeps the client's own framing at a readable size. The first is cleaner, the second is more obviously Telegram. Try both before choosing, because the answer is which one still reads as Telegram once the device is gone.
+3. **Telegram Desktop's layout** (wider column, different bubble geometry, a sidebar). Deferred until 1 and 2 land.
+
+The phone is not a wrapper to delete: the status bar and composer are what make a screenshot read as a real chat rather than a mockup. So this is a mode, chosen per use, not a replacement.
 
 ### theme, and the fact that dark mode is currently DEAD
 
