@@ -1,0 +1,25 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "copy",
+  "title": "copy",
+  "description": "copy to the clipboard, confirmed in place and never with a toast; a button, or the hook behind any control you like",
+  "dependencies": [
+    "lucide-react"
+  ],
+  "registryDependencies": [
+    "@ag/tokens"
+  ],
+  "files": [
+    {
+      "path": "registry/base-nova/ui/copy.tsx",
+      "content": "\"use client\"\n\n// Copy to the clipboard, with the only feedback that matters: the control says it\n// worked, in place, and goes back on its own. No toast, nothing to dismiss.\n\nimport { Check, Copy as CopyIcon } from \"lucide-react\"\nimport * as React from \"react\"\nimport \"./copy.css\"\n\n/** How long the control admits it copied. Long enough to read at a glance, short\n *  enough that a second copy is never blocked by the first one's applause. */\nexport const COPIED_MS = 1400\n\n/** `copied` flips true on a successful write and clears itself. The timer is cleared\n *  on unmount and on every new copy, so a fast second press restarts it rather than\n *  being cut short by the first one's expiry. */\nexport function useCopy(text: string | (() => string)) {\n  const [copied, setCopied] = React.useState(false)\n  const timer = React.useRef(0)\n  React.useEffect(() => () => window.clearTimeout(timer.current), [])\n  const copy = React.useCallback(async () => {\n    const value = typeof text === \"function\" ? text() : text\n    // Empty is not a copy: writing \"\" silently wipes what the reader already had.\n    if (!value) return\n    await navigator.clipboard.writeText(value)\n    setCopied(true)\n    window.clearTimeout(timer.current)\n    timer.current = window.setTimeout(() => setCopied(false), COPIED_MS)\n  }, [text])\n  return { copied, copy }\n}\n\nexport interface CopyProps\n  extends Omit<React.ComponentProps<\"button\">, \"children\" | \"value\"> {\n  /** The text to write. A function is read at press time, for a live value. */\n  value: string | (() => string)\n  /** Show the word beside the mark. Off in tight corners, where the mark is enough. */\n  label?: boolean\n}\n\nexport function Copy({ value, label = false, className, ...props }: CopyProps) {\n  const { copied, copy } = useCopy(value)\n  return (\n    <button\n      type=\"button\"\n      onClick={copy}\n      // The accessible name carries the state, because the icon swap alone is silent\n      // to a screen reader and `aria-live` on a control this small is noise.\n      aria-label={copied ? \"Copied\" : \"Copy\"}\n      data-copied={copied ? \"\" : undefined}\n      className={`ag-copy${className ? ` ${className}` : \"\"}`}\n      {...props}\n    >\n      {copied ? <Check size={14} /> : <CopyIcon size={14} />}\n      {label && <span>{copied ? \"copied\" : \"copy\"}</span>}\n    </button>\n  )\n}\n",
+      "type": "registry:ui"
+    },
+    {
+      "path": "registry/base-nova/ui/copy.css",
+      "content": "/* The copy control. Quiet until wanted, and it never moves: the mark and the word\n   both keep their box when the state flips, so a press does not shift the row it\n   sits in. */\n\n.ag-copy {\n  display: inline-flex;\n  align-items: center;\n  gap: 0.375rem;\n  border-radius: 0.375rem;\n  padding: 0.25rem 0.375rem;\n  font-family: var(--font-mono, ui-monospace, monospace);\n  font-size: 0.75rem;\n  line-height: 1;\n  color: var(--muted-foreground);\n  cursor: pointer;\n  user-select: none;\n  transition:\n    color 120ms ease,\n    background-color 120ms ease;\n}\n.ag-copy:hover {\n  color: var(--foreground);\n  background: color-mix(in oklab, var(--foreground) 6%, transparent);\n}\n.ag-copy:focus-visible {\n  outline: 2px solid var(--ring);\n  outline-offset: 2px;\n}\n/* Confirmation is the one place this component raises its voice, and it lowers it\n   again by itself. */\n.ag-copy[data-copied] {\n  color: var(--brand, var(--foreground));\n}\n/* The word is fixed-width so \"copy\" and \"copied\" cannot shuffle the row. */\n.ag-copy > span {\n  display: inline-block;\n  min-width: 3.25em;\n  text-align: left;\n}\n",
+      "type": "registry:ui"
+    }
+  ],
+  "type": "registry:ui"
+}

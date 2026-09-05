@@ -1,10 +1,32 @@
+import { readFile } from "node:fs/promises"
+import path from "node:path"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { Code } from "@/registry/base-nova/ui/code"
+import { Copy } from "@/registry/base-nova/ui/copy"
 import { DEMOS } from "../demos"
-import { ITEMS, item } from "../registry"
+import { ITEMS, item, partsOf } from "../registry"
 
 export function generateStaticParams() {
   return ITEMS.map((i) => ({ item: i.name }))
+}
+
+/** The demo's OWN source, read at build time. Usage written by hand beside a demo
+ *  drifts from it the first time either is touched; this cannot, because it is the
+ *  same file that rendered the thing above it. */
+async function demoSource(name: string) {
+  for (const dir of ["ui", "lib", "blocks"]) {
+    try {
+      const file = path.join(
+        process.cwd(),
+        "registry/base-nova",
+        dir,
+        `${name}.demo.tsx`,
+      )
+      return { code: await readFile(file, "utf8"), file: `${name}.demo.tsx` }
+    } catch {}
+  }
+  return null
 }
 
 export default async function ItemPage({ params }: PageProps<"/[item]">) {
@@ -12,6 +34,9 @@ export default async function ItemPage({ params }: PageProps<"/[item]">) {
   const meta = item(name)
   const Demo = DEMOS[name]
   if (!meta || !Demo) notFound()
+  const src = await demoSource(name)
+  const install = `npx shadcn add @ag/${meta.name}`
+  const parts = partsOf(meta)
   return (
     <main className="mx-auto w-full max-w-5xl px-6 py-16">
       <Link
@@ -29,12 +54,41 @@ export default async function ItemPage({ params }: PageProps<"/[item]">) {
       <p className="mt-2 max-w-prose text-[0.9375rem] text-foreground/70">
         {meta.description}
       </p>
-      <pre className="mt-4 w-fit rounded-lg border border-border bg-sidebar px-3 py-2 font-mono text-xs">
-        npx shadcn add @ag/{meta.name}
-      </pre>
+      <div className="mt-4 flex w-fit items-center gap-1 rounded-lg border border-border bg-sidebar py-1 pr-1 pl-3">
+        <code className="font-mono text-xs">{install}</code>
+        <Copy value={install} />
+      </div>
+      {parts.length > 0 && (
+        <p className="mt-3 font-mono text-xs text-muted-foreground">
+          comes with{" "}
+          {parts.map((p, i) => (
+            <span key={p.name}>
+              {i > 0 && ", "}
+              <Link
+                href={`/${p.name}`}
+                className="underline-offset-4 hover:underline"
+              >
+                {p.name}
+              </Link>
+            </span>
+          ))}
+        </p>
+      )}
+
       <div className="mt-16">
         <Demo />
       </div>
+
+      {src && (
+        <section className="mt-24 space-y-4">
+          <h2 className="font-mono text-xs text-muted-foreground">
+            the demo above, verbatim
+          </h2>
+          <Code lang="tsx" filename={src.file}>
+            {src.code}
+          </Code>
+        </section>
+      )}
     </main>
   )
 }

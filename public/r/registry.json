@@ -17,6 +17,42 @@
       ]
     },
     {
+      "name": "code",
+      "type": "registry:ui",
+      "title": "code",
+      "description": "a code block highlighted on the server by shiki, both themes baked into one render, with the copy control built in",
+      "dependencies": ["shiki"],
+      "registryDependencies": ["@ag/tokens", "@ag/copy"],
+      "files": [
+        {
+          "path": "registry/base-nova/ui/code.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/base-nova/ui/code.css",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "copy",
+      "type": "registry:ui",
+      "title": "copy",
+      "description": "copy to the clipboard, confirmed in place and never with a toast; a button, or the hook behind any control you like",
+      "dependencies": ["lucide-react"],
+      "registryDependencies": ["@ag/tokens"],
+      "files": [
+        {
+          "path": "registry/base-nova/ui/copy.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/base-nova/ui/copy.css",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
       "name": "scroll-stage",
       "type": "registry:ui",
       "title": "scroll-stage",

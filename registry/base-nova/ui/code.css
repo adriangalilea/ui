@@ -1,0 +1,60 @@
+/* The frame around highlighted code. Shiki writes both themes onto every token as
+   custom properties; this picks one, so a theme switch is a repaint and never a
+   re-highlight, and there is no flash of the wrong palette on first paint. */
+
+.ag-code {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--sidebar);
+}
+.ag-code-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.375rem 0.5rem 0.375rem 0.875rem;
+  border-bottom: 1px solid var(--border);
+}
+.ag-code-name {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  user-select: none;
+}
+/* The scroller, not the <pre>: the frame keeps its corners while long lines run. */
+.ag-code-scroll {
+  overflow-x: auto;
+}
+/* Shiki with `defaultColor: false` writes its palette as custom properties and sets
+   no colour of its own, so the frame keeps its own surface with nothing to override. */
+.ag-code pre {
+  margin: 0;
+  padding: 1rem 0.875rem;
+  background: transparent;
+  font-size: 0.8125rem;
+  line-height: 1.65;
+  tab-size: 2;
+}
+.ag-code code {
+  display: block;
+  width: fit-content;
+  min-width: 100%;
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+
+/* Shiki with `defaultColor: false` writes --shiki-light and --shiki-dark and no
+   colour of its own, so the theme chooses here. */
+.ag-code span {
+  color: var(--shiki-light);
+}
+.dark .ag-code span {
+  color: var(--shiki-dark);
+}
+
+/* Reading a long snippet should not mean reading a scrollbar. */
+.ag-code-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--foreground) 20%, transparent)
+    transparent;
+}
