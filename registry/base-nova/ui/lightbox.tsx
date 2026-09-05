@@ -782,7 +782,28 @@ function Stage(props: StageProps) {
     refit: (prev: { band: Band; fitted: Size }) => void
     /** A thumbnail picked: cut to that slide. */
     jump: (to: number) => void
+    /** `cancels` says whether the listener that caught this may preventDefault. */
+    wheel: (e: WheelEvent, cancels: boolean) => void
   } | null>(null)
+
+  // A cancelable wheel listener over a scroll container STOPS that container being
+  // scrolled on the compositor: the browser has to dispatch the event to JS and wait
+  // for the return before it may move anything, every event. That is why the swipe
+  // felt the same weight in two engines with completely different snap code.
+  //
+  // So the listener is passive while the image is fitted, and the browser scrolls the
+  // track without asking us. Nothing there needs cancelling: the track is the reader's
+  // to scroll sideways, and a vertical wheel is already a native no-op on it
+  // (`overflow-y: hidden`, and `overscroll-behavior: contain` keeps it off the page).
+  // Zoomed, the image owns every wheel, so the listener must be able to cancel and
+  // goes back to non-passive. Passive is the price of ctrl+wheel while fitted.
+  React.useEffect(() => {
+    const el = root.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => engine.current?.wheel(e, zoomed)
+    el.addEventListener("wheel", onWheel, { passive: !zoomed })
+    return () => el.removeEventListener("wheel", onWheel)
+  }, [zoomed])
 
   // The engine mounts once per open; everything live is read through `live`.
   // biome-ignore lint/correctness/useExhaustiveDependencies: one engine per open
@@ -1774,13 +1795,24 @@ function Stage(props: StageProps) {
         }
       }
     }
+    /** Cancel this wheel, if this listener is allowed to. Fitted, it is NOT: the
+     *  listener is passive so the browser can scroll the track on the compositor
+     *  without waiting on us, and nothing there needs cancelling anyway (a vertical
+     *  wheel is already a native no-op, `overflow-y: hidden` with the overscroll
+     *  contained). Zoomed, the image owns every wheel and this cancels for real.
+     *  Calling preventDefault inside a passive listener is ignored, with a warning
+     *  per event, so it is asked here once instead of guessed at four call sites. */
+    let wheelCancels = false
+    const stopWheel = (e: WheelEvent) => {
+      if (wheelCancels) e.preventDefault()
+    }
     const onWheel = (e: WheelEvent) => {
       // The dialog owns every wheel while open. Browser zoom (ctrl+wheel, a trackpad
       // pinch) never reaches the page behind it, not even over the chrome, inside
       // the enter guard, under a finger or in an inertia tail; a plain wheel over
       // the chrome scrolls the chrome (rail, sheet). The returns below skip the
       // motion, never the ownership.
-      if (e.ctrlKey) e.preventDefault()
+      if (e.ctrlKey) stopWheel(e)
       if (chromeTarget(e.target)) return
       const ctx = wheelCtx()
       const input = {
@@ -1827,7 +1859,7 @@ function Stage(props: StageProps) {
         stopGlide()
         return
       }
-      e.preventDefault()
+      stopWheel(e)
       if (guarded || G) return
       clearTimeout(wheelTimer)
       const next = wheelTick(W, input, ctx)
@@ -2065,7 +2097,6 @@ function Stage(props: StageProps) {
     rootEl.addEventListener("pointermove", onMove)
     rootEl.addEventListener("pointerup", onUp)
     rootEl.addEventListener("pointercancel", onCancel)
-    rootEl.addEventListener("wheel", onWheel, { passive: false })
     document.addEventListener("keydown", onKey, { capture: true })
     document.addEventListener("keyup", onKeyUp, { capture: true })
     window.addEventListener("blur", releaseAllPan)
@@ -2078,6 +2109,10 @@ function Stage(props: StageProps) {
 
     engine.current = {
       dispatch,
+      wheel: (e, cancels) => {
+        wheelCancels = cancels
+        onWheel(e)
+      },
       settleIndex: () => {
         S.aimIndex = null
         setAim(null)
@@ -2159,7 +2194,6 @@ function Stage(props: StageProps) {
       rootEl.removeEventListener("pointermove", onMove)
       rootEl.removeEventListener("pointerup", onUp)
       rootEl.removeEventListener("pointercancel", onCancel)
-      rootEl.removeEventListener("wheel", onWheel)
       document.removeEventListener("keydown", onKey, { capture: true })
       document.removeEventListener("keyup", onKeyUp, { capture: true })
       window.removeEventListener("blur", releaseAllPan)
