@@ -1,5 +1,6 @@
 "use client"
 
+import { Bug, BugOff } from "lucide-react"
 import { ThemeProvider, useTheme } from "next-themes"
 import * as React from "react"
 import { type Theme, ThemeToggle } from "@/registry/base-nova/ui/theme-toggle"
@@ -42,19 +43,27 @@ export function SiteTheme() {
   }
   return (
     <div className="fixed right-4 bottom-4 z-40 flex items-center gap-2">
-      <button
-        type="button"
-        onClick={toggleDebug}
-        aria-pressed={debug}
-        title="Engine trace on the stage"
-        className={`rounded-full border border-border px-3 py-1.5 font-mono text-xs transition-colors ${
-          debug
-            ? "bg-foreground text-background"
-            : "bg-sidebar text-muted-foreground hover:text-foreground"
-        }`}
-      >
-        debug
-      </button>
+      {/* The theme toggle's own track and option, not a lookalike. Two controls
+          sitting together in a design system have to be the same object at the same
+          size, and the only way that survives a change to either is for them to be
+          the same CSS. A crossed-out bug is off, a bug is on. */}
+      <div className="ag-theme-toggle">
+        <button
+          type="button"
+          onClick={toggleDebug}
+          aria-pressed={debug}
+          data-on={debug ? "" : undefined}
+          title="Engine trace on the stage"
+          className="ag-theme-toggle-option"
+        >
+          {debug ? (
+            <Bug size={14} aria-hidden />
+          ) : (
+            <BugOff size={14} aria-hidden />
+          )}
+          <span className="ag-sr-only">Debug trace</span>
+        </button>
+      </div>
       <ThemeToggle
         value={theme as Theme | undefined}
         onChange={(t) => setTheme(t)}

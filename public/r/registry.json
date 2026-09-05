@@ -185,7 +185,8 @@
       "registryDependencies": [
         "@ag/tokens",
         "@ag/lightbox-motion",
-        "@ag/lightbox-actions"
+        "@ag/lightbox-actions",
+        "@ag/copy"
       ],
       "files": [
         {

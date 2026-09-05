@@ -111,6 +111,7 @@ import {
   phaseFeed,
   phaseStart,
 } from "@/registry/base-nova/lib/lightbox-wheel-phase"
+import { Copy } from "@/registry/base-nova/ui/copy"
 import "./lightbox.css"
 
 export type Source = {
@@ -216,6 +217,12 @@ const THUMB_H = 32
  *  throw crosses its neighbour and is already looking at the next one by the time
  *  anything commits. */
 const LOADED = 2
+/** Trace entries kept. An entry can be a whole trajectory table, so this is far fewer
+ *  screens than it looks, and a debug buffer that discards the interesting part while
+ *  the reader scrolls to it is worse than none. */
+const TRACE_LINES = 60
+/** Module scope on purpose: the trace survives the dialog it came from. */
+let TRACE: string[] = []
 const FRAME_GUTTER = 32
 /** The rail beside the media at lg (px), under it below (share of the stage). The
  *  css reads both from the root (--lb-rail-w, --lb-rail-h). */
@@ -649,14 +656,18 @@ function Stage(props: StageProps) {
   const [announce, setAnnounce] = React.useState({ text: "", n: 0 })
   const [caption, setCaption] = React.useState<React.ReactNode>(null)
   // The debug trace: the engine pushes lines, React sees them once per frame.
-  const [log, setLog] = React.useState<string[]>([])
-  const logRef = React.useRef<string[]>([])
+  const [log, setLog] = React.useState<string[]>(TRACE)
+  const logRef = React.useRef<string[]>(TRACE)
   const logRaf = React.useRef(0)
   const pushTrace = React.useCallback((m: string) => {
     logRef.current = [
-      ...logRef.current.slice(-15),
+      ...logRef.current.slice(-TRACE_LINES),
       `${(performance.now() / 1000).toFixed(2)} ${m}`,
     ]
+    // The buffer OUTLIVES the stage. It used to die with the dialog, which is the
+    // one moment someone is reaching for it: a bug is reproduced, the lightbox
+    // closes, and the evidence goes with it.
+    TRACE = logRef.current
     if (logRaf.current === 0)
       logRaf.current = requestAnimationFrame(() => {
         logRaf.current = 0
@@ -2570,6 +2581,11 @@ function Stage(props: StageProps) {
         <Debug
           lines={log}
           build={typeof debug === "string" ? debug : undefined}
+          onClear={() => {
+            TRACE = []
+            logRef.current = []
+            setLog([])
+          }}
         />
       )}
       {rail && renderRail && (
@@ -2613,7 +2629,15 @@ function Stage(props: StageProps) {
 
 /** The debug trace on the stage: the engine's decisions as they happened, plus any
  *  error the page threw. Mono, read-only, for a device in hand. */
-function Debug({ lines, build }: { lines: string[]; build?: string }) {
+function Debug({
+  lines,
+  build,
+  onClear,
+}: {
+  lines: string[]
+  build?: string
+  onClear: () => void
+}) {
   const [errors, setErrors] = React.useState<string[]>([])
   React.useEffect(() => {
     const onError = (e: ErrorEvent) => {
@@ -2653,17 +2677,23 @@ function Debug({ lines, build }: { lines: string[]; build?: string }) {
     ...lines,
   ].join("\n")
   return (
-    <div className="ag-lb-debug">
-      {/* Copyable, because the whole point of a trajectory is handing it to someone
-          else. `select-all` on the pre means one tap grabs it on a phone, where there
-          is no clipboard button worth hitting. */}
-      <button
-        type="button"
-        className="ag-lb-debug-copy"
-        onClick={() => navigator.clipboard.writeText(text)}
-      >
-        copy
-      </button>
+    // `data-lb-chrome` is what stops a press here reaching the stage. Without it the
+    // press to COPY was a press on the backdrop, so the lightbox closed, the overlay
+    // went with it, and the clipboard kept whatever it had from the last attempt. A
+    // reader then pastes an old trace believing it is the new one, and no amount of
+    // reloading fixes what looks like a stale page.
+    <div className="ag-lb-debug" data-lb-chrome>
+      <div className="ag-lb-debug-bar">
+        {/* The registry's own copy control, not a second one written here: an item
+            that hand-rolls what it already ships is how two behaviours diverge. */}
+        <Copy value={text} label />
+        {/* The buffer is the reader's, and only they say when it goes. It used to
+            clear itself when the lightbox closed, which is exactly when someone is
+            reaching for it. */}
+        <button type="button" className="ag-lb-debug-btn" onClick={onClear}>
+          clear
+        </button>
+      </div>
       <pre aria-hidden>{text || "debug · waiting for a pointer"}</pre>
     </div>
   )

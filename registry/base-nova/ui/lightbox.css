@@ -589,20 +589,30 @@
   user-select: all;
   -webkit-user-select: all;
 }
-.ag-lb-debug-copy {
+/* The controls stay put while the trace scrolls under them: a buffer worth reading is
+   longer than the box, and a copy button that scrolls away is a copy button you
+   cannot reach. */
+.ag-lb-debug-bar {
   position: sticky;
   top: 0;
-  float: right;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin: -6px -8px 4px;
+  padding: 4px 6px;
+  background: color-mix(in oklab, var(--background) 92%, transparent);
+}
+.ag-lb-debug-btn {
   padding: 2px 6px;
-  border: 1px solid var(--border);
   border-radius: 4px;
-  background: var(--background);
   color: var(--muted-foreground);
   font: inherit;
   cursor: pointer;
 }
-.ag-lb-debug-copy:hover {
+.ag-lb-debug-btn:hover {
   color: var(--foreground);
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
 }
 
 /* Reduced motion: the spring assumes its target at once (STILL), the scrim sits at
