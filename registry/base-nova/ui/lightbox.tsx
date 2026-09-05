@@ -1957,6 +1957,21 @@ function Stage(props: StageProps) {
           }
         }
       }
+      // Past the edge with the hand gone: the band returns NOW, not when the device
+      // finally stops sending. macOS and iOS both spring back the instant the fingers
+      // leave, and waiting out the coast instead is what made the edge crawl for a
+      // second and then take an age to come home. There is nothing there to wait for:
+      // a coast can only push further out, and the band gives less the further it
+      // goes, so every one of those events moves the picture by under a pixel.
+      if (W.axis === "pan" && W.phase.momentum) {
+        const p = pose.value
+        const home = clampPan(p, ctx.fitted, ctx.band)
+        if (Math.abs(home.x - p.x) > 0.5 || Math.abs(home.y - p.y) > 0.5) {
+          trace(`wheel pan past the edge, coasting → home`)
+          clearTimeout(wheelTimer)
+          endWheel()
+        }
+      }
     }
 
     // ---- keys, captured on the document for the engine's lifetime: the host page
