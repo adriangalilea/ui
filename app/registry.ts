@@ -6,6 +6,8 @@ export interface Item {
   title: string
   description: string
   registryDependencies?: string[]
+  /** The item's own files. The first one locates the demo beside it. */
+  files?: { path: string; type: string }[]
 }
 
 export const ITEMS: Item[] = registry.items

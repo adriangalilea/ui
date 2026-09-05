@@ -5,7 +5,7 @@ import { notFound } from "next/navigation"
 import { Code } from "@/registry/base-nova/ui/code"
 import { Copy } from "@/registry/base-nova/ui/copy"
 import { DEMOS } from "../demos"
-import { ITEMS, item, partsOf } from "../registry"
+import { ITEMS, type Item, item, partsOf } from "../registry"
 
 export function generateStaticParams() {
   return ITEMS.map((i) => ({ item: i.name }))
@@ -13,20 +13,18 @@ export function generateStaticParams() {
 
 /** The demo's OWN source, read at build time. Usage written by hand beside a demo
  *  drifts from it the first time either is touched; this cannot, because it is the
- *  same file that rendered the thing above it. */
-async function demoSource(name: string) {
-  for (const dir of ["ui", "lib", "blocks"]) {
-    try {
-      const file = path.join(
-        process.cwd(),
-        "registry/base-nova",
-        dir,
-        `${name}.demo.tsx`,
-      )
-      return { code: await readFile(file, "utf8"), file: `${name}.demo.tsx` }
-    } catch {}
-  }
-  return null
+ *  same file that rendered the thing above it.
+ *
+ *  The path is DERIVED from the item's own first file, never guessed from a list of
+ *  likely folders: `blocks/telegram-summary/` and `theme/` are both nested, so
+ *  guessing silently dropped the code block from those pages. The validator
+ *  guarantees a `<name>.demo.tsx` sits beside the source, which is the whole rule. */
+async function demoSource(meta: Item) {
+  const source = meta.files?.[0]?.path
+  if (!source) return null
+  const name = `${meta.name}.demo.tsx`
+  const file = path.join(process.cwd(), path.dirname(source), name)
+  return { code: await readFile(file, "utf8"), file: name }
 }
 
 export default async function ItemPage({ params }: PageProps<"/[item]">) {
@@ -34,7 +32,7 @@ export default async function ItemPage({ params }: PageProps<"/[item]">) {
   const meta = item(name)
   const Demo = DEMOS[name]
   if (!meta || !Demo) notFound()
-  const src = await demoSource(name)
+  const src = await demoSource(meta)
   const install = `npx shadcn add @ag/${meta.name}`
   const parts = partsOf(meta)
   return (

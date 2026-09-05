@@ -89,8 +89,19 @@ Left on the item: the demo streams a 17.8 MB trailer from blender.org on every o
 1. adriangalilea.com prose figures (retire its `components/lightbox.tsx`), the garden's feature stills, videoclub.
 2. `scrollspy` (scroll-intent stand-down), `page-exit` / `page-enter` (the faked cross-origin morph: exit animation, Speculation Rules prerender with `Supports-Loading-Mode: credentialed-prerender` on the subdomain, entrance), `keymap` + `cursor-list` / `cursor-grid` (swift-utils Keymap; the lightbox's action table is the first client).
 3. `charts` + `chart-frame` (adriangalilea.com's wrappers are the taste anchor), `particle-charts` as the opt-in playful voice, `narrated` (Sonoscript: real times only, click to seek, opt-in follow).
-4. `checklist`, `kanban` and `code-scrolly`, below.
+4. `theme` (dark mode is DEAD today, see below), `checklist`, `kanban`, `code-scrolly`.
 5. The garden landing (a static grid under a fog that promises content), then later: cover-image with blur and grain, `magic-input`, the media-library kit for videoclub and lore.
+
+### theme, and the fact that dark mode is currently DEAD
+
+`app/globals.css` carries a full `.dark` palette and `@custom-variant dark (&:is(.dark *))`, and **nothing anywhere adds the `.dark` class**. No provider, no toggle, not even a `prefers-color-scheme` fallback. So every dark rule in this repo has never rendered: `code.css`'s `.dark .ag-code span` means the code block's dark half, one of the two themes shiki bakes into every token, has never been seen. Treat all dark styling as unverified until there is a way to turn it on.
+
+Wanted: dark and light everywhere in the site and the lab, with a toggle, and the toggle offered as an item if nothing off the shelf fits.
+
+- **The flash is the whole problem.** A theme read in an effect paints light first and then corrects, which is the flicker every naive implementation has. It has to be resolved before first paint, from a tiny blocking script in `<head>`, and the server must not render a guess.
+- Three states, not two: light, dark, and FOLLOW THE SYSTEM, which is the default and the one most toggles get wrong by collapsing to a boolean. It also has to keep following when the system changes while the page is open.
+- `next-themes` is the obvious answer for the site and is worth taking; the question is only whether the toggle itself should be an item. If it is, it cannot depend on next-themes, since a consumer may have any provider: it takes the current theme and a setter.
+- The tokens item ships light only today. If a consumer is meant to get dark, the palette belongs in `theme/tokens.css` rather than living in this site's `globals.css`, which is a fork waiting to drift.
 
 ### code-scrolly
 
