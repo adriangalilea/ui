@@ -89,7 +89,25 @@ Left on the item: the demo streams a 17.8 MB trailer from blender.org on every o
 1. adriangalilea.com prose figures (retire its `components/lightbox.tsx`), the garden's feature stills, videoclub.
 2. `scrollspy` (scroll-intent stand-down), `page-exit` / `page-enter` (the faked cross-origin morph: exit animation, Speculation Rules prerender with `Supports-Loading-Mode: credentialed-prerender` on the subdomain, entrance), `keymap` + `cursor-list` / `cursor-grid` (swift-utils Keymap; the lightbox's action table is the first client).
 3. `charts` + `chart-frame` (adriangalilea.com's wrappers are the taste anchor), `particle-charts` as the opt-in playful voice, `narrated` (Sonoscript: real times only, click to seek, opt-in follow).
-4. The garden landing (a static grid under a fog that promises content), then later: cover-image with blur and grain, `magic-input`, the media-library kit for videoclub and lore.
+4. `checklist` and `kanban`, below.
+5. The garden landing (a static grid under a fog that promises content), then later: cover-image with blur and grain, `magic-input`, the media-library kit for videoclub and lore.
+
+### checklist
+
+`terminal` + `terminal-session` again, for a list instead of a session: **one source, drawn live and drawn as a still, and the two can never disagree.** A framework-free lib parses a script into items and renders them as SVG; the React component renders the same items in the DOM. That is what lets a feature card's media be a still of the real component (`pnpm media`, the way trash's terminal stills work) while the page shows the live one.
+
+- **SVG, never a raster still.** Text stays selectable and searchable, and it scales without a second export. Selectable in BOTH renderings, live and still: a checklist nobody can copy out of is a picture of a checklist.
+- **interactive or frozen.** Frozen is the default for media and for a record of what was done; interactive checks and unchecks. Frozen is not disabled: text stays selectable, links stay clickable, nothing is greyed out. A `disabled` attribute would say "not yours to use" when the truth is "this already happened".
+- Item states worth having beyond done/not-done: in progress, blocked, dropped. A struck-through dropped line says more than a missing one.
+- Naming follows the family rule: `checklist` for the component, `checklist-<something>` for the lib, so they sort together and `shadcn add` pulls the lib in.
+
+### kanban
+
+A real board: drag a card between columns, reorder within one, with the garden's `apps/garden/components/request-board.tsx` as both the prior art and the first consumer to replace. That board today is READ-ONLY (columns by status, a capped column height, a `parked` drawer) which is exactly the gap.
+
+- **Keyboard first, and this decides the library.** Every app is fully keyboard navigable by decree, so a card must be grabbable, movable and droppable without a pointer, with the move announced. Most drag-and-drop libraries treat that as an afterthought. Evaluate Pragmatic drag and drop (Atlassian, ships keyboard and screen-reader support and is framework-agnostic) against dnd-kit, and against native HTML5 drag events, which are the least code and the worst on touch. Not yet decided.
+- The state is the consumer's: the board takes columns and cards and emits a move, it does not own an order. The garden's moves are surface writes through `lib/surface-ops.ts` and have to stay that way.
+- Auto-scroll while dragging near an edge, a drop placeholder that shows where it lands, and a cancelled drag that returns the card to where it came from rather than leaving it where the pointer died.
 
 ### og and link previews as a registry item
 
