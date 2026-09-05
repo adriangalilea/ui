@@ -167,8 +167,11 @@ export interface LightboxProps {
   renderRail?: (entry: Entry, facts: Facts) => React.ReactNode
   onOpenChange?: (id: string | null) => void
   /** A mono trace of pointer, gesture and dispatch decisions on the stage, for
-   *  device sign-off: what the engine saw and decided, as it happened. */
-  debug?: boolean
+   *  device sign-off: what the engine saw and decided, as it happened. A string is a
+   *  BUILD ID and is printed as the first line: a trace is worthless as evidence if
+   *  nobody can tell which build produced it, and a stale buffer looks exactly like a
+   *  fresh one. Pass a commit SHA. */
+  debug?: boolean | string
   /** What the dialog is announced as, after the count. */
   label?: string
   children: React.ReactNode
@@ -582,7 +585,7 @@ type StageProps = {
   onIndex: (index: number) => void
   onFacts: (f: Facts) => void
   onClosed: () => void
-  debug: boolean
+  debug: boolean | string
 }
 
 const POSE_EPS: Pose = { x: 0.5, y: 0.5, s: 0.001, p: 0.002 }
@@ -2563,7 +2566,12 @@ function Stage(props: StageProps) {
       <div className="ag-lb-live" aria-live="polite">
         <span key={announce.n}>{announce.text}</span>
       </div>
-      {debug && <Debug lines={log} />}
+      {debug && (
+        <Debug
+          lines={log}
+          build={typeof debug === "string" ? debug : undefined}
+        />
+      )}
       {rail && renderRail && (
         <Rail inert={sheet} stage={stage}>
           <div className="ag-lb-facts">{factsLine(facts)}</div>
@@ -2605,7 +2613,7 @@ function Stage(props: StageProps) {
 
 /** The debug trace on the stage: the engine's decisions as they happened, plus any
  *  error the page threw. Mono, read-only, for a device in hand. */
-function Debug({ lines }: { lines: string[] }) {
+function Debug({ lines, build }: { lines: string[]; build?: string }) {
   const [errors, setErrors] = React.useState<string[]>([])
   React.useEffect(() => {
     const onError = (e: ErrorEvent) => {
@@ -2633,7 +2641,17 @@ function Debug({ lines }: { lines: string[] }) {
       window.removeEventListener("unhandledrejection", onReject)
     }
   }, [])
-  const text = [...errors, ...lines].join("\n")
+  // The build, and the wall clock the buffer was READ at. Together they say which
+  // code produced this and whether the reader is looking at a fresh run or the same
+  // lines they copied five minutes ago, which is a mistake no amount of care avoids
+  // when every trace looks alike.
+  const text = [
+    ...(build
+      ? [`build ${build} · read ${new Date().toLocaleTimeString()}`]
+      : []),
+    ...errors,
+    ...lines,
+  ].join("\n")
   return (
     <div className="ag-lb-debug">
       {/* Copyable, because the whole point of a trajectory is handing it to someone
