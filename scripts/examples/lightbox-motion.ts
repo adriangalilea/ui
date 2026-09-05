@@ -22,6 +22,7 @@ import {
   slideCommit,
   sourceView,
   stageBand,
+  swipeSlides,
   unovershoot,
   velocity,
   WHEEL_TICK_MAX,
@@ -232,42 +233,48 @@ for (const v of [-79, -50, 0, 37, 50, 120]) {
   for (const m0 of [0, 500, 2500, -800])
     assert(Math.abs(glide(1000, m0, 1) - 1000) < 1e-9, `arrives whatever ${m0}`)
 }
-// One gesture is one slide, chosen on TRAVEL with the hand still down. Nothing here
-// asks when the fingers left, which is the question the web cannot answer.
+// The slide a swipe asks for is a FUNCTION of how far the fingers have come, decided
+// with them still on the glass. Nothing here asks when they left, which is the
+// question the web cannot answer.
 {
   const w = 1472
-  // The rule the binder runs, event by event: travel accumulates until it crosses the
-  // line, that buys ONE slide, and everything the stream sends afterwards is the tail
-  // of a question already answered. Hand or coast makes no difference to the count.
-  const run = (deltas: number[], from: number, n: number) => {
-    let at = from
-    let travel = 0
-    let answered = false
-    for (const dx of deltas) {
-      if (answered) continue
-      travel += dx
-      if (Math.abs(travel) < SWIPE_COMMIT * w) continue
-      const to = Math.min(n - 1, Math.max(0, at + Math.sign(travel)))
-      if (to === at) continue
-      at = to
-      travel = 0
-      answered = true
-    }
-    return at
-  }
+  const asked = (travel: number, from: number, n: number) =>
+    Math.min(
+      n - 1,
+      Math.max(0, from + Math.sign(travel) * swipeSlides(travel, w)),
+    )
   const over = (SWIPE_COMMIT + 0.01) * w
   const under = (SWIPE_COMMIT - 0.01) * w
-  assert(run([under], 3, 14) === 3, "a nudge under the line stays")
-  assert(run([over], 3, 14) === 4, "past it, the neighbour, and only it")
-  assert(run([under, under], 3, 14) === 4, "two nudges add up to one crossing")
+  assert(asked(under, 3, 14) === 3, "a nudge under the line stays")
+  assert(asked(over, 3, 14) === 4, "past it, the neighbour")
+  assert(asked(0.99 * w, 3, 14) === 4, "and still only the neighbour at 0.99")
   assert(
-    run([over, over, over], 3, 14) === 4,
-    "and a gesture that keeps going still buys exactly one",
+    asked((1 + SWIPE_COMMIT) * w, 3, 14) === 5,
+    "a slide further along the same motion is the slide after it",
   )
-  assert(run([9 * w], 3, 14) === 4, "a throw of nine slides pages once")
-  assert(run([-9 * w], 3, 14) === 2, "the same backwards")
-  assert(run([-2 * w], 0, 14) === 0, "and it never walks off either end")
-  assert(run([2 * w], 13, 14) === 13, "at the far end too")
+  assert(asked((2 + SWIPE_COMMIT) * w, 3, 14) === 6, "and so on, one for one")
+  assert(asked(-over, 3, 14) === 2, "the same backwards")
+  assert(asked(-(1 + SWIPE_COMMIT) * w, 3, 14) === 1, "backwards too")
+  assert(asked(-9 * w, 0, 14) === 0, "and it never walks off either end")
+  assert(asked(9 * w, 13, 14) === 13, "at the far end too")
+  // The gain is 1: k slides of finger travel is k slides of pictures, never more.
+  for (let k = 1; k <= 9; k++)
+    assert(
+      asked((k + SWIPE_COMMIT) * w, 0, 40) === k + 1,
+      `travel and slides must stay one for one, at ${k}`,
+    )
+  // A throw the hand never carried far enough still buys one, by projecting where the
+  // momentum was heading. UIKit's rule: the coast itself is never counted, because it
+  // carries several slides of deltas and the reader can no longer steer it.
+  const flick = 0.05 * w + project(0, 4)
+  assert(
+    Math.abs(flick) >= SWIPE_COMMIT * w && asked(flick, 3, 14) === 4,
+    "a flick of 0.05 slides at 4 px/ms is worth exactly one",
+  )
+  assert(
+    Math.abs(0.05 * w + project(0, 0.05)) < SWIPE_COMMIT * w,
+    "and a nudge that was barely moving is worth none",
+  )
   assert(
     SWIPE_COMMIT > 0.1 && SWIPE_COMMIT < 0.5,
     "near Embla's ~0.15 so a nudge still returns, well under Swiper's 0.5, which it only applies at release",

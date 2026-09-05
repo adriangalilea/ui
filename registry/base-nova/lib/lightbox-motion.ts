@@ -77,6 +77,20 @@ export const GLIDE_ENTRY = 3
  *  has to. */
 export const SWIPE_COMMIT = 0.18
 
+/** How many slides a swipe has asked for, from how far the fingers have come and how
+ *  wide a slide is. ONE as soon as they are SWIPE_COMMIT of the way, and one more for
+ *  every whole slide after that, so travel and slides stay one for one.
+ *
+ *  A function of the TOTAL travel, never a counter that resets on each commit. Reset
+ *  it and every SWIPE_COMMIT of finger buys a whole slide, which is a 5x gain wearing
+ *  a threshold's clothes: one ordinary motion then jumps five pictures. */
+export function swipeSlides(travel: number, slideW: number): number {
+  assert(slideW > 0, `a slide has no width: ${slideW}`)
+  // The epsilon is not a fudge. 1.18 + 0.82 is 1.9999999999999998 in binary, and a
+  // reader who has come exactly one slide and a threshold has asked for two.
+  return Math.floor(Math.abs(travel) / slideW + 1 - SWIPE_COMMIT + 1e-9)
+}
+
 export const SLIDE_VELOCITY = 0.5
 /** A held arrow pans at this speed (px per ms); two arrows add up to a diagonal. */
 export const KEY_PAN_SPEED = 0.9

@@ -86,10 +86,10 @@ import {
   SLIDE_GAP,
   type SourceView,
   STILL,
-  SWIPE_COMMIT,
   sharpScale,
   sourceView,
   stageBand,
+  swipeSlides,
   type Tunings,
   type View,
   WHEEL_GUARD,
@@ -982,19 +982,6 @@ function Stage(props: StageProps) {
       // browser takes it to the nearest one. Nothing here has to decide which.
       delete trackEl.dataset.stepping
     }
-    /** The track's position is TWO things added: the slide it is gliding toward, and
-     *  how far the fingers have pushed it since the last one was chosen. Keeping them
-     *  apart is what lets a swipe commit again and again without lifting: each commit
-     *  hands the glide the position they were already at and zeroes the finger's part,
-     *  so the reader's motion carries straight through with nothing jumping. */
-    let glideBase = 0
-    const writeTrack = () => {
-      trackEl.scrollLeft = clamp(
-        glideBase + swipeTravel,
-        0,
-        (L.current.ids.length - 1) * slotW(),
-      )
-    }
     /** The track arrives at slide `i`. `vx` is the speed it already had, in px per ms,
      *  so a swipe that commits with the fingers still moving continues at their speed
      *  instead of stalling and being shoved; a key press hands over nothing and is
@@ -1002,16 +989,11 @@ function Stage(props: StageProps) {
      *  container treats every frame of a JS scroll as a rest and would fight it. */
     const glideTo = (i: number, vx = 0) => {
       stopGlide()
-      // The fingers' part is spent: it becomes where the glide starts, so the picture
-      // does not move by a pixel at the moment the slide is chosen.
-      swipeTravel = 0
-      glideBase = trackEl.scrollLeft
       const to = i * slotW()
-      const from = glideBase
+      const from = trackEl.scrollLeft
       const d = to - from
       if (reduced || Math.abs(d) < 0.5) {
-        glideBase = to
-        writeTrack()
+        trackEl.scrollLeft = to
         commitIndex(i)
         return
       }
@@ -1031,8 +1013,7 @@ function Stage(props: StageProps) {
       const t0 = performance.now()
       const step = (t: number) => {
         const s = Math.min(1, (t - t0) / ms)
-        glideBase = from + glide_(d, m0, s)
-        writeTrack()
+        trackEl.scrollLeft = from + glide_(d, m0, s)
         if (s < 1) {
           glide = requestAnimationFrame(step)
           return
@@ -1040,8 +1021,7 @@ function Stage(props: StageProps) {
         // Exactly home, at a time that was known before it started, and on a snap
         // point, so handing the magnets back is a no-op the reader cannot see.
         glide = 0
-        glideBase = to
-        writeTrack()
+        trackEl.scrollLeft = to
         delete trackEl.dataset.stepping
         commitIndex(i)
       }
@@ -1757,25 +1737,34 @@ function Stage(props: StageProps) {
     let wheelPhase = phaseStart()
     /** The axis this wheel stream belongs to, once its travel has said. */
     let streamAxis: "x" | "y" | null = null
-    /** Is a wheel stream live on the track? The answer is decided on TRAVEL, while the
-     *  hand is still on the glass. Nothing here detects a release, because the web
-     *  cannot, and every version of this that tried to was a lottery. */
+    /** Is a wheel stream live on the track? While the fingers are on the glass the
+     *  track follows them 1:1 and the slide is a FUNCTION of how far they have come:
+     *  one as soon as they pass SWIPE_COMMIT, one more for every whole slide after
+     *  that. Total travel, never a counter that resets — a counter makes every
+     *  SWIPE_COMMIT of finger buy a whole slide, which is a 5x gain wearing a
+     *  threshold's clothes, and it is why one motion once jumped five.
+     *
+     *  Nothing here detects a release. The hand stops paying the moment the device
+     *  starts coasting, which is a thing the phase detector CAN see, and being wrong
+     *  about it costs a slide of travel, never a wrong destination. */
     let swipe = false
-    /** The slide currently chosen, and how far the fingers have pushed past it. */
-    let swipeAt = 0
+    /** The slide the stream opened on, how far the fingers have come since, and the
+     *  slide that travel currently asks for. */
+    let swipeOrigin = 0
     let swipeTravel = 0
-    /** Commits so far in this stream. Exactly one is allowed: hand or coast, a gesture
-     *  buys one slide, however hard it was thrown and however far it kept going. */
-    let swipeCommits = 0
-    /** Which way the last commit went, so a reader turning round is told apart from a
-     *  hand carrying straight on, without asking a clock. */
-    let swipeDir = 0
+    let swipeAt = 0
+    /** The hand is done and the glide has been handed the answer. */
+    let swipeLanded = false
     let swipeTimer = 0
+    const landSwipe = (vx: number) => {
+      if (swipeLanded) return
+      swipeLanded = true
+      glideTo(swipeAt, vx)
+    }
     const endSwipe = () => {
+      if (!swipe) return
+      landSwipe(0)
       swipe = false
-      // Whatever the fingers had left over goes back: a track is on a slide or on its
-      // way to one, never in between.
-      if (swipeTravel !== 0) glideTo(swipeAt)
     }
     const armSwipeEnd = () => {
       clearTimeout(swipeTimer)
@@ -1870,60 +1859,62 @@ function Stage(props: StageProps) {
         const w = slotW()
         const n = L.current.ids.length
         const dx = wheelPx(e.deltaX, e.deltaMode, ctx.band.h)
-        // A coast is a hand that has let go, not a hand that has arrived: the phase is
-        // asked ONE question here, and only about when a new gesture may begin.
+        // A coast is a hand that has let go. The phase detector is asked this one
+        // question and nothing else, and being wrong about it costs a slide's worth
+        // of travel, never a wrong destination.
         const coasting = fed.read.momentum && !fed.read.interrupted
-        // A GESTURE IS ANSWERED ONCE. Everything the device sends after a commit is
-        // the tail of a question already decided. Letting the hand keep paying for
-        // more slides seems fluent and is not: macOS delivers accelerated deltas every
-        // few ms, so one ordinary swipe crosses the line again and again and lands
-        // five slides away.
-        //
-        // THREE things end an answered gesture early, and none of them is a clock: the
-        // detector saw a genuinely new stream, a push cut into the coast, or the reader
-        // turned round. A coast can do none of the three, so the tail of a throw still
-        // cannot buy a second slide, and a hand carrying straight on is still one
-        // gesture. Waiting for the silence timer instead swallowed any second swipe
-        // that arrived inside `endsIn`, which is every quick change of direction.
-        if (swipe && swipeCommits > 0) {
-          armSwipeEnd()
-          const turned = !coasting && dx !== 0 && Math.sign(dx) !== swipeDir
-          if (!fed.read.start && !fed.read.interrupted && !turned) return
-          swipe = false
-        }
+        // A landed stream is over the moment a hand comes back: there is nothing to
+        // time out and no window to sit inside, which is what used to swallow every
+        // quick second swipe.
+        if (swipe && swipeLanded && !coasting) swipe = false
         if (!swipe) {
           // Leftover coast from a gesture already answered is not a new one.
           if (coasting) return
           stopGlide()
           swipe = true
+          swipeLanded = false
           // From where the track is HEADING, so a swipe onto a step still in flight
           // counts from the slide it is going to, not one it is flying over.
-          swipeAt = S.aimIndex ?? landedSlot()
+          swipeOrigin = S.aimIndex ?? landedSlot()
+          swipeAt = swipeOrigin
           swipeTravel = 0
-          swipeCommits = 0
-          glideBase = trackEl.scrollLeft
           trackEl.dataset.stepping = ""
         }
         armSwipeEnd()
+        if (coasting) {
+          // The hand has let go, so it stops buying slides here: a throw's momentum
+          // carries several slides' worth of deltas and the reader can no longer
+          // steer. If the hand did not travel far enough on its own, a real throw is
+          // still worth one, so where its momentum was HEADING is projected, the way
+          // UIKit does it, instead of waiting to watch it arrive.
+          if (swipeAt === swipeOrigin) {
+            const thrown = swipeTravel + project(0, fed.read.velocity.x)
+            if (swipeSlides(thrown, w) > 0)
+              swipeAt = clamp(swipeOrigin + Math.sign(thrown), 0, n - 1)
+          }
+          if (!swipeLanded)
+            trace(
+              `swipe → ${swipeAt} thrown from ${(swipeTravel / w).toFixed(2)} v ${fed.read.velocity.x.toFixed(2)}`,
+            )
+          landSwipe(fed.read.velocity.x)
+          return
+        }
         // Under the fingers, 1:1. macOS has already put its own acceleration in these
         // deltas; a gain on top of it is a second acceleration, and it felt like one.
         swipeTravel += dx
-        writeTrack()
-        if (Math.abs(swipeTravel) < SWIPE_COMMIT * w) return
-        const to = clamp(swipeAt + Math.sign(swipeTravel), 0, n - 1)
-        // At either end there is nothing to commit to: the travel just holds against
-        // the clamp until the fingers give it back.
-        if (to === swipeAt) return
-        // Decided, with the hand still on the glass. Nothing noticed a release, and
-        // the glide takes over the exact position the fingers had reached, so the
-        // moment of the commit moves nothing.
-        swipeDir = Math.sign(swipeTravel)
-        swipeAt = to
-        swipeCommits++
-        trace(
-          `swipe → ${to} at ${(swipeTravel / w).toFixed(2)} v ${fed.read.velocity.x.toFixed(2)}${coasting ? " coast" : ""}`,
+        trackEl.scrollLeft = clamp(
+          swipeOrigin * w + swipeTravel,
+          0,
+          (n - 1) * w,
         )
-        glideTo(to, fed.read.velocity.x)
+        const to = clamp(
+          swipeOrigin + Math.sign(swipeTravel) * swipeSlides(swipeTravel, w),
+          0,
+          n - 1,
+        )
+        if (to === swipeAt) return
+        swipeAt = to
+        trace(`swipe → ${to} at ${(swipeTravel / w).toFixed(2)}`)
         return
       }
       e.preventDefault()
