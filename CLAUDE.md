@@ -89,8 +89,18 @@ Left on the item: the demo streams a 17.8 MB trailer from blender.org on every o
 1. adriangalilea.com prose figures (retire its `components/lightbox.tsx`), the garden's feature stills, videoclub.
 2. `scrollspy` (scroll-intent stand-down), `page-exit` / `page-enter` (the faked cross-origin morph: exit animation, Speculation Rules prerender with `Supports-Loading-Mode: credentialed-prerender` on the subdomain, entrance), `keymap` + `cursor-list` / `cursor-grid` (swift-utils Keymap; the lightbox's action table is the first client).
 3. `charts` + `chart-frame` (adriangalilea.com's wrappers are the taste anchor), `particle-charts` as the opt-in playful voice, `narrated` (Sonoscript: real times only, click to seek, opt-in follow).
-4. `checklist` and `kanban`, below.
+4. `checklist`, `kanban` and `code-scrolly`, below.
 5. The garden landing (a static grid under a fog that promises content), then later: cover-image with blur and grain, `magic-input`, the media-library kit for videoclub and lore.
+
+### code-scrolly
+
+Scrollytelling over `code`: prose steps on one side, ONE pinned code block on the other, and the lines it marks change as each step arrives. Code Hike's scrollycoding is the reference for the shape.
+
+- **The pieces already exist and must be reused, not rebuilt.** `scroll-stage` is the pinned stage; `code`'s `highlight="2,5-6"` prop was written for exactly this, so a step names its lines from outside and the source stays one unedited file. If a step needs a different file rather than different lines, that is a swap of the whole block, not a second mechanism.
+- **The marks move, they do not cut.** Going from one step to the next animates the marked band; a hard swap between two highlighted states reads as a flash and loses which lines were involved. The line geometry is known at build time, so this can be a transform rather than a re-render.
+- Long files need the block to SCROLL to the marked lines when they are off screen, or a step silently marks nothing the reader can see.
+- Reduced motion, and narrow screens, render it as plain stacked steps with a code block each: no pinning, no travel, the same content in the same order.
+- Name follows the family rule so it sorts with `code` and pulls it in.
 
 ### checklist
 
