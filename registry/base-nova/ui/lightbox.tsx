@@ -1841,13 +1841,32 @@ function Stage(props: StageProps) {
       const hand = Math.abs(last.sum) / w
       const moved = Math.abs(last.at - first.at)
       const handMs = (shots.findLast((s) => !s.coast) ?? first).t
+      // The two failures worth naming in words, because reading them out of the
+      // columns is exactly what went wrong: a gesture that achieved nothing, and one
+      // where the pictures walked BACKWARDS against the hand at some point, which is
+      // the shape of a snap-back under a finger that is still moving.
+      const back = shots.some(
+        (s, i) =>
+          i > 0 &&
+          Math.sign(s.at - (shots[i - 1] as Shot).at) ===
+            -Math.sign(last.sum) &&
+          Math.abs(s.at - (shots[i - 1] as Shot).at) > 0.002,
+      )
+      const verdict =
+        moved < 0.02
+          ? back
+            ? " · WENT NOWHERE, and was pulled back against the hand"
+            : " · WENT NOWHERE"
+          : back
+            ? " · pulled back against the hand at some point"
+            : ""
       const rows = shots.map(
         (s) =>
           `${String(s.t).padStart(5)}  ${String(s.dx).padStart(5)}  ${(s.sum / w).toFixed(3).padStart(7)}  ${(s.at - first.at).toFixed(3).padStart(7)}  ${s.coast ? "coast" : "hand"}`,
       )
       L.current.trace(
         [
-          `── swipe ${why} · ${last.t} ms (${handMs} ms of hand, ${last.t - handMs} ms of coast) · ${shots.length} events`,
+          `── swipe ${why} · ${last.t} ms (${handMs} ms of hand, ${last.t - handMs} ms of coast) · ${shots.length} events${verdict}`,
           `   hand travelled ${hand.toFixed(2)} slides, pictures moved ${moved.toFixed(2)} · gain ${(moved / (hand || 1)).toFixed(2)}x · ${(Math.abs(last.sum) / Math.max(1, last.t)).toFixed(2)} px/ms`,
           `   ms     dx    hand   track  phase`,
           ...rows,
@@ -1993,12 +2012,25 @@ function Stage(props: StageProps) {
             if (swipeSlides(thrown, w) > 0)
               swipeAt = clamp(swipeOrigin + Math.sign(thrown), 0, n - 1)
           }
-          if (!swipeLanded)
-            trace(
-              `swipe → ${swipeAt} thrown from ${(swipeTravel / w).toFixed(2)} v ${fed.read.velocity.x.toFixed(2)}`,
-            )
           shoot(dx, swipeTravel, true)
-          landSwipe(fed.read.velocity.x)
+          // A THROW lands here, because a throw is over and its slide is chosen. A
+          // gesture that bought nothing does NOT: it goes home when the stream is
+          // actually silent, never on this signal.
+          //
+          // "Coast" is a guess, and on a slow steady drag it is a wrong one: deltas
+          // of 2,2,1,1,2 merge into a decay indistinguishable from momentum, so the
+          // detector calls it while the fingers are still moving. Gliding home on
+          // that took the picture back to where it started UNDER THE READER'S HAND,
+          // mid-swipe, which is the single worst thing this component has done.
+          // Waiting for silence costs a beat on a gesture that was going nowhere
+          // anyway; being wrong here costs the gesture.
+          if (swipeAt !== swipeOrigin) {
+            if (!swipeLanded)
+              trace(
+                `swipe → ${swipeAt} thrown from ${(swipeTravel / w).toFixed(2)} v ${fed.read.velocity.x.toFixed(2)}`,
+              )
+            landSwipe(fed.read.velocity.x)
+          }
           return
         }
         swipeTravel += dx
