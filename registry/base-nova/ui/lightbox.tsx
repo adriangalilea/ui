@@ -91,6 +91,7 @@ import {
   sourceView,
   stageBand,
   swipeSlides,
+  THROW,
   type Tunings,
   type View,
   WHEEL_GUARD,
@@ -1974,7 +1975,7 @@ function Stage(props: StageProps) {
           // still worth one, so where its momentum was HEADING is projected, the way
           // UIKit does it, instead of waiting to watch it arrive.
           if (swipeAt === swipeOrigin) {
-            const thrown = swipeTravel + project(0, fed.read.velocity.x)
+            const thrown = swipeTravel + fed.read.velocity.x * THROW
             if (swipeSlides(thrown, w) > 0)
               swipeAt = clamp(swipeOrigin + Math.sign(thrown), 0, n - 1)
           }
@@ -1986,23 +1987,39 @@ function Stage(props: StageProps) {
           landSwipe(fed.read.velocity.x)
           return
         }
-        // Under the fingers, 1:1. macOS has already put its own acceleration in these
-        // deltas; a gain on top of it is a second acceleration, and it felt like one.
         swipeTravel += dx
+        const to = clamp(
+          swipeOrigin + Math.sign(swipeTravel) * swipeSlides(swipeTravel, w),
+          0,
+          n - 1,
+        )
+        // ANSWER THE MOMENT IT IS ASKED. The slide was already chosen here, but the
+        // landing used to wait for the phase detector to notice the hand had gone —
+        // and a trackpad's dying tail is 1px deltas that read as hand for hundreds of
+        // ms. Measured: chosen at 180 ms, moving at 1108 ms, arrived at 1299 ms. The
+        // reader had let go before anything happened. Nothing about the answer needed
+        // that wait; it was only ever the glide that was waiting.
+        if (to !== swipeAt) {
+          swipeAt = to
+          trace(`swipe → ${to} at ${(swipeTravel / w).toFixed(2)}`)
+          // From here the GLIDE owns the position and the hand only re-aims it: more
+          // travel moves `to` on and this re-targets, which is why the total-travel
+          // rule still buys the slides it asks for. Two writers on one scroller is
+          // the thing that must not happen, so the 1:1 write below stops.
+          swipeLanded = true
+          glideTo(to, fed.read.velocity.x)
+          return
+        }
+        // Still under the fingers and nothing chosen yet: 1:1. macOS has already put
+        // its own acceleration in these deltas, and a gain on top of it is a second
+        // acceleration that felt like one.
+        if (swipeLanded) return
         trackEl.scrollLeft = clamp(
           swipeOrigin * w + swipeTravel,
           0,
           (n - 1) * w,
         )
         shoot(dx, swipeTravel, false)
-        const to = clamp(
-          swipeOrigin + Math.sign(swipeTravel) * swipeSlides(swipeTravel, w),
-          0,
-          n - 1,
-        )
-        if (to === swipeAt) return
-        swipeAt = to
-        trace(`swipe → ${to} at ${(swipeTravel / w).toFixed(2)}`)
         return
       }
       e.preventDefault()

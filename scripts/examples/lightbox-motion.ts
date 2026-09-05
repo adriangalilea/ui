@@ -9,6 +9,7 @@ import {
   glide,
   HAND,
   MACHINE,
+  MOMENTUM,
   neighbours,
   OVERSHOOT,
   OVERSHOOT_MAX,
@@ -25,6 +26,7 @@ import {
   sourceView,
   stageBand,
   swipeSlides,
+  THROW,
   unovershoot,
   velocity,
   WHEEL_TICK_MAX,
@@ -274,17 +276,38 @@ for (const v of [-79, -50, 0, 37, 50, 120]) {
       asked((k + SWIPE_COMMIT) * w, 0, 40) === k + 1,
       `travel and slides must stay one for one, at ${k}`,
     )
-  // A throw the hand never carried far enough still buys one, by projecting where the
-  // momentum was heading. UIKit's rule: the coast itself is never counted, because it
-  // carries several slides of deltas and the reader can no longer steer it.
-  const flick = 0.05 * w + project(0, 4)
+  // A throw the hand never carried far enough still buys ONE, by projecting where the
+  // momentum was heading. Exactly one, however hard: off the hand the reader cannot
+  // steer any more, and a hard flick projects several slides. That is why the binder
+  // takes the SIGN of the projection and not its size, which is a different rule from
+  // the hand's above, and modelling it with the hand's rule here is how this example
+  // once claimed a 1.4-slide throw was worth one.
+  const thrown = (slides: number, v: number) => slides * w + v * THROW
+  const throwBuys = (slides: number, v: number) => {
+    const t = thrown(slides, v)
+    return swipeSlides(t, w) > 0 ? Math.sign(t) : 0
+  }
+  assert(throwBuys(0.05, 4) === 1, "a hard flick is worth exactly one")
   assert(
-    Math.abs(flick) >= SWIPE_COMMIT * w && asked(flick, 3, 14) === 4,
-    "a flick of 0.05 slides at 4 px/ms is worth exactly one",
+    swipeSlides(thrown(0.05, 4), w) > 1,
+    "even where the projection reaches well past one",
+  )
+  assert(throwBuys(0.05, 0.05) === 0, "a nudge barely moving is worth none")
+  // Measured on a trackpad: a real swipe, 0.074 slides of hand at 0.66 px/ms. Under
+  // MOMENTUM (199, the coast spring's time constant) that projected 27 px short of
+  // the line, so the pictures went nowhere and came back. THROW is UIKit's 499, and
+  // the gap between those two numbers IS that swipe.
+  assert(
+    throwBuys(0.074, 0.66) === 1,
+    "a swipe that clearly went somewhere is never worth nothing",
   )
   assert(
-    Math.abs(0.05 * w + project(0, 0.05)) < SWIPE_COMMIT * w,
-    "and a nudge that was barely moving is worth none",
+    swipeSlides(0.074 * w + 0.66 * MOMENTUM, w) === 0,
+    "which the spring's time constant would have scored as nothing",
+  )
+  assert(
+    THROW > MOMENTUM * 2,
+    "a throw's projection is not the spring's time constant, whatever their units",
   )
   assert(
     SWIPE_COMMIT > 0.1 && SWIPE_COMMIT < 0.5,

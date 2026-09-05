@@ -77,6 +77,15 @@ export const GLIDE_ENTRY = 3
  *  has to. */
 export const SWIPE_COMMIT = 0.18
 
+/** Where a THROW would come to rest, per px/ms of release speed. UIKit's projection:
+ *  `v · d/(1−d)` with the standard deceleration `d = 0.998`, so 499.
+ *
+ *  NOT `MOMENTUM`. That is the coast spring's time constant, ω = 1/MOMENTUM, which
+ *  shares these units and answers a different question, and using it here projected
+ *  a throw 2.5x short: measured, a real swipe at 0.66 px/ms landed 27 px under the
+ *  line and glided home having done nothing. */
+export const THROW = 499
+
 /** How many slides a swipe has asked for, from how far the fingers have come and how
  *  wide a slide is. ONE as soon as they are SWIPE_COMMIT of the way, and one more for
  *  every whole slide after that, so travel and slides stay one for one.
