@@ -236,19 +236,45 @@ for (const v of [-79, -50, 0, 37, 50, 120]) {
 // asks when the fingers left, which is the question the web cannot answer.
 {
   const w = 1472
-  const decide = (travel: number, from: number, n: number) =>
-    Math.abs(travel) < SWIPE_COMMIT * w
-      ? from
-      : Math.min(n - 1, Math.max(0, from + Math.sign(travel)))
-  assert(decide(0.2 * w, 3, 14) === 3, "a nudge under the line goes back")
-  assert(decide(0.3 * w, 3, 14) === 4, "past it, the neighbour, and only it")
-  assert(decide(9 * w, 3, 14) === 4, "a throw of nine slides still moves one")
-  assert(decide(-9 * w, 3, 14) === 2, "the same backwards")
-  assert(decide(-2 * w, 0, 14) === 0, "and it never walks off either end")
-  assert(decide(2 * w, 13, 14) === 13, "at the far end too")
+  // The rule the binder runs, event by event: travel accumulates, each crossing of
+  // the line moves ONE slide and spends the travel, and once the hand has let go only
+  // the first crossing counts. One event can never buy more than one slide.
+  const run = (deltas: number[], from: number, n: number, coasting = false) => {
+    let at = from
+    let travel = 0
+    let commits = 0
+    for (const dx of deltas) {
+      if (coasting && commits > 0) continue
+      travel += dx
+      if (Math.abs(travel) < SWIPE_COMMIT * w) continue
+      const to = Math.min(n - 1, Math.max(0, at + Math.sign(travel)))
+      if (to === at) continue
+      at = to
+      travel = 0
+      commits++
+    }
+    return at
+  }
+  const over = (SWIPE_COMMIT + 0.01) * w
+  const under = (SWIPE_COMMIT - 0.01) * w
+  assert(run([under], 3, 14) === 3, "a nudge under the line stays")
+  assert(run([over], 3, 14) === 4, "past it, the neighbour, and only it")
+  assert(run([under, under], 3, 14) === 4, "two nudges add up to one crossing")
   assert(
-    SWIPE_COMMIT > 0.15 && SWIPE_COMMIT < 0.5,
-    "above Embla's ~0.15 so a nudge returns, below Swiper's 0.5 which it applies at release",
+    run([over, over, over], 3, 14) === 6,
+    "a hand that keeps going keeps paging, with nothing lifted",
+  )
+  assert(
+    run([over, -over], 3, 14) === 3,
+    "and turning round inside one gesture comes straight back",
+  )
+  assert(run([9 * w], 3, 14, true) === 4, "a throw of nine slides pages once")
+  assert(run([-9 * w], 3, 14, true) === 2, "the same backwards")
+  assert(run([-2 * w], 0, 14) === 0, "and it never walks off either end")
+  assert(run([2 * w], 13, 14) === 13, "at the far end too")
+  assert(
+    SWIPE_COMMIT > 0.1 && SWIPE_COMMIT < 0.5,
+    "near Embla's ~0.15 so a nudge still returns, well under Swiper's 0.5, which it only applies at release",
   )
 }
 assert(

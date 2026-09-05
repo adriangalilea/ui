@@ -58,9 +58,9 @@ export const PINCH_PASSED = 1.067
  *  is what the arrow keys feel like, and the swipe uses it too, because the platform's
  *  own snap settle is ~950 ms across a slide in Chromium (deltas decaying 0.92 a frame
  *  until the last one is under a pixel) and no faster on macOS WebKit. */
-export const GLIDE = 300
-export const GLIDE_MIN = 180
-export const GLIDE_MAX = 420
+export const GLIDE = 220
+export const GLIDE_MIN = 130
+export const GLIDE_MAX = 300
 /** The steepest entry a move will take from the speed handed to it, as a multiple of
  *  the average speed it needs. A swipe commits with the fingers still moving, so the
  *  move has to leave at the speed the track already had or the handover is a stall
@@ -69,11 +69,13 @@ export const GLIDE_MAX = 420
 export const GLIDE_ENTRY = 3
 
 /** Share of a slide a wheel gesture must travel before the next slide is CHOSEN, with
- *  the hand still on the glass. Half of Swiper's 0.5, which it applies at release: a
- *  threshold crossed mid-gesture must be lower, because the reader sees the answer
- *  immediately instead of finding out after they let go. Above Embla's ~0.15, so a
- *  nudge still returns. Nothing detects a release, so nothing has to. */
-export const SWIPE_COMMIT = 0.25
+ *  the hand still on the glass, and again for every slide after that. Embla's number:
+ *  it commits past `clamp(20% of the viewport, 50, 225)` px, which on a wide screen is
+ *  about this. Swiper's 0.5 is not comparable, being applied at release; a threshold
+ *  crossed mid-gesture has to be lower, because the reader sees the answer at once
+ *  instead of finding out after they let go. Nothing detects a release, so nothing
+ *  has to. */
+export const SWIPE_COMMIT = 0.18
 
 export const SLIDE_VELOCITY = 0.5
 /** A held arrow pans at this speed (px per ms); two arrows add up to a diagonal. */

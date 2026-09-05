@@ -982,6 +982,19 @@ function Stage(props: StageProps) {
       // browser takes it to the nearest one. Nothing here has to decide which.
       delete trackEl.dataset.stepping
     }
+    /** The track's position is TWO things added: the slide it is gliding toward, and
+     *  how far the fingers have pushed it since the last one was chosen. Keeping them
+     *  apart is what lets a swipe commit again and again without lifting: each commit
+     *  hands the glide the position they were already at and zeroes the finger's part,
+     *  so the reader's motion carries straight through with nothing jumping. */
+    let glideBase = 0
+    const writeTrack = () => {
+      trackEl.scrollLeft = clamp(
+        glideBase + swipeTravel,
+        0,
+        (L.current.ids.length - 1) * slotW(),
+      )
+    }
     /** The track arrives at slide `i`. `vx` is the speed it already had, in px per ms,
      *  so a swipe that commits with the fingers still moving continues at their speed
      *  instead of stalling and being shoved; a key press hands over nothing and is
@@ -989,11 +1002,16 @@ function Stage(props: StageProps) {
      *  container treats every frame of a JS scroll as a rest and would fight it. */
     const glideTo = (i: number, vx = 0) => {
       stopGlide()
+      // The fingers' part is spent: it becomes where the glide starts, so the picture
+      // does not move by a pixel at the moment the slide is chosen.
+      swipeTravel = 0
+      glideBase = trackEl.scrollLeft
       const to = i * slotW()
-      const from = trackEl.scrollLeft
+      const from = glideBase
       const d = to - from
       if (reduced || Math.abs(d) < 0.5) {
-        trackEl.scrollLeft = to
+        glideBase = to
+        writeTrack()
         commitIndex(i)
         return
       }
@@ -1013,7 +1031,8 @@ function Stage(props: StageProps) {
       const t0 = performance.now()
       const step = (t: number) => {
         const s = Math.min(1, (t - t0) / ms)
-        trackEl.scrollLeft = from + glide_(d, m0, s)
+        glideBase = from + glide_(d, m0, s)
+        writeTrack()
         if (s < 1) {
           glide = requestAnimationFrame(step)
           return
@@ -1021,7 +1040,8 @@ function Stage(props: StageProps) {
         // Exactly home, at a time that was known before it started, and on a snap
         // point, so handing the magnets back is a no-op the reader cannot see.
         glide = 0
-        trackEl.scrollLeft = to
+        glideBase = to
+        writeTrack()
         delete trackEl.dataset.stepping
         commitIndex(i)
       }
@@ -1737,24 +1757,22 @@ function Stage(props: StageProps) {
     let wheelPhase = phaseStart()
     /** The axis this wheel stream belongs to, once its travel has said. */
     let streamAxis: "x" | "y" | null = null
-    /** The wheel's grip on the track. `idle`: the next hand event opens a stream.
-     *  `tracking`: following the fingers, with nothing decided yet. `committed`: the
-     *  slide is CHOSEN and everything the device sends until a hand comes back is the
-     *  tail of a question already answered.
-     *
-     *  The whole point of this shape: the answer is decided while the hand is still on
-     *  the glass, on travel alone. Nothing here detects a release, because the web
+    /** Is a wheel stream live on the track? The answer is decided on TRAVEL, while the
+     *  hand is still on the glass. Nothing here detects a release, because the web
      *  cannot, and every version of this that tried to was a lottery. */
-    let swipe: "idle" | "tracking" | "committed" = "idle"
-    /** The slide the stream opened on, and how far it has travelled since, in px. */
-    let swipeFrom = 0
+    let swipe = false
+    /** The slide currently chosen, and how far the fingers have pushed past it. */
+    let swipeAt = 0
     let swipeTravel = 0
+    /** Commits so far in this stream. A hand may make as many as it likes; a coast
+     *  gets the first one only, so a throw pages once however hard it was thrown. */
+    let swipeCommits = 0
     let swipeTimer = 0
     const endSwipe = () => {
-      // Never reached the threshold and the device has gone quiet: back where it
-      // started. A track is on a slide or on its way to one, never in between.
-      if (swipe === "tracking") glideTo(swipeFrom)
-      swipe = "idle"
+      swipe = false
+      // Whatever the fingers had left over goes back: a track is on a slide or on its
+      // way to one, never in between.
+      if (swipeTravel !== 0) glideTo(swipeAt)
     }
     const armSwipeEnd = () => {
       clearTimeout(swipeTimer)
@@ -1848,36 +1866,44 @@ function Stage(props: StageProps) {
         e.preventDefault()
         const w = slotW()
         const n = L.current.ids.length
-        if (swipe === "committed") {
-          // A push that cuts INTO the device's own coast is a new gesture, and it is
-          // the one thing the phase detector is asked here. Everything else arriving
-          // after a commit is the tail of a question already answered: letting any of
-          // it through is what used to throw the reader two slides for one flick.
-          if (!fed.read.interrupted) return armSwipeEnd()
-          swipe = "idle"
-        }
-        if (swipe === "idle") {
-          // A coast with no hand behind it is leftover, never the start of anything.
-          if (fed.read.momentum && !fed.read.interrupted) return
+        // A coast is a hand that has let go, not a hand that has arrived: the phase is
+        // asked ONE question here, and only about how many slides a throw may buy.
+        const coasting = fed.read.momentum && !fed.read.interrupted
+        if (!swipe) {
+          // Leftover coast from a gesture already answered is not a new one.
+          if (coasting) return
           stopGlide()
-          swipe = "tracking"
-          swipeFrom = landedSlot()
+          swipe = true
+          // From where the track is HEADING, so a swipe onto a step still in flight
+          // counts from the slide it is going to, not one it is flying over.
+          swipeAt = S.aimIndex ?? landedSlot()
           swipeTravel = 0
+          swipeCommits = 0
+          glideBase = trackEl.scrollLeft
           trackEl.dataset.stepping = ""
         }
+        armSwipeEnd()
+        // A throw pages ONCE. Under the hand there is no limit: the reader is steering
+        // and watching every slide go by, so a long drag pages as many as it crosses
+        // and a change of direction turns straight round. Off the hand they cannot
+        // steer any more, and a fast flick carries several slides of deltas.
+        if (coasting && swipeCommits > 0) return
         // Under the fingers, 1:1. macOS has already put its own acceleration in these
         // deltas; a gain on top of it is a second acceleration, and it felt like one.
         swipeTravel += wheelPx(e.deltaX, e.deltaMode, ctx.band.h)
-        trackEl.scrollLeft = clamp(swipeFrom * w + swipeTravel, 0, (n - 1) * w)
-        armSwipeEnd()
+        writeTrack()
         if (Math.abs(swipeTravel) < SWIPE_COMMIT * w) return
-        // Decided, with the hand still on the glass. Momentum deltas count toward the
-        // travel like any other, so a hard flick crosses the line on its own and
-        // nothing has to notice the release that produced it.
-        const to = clamp(swipeFrom + Math.sign(swipeTravel), 0, n - 1)
-        swipe = "committed"
+        const to = clamp(swipeAt + Math.sign(swipeTravel), 0, n - 1)
+        // At either end there is nothing to commit to: the travel just holds against
+        // the clamp until the fingers give it back.
+        if (to === swipeAt) return
+        // Decided, with the hand still on the glass. Nothing noticed a release, and
+        // the glide takes over the position the fingers were already at, so the reader
+        // pushing on straight through it is one continuous motion.
+        swipeAt = to
+        swipeCommits++
         trace(
-          `swipe ${swipeFrom} → ${to} at ${(swipeTravel / w).toFixed(2)} v ${fed.read.velocity.x.toFixed(2)}`,
+          `swipe → ${to} at ${(swipeTravel / w).toFixed(2)} v ${fed.read.velocity.x.toFixed(2)}${coasting ? " coast" : ""}`,
         )
         glideTo(to, fed.read.velocity.x)
         return
@@ -2088,8 +2114,8 @@ function Stage(props: StageProps) {
     // is `mandatory`, so where it comes to rest IS a slide.
     const onScrollSettled = () => {
       // Nothing of ours may be moving the track: a `scrollend` fires in any lull, and
-      // a swipe still under the fingers has not chosen a slide yet.
-      if (S.ph !== "idle" || glide || swipe !== "idle") return
+      // a swipe still under the fingers has not finished choosing.
+      if (S.ph !== "idle" || glide || swipe) return
       commitIndex(landedSlot())
     }
     // The browser says which slide it picked the moment it picks it, mid-flight,
