@@ -3,7 +3,7 @@
 // Copy to the clipboard, with the only feedback that matters: the control says it
 // worked, in place, and goes back on its own. No toast, nothing to dismiss.
 
-import { Check, Copy as CopyIcon } from "lucide-react"
+import { Check, Clipboard } from "lucide-react"
 import * as React from "react"
 import "./copy.css"
 
@@ -51,7 +51,7 @@ export function Copy({ value, label = false, className, ...props }: CopyProps) {
       className={`ag-copy${className ? ` ${className}` : ""}`}
       {...props}
     >
-      {copied ? <Check size={14} /> : <CopyIcon size={14} />}
+      {copied ? <Check size={14} /> : <Clipboard size={14} />}
       {label && <span>{copied ? "copied" : "copy"}</span>}
     </button>
   )

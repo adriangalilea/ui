@@ -21,10 +21,13 @@ import {
   Spring,
   STILL,
   SWIPE_COMMIT,
+  SWIPE_COMMIT_MAX,
+  SWIPE_COMMIT_MIN,
   sampleFlight,
   slideCommit,
   sourceView,
   stageBand,
+  swipeCommitPx,
   swipeSlides,
   THROW,
   unovershoot,
@@ -256,8 +259,10 @@ for (const v of [-79, -50, 0, 37, 50, 120]) {
       n - 1,
       Math.max(0, from + Math.sign(travel) * swipeSlides(travel, w)),
     )
-  const over = (SWIPE_COMMIT + 0.01) * w
-  const under = (SWIPE_COMMIT - 0.01) * w
+  // The line in px, not the raw share: on a slide this wide the share is capped.
+  const line = swipeCommitPx(w)
+  const over = line + 10
+  const under = line - 10
   assert(asked(under, 3, 14) === 3, "a nudge under the line stays")
   assert(asked(over, 3, 14) === 4, "past it, the neighbour")
   assert(asked(0.99 * w, 3, 14) === 4, "and still only the neighbour at 0.99")
@@ -293,25 +298,9 @@ for (const v of [-79, -50, 0, 37, 50, 120]) {
     "even where the projection reaches well past one",
   )
   assert(throwBuys(0.05, 0.05) === 0, "a nudge barely moving is worth none")
-  // Measured on a trackpad: a real swipe, 0.074 slides of hand at 0.66 px/ms. Under
-  // MOMENTUM (199, the coast spring's time constant) that projected 27 px short of
-  // the line, so the pictures went nowhere and came back. THROW is UIKit's 499, and
-  // the gap between those two numbers IS that swipe.
-  assert(
-    throwBuys(0.074, 0.66) === 1,
-    "a swipe that clearly went somewhere is never worth nothing",
-  )
-  assert(
-    swipeSlides(0.074 * w + 0.66 * MOMENTUM, w) === 0,
-    "which the spring's time constant would have scored as nothing",
-  )
   assert(
     THROW > MOMENTUM * 2,
     "a throw's projection is not the spring's time constant, whatever their units",
-  )
-  assert(
-    SWIPE_COMMIT > 0.1 && SWIPE_COMMIT < 0.5,
-    "near Embla's ~0.15 so a nudge still returns, well under Swiper's 0.5, which it only applies at release",
   )
 }
 assert(

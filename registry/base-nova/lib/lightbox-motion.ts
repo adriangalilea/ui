@@ -95,9 +95,24 @@ export const THROW = 499
  *  a threshold's clothes: one ordinary motion then jumps five pictures. */
 export function swipeSlides(travel: number, slideW: number): number {
   assert(slideW > 0, `a slide has no width: ${slideW}`)
+  const line = swipeCommitPx(slideW) / slideW
   // The epsilon is not a fudge. 1.18 + 0.82 is 1.9999999999999998 in binary, and a
   // reader who has come exactly one slide and a threshold has asked for two.
-  return Math.floor(Math.abs(travel) / slideW + 1 - SWIPE_COMMIT + 1e-9)
+  return Math.floor(Math.abs(travel) / slideW + 1 - line + 1e-9)
+}
+
+/** Embla's numbers, all three of them. A SHARE of the slide, but clamped in absolute
+ *  px, because a share alone stops being a gesture on a wide screen: 18% of a 1560px
+ *  slide is 280px of finger, and a reader making small deliberate trackpad movements
+ *  never gets there. Measured: 766 ms of hand, 0.123 slides, release at 0.17 px/ms,
+ *  projected to 277px against a 281px line, and the pictures did not move.
+ *
+ *  The floor matters on a phone for the same reason in reverse: 18% of a narrow slide
+ *  is a few px, and a tap with a tremor in it should not page. */
+export const SWIPE_COMMIT_MIN = 50
+export const SWIPE_COMMIT_MAX = 225
+export function swipeCommitPx(slideW: number): number {
+  return clamp(SWIPE_COMMIT * slideW, SWIPE_COMMIT_MIN, SWIPE_COMMIT_MAX)
 }
 
 export const SLIDE_VELOCITY = 0.5
