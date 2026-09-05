@@ -216,11 +216,16 @@ export function overshoot(value: number, bound: number): number {
 }
 /** The exact inverse: a grab taken past the bound (mid-bounce, or a rubbered wheel
  *  pan) is read back to the raw offset it rubbered from, so a drag that offsets the
- *  raw grab and rubbers the sum is continuous at dx = 0. */
+ *  raw grab and rubbers the sum is continuous at dx = 0.
+ *
+ *  `overshoot` maps every excess into [0, OVERSHOOT_MAX), so past that the value did
+ *  NOT come from a band and there is nothing to undo: a dismiss pinch carries the
+ *  picture wherever the fingers go, under bounds that mean nothing below fit. It IS
+ *  the raw offset. Asserting instead threw out of `gestureDown`, which wedged every
+ *  touch after it. */
 export function unovershoot(value: number, bound: number): number {
   const given = Math.abs(value) - bound
-  if (given <= 0) return value
-  assert(given < OVERSHOOT_MAX, `${given} px past the bound cannot be reached`)
+  if (given <= 0 || given >= OVERSHOOT_MAX) return value
   const excess = (given * OVERSHOOT_MAX) / (OVERSHOOT * (OVERSHOOT_MAX - given))
   return Math.sign(value) * (bound + excess)
 }

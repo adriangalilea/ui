@@ -17,7 +17,9 @@ import {
   DOUBLE_TOUCH,
   FIT,
   INTENT,
+  OVERSHOOT_MAX,
   PAN_INSET,
+  panBounds,
   RELOCK,
   TAP_TRAVEL,
 } from "../../registry/base-nova/lib/lightbox-motion"
@@ -303,7 +305,47 @@ console.log("pan follows both axes, flick coasts to a clamped target")
   )
   assert(done.kind === "exit", `a small pinch closes: ${done.kind}`)
 }
-console.log("pinch opens, follows, zooms out and closes")
+// A pinch that zooms OUT shrinks the bounds under the pan it is carrying. The pose it
+// leaves has to stay inside what the band can express, or the next finger down asks
+// `rawPan` to undo a rubbering that never happened. That threw out of `gestureDown`,
+// and a thrown `gestureDown` wedges every touch after it: iOS Safari, dead lightbox.
+{
+  const c = ctx({ pose: { x: -255, y: -180, s: 2.4, p: 1 } })
+  const mid = { mid: at(300, 200) }
+  const one = gestureDown(null, pt(200, 200, 0), c)
+  const both = gestureDown(
+    one.gesture,
+    { ...pt(400, 200, 1, { id: 2 }), ...mid },
+    c,
+  )
+  // Fingers close right in, and the midpoint walks a long way off centre with them:
+  // 2.4 down to 1.20, where the x bound has collapsed to nothing. Unbounded this
+  // leaves the pose 373 px past a bound of 0, against a band that can express 96.
+  const out = gestureMove(
+    both.gesture,
+    { ...pt(300, 200, 20, { id: 1 }), mid: at(900, 690) },
+    c,
+  )
+  const posed = last(out.effects, "pose")
+  assert(posed?.kind === "pose", "the pinch poses")
+  const pose = (posed as { pose: typeof atFit }).pose
+  const b = panBounds(pose, c.fitted, c.band)
+  assert(
+    Math.abs(pose.x) - b.x < OVERSHOOT_MAX &&
+      Math.abs(pose.y) - b.y < OVERSHOOT_MAX,
+    `a zoom-out pinch left the pose past what the band can express: ${pose.x},${pose.y} against ${b.x},${b.y}`,
+  )
+  // The proof that matters: a third finger on that pose does not throw.
+  const third = gestureDown(out.gesture, pt(500, 500, 30, { id: 3 }), {
+    ...c,
+    pose,
+  })
+  assert(
+    third.gesture !== null,
+    "a finger down after a zoom-out pinch survives",
+  )
+}
+console.log("pinch opens, follows, zooms out under its own bounds, closes")
 
 // The tap ladder. A mouse: one click zooms, the second click of a double click is
 // the same intent already served. A finger: one tap waits for the chrome, two zoom.

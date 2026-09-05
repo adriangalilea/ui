@@ -200,12 +200,22 @@ export function gestureMove(
     const m = input.mid ?? next.anchor
     next = { ...next, anchor: m }
     const v = zoomAt(pinch.view0, s, pinch.mid0)
+    const px = v.x + m.x - pinch.mid0.x
+    const py = v.y + m.y - pinch.mid0.y
+    // The pinch's pan wears the same band the drag does, against the bounds of the
+    // scale it is CURRENTLY at. Unbounded, pinching out left the image hundreds of px
+    // outside a bound that had just shrunk under it, which is a pose no rubber could
+    // have produced: the next finger down asked `rawPan` to undo a rubbering that
+    // never happened, and it threw, and a thrown `gestureDown` wedges every touch
+    // after it. Dismissing is the exception, being a pinch whose whole point is to
+    // carry the picture away, and its bounds are meaningless because it is under fit.
+    const b = panBounds({ x: 0, y: 0, s }, ctx.fitted, ctx.band)
     // A pinch that starts mid-drag carries the drag's darkness: p never jumps.
     effects.push({
       kind: "pose",
       pose: {
-        x: v.x + m.x - pinch.mid0.x,
-        y: v.y + m.y - pinch.mid0.y,
+        x: dismissing ? px : overshoot(px, b.x),
+        y: dismissing ? py : overshoot(py, b.y),
         s,
         p: dismissing ? Math.min(pinch.p0, pinchProgress(s)) : pinch.p0,
       },
