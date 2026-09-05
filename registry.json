@@ -17,18 +17,6 @@
       ]
     },
     {
-      "name": "session-dsl",
-      "type": "registry:lib",
-      "title": "session-dsl",
-      "description": "the terminal-session script: parse, palette, timeline, and the SVG still renderer. framework-free",
-      "files": [
-        {
-          "path": "registry/base-nova/lib/session-dsl.ts",
-          "type": "registry:lib"
-        }
-      ]
-    },
-    {
       "name": "scroll-stage",
       "type": "registry:ui",
       "title": "scroll-stage",
@@ -83,12 +71,24 @@
       "name": "terminal",
       "type": "registry:ui",
       "title": "terminal",
-      "description": "a phosphor terminal that plays a session script live; the still renderer in session-dsl draws the same frame",
-      "registryDependencies": ["@ag/tokens", "@ag/session-dsl"],
+      "description": "a phosphor terminal that plays a session script live; the still renderer in terminal-session draws the same frame",
+      "registryDependencies": ["@ag/tokens", "@ag/terminal-session"],
       "files": [
         {
           "path": "registry/base-nova/ui/terminal.tsx",
           "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "terminal-session",
+      "type": "registry:lib",
+      "title": "terminal-session",
+      "description": "the session script the terminal plays: parse, palette, timeline, and the SVG still renderer that draws the same frame. framework-free, so a build script can render a still without React",
+      "files": [
+        {
+          "path": "registry/base-nova/lib/terminal-session.ts",
+          "type": "registry:lib"
         }
       ]
     },
@@ -119,6 +119,28 @@
         {
           "path": "registry/base-nova/blocks/telegram-summary/telegram-summary.tsx",
           "type": "registry:component"
+        }
+      ]
+    },
+    {
+      "name": "lightbox",
+      "type": "registry:ui",
+      "title": "lightbox",
+      "description": "one interruptible spring over a view: the image leaves the page under its chrome and owns the screen; pinch, drag, swipe, wheel, every key in the table, deep links, a consumer rail",
+      "dependencies": ["@base-ui/react"],
+      "registryDependencies": [
+        "@ag/tokens",
+        "@ag/lightbox-motion",
+        "@ag/lightbox-actions"
+      ],
+      "files": [
+        {
+          "path": "registry/base-nova/ui/lightbox.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/base-nova/ui/lightbox.css",
+          "type": "registry:ui"
         }
       ]
     },
@@ -163,28 +185,6 @@
         {
           "path": "registry/base-nova/lib/lightbox-actions.ts",
           "type": "registry:lib"
-        }
-      ]
-    },
-    {
-      "name": "lightbox",
-      "type": "registry:ui",
-      "title": "lightbox",
-      "description": "one interruptible spring over a view: the image leaves the page under its chrome and owns the screen; pinch, drag, swipe, wheel, every key in the table, deep links, a consumer rail",
-      "dependencies": ["@base-ui/react"],
-      "registryDependencies": [
-        "@ag/tokens",
-        "@ag/lightbox-motion",
-        "@ag/lightbox-actions"
-      ],
-      "files": [
-        {
-          "path": "registry/base-nova/ui/lightbox.tsx",
-          "type": "registry:ui"
-        },
-        {
-          "path": "registry/base-nova/ui/lightbox.css",
-          "type": "registry:ui"
         }
       ]
     }

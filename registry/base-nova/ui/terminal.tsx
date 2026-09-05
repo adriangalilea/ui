@@ -1,6 +1,6 @@
 "use client"
 
-// A phosphor terminal that plays a session script (lib/session-dsl) live: commands
+// A phosphor terminal that plays a session script (lib/terminal-session) live: commands
 // type char by char, output lands whole, `@ms` pauses. Same {session, progress}
 // contract as telegram-chat: pass `progress` (0..1) to scrub it, omit it for the
 // one-shot in-view autoplay. The still renderer in the same lib draws the identical
@@ -15,7 +15,7 @@ import {
   sessionTimeline,
   TYPE_MS,
   terminalPalette,
-} from "@/registry/base-nova/lib/session-dsl"
+} from "@/registry/base-nova/lib/terminal-session"
 
 export interface TerminalProps {
   /** A session script (`$ cmd` · `~ muted` · plain · `# comment` · `@ms` pause). */

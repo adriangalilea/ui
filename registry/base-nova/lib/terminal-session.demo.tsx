@@ -2,7 +2,7 @@ import {
   parseSession,
   renderSessionSvg,
   sessionTimeline,
-} from "@/registry/base-nova/lib/session-dsl"
+} from "@/registry/base-nova/lib/terminal-session"
 
 const SESSION = `# comments drop
 $ awake 2h

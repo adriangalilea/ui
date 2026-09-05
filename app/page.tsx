@@ -1,5 +1,22 @@
 import Link from "next/link"
-import { ITEMS } from "./registry"
+import { FAMILIES, type Item } from "./registry"
+
+const Row = ({ i, part }: { i: Item; part?: boolean }) => (
+  <Link
+    href={`/${i.name}`}
+    className="flex items-baseline gap-4 py-4 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+  >
+    <span
+      className={`${part ? "w-24" : "w-40"} shrink-0 font-mono text-xs text-muted-foreground`}
+    >
+      {part ? "comes with" : i.type.replace("registry:", "")}
+    </span>
+    <span className={part ? "font-medium text-foreground/80" : "font-semibold"}>
+      {i.name}
+    </span>
+    <span className="text-sm text-foreground/60">{i.description}</span>
+  </Link>
+)
 
 export default function Home() {
   return (
@@ -12,20 +29,18 @@ export default function Home() {
         </code>
       </p>
       <ul className="mt-16 divide-y divide-border">
-        {ITEMS.map((i) => (
-          <li key={i.name}>
-            <Link
-              href={`/${i.name}`}
-              className="flex items-baseline gap-4 py-4 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <span className="w-40 shrink-0 font-mono text-xs text-muted-foreground">
-                {i.type.replace("registry:", "")}
-              </span>
-              <span className="font-semibold">{i.name}</span>
-              <span className="text-sm text-foreground/60">
-                {i.description}
-              </span>
-            </Link>
+        {FAMILIES.map(({ head, parts }) => (
+          <li key={head.name}>
+            <Row i={head} />
+            {parts.length > 0 && (
+              <ul className="mb-2 ml-16 border-l border-border pl-4">
+                {parts.map((p) => (
+                  <li key={p.name}>
+                    <Row i={p} part />
+                  </li>
+                ))}
+              </ul>
+            )}
           </li>
         ))}
         <li>

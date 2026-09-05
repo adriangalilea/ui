@@ -19,7 +19,7 @@ Items live in `registry/base-nova/`, a demo beside each one, played at `/<item>`
 | `scroll-stage` | the pinned stage: a tall track, a sticky stage, `--stage-p` from a CSS scroll-driven animation, acts as checkpoints |
 | `reveal` | content that arrives as it enters the viewport |
 | `scrims` | viewport fogs, scroll-linked, never transitioned |
-| `session-dsl` | the terminal-session script: parse, palette, timeline, SVG still |
+| `terminal-session` | the terminal-session script: parse, palette, timeline, SVG still |
 | `terminal` | a phosphor terminal playing a session live |
 | `telegram-chat` | a Telegram chat on an iPhone as a pure function of `{messages, progress}` |
 | `telegram-summary` | a link-summary bot's conversation on top of `telegram-chat` |

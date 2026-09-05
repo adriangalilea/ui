@@ -5,7 +5,7 @@ import {
   parseSession,
   renderSessionSvg,
   sessionTimeline,
-} from "../../registry/base-nova/lib/session-dsl"
+} from "../../registry/base-nova/lib/terminal-session"
 
 const sample = `$ trash thesis-draft.txt
 trashed: ~/Desktop/thesis-draft.txt
