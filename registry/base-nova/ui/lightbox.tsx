@@ -1983,10 +1983,17 @@ function Stage(props: StageProps) {
         // question and nothing else, and being wrong about it costs a slide's worth
         // of travel, never a wrong destination.
         const coasting = fed.read.momentum && !fed.read.interrupted
-        // A landed stream is over the moment a hand comes back: there is nothing to
-        // time out and no window to sit inside, which is what used to swallow every
-        // quick second swipe.
-        if (swipe && swipeLanded && !coasting) swipe = false
+        // A landed stream ends when the DEVICE says a new one began: a real gap
+        // (`start`), or a push cutting into a coast (`interrupted`). Both need
+        // evidence of a break.
+        //
+        // "Any hand event after landing" is not evidence, and using it tore a live
+        // gesture in half: one stray coast event mid-drag, the next hand event read
+        // as a new stream, travel reset to zero, and the slide just committed was
+        // given back. The reader never lifted a finger. Nothing ends a gesture that
+        // is still going.
+        if (swipe && swipeLanded && (fed.read.start || fed.read.interrupted))
+          swipe = false
         if (!swipe) {
           // Leftover coast from a gesture already answered is not a new one.
           if (coasting) return
