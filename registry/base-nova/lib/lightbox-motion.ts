@@ -100,39 +100,20 @@ export const SWIPE_COMMIT = 0.18
  *  (A POINTER release is different and still projects: `project` above, off `MOMENTUM`,
  *  because a finger that lifts really does stop sending and the coast is ours to run.) */
 
-/** Each slide bought in one motion costs twice what the last one did. Buying is
- *  DELIBERATE or it is an accident: at a flat price the gap between paging one and
- *  paging three is one careless flick, and measured it was exactly that — 485 px of
- *  finger took three pictures, none of them asked for. Doubling puts a whole slide of
- *  travel between the first and the third while leaving the first where it was, which
- *  is the one a reader actually aims at.
+/** ONE GESTURE BUYS ONE SLIDE. Cross the line and the pictures go there and stay
+ *  there; everything the device sends afterwards is ignored until the stream is over.
  *
- *  A reversal resets it. Turning round is a new intent, not the fourth slide of the
- *  one before it, and paying quadruple to come back one is the asymmetry all of this
- *  was written to kill. */
-export const SWIPE_STACK = 2
-export function swipeLinePx(slideW: number, bought: number): number {
-  assert(bought >= 0, `slides bought cannot be ${bought}`)
-  return swipeCommitPx(slideW) * SWIPE_STACK ** bought
-}
-
-/** How many slides `reach` buys, walking that ladder. The hand and a throw spend the
- *  same currency: the hand's reach is how far it has come since the last one, a
- *  throw's is that plus where its momentum was heading.
+ *  Skipping several on a hard flick was tried twice, flat-priced and then on a
+ *  doubling ladder, and both are a slot machine. The boundary between one and two sits
+ *  at some number of pixels of finger, and a reader cannot feel pixels of finger:
+ *  measured, 0.46 slides of travel took one picture and 0.63 took two, which is
+ *  correct arithmetic and indistinguishable to the hand that did it. Worse, the same
+ *  rule is what let a gesture keep leaning toward a slide it had not bought, which is
+ *  the drift past the snap point that made the whole thing feel alive.
  *
- *  This is what lets SPEED skip several without costing precision. From rest the rungs
- *  are one line, three, seven — so on a wide slide one slide is a nudge, two wants a
- *  real flick, three wants a hard one, and no amount of slow careful travel ever
- *  arrives at the wrong picture. */
-export function swipeStackSlides(
-  reach: number,
-  slideW: number,
-  bought: number,
-): number {
-  const line = swipeLinePx(slideW, bought)
-  const r = Math.abs(reach)
-  return r < line ? 0 : Math.floor(Math.log2(r / line + 1))
-}
+ *  Every native pager decided this the same way: UIScrollView's `isPagingEnabled`,
+ *  Android's `PagerSnapHelper`, Embla with `skipSnaps` off. Three pictures is three
+ *  flicks, and three flicks is a second's work and never a surprise. */
 
 /** The pictures LEAN toward the next slide, by this share of the line, and the lean is
  *  the only thing that says how close it is. It is QUADRATIC in the progress, and that
@@ -162,6 +143,17 @@ export function swipeGive(travel: number, line: number): number {
  *  back, the slides it bought are already bought, and a hand that comes back starts
  *  from scratch, which is what it should do anyway. */
 export const SWIPE_END = 110
+
+/** A gesture that has already bought its slide is over, but the device keeps sending
+ *  for most of a second. A tail only ever DECAYS, so a delta this many times the
+ *  envelope of the ones before it is a hand back on the glass and a new gesture — the
+ *  one thing about a wheel stream that can be read without guessing, unlike the
+ *  release, which cannot. Without it a second flick inside the first one's tail does
+ *  nothing at all. */
+export const SWIPE_SURGE = 2
+export const SWIPE_SURGE_MIN = 4
+/** How fast the envelope forgets, per event. */
+export const SWIPE_SURGE_DECAY = 0.9
 
 /** Embla's numbers, all three of them. A SHARE of the slide, but clamped in absolute
  *  px, because a share alone stops being a gesture on a wide screen: 18% of a 1560px

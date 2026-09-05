@@ -89,12 +89,14 @@ import {
   type SourceView,
   STILL,
   SWIPE_END,
+  SWIPE_SURGE,
+  SWIPE_SURGE_DECAY,
+  SWIPE_SURGE_MIN,
   sharpScale,
   sourceView,
   stageBand,
+  swipeCommitPx,
   swipeGive,
-  swipeLinePx,
-  swipeStackSlides,
   type Tunings,
   type View,
   WHEEL_GUARD,
@@ -1016,9 +1018,11 @@ function Stage(props: StageProps) {
     let base = 0
     let swipeTravel = 0
     let glide = 0
-    /** What the next slide costs, and how far the pictures lean on the way to it. */
-    const swipeLine = () => swipeLinePx(slotW(), swipeBought)
-    const give = () => swipeGive(swipeTravel, swipeLine())
+    /** What the slide costs, and how far the pictures lean on the way to it. Bought,
+     *  they lean nothing: they are ON the slide, and leaning off one they have already
+     *  arrived at, toward one they cannot buy, is the drift with a life of its own. */
+    const swipeLine = () => swipeCommitPx(slotW())
+    const give = () => (swipeDone ? 0 : swipeGive(swipeTravel, swipeLine()))
     const paintTrack = () => {
       const n = L.current.ids.length
       trackEl.scrollLeft = clamp(base + give(), 0, (n - 1) * slotW())
@@ -1844,13 +1848,14 @@ function Stage(props: StageProps) {
      *  about it costs a threshold of travel, never a wrong destination. */
     let swipe = false
     /** The slide the offset is measured from, and the offset. `swipeHand` is the whole
-     *  stream's travel and is read by nothing but the recorder. `swipeBought` is how
-     *  many slides this motion has already taken in `swipeDir`, and it is what makes
-     *  the next one cost double. */
+     *  stream's travel and is read by nothing but the recorder. `swipeDone` is the
+     *  gesture having bought its one slide: from there it moves nothing and buys
+     *  nothing, and `swipeEnv` is the decaying envelope that tells a hand coming back
+     *  from the tail that is still arriving. */
     let swipeAnchor = 0
     let swipeHand = 0
-    let swipeBought = 0
-    let swipeDir = 0
+    let swipeDone = false
+    let swipeEnv = 0
     let swipeTimer = 0
 
     // ---- the trajectory recorder (debug only). What the hand asked for against what
@@ -1906,6 +1911,15 @@ function Stage(props: StageProps) {
         .map((s, i) => s.t - (shots[i] as Shot).t)
         .sort((a, b) => a - b)
       const gap = gaps[gaps.length >> 1] as number
+      // A wheel arrives once per display frame, so the median gap is the REFRESH RATE
+      // and 33 ms is a 30 Hz screen, not a fault. Dropped frames are IRREGULAR: it is
+      // the spread that says the page stalled, never the rate.
+      const worst = gaps[
+        Math.min(gaps.length - 1, gaps.length - 2) | 0
+      ] as number
+      const rate = `@${gap}ms ${Math.round(1000 / Math.max(1, gap))}Hz${
+        worst > 2.5 * gap ? ` JANK ${worst}ms` : ""
+      }`
       const maxDx = Math.max(...shots.map((s) => Math.abs(s.dx)))
       // The pictures walking BACKWARDS against the hand is the shape of a snap-back
       // under a finger still moving, so it is measured, not named: the worst single
@@ -1924,7 +1938,7 @@ function Stage(props: StageProps) {
         )
       L.current.trace(
         [
-          `── ${shotFrom}→${swipeAnchor} · ${last.t}ms · ${shots.length}ev @${gap}ms${gap > 12 ? " JANK" : ""} · maxdx ${maxDx}`,
+          `── ${shotFrom}→${swipeAnchor} · ${last.t}ms · ${shots.length}ev ${rate} · maxdx ${maxDx}`,
           `   hand ${hand.toFixed(2)} · pics ${moved.toFixed(2)} · ${(Math.abs(last.sum) / Math.max(1, last.t)).toFixed(2)}px/ms · back ${back.toFixed(2)} · ${why}`,
           `   ms    dx hand%track%  (% of a slide, from the start)`,
           ...rows,
@@ -1932,29 +1946,24 @@ function Stage(props: StageProps) {
       )
       shots = []
     }
-    /** Slides, bought. The pictures do not move on this line: the glide is aimed at
-     *  the new anchor from exactly where they stand, and the hand's offset that paid
-     *  for it is spent. */
-    const buySlides = (dir: number, count: number, vx: number) => {
-      // Turning round is a new intent, not the next rung of the motion before it.
-      if (dir !== swipeDir) {
-        swipeDir = dir
-        swipeBought = 0
-      }
-      const next = clamp(swipeAnchor + dir * count, 0, L.current.ids.length - 1)
+    /** The slide, bought — one per gesture, and the gesture is spent. The pictures do
+     *  not move on this line: the glide is aimed at the new anchor from exactly where
+     *  they stand, and the offset that paid for it is gone. */
+    const buySlide = (dir: number, vx: number) => {
+      const next = clamp(swipeAnchor + dir, 0, L.current.ids.length - 1)
       if (next === swipeAnchor) {
-        // The end of the reel. Hold the offset at the line so the accumulator cannot
-        // run away and buy a hundred slides the moment a real one exists.
+        // The end of the reel. Hold the offset at the line so the lean cannot run off
+        // an edge with nothing behind it.
         swipeTravel = dir * swipeLine()
         return
       }
-      swipeBought += Math.abs(next - swipeAnchor)
+      swipeDone = true
       swipeAnchor = next
       rebase()
       // The chrome moves with the decision, not with the arrival: the counter is the
       // answer to the gesture, and a stream opening on top of this one anchors here.
       aimAt(next)
-      trace(`swipe → ${next} (${count})`)
+      trace(`swipe → ${next}`)
       glideTo(next, vx)
     }
     const endSwipe = () => {
@@ -2059,10 +2068,16 @@ function Stage(props: StageProps) {
         streamAxis === "x"
       ) {
         e.preventDefault()
-        const w = slotW()
         const dx = wheelPx(e.deltaX, e.deltaMode, ctx.band.h)
         // Only ever a hint, to hand the glide a speed. It decides nothing.
         const vx = fed.read.velocity.x
+        // A tail only ever decays, so a delta twice the envelope of the ones before it
+        // is a hand back on the glass. It is the one thing a wheel stream says
+        // plainly, unlike the release, which it never says at all.
+        const surge =
+          Math.abs(dx) > Math.max(SWIPE_SURGE_MIN, SWIPE_SURGE * swipeEnv)
+        swipeEnv = Math.max(Math.abs(dx), swipeEnv * SWIPE_SURGE_DECAY)
+        if (swipe && swipeDone && surge) endSwipe()
         if (!swipe) {
           // A gesture that opens while the last one's glide is still running: read
           // that one out now, or its rows and this one's share a table and the totals
@@ -2070,9 +2085,9 @@ function Stage(props: StageProps) {
           report("cut short by the next")
           stopGlide()
           swipe = true
+          swipeDone = false
           swipeHand = 0
-          swipeBought = 0
-          swipeDir = 0
+          swipeEnv = Math.abs(dx)
           // From where the track is HEADING, so a swipe onto a step still in flight
           // counts from the slide it is going to, not one it is flying over.
           swipeAnchor = S.aimIndex ?? landedSlot()
@@ -2080,30 +2095,27 @@ function Stage(props: StageProps) {
           trackEl.dataset.stepping = ""
         }
         armSwipeEnd()
-        // EVERY DELTA IS TRAVEL. The hand's and the device's alike, at full weight,
-        // and nothing here ever asks which is which.
-        //
-        // Asking was the whole disease. The web does not report a release, so the
-        // phase has to be inferred from the shape of the decay, and that inference
-        // lands wherever it lands: measured on two swipes of the same speed, one was
-        // called coasting at 142 ms while its deltas were still GROWING, the other at
-        // 674 ms in the middle of a 1 px dribble. Every rule built on top of it — the
-        // hand stops paying here, the throw projects from here — inherited that jitter
-        // whole, so the same motion took one picture or two by luck. Predictable is
-        // worth more than clever.
-        //
-        // Nothing is projected either. A trackpad's momentum ARRIVES, as deltas, and
-        // spending it as it comes is exact where a projection was a guess with a
-        // constant in it. It also pays for itself: a flick delivers roughly as much
-        // again as the hand did, so speed buys distance without a coefficient anywhere.
-        swipeTravel += dx
         swipeHand += dx
-        const bought = swipeStackSlides(swipeTravel, w, swipeBought)
-        if (bought > 0) buySlides(Math.sign(swipeTravel), bought, vx)
-        // 1:1, always. macOS has already put its own acceleration in these deltas,
-        // and a gain on top of it is a second acceleration that felt like one.
+        // SPENT. The slide is bought, the pictures are on it, and the half-second of
+        // deltas the device is still sending moves nothing. Letting them lean toward
+        // a slide they could not buy is the drift past the snap point; letting them
+        // buy one is the slot machine. Both were the same line of code.
+        if (swipeDone) {
+          shoot(dx, swipeHand, base)
+          return
+        }
+        // EVERY DELTA IS TRAVEL, the hand's and the device's alike, and nothing asks
+        // which is which. The web does not report a release, so the phase has to be
+        // inferred from the shape of the decay, and that inference lands wherever it
+        // lands: measured on two swipes of the same speed, one was called coasting at
+        // 142 ms while its deltas were still GROWING, the other at 674 ms in the
+        // middle of a 1 px dribble.
+        swipeTravel += dx
+        if (Math.abs(swipeTravel) >= swipeLine())
+          buySlide(Math.sign(swipeTravel), vx)
+        // 1:1 under the band. macOS has already put its own acceleration in these
+        // deltas, and a gain on top of it is a second acceleration that felt like one.
         paintTrack()
-        // The phase is recorded and believed by nothing: it is a column in the trace.
         shoot(dx, swipeHand, base + give())
         return
       }
