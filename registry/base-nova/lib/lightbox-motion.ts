@@ -134,22 +134,26 @@ export function swipeStackSlides(
   return r < line ? 0 : Math.floor(Math.log2(r / line + 1))
 }
 
-/** The pictures LEAN toward the next slide, and the lean is the only thing that says
- *  how close the next one is. Near 1:1 at first, asymptoting at this multiple of the
- *  line being leaned toward, so at the line itself the neighbour is showing a real
- *  sliver and the snap is never a surprise.
+/** The pictures LEAN toward the next slide, by this share of the line, and the lean is
+ *  the only thing that says how close it is. It is QUADRATIC in the progress, and that
+ *  is the whole design.
  *
- *  It asymptotes at all because of one thing: a trackpad's tail. A gesture stops being
- *  steered long before it stops emitting, and those 1 px events read as a hand for
- *  hundreds of ms — measured, a swipe that had already arrived drifted another 145 px
- *  off the slide on its own tail and then yanked back. The band eats the tail without
- *  eating the part a reader is actually steering. */
-export const SWIPE_LEAN = 1.5
+ *  A trackpad's tail is why. It emits 1-3 px events for HALF A SECOND after a gesture
+ *  is over, and they are indistinguishable from a slow deliberate drag — same
+ *  magnitude, same cadence — so no rule can tell them apart. Three attempts tried:
+ *  a phase detector guessing the release, a magnitude floor, an asymptoting band.
+ *
+ *  They differ in exactly one thing, DISTANCE. A deliberate drag goes the whole line;
+ *  a tail goes a fraction of it. So the lean is squared, and the fraction is squared
+ *  with it. Measured on a swipe that had already arrived, its tail then crept 56 px
+ *  past the slide over 520 ms and yanked back: the same tail leans 5 px here, which
+ *  is nothing to see and nothing to wind back. It also reads better at the other end,
+ *  where the neighbour accelerates in as the line comes up. */
+export const SWIPE_LEAN = 0.85
 export function swipeGive(travel: number, line: number): number {
   assert(line > 0, `a swipe line of ${line}`)
-  const m = SWIPE_LEAN * line
-  const t = Math.abs(travel)
-  return (Math.sign(travel) * (m * t)) / (t + m)
+  const t = Math.min(1, Math.abs(travel) / line)
+  return Math.sign(travel) * SWIPE_LEAN * line * t * t
 }
 
 /** A swipe is over after this long without a wheel event. Shorter than the wheel
