@@ -1050,6 +1050,13 @@ function Stage(props: StageProps) {
      *  container treats every frame of a JS scroll as a rest and would fight it. */
     const glideTo = (i: number, vx = 0) => {
       stopGlide()
+      // MAGNETS DOWN BEFORE ANYTHING READS THE SCROLLER. `scroll-snap-type: mandatory`
+      // re-snaps the container at the next layout, and reading `scrollLeft` forces
+      // that layout — so a read taken between `stopGlide` handing the magnets back and
+      // this move setting them down again does not observe the position, it MOVES it,
+      // to the nearest slide. Mid-flight that is a jump of up to half a picture,
+      // backwards, and it is the seesaw at the start of a gesture.
+      trackEl.dataset.stepping = ""
       // Derived from the ground truth, every time. The browser moves this scroller
       // too (a finger's pan, a snap, a resize), and a `base` remembered across that
       // is a stale number the next glide would jump from.
@@ -1074,7 +1081,6 @@ function Stage(props: StageProps) {
       // rather than as pixel arithmetic, and a hand pulling the other way still
       // leaves toward the slide instead of away from it.
       const m0 = d * clamp((vx * ms) / d, GLIDE_ENTRY_MIN, GLIDE_ENTRY)
-      trackEl.dataset.stepping = ""
       const t0 = performance.now()
       const step = (t: number) => {
         const s = Math.min(1, (t - t0) / ms)
@@ -1870,6 +1876,14 @@ function Stage(props: StageProps) {
     let shotT0 = 0
     let shotFrom = 0
     let shotWhy = ""
+    /** Why the LIVE gesture opened, held separately from the recording's copy: the
+     *  next gesture's reason was being written over the one still being reported, so
+     *  nearly every table blamed a split that belonged to the gesture after it. */
+    let swipeWhy = ""
+    /** Wheel arrivals only. A glide frame shares a timestamp with the event that
+     *  started it, and those zero gaps dragged the median to 1 ms and printed
+     *  "1000Hz" over a stream running at thirty. */
+    let shotEvents: number[] = []
     /** Frames the PAGE actually drew, against the events it was fed. Chrome dispatches
      *  wheel aligned to the frame, so the two rates are normally the same number and
      *  the interesting case is when they are not: equal and low is the renderer over
@@ -1885,22 +1899,26 @@ function Stage(props: StageProps) {
     /** `at` is the value that was JUST WRITTEN, never a read back off the element.
      *  Reading `scrollLeft` after writing it forces a synchronous layout, and doing
      *  that once per wheel event made the instrument the thing it was measuring. */
-    const shoot = (dx: number, sum: number, at: number) => {
+    const shoot = (dx: number, sum: number, at: number, wheel = true) => {
       if (!L.current.debug) return
       const now = performance.now()
       if (!shots.length) {
         shotT0 = now
         shotFrom = swipeAnchor
+        shotWhy = swipeWhy
         shotFrames = 0
+        shotEvents = []
         shotRaf = requestAnimationFrame(shotTick)
       }
-      shots.push({ t: Math.round(now - shotT0), dx: Math.round(dx), sum, at })
+      const t = Math.round(now - shotT0)
+      if (wheel) shotEvents.push(t)
+      shots.push({ t, dx: Math.round(dx), sum, at })
     }
     /** Sample the LANDING, where the hand has stopped asking for anything and the
      *  pictures are still moving. This is the half a reader calls slow. */
     const shootGlide = () => {
       if (!L.current.debug || !shots.length) return
-      shoot(0, (shots[shots.length - 1] as Shot).sum, base + give())
+      shoot(0, (shots[shots.length - 1] as Shot).sum, base + give(), false)
     }
     /** How many rows a table gets. Enough to see a shape, few enough to paste. */
     const TRACE_ROWS = 16
@@ -1923,18 +1941,16 @@ function Stage(props: StageProps) {
       const first = shots[0] as Shot
       const hand = Math.abs(last.sum) / w
       const moved = (last.at - first.at) / w
-      const gaps = shots
+      const gaps = shotEvents
         .slice(1)
-        .map((s, i) => s.t - (shots[i] as Shot).t)
+        .map((t, i) => t - (shotEvents[i] as number))
         .sort((a, b) => a - b)
-      const gap = gaps[gaps.length >> 1] as number
+      const gap = Math.max(1, (gaps[gaps.length >> 1] ?? 0) as number)
       // A wheel arrives once per display frame, so the median gap is the REFRESH RATE
       // and 33 ms is a 30 Hz screen, not a fault. Dropped frames are IRREGULAR: it is
       // the spread that says the page stalled, never the rate.
-      const worst = gaps[
-        Math.min(gaps.length - 1, gaps.length - 2) | 0
-      ] as number
-      const rate = `@${gap}ms ${Math.round(1000 / Math.max(1, gap))}Hz${
+      const worst = (gaps[gaps.length - 1] ?? 0) as number
+      const rate = `@${gap}ms ${Math.round(1000 / gap)}Hz${
         worst > 2.5 * gap ? ` JANK ${worst}ms` : ""
       }`
       const maxDx = Math.max(...shots.map((s) => Math.abs(s.dx)))
@@ -2100,13 +2116,17 @@ function Stage(props: StageProps) {
           // Named in the trace, because a long swoop taking two pictures instead of
           // one can only be this: the motion accelerated hard enough mid-tail to read
           // as a hand coming back, and got charged twice for one intent.
-          shotWhy = split ? "SURGE SPLIT" : "new stream"
           // A gesture that opens while the last one's glide is still running: read
           // that one out now, or its rows and this one's share a table and the totals
           // are nonsense (one read 385x gain off two spliced streams).
           report("cut short by the next")
-          stopGlide()
+          swipeWhy = split ? "SURGE SPLIT" : "new stream"
+          // `swipe` first, and the magnets down before `rebase` or `landedSlot` reads
+          // the scroller: with mandatory snap live a read re-snaps it, and mid-flight
+          // that is the picture jumping backwards to the slide it just left.
           swipe = true
+          stopGlide()
+          trackEl.dataset.stepping = ""
           swipeDone = false
           swipeHand = 0
           swipeEnv = Math.abs(dx)
@@ -2114,7 +2134,6 @@ function Stage(props: StageProps) {
           // counts from the slide it is going to, not one it is flying over.
           swipeAnchor = S.aimIndex ?? landedSlot()
           rebase()
-          trackEl.dataset.stepping = ""
         }
         armSwipeEnd()
         swipeHand += dx
