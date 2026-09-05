@@ -92,8 +92,9 @@ import {
   sharpScale,
   sourceView,
   stageBand,
-  swipeCommitPx,
   swipeGive,
+  swipeLinePx,
+  swipeStackSlides,
   THROW,
   type Tunings,
   type View,
@@ -1005,13 +1006,12 @@ function Stage(props: StageProps) {
     let base = 0
     let swipeTravel = 0
     let glide = 0
+    /** What the next slide costs, and how far the pictures lean on the way to it. */
+    const swipeLine = () => swipeLinePx(slotW(), swipeBought)
+    const give = () => swipeGive(swipeTravel, swipeLine())
     const paintTrack = () => {
       const n = L.current.ids.length
-      trackEl.scrollLeft = clamp(
-        base + swipeGive(swipeTravel),
-        0,
-        (n - 1) * slotW(),
-      )
+      trackEl.scrollLeft = clamp(base + give(), 0, (n - 1) * slotW())
     }
     /** Hand the track back to the machine where it stands. Any path that takes over
      *  from a hand calls this, and nothing after it can jump. */
@@ -1039,7 +1039,7 @@ function Stage(props: StageProps) {
       // Derived from the ground truth, every time. The browser moves this scroller
       // too (a finger's pan, a snap, a resize), and a `base` remembered across that
       // is a stale number the next glide would jump from.
-      base = trackEl.scrollLeft - swipeGive(swipeTravel)
+      base = trackEl.scrollLeft - give()
       const to = i * slotW()
       const from = base
       const d = to - from
@@ -1834,9 +1834,13 @@ function Stage(props: StageProps) {
      *  about it costs a threshold of travel, never a wrong destination. */
     let swipe = false
     /** The slide the offset is measured from, and the offset. `swipeHand` is the whole
-     *  stream's travel and is read by nothing but the recorder. */
+     *  stream's travel and is read by nothing but the recorder. `swipeBought` is how
+     *  many slides this motion has already taken in `swipeDir`, and it is what makes
+     *  the next one cost double. */
     let swipeAnchor = 0
     let swipeHand = 0
+    let swipeBought = 0
+    let swipeDir = 0
     /** The hand let go and its one last decision has been taken. */
     let swipeThrown = false
     let swipeTimer = 0
@@ -1924,23 +1928,29 @@ function Stage(props: StageProps) {
       )
       shots = []
     }
-    /** One slide, bought. The pictures do not move on this line: the glide is aimed
-     *  at the new anchor from exactly where they stand, and the hand's offset that
-     *  paid for it is spent. */
-    const buySlide = (dir: number, vx: number) => {
-      const next = clamp(swipeAnchor + dir, 0, L.current.ids.length - 1)
+    /** Slides, bought. The pictures do not move on this line: the glide is aimed at
+     *  the new anchor from exactly where they stand, and the hand's offset that paid
+     *  for it is spent. */
+    const buySlides = (dir: number, count: number, vx: number) => {
+      // Turning round is a new intent, not the next rung of the motion before it.
+      if (dir !== swipeDir) {
+        swipeDir = dir
+        swipeBought = 0
+      }
+      const next = clamp(swipeAnchor + dir * count, 0, L.current.ids.length - 1)
       if (next === swipeAnchor) {
         // The end of the reel. Hold the offset at the line so the accumulator cannot
         // run away and buy a hundred slides the moment a real one exists.
-        swipeTravel = dir * swipeCommitPx(slotW())
+        swipeTravel = dir * swipeLine()
         return
       }
+      swipeBought += Math.abs(next - swipeAnchor)
       swipeAnchor = next
       rebase()
       // The chrome moves with the decision, not with the arrival: the counter is the
       // answer to the gesture, and a stream opening on top of this one anchors here.
       aimAt(next)
-      trace(`swipe → ${next}`)
+      trace(`swipe → ${next} (${count})`)
       glideTo(next, vx)
     }
     const endSwipe = () => {
@@ -2060,6 +2070,8 @@ function Stage(props: StageProps) {
           swipe = true
           swipeThrown = false
           swipeHand = 0
+          swipeBought = 0
+          swipeDir = 0
           // From where the track is HEADING, so a swipe onto a step still in flight
           // counts from the slide it is going to, not one it is flying over.
           swipeAnchor = S.aimIndex ?? landedSlot()
@@ -2089,9 +2101,9 @@ function Stage(props: StageProps) {
           // on real silence. Being early here is free; being wrong is the bug above.
           if (!swipeThrown) {
             swipeThrown = true
-            const thrown = swipeTravel + vx * THROW
-            if (Math.abs(thrown) >= swipeCommitPx(w))
-              buySlide(Math.sign(thrown), vx)
+            const reach = swipeTravel + vx * THROW
+            const bought = swipeStackSlides(reach, w, swipeBought)
+            if (bought > 0) buySlides(Math.sign(reach), bought, vx)
           }
           shoot(dx, swipeHand, true)
           return
@@ -2104,8 +2116,8 @@ function Stage(props: StageProps) {
         // to notice the hand had gone, and a trackpad's dying tail is 1px deltas that
         // read as hand for hundreds of ms: chosen at 180 ms, moving at 1108 ms,
         // arrived at 1299 ms, the reader long since let go.
-        if (Math.abs(swipeTravel) >= swipeCommitPx(w))
-          buySlide(Math.sign(swipeTravel), vx)
+        const bought = swipeStackSlides(swipeTravel, w, swipeBought)
+        if (bought > 0) buySlides(Math.sign(swipeTravel), bought, vx)
         // 1:1, always. macOS has already put its own acceleration in these deltas,
         // and a gain on top of it is a second acceleration that felt like one.
         paintTrack()

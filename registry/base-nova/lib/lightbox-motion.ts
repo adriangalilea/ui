@@ -99,19 +99,56 @@ export const SWIPE_COMMIT = 0.18
  *  line and glided home having done nothing. */
 export const THROW = 499
 
-/** The pictures LEAN toward the next slide under a swipe, they do not follow it. Past
- *  the first few px the give is a band that asymptotes, so however long the fingers
- *  keep coming the pictures are never far from the slide they are on and there is
- *  never much to wind back.
+/** Each slide bought in one motion costs twice what the last one did. Buying is
+ *  DELIBERATE or it is an accident: at a flat price the gap between paging one and
+ *  paging three is one careless flick, and measured it was exactly that — 485 px of
+ *  finger took three pictures, none of them asked for. Doubling puts a whole slide of
+ *  travel between the first and the third while leaving the first where it was, which
+ *  is the one a reader actually aims at.
  *
- *  1:1 was the obvious rule and it is wrong for one reason: a trackpad's tail. A
- *  gesture stops being steered long before it stops emitting, and those 1 px events
- *  read as a hand for hundreds of ms. Measured, a swipe that had already arrived
- *  drifted another 145 px off the slide on its own dying tail and then yanked back.
- *  A lean spends that same tail moving almost nothing. */
-export const SWIPE_GIVE = 16
-export function swipeGive(travel: number): number {
-  return overshoot(travel, SWIPE_GIVE)
+ *  A reversal resets it. Turning round is a new intent, not the fourth slide of the
+ *  one before it, and paying quadruple to come back one is the asymmetry all of this
+ *  was written to kill. */
+export const SWIPE_STACK = 2
+export function swipeLinePx(slideW: number, bought: number): number {
+  assert(bought >= 0, `slides bought cannot be ${bought}`)
+  return swipeCommitPx(slideW) * SWIPE_STACK ** bought
+}
+
+/** How many slides `reach` buys, walking that ladder. The hand and a throw spend the
+ *  same currency: the hand's reach is how far it has come since the last one, a
+ *  throw's is that plus where its momentum was heading.
+ *
+ *  This is what lets SPEED skip several without costing precision. From rest the rungs
+ *  are one line, three, seven — so on a wide slide one slide is a nudge, two wants a
+ *  real flick, three wants a hard one, and no amount of slow careful travel ever
+ *  arrives at the wrong picture. */
+export function swipeStackSlides(
+  reach: number,
+  slideW: number,
+  bought: number,
+): number {
+  const line = swipeLinePx(slideW, bought)
+  const r = Math.abs(reach)
+  return r < line ? 0 : Math.floor(Math.log2(r / line + 1))
+}
+
+/** The pictures LEAN toward the next slide, and the lean is the only thing that says
+ *  how close the next one is. Near 1:1 at first, asymptoting at this multiple of the
+ *  line being leaned toward, so at the line itself the neighbour is showing a real
+ *  sliver and the snap is never a surprise.
+ *
+ *  It asymptotes at all because of one thing: a trackpad's tail. A gesture stops being
+ *  steered long before it stops emitting, and those 1 px events read as a hand for
+ *  hundreds of ms — measured, a swipe that had already arrived drifted another 145 px
+ *  off the slide on its own tail and then yanked back. The band eats the tail without
+ *  eating the part a reader is actually steering. */
+export const SWIPE_LEAN = 1.5
+export function swipeGive(travel: number, line: number): number {
+  assert(line > 0, `a swipe line of ${line}`)
+  const m = SWIPE_LEAN * line
+  const t = Math.abs(travel)
+  return (Math.sign(travel) * (m * t)) / (t + m)
 }
 
 /** A swipe is over after this long without a wheel event. Shorter than the wheel
