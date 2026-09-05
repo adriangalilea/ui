@@ -5,7 +5,7 @@ import { notFound } from "next/navigation"
 import { Code } from "@/registry/base-nova/ui/code"
 import { Copy } from "@/registry/base-nova/ui/copy"
 import { DEMOS } from "../demos"
-import { ITEMS, type Item, item, partsOf } from "../registry"
+import { ITEMS, type Item, item, partsOf, sourceUrl } from "../registry"
 
 export function generateStaticParams() {
   return ITEMS.map((i) => ({ item: i.name }))
@@ -48,6 +48,12 @@ export default async function ItemPage({ params }: PageProps<"/[item]">) {
         <span className="font-mono text-xs text-muted-foreground">
           {meta.type.replace("registry:", "")}
         </span>
+        <a
+          href={sourceUrl(meta)}
+          className="ml-auto font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          source ↗
+        </a>
       </div>
       <p className="mt-2 max-w-prose text-[0.9375rem] text-foreground/70">
         {meta.description}

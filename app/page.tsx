@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { FAMILIES, type Item } from "./registry"
+import { FAMILIES, type Item, REPO } from "./registry"
 
 const Row = ({ i, part }: { i: Item; part?: boolean }) => (
   <Link
@@ -21,7 +21,15 @@ const Row = ({ i, part }: { i: Item; part?: boolean }) => (
 export default function Home() {
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
-      <h1 className="font-typewriter text-3xl">ui</h1>
+      <div className="flex items-baseline justify-between gap-4">
+        <h1 className="font-typewriter text-3xl">ui</h1>
+        <a
+          href={REPO}
+          className="font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          source ↗
+        </a>
+      </div>
       <p className="mt-2 text-[0.9375rem] text-foreground/70">
         web components as a shadcn registry. add one with{" "}
         <code className="font-mono text-xs">

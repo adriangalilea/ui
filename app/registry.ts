@@ -10,6 +10,15 @@ export interface Item {
   files?: { path: string; type: string }[]
 }
 
+export const REPO = "https://github.com/adriangalilea/ui"
+
+/** An item's source on GitHub. The point of a registry is that you own the copy, so
+ *  reading the thing BEFORE installing it should not take a clone. */
+export const sourceUrl = (i: Item): string => {
+  const file = i.files?.[0]?.path
+  return file ? `${REPO}/blob/main/${file}` : REPO
+}
+
 export const ITEMS: Item[] = registry.items
 export const item = (name: string): Item | undefined =>
   ITEMS.find((i) => i.name === name)
