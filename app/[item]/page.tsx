@@ -84,7 +84,10 @@ export default async function ItemPage({ params }: PageProps<"/[item]">) {
           <h2 className="font-mono text-xs text-muted-foreground">
             the demo above, verbatim
           </h2>
-          <Code lang="tsx" filename={src.file}>
+          {/* notations OFF: this file is being shown as itself, and a demo that
+              writes `[!code ...]` inside a string would have it eaten out of its own
+              listing, which is the one thing "verbatim" may not do. */}
+          <Code lang="tsx" filename={src.file} notations={false}>
             {src.code}
           </Code>
         </section>

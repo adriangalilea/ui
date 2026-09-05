@@ -36,6 +36,10 @@ export interface CodeProps {
   /** Number the lines. Off by default: most snippets are short enough that numbers
    *  are furniture, and they are only worth their width when something refers to one. */
   lines?: boolean
+  /** Read `[!code ...]` comments. ON, except where the source is being shown AS
+   *  ITSELF: a file that writes those comments inside a string would have them eaten
+   *  out of its own listing, and a block promising verbatim would be quietly lying. */
+  notations?: boolean
   className?: string
 }
 
@@ -74,6 +78,7 @@ export async function Code({
   copy = true,
   highlight,
   lines,
+  notations = true,
   className,
 }: CodeProps) {
   const source = dedent(children)
@@ -86,11 +91,15 @@ export async function Code({
       // The notations travel INSIDE the source, so they survive an edit that moves a
       // line and they are what a reader copies out of a doc. Shiki strips the comment
       // from the rendered output; the clipboard gets `source`, which still has it.
-      transformerNotationDiff({ matchAlgorithm: "v3" }),
-      transformerNotationHighlight({ matchAlgorithm: "v3" }),
-      transformerNotationWordHighlight({ matchAlgorithm: "v3" }),
-      transformerNotationFocus({ matchAlgorithm: "v3" }),
-      transformerNotationErrorLevel({ matchAlgorithm: "v3" }),
+      ...(notations
+        ? [
+            transformerNotationDiff({ matchAlgorithm: "v3" }),
+            transformerNotationHighlight({ matchAlgorithm: "v3" }),
+            transformerNotationWordHighlight({ matchAlgorithm: "v3" }),
+            transformerNotationFocus({ matchAlgorithm: "v3" }),
+            transformerNotationErrorLevel({ matchAlgorithm: "v3" }),
+          ]
+        : []),
       // ...and the `highlight` prop for source nobody may write into.
       {
         name: "ag:highlight-prop",

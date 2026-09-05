@@ -18,13 +18,18 @@ const MARKED = `const b = panBounds(view, fitted, band)
 // [!code highlight]
 return { x: clamp(view.x, -b.x, b.x), y: clamp(view.y, -b.y, b.y), s: view.s }`
 
-const DIFF = `.ag-scrim {
-  position: fixed;
-  right: 0;
-  left: 0;
-  margin: 0; // [!code ++]
-  pointer-events: none;
-}`
+// The real commit: the wheel pan stopped rubbering and started clamping.
+const DIFF = `const b = panBounds(ctx.pose, ctx.fitted, ctx.band)
+const dx = boundTick(wheelPx(input.deltaX, input.deltaMode, ctx.band.h))
+w = { ...w, x: w.x - dx, y: w.y - dy } // [!code --]
+const x = clamp(w.raw0.x + w.x - dx, -b.x, b.x) // [!code ++]
+const y = clamp(w.raw0.y + w.y - dy, -b.y, b.y) // [!code ++]
+w = { ...w, x: x - w.raw0.x, y: y - w.raw0.y } // [!code ++]
+effects.push({
+  kind: "pose",
+  pose: { ...ctx.pose, x: overshoot(w.raw0.x + w.x, b.x) }, // [!code --]
+  pose: { ...ctx.pose, x, y }, // [!code ++]
+})`
 
 const FOCUS = `function swipeSlides(travel, slideW) {
   assert(slideW > 0, "a slide has no width")
@@ -70,7 +75,7 @@ export default function Demo() {
           real character in the gutter, not just a colour: colour alone is
           invisible to a reader who cannot separate red from green.
         </Note>
-        <Code lang="css" filename="scrims.css">
+        <Code lang="ts" filename="lightbox-wheel.ts">
           {DIFF}
         </Code>
       </div>

@@ -7,6 +7,11 @@ const SCRIPT: TelegramSummaryScript = {
   kind: "peer",
   chatName: "Adrian",
   chatTag: "online",
+  // A real face, and Telegram's animated profile video looping over it. The letter
+  // gradient is only the fallback for a peer with no photo, and a demo that shows the
+  // fallback is showing the one case the component did not have to be written for.
+  avatar: "/adriangalilea.jpg",
+  avatarVideo: "/adriangalilea.mp4",
   intro: "you have to read this",
   link: "paulgraham.com/ds.html",
   preview: {
