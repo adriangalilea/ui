@@ -90,14 +90,19 @@ export const GLIDE_ENTRY = 3
  *  finger while undoing the first cost 7 px. */
 export const SWIPE_COMMIT = 0.18
 
-/** Where a THROW would come to rest, per px/ms of release speed. UIKit's projection:
- *  `v · d/(1−d)` with the standard deceleration `d = 0.998`, so 499.
+/** Where a THROW comes to rest, per px/ms of release speed. MEASURED, on this
+ *  platform, by summing what the trackpad's own inertia actually delivered after the
+ *  detector called the release: 250 px at 1.5, 270 px at 2.1, 400 px at 2.6. Call it
+ *  160, and the projection is roughly the distance the reader is about to see anyway.
  *
- *  NOT `MOMENTUM`. That is the coast spring's time constant, ω = 1/MOMENTUM, which
- *  shares these units and answers a different question, and using it here projected
- *  a throw 2.5x short: measured, a real swipe at 0.66 px/ms landed 27 px under the
- *  line and glided home having done nothing. */
-export const THROW = 499
+ *  It is deliberately NOT UIKit's `v · d/(1−d)` with `d = 0.998`, which is 499 and was
+ *  what this used to be. Two reasons it does not transfer. macOS has already applied
+ *  pointer acceleration to these deltas, so they are not a finger's velocity and
+ *  projecting them with a free-scroll deceleration counts the same acceleration twice.
+ *  And UIKit itself never projects a PAGING scroll view: `isPagingEnabled` advances
+ *  exactly one page per gesture at any speed. Measured, 499 took two pictures off a
+ *  256 px flick that had already paid for one. */
+export const THROW = 160
 
 /** Each slide bought in one motion costs twice what the last one did. Buying is
  *  DELIBERATE or it is an accident: at a flat price the gap between paging one and

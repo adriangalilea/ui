@@ -301,8 +301,8 @@ for (const v of [-79, -50, 0, 37, 50, 120]) {
     "a nudge barely moving does not",
   )
   assert(
-    THROW > MOMENTUM * 2,
-    "a throw's projection is not the spring's time constant, whatever their units",
+    Math.abs(THROW - MOMENTUM) > 20,
+    "a throw's projection is not the coast spring's time constant, whatever their units",
   )
 }
 assert(
