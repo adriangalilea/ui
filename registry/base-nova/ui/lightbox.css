@@ -534,7 +534,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* A video thumb says so: one small mark, the page's own color, no second hue. */
+/* A video thumb says so: one small mark, no second hue. This is ink over MEDIA, not
+   over a surface, so it cannot follow the theme: the photograph under it is the same
+   photograph in light and dark, and a mark that flipped to dark ink would vanish on
+   half the thumbnails. What it can do is stay off the ceiling. Pure #fff is the
+   brightest pixel a screen has, and nothing in this repo needs to be that; the
+   drop-shadow is what makes it legible on a pale still, not the last 3%. */
 .ag-lb-thumb[data-kind="video"]::after {
   content: "";
   position: absolute;
@@ -542,7 +547,7 @@
   bottom: 3px;
   width: 7px;
   height: 8px;
-  background: #fff;
+  background: oklch(0.97 0 0);
   clip-path: polygon(0 0, 100% 50%, 0 100%);
   filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.6));
 }
