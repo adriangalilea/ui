@@ -5,6 +5,7 @@ import {
   assert,
   FIT,
   MOMENTUM,
+  PAN_INSET,
 } from "../../registry/base-nova/lib/lightbox-motion"
 import {
   type WheelCtx,
@@ -199,7 +200,9 @@ console.log("the track's when trackable, and only once the travel has said so")
 // the accumulator was clamped along with the pose rather than running up a debt.
 {
   const zoomed = { x: 0, y: 0, s: 2, p: 1 }
-  const bound = (fitted.w * 2 - band.w) / 2
+  // The overflow plus the inset: the edge a pan can reach sits INSIDE the viewport,
+  // so there is a margin to see when it stops.
+  const bound = (fitted.w * 2 - band.w) / 2 + PAN_INSET
   const out = Array.from({ length: 60 }, (_, i) => tick(30, 0, i * 8))
   const r = run(out, ctx({ pose: zoomed }))
   assert(

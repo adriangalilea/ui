@@ -13,6 +13,8 @@ import {
   OVERSHOOT,
   OVERSHOOT_MAX,
   overshoot,
+  PAN_INSET,
+  panBounds,
   project,
   rubber,
   Spring,
@@ -164,14 +166,23 @@ assert(
     rubber(1.5, 1, 2) === 1.5,
   "rubber",
 )
-assert(
-  clampPan(
-    { x: 999, y: -999, s: 2 },
-    { w: 600, h: 400 },
-    { top: 0, left: 0, w: 1000, h: 800 },
-  ).x === 100,
-  "pan bound",
-)
+// The pan bound is the overflow PLUS the inset, so an edge can be brought inside the
+// viewport and the margin is the same on every side. Fitted, there is no overflow and
+// no inset either: the image stays centred.
+{
+  const fitted = { w: 600, h: 400 }
+  const band = { top: 0, left: 0, w: 1000, h: 800 }
+  assert(
+    clampPan({ x: 999, y: -999, s: 2 }, fitted, band).x === 100 + PAN_INSET,
+    "pan bound is the overflow plus the inset",
+  )
+  const b = panBounds({ x: 0, y: 0, s: 2 }, fitted, band)
+  assert(b.y === 0, "an axis that does not overflow is not pannable at all")
+  assert(
+    clampPan({ x: 999, y: 999, s: 1 }, fitted, band).x === 0,
+    "and a fitted image cannot drift off centre",
+  )
+}
 // A grab mid-bounce (79 px past a 50 px bound) reads back to the raw offset it
 // rubbered from, and the first 1 px of drag moves the image under 1 px, not 19.
 for (const v of [-79, -50, 0, 37, 50, 120]) {

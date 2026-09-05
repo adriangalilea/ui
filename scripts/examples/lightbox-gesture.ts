@@ -17,6 +17,7 @@ import {
   DOUBLE_TOUCH,
   FIT,
   INTENT,
+  PAN_INSET,
   RELOCK,
   TAP_TRAVEL,
 } from "../../registry/base-nova/lib/lightbox-motion"
@@ -218,7 +219,7 @@ console.log("slide follows, steps, relocks")
   assert(r.ctx.pose.x === -200 && r.ctx.pose.y === -130, "moves on both axes")
   assert(r.release.kind === "coast", `coast, got ${r.release.kind}`)
   if (r.release.kind === "coast") {
-    const b = (fitted.w * 2 - band.w) / 2
+    const b = (fitted.w * 2 - band.w) / 2 + PAN_INSET
     assert(Math.abs(r.release.target.x) <= b + 1e-9, "clamped inside the bound")
     assert(
       r.release.coast.x < r.release.target.x,

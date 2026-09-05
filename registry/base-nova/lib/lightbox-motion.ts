@@ -183,11 +183,19 @@ export function rubber(raw: number, min: number, max: number): number {
 }
 
 /** Pan bound per axis: half the overflow of the scaled fit past the band. */
+/** How far past its own edge a zoomed image may be pushed, so that panning to an edge
+ *  leaves a margin instead of stopping dead against the viewport. The SAME on all four
+ *  sides, so the whitespace reads as deliberate wherever the reader lands, and it is
+ *  the reason an edge is reachable at all: stopping exactly where the picture ends
+ *  gives no sign that it ended, only a picture that will not move. */
+export const PAN_INSET = 64
+
 export function panBounds(view: View, fitted: Size, band: Band): Point {
-  return {
-    x: Math.max(0, (fitted.w * view.s - band.w) / 2),
-    y: Math.max(0, (fitted.h * view.s - band.h) / 2),
-  }
+  const x = (fitted.w * view.s - band.w) / 2
+  const y = (fitted.h * view.s - band.h) / 2
+  // An axis that does not overflow stays centred: there is no edge to reach, and an
+  // inset there would let a fitted image drift off centre.
+  return { x: x > 0 ? x + PAN_INSET : 0, y: y > 0 ? y + PAN_INSET : 0 }
 }
 
 /** A rubber band ASYMPTOTES. Resistance that is merely proportional (excess × 0.35)
