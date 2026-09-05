@@ -972,7 +972,18 @@ function Stage(props: StageProps) {
     // the platform's; only a KEY, a button or a thumbnail is animated here, because
     // `scroll-behavior: smooth` has no duration and reads as a crawl next to the rest
     // of this thing. The same spring the pose uses, so a step feels like a step.
-    const slotW = () => trackEl.clientWidth + SLIDE_GAP
+    /** A slide's pitch, CACHED. `clientWidth` is a layout read, and this is asked for
+     *  four or five times per wheel event, each one interleaved with a `scrollLeft`
+     *  write — which is a forced synchronous layout, per event, over every mounted
+     *  slide. Measured with it uncached: wheel events arrived 33 ms apart carrying
+     *  189 px each, because the browser had coalesced four frames' worth while the
+     *  page reflowed. No motion rule survives being fed that. The slides are
+     *  viewport-wide, so only the viewport can change this. */
+    let slot = 0
+    const measureSlot = () => {
+      slot = trackEl.clientWidth + SLIDE_GAP
+    }
+    const slotW = () => slot
     const landedSlot = () =>
       Math.min(
         L.current.ids.length - 1,
@@ -1849,38 +1860,37 @@ function Stage(props: StageProps) {
     // instrument that reads the DOM or touches React per event becomes the thing it is
     // measuring: this component has already been slowed to a crawl once by a trace
     // that called getComputedStyle on every wheel event.
-    type Shot = {
-      t: number
-      dx: number
-      sum: number
-      at: number
-      coast: boolean
-    }
+    type Shot = { t: number; dx: number; sum: number; at: number }
     let shots: Shot[] = []
     let shotT0 = 0
-    const shoot = (dx: number, sum: number, coast: boolean) => {
+    let shotFrom = 0
+    /** `at` is the value that was JUST WRITTEN, never a read back off the element.
+     *  Reading `scrollLeft` after writing it forces a synchronous layout, and doing
+     *  that once per wheel event made the instrument the thing it was measuring. */
+    const shoot = (dx: number, sum: number, at: number) => {
       if (!L.current.debug) return
       const now = performance.now()
-      if (!shots.length) shotT0 = now
-      // scrollLeft was just written on this line, so reading it back is free: the
-      // value is in hand and no style recalculation is forced.
-      shots.push({
-        t: Math.round(now - shotT0),
-        dx: Math.round(dx),
-        sum: Math.round(sum),
-        at: trackEl.scrollLeft / slotW(),
-        coast,
-      })
+      if (!shots.length) {
+        shotT0 = now
+        shotFrom = swipeAnchor
+      }
+      shots.push({ t: Math.round(now - shotT0), dx: Math.round(dx), sum, at })
     }
     /** Sample the LANDING, where the hand has stopped asking for anything and the
      *  pictures are still moving. This is the half a reader calls slow. */
     const shootGlide = () => {
       if (!L.current.debug || !shots.length) return
-      shoot(0, (shots[shots.length - 1] as Shot).sum, true)
+      shoot(0, (shots[shots.length - 1] as Shot).sum, base + give())
     }
-    /** One gesture, as a table anyone can paste. `hand` is what the trackpad sent,
-     *  `track` is where the pictures actually got to; they are the same quantity in
-     *  slides, so the two columns diverging IS the complaint. */
+    /** How many rows a table gets. Enough to see a shape, few enough to paste. */
+    const TRACE_ROWS = 16
+    /** One gesture, compressed. The header carries the verdict and the health of the
+     *  input stream itself; the table is evenly downsampled, because the shape of the
+     *  two columns is the point and every row of it never was.
+     *
+     *  `@` is the median gap between events and the most important number here: this
+     *  device emits every 8 ms, so anything above that is the PAGE dropping frames,
+     *  and a rule fed 33 ms lumps of 189 px cannot be judged at all. */
     const report = (why: string) => {
       if (!L.current.debug || shots.length < 2) {
         shots = []
@@ -1890,36 +1900,33 @@ function Stage(props: StageProps) {
       const last = shots[shots.length - 1] as Shot
       const first = shots[0] as Shot
       const hand = Math.abs(last.sum) / w
-      const moved = Math.abs(last.at - first.at)
-      const handMs = (shots.findLast((s) => !s.coast) ?? first).t
-      // The two failures worth naming in words, because reading them out of the
-      // columns is exactly what went wrong: a gesture that achieved nothing, and one
-      // where the pictures walked BACKWARDS against the hand at some point, which is
-      // the shape of a snap-back under a finger that is still moving.
-      const back = shots.some(
-        (s, i) =>
-          i > 0 &&
-          Math.sign(s.at - (shots[i - 1] as Shot).at) ===
-            -Math.sign(last.sum) &&
-          Math.abs(s.at - (shots[i - 1] as Shot).at) > 0.002,
-      )
-      const verdict =
-        moved < 0.02
-          ? back
-            ? " · WENT NOWHERE, and was pulled back against the hand"
-            : " · WENT NOWHERE"
-          : back
-            ? " · pulled back against the hand at some point"
-            : ""
-      const rows = shots.map(
-        (s) =>
-          `${String(s.t).padStart(5)}  ${String(s.dx).padStart(5)}  ${(s.sum / w).toFixed(3).padStart(7)}  ${(s.at - first.at).toFixed(3).padStart(7)}  ${s.coast ? "coast" : "hand"}`,
-      )
+      const moved = (last.at - first.at) / w
+      const gaps = shots
+        .slice(1)
+        .map((s, i) => s.t - (shots[i] as Shot).t)
+        .sort((a, b) => a - b)
+      const gap = gaps[gaps.length >> 1] as number
+      const maxDx = Math.max(...shots.map((s) => Math.abs(s.dx)))
+      // The pictures walking BACKWARDS against the hand is the shape of a snap-back
+      // under a finger still moving, so it is measured, not named: the worst single
+      // retreat, in slides.
+      let back = 0
+      for (let i = 1; i < shots.length; i++) {
+        const d = ((shots[i] as Shot).at - (shots[i - 1] as Shot).at) / w
+        if (Math.sign(d) === -Math.sign(last.sum)) back = Math.max(back, -d)
+      }
+      const step = Math.max(1, Math.ceil(shots.length / TRACE_ROWS))
+      const rows = shots
+        .filter((_, i) => i % step === 0 || i === shots.length - 1)
+        .map(
+          (s) =>
+            `${String(s.t).padStart(5)}${String(s.dx).padStart(6)}${((s.sum / w) * 100).toFixed(0).padStart(6)}${(((s.at - first.at) / w) * 100).toFixed(0).padStart(6)}`,
+        )
       L.current.trace(
         [
-          `── swipe ${why} · ${last.t} ms (${handMs} ms of hand, ${last.t - handMs} ms of coast) · ${shots.length} events${verdict}`,
-          `   hand travelled ${hand.toFixed(2)} slides, pictures moved ${moved.toFixed(2)} · gain ${(moved / (hand || 1)).toFixed(2)}x · ${(Math.abs(last.sum) / Math.max(1, last.t)).toFixed(2)} px/ms`,
-          `   ms     dx    hand   track  phase`,
+          `── ${shotFrom}→${swipeAnchor} · ${last.t}ms · ${shots.length}ev @${gap}ms${gap > 12 ? " JANK" : ""} · maxdx ${maxDx}`,
+          `   hand ${hand.toFixed(2)} · pics ${moved.toFixed(2)} · ${(Math.abs(last.sum) / Math.max(1, last.t)).toFixed(2)}px/ms · back ${back.toFixed(2)} · ${why}`,
+          `   ms    dx hand%track%  (% of a slide, from the start)`,
           ...rows,
         ].join("\n"),
       )
@@ -2057,6 +2064,10 @@ function Stage(props: StageProps) {
         // Only ever a hint, to hand the glide a speed. It decides nothing.
         const vx = fed.read.velocity.x
         if (!swipe) {
+          // A gesture that opens while the last one's glide is still running: read
+          // that one out now, or its rows and this one's share a table and the totals
+          // are nonsense (one read 385x gain off two spliced streams).
+          report("cut short by the next")
           stopGlide()
           swipe = true
           swipeHand = 0
@@ -2093,7 +2104,7 @@ function Stage(props: StageProps) {
         // and a gain on top of it is a second acceleration that felt like one.
         paintTrack()
         // The phase is recorded and believed by nothing: it is a column in the trace.
-        shoot(dx, swipeHand, fed.read.momentum)
+        shoot(dx, swipeHand, base + give())
         return
       }
       e.preventDefault()
@@ -2377,6 +2388,7 @@ function Stage(props: StageProps) {
         const { band, fitted, index } = L.current
         sync()
         // The slides are viewport-wide, so a resize moves every snap point.
+        measureSlot()
         stopGlide()
         trackEl.scrollTo({ left: index * slotW(), behavior: "instant" })
         // The crop is in layer px and the trigger moved with the page: re-measured
@@ -2401,6 +2413,7 @@ function Stage(props: StageProps) {
     // writer of data-z and --lb-p.
     rootEl.dataset.z = S.z
     // The scroller starts under the opened slide, before anything paints.
+    measureSlot()
     trackEl.scrollTo({ left: L.current.index * slotW(), behavior: "instant" })
     if (!rest) {
       const sv = source()
