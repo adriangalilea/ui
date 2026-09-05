@@ -58,23 +58,36 @@ export const PINCH_PASSED = 1.067
  *  is what the arrow keys feel like, and the swipe uses it too, because the platform's
  *  own snap settle is ~950 ms across a slide in Chromium (deltas decaying 0.92 a frame
  *  until the last one is under a pixel) and no faster on macOS WebKit. */
-export const GLIDE = 220
-export const GLIDE_MIN = 130
-export const GLIDE_MAX = 300
-/** The steepest entry a move will take from the speed handed to it, as a multiple of
- *  the average speed it needs. A swipe commits with the fingers still moving, so the
- *  move has to leave at the speed the track already had or the handover is a stall
- *  followed by a shove. WebKit's snap does the same thing, capping the first frame at
- *  half the remaining distance; past that a fast throw sails through and comes back. */
+export const GLIDE = 165
+export const GLIDE_MIN = 100
+export const GLIDE_MAX = 225
+/** A move LEAVES, and the entry tangent says how hard, as a multiple of the average
+ *  speed the move needs. Both ends matter.
+ *
+ *  The floor is why: handed a slow hand's speed, the cubic below is a smoothstep, and
+ *  a smoothstep starts at a standstill. Measured on a real swipe, the handover speed
+ *  was 6% of the move's own average, so the pictures hung for a beat and then bolted.
+ *  Never slower than a quadratic ease-out: out at twice the average, easing in.
+ *
+ *  The cap is the monotonicity bound. m0 = 3d is exactly cubic ease-out; past it the
+ *  cubic turns back on itself before it arrives, and the pictures would visibly
+ *  retreat at the end of every fast throw. */
+export const GLIDE_ENTRY_MIN = 2
 export const GLIDE_ENTRY = 3
 
-/** Share of a slide a wheel gesture must travel before the next slide is CHOSEN, with
- *  the hand still on the glass, and again for every slide after that. Embla's number:
- *  it commits past `clamp(20% of the viewport, 50, 225)` px, which on a wide screen is
- *  about this. Swiper's 0.5 is not comparable, being applied at release; a threshold
- *  crossed mid-gesture has to be lower, because the reader sees the answer at once
- *  instead of finding out after they let go. Nothing detects a release, so nothing
- *  has to. */
+/** Share of a slide a wheel gesture must travel to buy the next one, with the hand
+ *  still on the glass. Embla's number: it commits past `clamp(20% of the viewport,
+ *  50, 225)` px, which on a wide screen is about this. Swiper's 0.5 is not
+ *  comparable, being applied at release; a threshold crossed mid-gesture has to be
+ *  lower, because the reader sees the answer at once instead of finding out after
+ *  they let go. Nothing detects a release, so nothing has to.
+ *
+ *  It is the price of EVERY slide, because the gesture re-anchors on each one: the
+ *  first, the fifth and the one straight back the other way all cost exactly this
+ *  much finger. The alternative, a slide read off the TOTAL travel from a fixed
+ *  origin, is not a threshold at all but an absolute map, and it is asymmetric in a
+ *  way a hand feels immediately: measured, the second slide cost a full slide of
+ *  finger while undoing the first cost 7 px. */
 export const SWIPE_COMMIT = 0.18
 
 /** Where a THROW would come to rest, per px/ms of release speed. UIKit's projection:
@@ -85,21 +98,6 @@ export const SWIPE_COMMIT = 0.18
  *  a throw 2.5x short: measured, a real swipe at 0.66 px/ms landed 27 px under the
  *  line and glided home having done nothing. */
 export const THROW = 499
-
-/** How many slides a swipe has asked for, from how far the fingers have come and how
- *  wide a slide is. ONE as soon as they are SWIPE_COMMIT of the way, and one more for
- *  every whole slide after that, so travel and slides stay one for one.
- *
- *  A function of the TOTAL travel, never a counter that resets on each commit. Reset
- *  it and every SWIPE_COMMIT of finger buys a whole slide, which is a 5x gain wearing
- *  a threshold's clothes: one ordinary motion then jumps five pictures. */
-export function swipeSlides(travel: number, slideW: number): number {
-  assert(slideW > 0, `a slide has no width: ${slideW}`)
-  const line = swipeCommitPx(slideW) / slideW
-  // The epsilon is not a fudge. 1.18 + 0.82 is 1.9999999999999998 in binary, and a
-  // reader who has come exactly one slide and a threshold has asked for two.
-  return Math.floor(Math.abs(travel) / slideW + 1 - line + 1e-9)
-}
 
 /** Embla's numbers, all three of them. A SHARE of the slide, but clamped in absolute
  *  px, because a share alone stops being a gesture on a wide screen: 18% of a 1560px
@@ -389,13 +387,11 @@ export function stageBand(vv: Band, blocks: readonly Obstruction[]): Band {
 /** The position along a move, `s` from 0 to 1. A cubic Hermite between where the track
  *  is (moving at the speed it was handed) and where it belongs (at rest).
  *
- *  This is the shape a magnet has and a spring does not. Handed nothing, it
- *  ACCELERATES to the halfway point and eases in: the slide pulls the track toward
- *  itself, which is what a key press should feel like. Handed the speed a swipe had
- *  when it committed, it continues at that speed and eases out, so the handover is
- *  invisible. Either way it is exactly home at s = 1, with no asymptote to crawl down.
- *
- *  `m0` is the entry tangent: the speed at s = 0 in the same units as `d`. */
+ *  This is the shape a magnet has and a spring does not: it is exactly home at s = 1,
+ *  with no asymptote to crawl down. `m0` is the entry tangent, the speed at s = 0 in
+ *  the same units as `d`, and it is what the move feels like leaving. Held between
+ *  GLIDE_ENTRY_MIN and GLIDE_ENTRY it always goes at once and eases in; handed more
+ *  than a swipe's own speed it simply continues at it, so the handover is invisible. */
 export function glide(d: number, m0: number, s: number): number {
   const s2 = s * s
   const s3 = s2 * s

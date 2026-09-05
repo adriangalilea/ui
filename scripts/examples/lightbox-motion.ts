@@ -6,6 +6,8 @@ import {
   clampPan,
   FLIGHT_DT,
   frameAt,
+  GLIDE_ENTRY,
+  GLIDE_ENTRY_MIN,
   glide,
   HAND,
   MACHINE,
@@ -28,7 +30,6 @@ import {
   sourceView,
   stageBand,
   swipeCommitPx,
-  swipeSlides,
   THROW,
   unovershoot,
   velocity,
@@ -222,82 +223,83 @@ for (const v of [-79, -50, 0, 37, 50, 120]) {
     prev = give
   }
 }
-// A move is a magnet, not a spring. Handed nothing (a key) it accelerates into place,
-// fastest halfway, which is the shape a snap point should have; handed the speed a
-// swipe committed at, it continues at that speed and eases out. Both arrive exactly.
+// A move is a magnet, not a spring: it arrives exactly, whatever it was handed. The
+// entry tangent is the whole feel of it, and the binder holds it between the two
+// multiples of the move's own average speed asserted here.
 {
-  const at = (m0: number, s: number) => glide(1000, m0, s)
+  const d = 1000
+  const at = (m0: number, s: number) => glide(d, m0, s)
   const speed = (m0: number, s: number) => at(m0, s + 0.01) - at(m0, s)
-  assert(
-    at(0, 0) === 0 && Math.abs(at(0, 1) - 1000) < 1e-9,
-    "leaves and arrives",
-  )
-  assert(
-    speed(0, 0.5) > speed(0, 0.05) && speed(0, 0.5) > speed(0, 0.95),
-    "from rest it is fastest in the middle: it is pulled in, not eased down",
-  )
-  assert(speed(0, 0.05) > 0, "and it never stalls on the way")
+  for (const m0 of [0, 500, 2500, -800])
+    assert(Math.abs(glide(d, m0, 1) - d) < 1e-9, `arrives whatever ${m0}`)
   // Handed a fast throw it does not shove: it leaves at exactly that speed. This is
   // what makes a commit invisible, since it happens with the fingers still moving.
   const thrown = 2500
-  const entry = glide(1000, thrown, 1e-6) / 1e-6
+  const entry = glide(d, thrown, 1e-6) / 1e-6
   assert(
     Math.abs(entry - thrown) / thrown < 0.01,
     `the entry speed IS the speed it was handed: ${entry.toFixed(0)}`,
   )
   assert(speed(thrown, 0.9) < speed(thrown, 0.1), "and it eases out from there")
-  for (const m0 of [0, 500, 2500, -800])
-    assert(Math.abs(glide(1000, m0, 1) - 1000) < 1e-9, `arrives whatever ${m0}`)
-}
-// The slide a swipe asks for is a FUNCTION of how far the fingers have come, decided
-// with them still on the glass. Nothing here asks when they left, which is the
-// question the web cannot answer.
-{
-  const w = 1472
-  const asked = (travel: number, from: number, n: number) =>
-    Math.min(
-      n - 1,
-      Math.max(0, from + Math.sign(travel) * swipeSlides(travel, w)),
-    )
-  // The line in px, not the raw share: on a slide this wide the share is capped.
-  const line = swipeCommitPx(w)
-  const over = line + 10
-  const under = line - 10
-  assert(asked(under, 3, 14) === 3, "a nudge under the line stays")
-  assert(asked(over, 3, 14) === 4, "past it, the neighbour")
-  assert(asked(0.99 * w, 3, 14) === 4, "and still only the neighbour at 0.99")
+  // The floor: at the slowest entry allowed the move is still fastest as it LEAVES.
+  // Handed nothing the same cubic is a smoothstep, which starts at a standstill, and
+  // that stall is what a slow hand's speed bought before the floor existed.
+  const floor = GLIDE_ENTRY_MIN * d
   assert(
-    asked((1 + SWIPE_COMMIT) * w, 3, 14) === 5,
-    "a slide further along the same motion is the slide after it",
+    speed(floor, 0) > speed(floor, 0.5),
+    "the slowest entry still goes at once",
   )
-  assert(asked((2 + SWIPE_COMMIT) * w, 3, 14) === 6, "and so on, one for one")
-  assert(asked(-over, 3, 14) === 2, "the same backwards")
-  assert(asked(-(1 + SWIPE_COMMIT) * w, 3, 14) === 1, "backwards too")
-  assert(asked(-9 * w, 0, 14) === 0, "and it never walks off either end")
-  assert(asked(9 * w, 13, 14) === 13, "at the far end too")
-  // The gain is 1: k slides of finger travel is k slides of pictures, never more.
-  for (let k = 1; k <= 9; k++)
-    assert(
-      asked((k + SWIPE_COMMIT) * w, 0, 40) === k + 1,
-      `travel and slides must stay one for one, at ${k}`,
-    )
-  // A throw the hand never carried far enough still buys ONE, by projecting where the
-  // momentum was heading. Exactly one, however hard: off the hand the reader cannot
-  // steer any more, and a hard flick projects several slides. That is why the binder
-  // takes the SIGN of the projection and not its size, which is a different rule from
-  // the hand's above, and modelling it with the hand's rule here is how this example
-  // once claimed a 1.4-slide throw was worth one.
-  const thrown = (slides: number, v: number) => slides * w + v * THROW
-  const throwBuys = (slides: number, v: number) => {
-    const t = thrown(slides, v)
-    return swipeSlides(t, w) > 0 ? Math.sign(t) : 0
+  assert(
+    speed(0, 0) < speed(0, 0.5),
+    "where handed nothing it would have stalled",
+  )
+  // The cap is the monotonicity bound, not a taste: one step past it the pictures
+  // come back toward the reader before they arrive.
+  const cap = GLIDE_ENTRY * d
+  const backs = (m0: number) => {
+    for (let s = 0; s < 1; s += 0.005) if (speed(m0, s) < 0) return true
+    return false
   }
-  assert(throwBuys(0.05, 4) === 1, "a hard flick is worth exactly one")
   assert(
-    swipeSlides(thrown(0.05, 4), w) > 1,
-    "even where the projection reaches well past one",
+    !backs(cap),
+    "at the steepest entry allowed it still only goes forward",
   )
-  assert(throwBuys(0.05, 0.05) === 0, "a nudge barely moving is worth none")
+  assert(backs(1.2 * cap), "past it, it retreats before it lands")
+}
+// The price of a slide. The binder holds an anchor and an offset and buys the next
+// slide every time the offset passes this line, so the line is the ONLY thing that
+// says how much finger a slide costs — first, fifth, or straight back the other way.
+// What the offset then does is the binder's, and it is not settled yet.
+{
+  // A share of the slide, clamped in px at both ends: a share alone is 280px of
+  // finger on a wide screen, and a few px on a phone.
+  assert(
+    swipeCommitPx(1472) === SWIPE_COMMIT_MAX,
+    "on a wide slide the share is capped, or a deliberate swipe never gets there",
+  )
+  assert(
+    swipeCommitPx(200) === SWIPE_COMMIT_MIN,
+    "on a narrow one it is floored, or a tap with a tremor pages",
+  )
+  assert(
+    swipeCommitPx(600) === SWIPE_COMMIT * 600,
+    "between them it is the share",
+  )
+  for (const w of [200, 600, 1472])
+    assert(
+      swipeCommitPx(w) < w / 2,
+      `a slide always costs less than half of ${w}`,
+    )
+  // A throw the hand never carried far enough still buys one, by projecting where the
+  // momentum was heading rather than waiting to watch it arrive.
+  assert(
+    0.05 * 1472 + 4 * THROW > swipeCommitPx(1472),
+    "a hard flick from nowhere near the line still crosses it",
+  )
+  assert(
+    0.05 * 1472 + 0.05 * THROW < swipeCommitPx(1472),
+    "a nudge barely moving does not",
+  )
   assert(
     THROW > MOMENTUM * 2,
     "a throw's projection is not the spring's time constant, whatever their units",
