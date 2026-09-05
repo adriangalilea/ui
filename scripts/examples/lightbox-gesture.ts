@@ -157,20 +157,36 @@ const swipe = (
 }
 console.log("tap, vertical drag, dismiss commit, intent")
 
-// Horizontal is the SCROLL CONTAINER's. A finger never reaches this branch at all
-// (touch-action hands horizontal panning to the browser); a mouse does, and it drags
-// the scroller by exactly what it moved, so the platform's own snap decides where it
-// lands. The release hands it straight back.
+// Horizontal is the SCROLL CONTAINER's, and WHO moves it depends on the pointer.
+//
+// A finger reaches this branch — `touch-action: pan-x` lets the browser pan, it does
+// not stop pointer events, and the axis locks at INTENT well before the compositor
+// commits — so the one thing that must not happen is the engine moving the scroller
+// too. Two movers on one scroller is what made a swipe fight back on a phone, and
+// this pair of assertions is the whole reason the bug could exist: the old version
+// asserted the opposite, and encoded it as correct.
+const PATH: [number, number][] = [
+  [500, 350],
+  [460, 350],
+  [380, 350],
+  [260, 350],
+]
 {
-  const r = swipe(
-    [
-      [500, 350],
-      [460, 350],
-      [380, 350],
-      [260, 350],
-    ],
-    ctx(),
+  const r = swipe(PATH, ctx(), { type: "touch" })
+  assert(r.gesture.axis === "x", "x locked for a finger too")
+  assert(
+    r.effects.every((e) => e.kind !== "scroll"),
+    "a FINGER never moves the scroller: the browser is already panning it",
   )
+  assert(
+    r.release.kind === "resume",
+    `and nothing lands it but the platform's own snap, got ${r.release.kind}`,
+  )
+}
+// A MOUSE is the one pointer the engine has to carry: no browser drag-scrolls a
+// mouse, so it drags the scroller 1:1 and the release lands it on a snap point.
+{
+  const r = swipe(PATH, ctx(), { type: "mouse" })
   assert(r.gesture.axis === "x", "x locked")
   const dragged = r.effects
     .filter((e) => e.kind === "scroll")

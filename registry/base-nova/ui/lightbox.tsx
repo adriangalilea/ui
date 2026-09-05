@@ -1610,7 +1610,10 @@ function Stage(props: StageProps) {
     }
     const onMove = (e: PointerEvent) => {
       if (!G?.pts.has(e.pointerId)) return
-      if (G.samples.length === 0) rootEl.setPointerCapture(e.pointerId)
+      // Capture is implicit for touch and pen, and taking it while the compositor is
+      // still deciding whether the pan is the scroller's is a way to be cancelled.
+      if (G.samples.length === 0 && e.pointerType === "mouse")
+        rootEl.setPointerCapture(e.pointerId)
       const next = gestureMove(G, inputOf(e, { hand: handOf(e) }), gestureCtx())
       G = next.gesture
       applyGesture(next.effects)
@@ -1673,8 +1676,22 @@ function Stage(props: StageProps) {
         }
       }
     }
+    /** `pointercancel` is the PLATFORM taking the gesture, which is not the reader
+     *  ending it. It arrives mid-swipe, the instant the scroller claims the pan, with
+     *  the finger still on the glass. Running the release there re-armed the magnets
+     *  between two slides and glided to `landedSlot()` — which under half a slide of
+     *  travel IS the slide being left, so a swipe visibly went and came back.
+     *
+     *  A sideways gesture the browser has taken is simply dropped: it is carrying it
+     *  now, and it lands it. Everything else is a real interruption and still ends. */
     const onCancel = (e: PointerEvent) => {
       trace(`cancel ${e.pointerType} #${e.pointerId}`)
+      if (G?.pts.has(e.pointerId) && G.axis === "x" && G.mode === "fit") {
+        G = null
+        endGesture()
+        resume()
+        return
+      }
       onUp(e)
     }
     const onUp = (e: PointerEvent) => {
