@@ -52,14 +52,28 @@ export const TAP_TRAVEL = 4
 export const DISMISS_COMMIT = 0.4
 export const PINCH_CLOSE = 0.75
 export const PINCH_PASSED = 1.067
-/** How long a STEP takes for one slide's worth of distance, scaled by the square root
- *  of how far it actually has to go, and bounded. Only moves the reader asked for by
- *  name come through here (a key, a button, a thumbnail): a gesture is the browser's
- *  from the first pixel to the last, snap point included. A step ARRIVES, which a
- *  spring never does: the tail of an approach is a crawl a few px short of home. */
+/** How long a slide takes to arrive, for one slide's worth of distance, scaled by the
+ *  square root of how far it actually has to go, and bounded. A move ARRIVES, which a
+ *  spring never does: the tail of an approach is a crawl a few px short of home. This
+ *  is what the arrow keys feel like, and the swipe uses it too, because the platform's
+ *  own snap settle is ~950 ms across a slide in Chromium (deltas decaying 0.92 a frame
+ *  until the last one is under a pixel) and no faster on macOS WebKit. */
 export const GLIDE = 300
 export const GLIDE_MIN = 180
 export const GLIDE_MAX = 420
+/** The steepest entry a move will take from the speed handed to it, as a multiple of
+ *  the average speed it needs. A swipe commits with the fingers still moving, so the
+ *  move has to leave at the speed the track already had or the handover is a stall
+ *  followed by a shove. WebKit's snap does the same thing, capping the first frame at
+ *  half the remaining distance; past that a fast throw sails through and comes back. */
+export const GLIDE_ENTRY = 3
+
+/** Share of a slide a wheel gesture must travel before the next slide is CHOSEN, with
+ *  the hand still on the glass. Half of Swiper's 0.5, which it applies at release: a
+ *  threshold crossed mid-gesture must be lower, because the reader sees the answer
+ *  immediately instead of finding out after they let go. Above Embla's ~0.15, so a
+ *  nudge still returns. Nothing detects a release, so nothing has to. */
+export const SWIPE_COMMIT = 0.25
 
 export const SLIDE_VELOCITY = 0.5
 /** A held arrow pans at this speed (px per ms); two arrows add up to a diagonal. */
@@ -319,16 +333,20 @@ export function stageBand(vv: Band, blocks: readonly Obstruction[]): Band {
   return { top, left: vv.left, w: vv.w, h: bottom - top }
 }
 
-/** The position along a step, `s` from 0 to 1. A cubic Hermite from rest to rest.
+/** The position along a move, `s` from 0 to 1. A cubic Hermite between where the track
+ *  is (moving at the speed it was handed) and where it belongs (at rest).
  *
- *  This is the shape a magnet has and a spring does not: it ACCELERATES to the
- *  halfway point and eases in, so the slide pulls the track toward itself, and it is
- *  exactly home at s = 1 with no asymptote to crawl down. It starts from rest because
- *  the only moves it serves are the ones the reader named; a gesture has speed to
- *  hand over, and a gesture never reaches here. */
-export function glide(d: number, s: number): number {
+ *  This is the shape a magnet has and a spring does not. Handed nothing, it
+ *  ACCELERATES to the halfway point and eases in: the slide pulls the track toward
+ *  itself, which is what a key press should feel like. Handed the speed a swipe had
+ *  when it committed, it continues at that speed and eases out, so the handover is
+ *  invisible. Either way it is exactly home at s = 1, with no asymptote to crawl down.
+ *
+ *  `m0` is the entry tangent: the speed at s = 0 in the same units as `d`. */
+export function glide(d: number, m0: number, s: number): number {
   const s2 = s * s
-  return (3 * s2 - 2 * s2 * s) * d
+  const s3 = s2 * s
+  return (s3 - 2 * s2 + s) * m0 + (3 * s2 - 2 * s3) * d
 }
 
 export type Axes<K extends string> = Readonly<Record<K, number>>

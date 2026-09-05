@@ -17,6 +17,7 @@ import {
   rubber,
   Spring,
   STILL,
+  SWIPE_COMMIT,
   sampleFlight,
   slideCommit,
   sourceView,
@@ -204,24 +205,51 @@ for (const v of [-79, -50, 0, 37, 50, 120]) {
     prev = give
   }
 }
-// A STEP is a magnet, not a spring: it accelerates into place, fastest halfway,
-// which is the shape a snap point is supposed to have, and it arrives exactly at
-// s = 1. Only named moves come through here, so it always starts from rest.
+// A move is a magnet, not a spring. Handed nothing (a key) it accelerates into place,
+// fastest halfway, which is the shape a snap point should have; handed the speed a
+// swipe committed at, it continues at that speed and eases out. Both arrive exactly.
 {
-  const at = (s: number) => glide(1000, s)
-  const speed = (s: number) => at(s + 0.01) - at(s)
-  assert(at(0) === 0 && Math.abs(at(1) - 1000) < 1e-9, "leaves and arrives")
+  const at = (m0: number, s: number) => glide(1000, m0, s)
+  const speed = (m0: number, s: number) => at(m0, s + 0.01) - at(m0, s)
   assert(
-    speed(0.5) > speed(0.05) && speed(0.5) > speed(0.95),
-    "fastest in the middle: it is pulled in, not eased down",
+    at(0, 0) === 0 && Math.abs(at(0, 1) - 1000) < 1e-9,
+    "leaves and arrives",
   )
-  assert(speed(0.05) > 0, "and it never stalls on the way")
-  // The entry tangent is zero: it starts from rest, so a step never begins with a
-  // shove. Measured as speed per unit s, against the 1000 it averages over the move.
-  const entry = glide(1000, 1e-6) / 1e-6
-  assert(entry < 1, `it leaves from rest, not with a shove: ${entry}`)
-  for (const d of [1000, -1000, 3200])
-    assert(Math.abs(glide(d, 1) - d) < 1e-9, `arrives exactly, over ${d}`)
+  assert(
+    speed(0, 0.5) > speed(0, 0.05) && speed(0, 0.5) > speed(0, 0.95),
+    "from rest it is fastest in the middle: it is pulled in, not eased down",
+  )
+  assert(speed(0, 0.05) > 0, "and it never stalls on the way")
+  // Handed a fast throw it does not shove: it leaves at exactly that speed. This is
+  // what makes a commit invisible, since it happens with the fingers still moving.
+  const thrown = 2500
+  const entry = glide(1000, thrown, 1e-6) / 1e-6
+  assert(
+    Math.abs(entry - thrown) / thrown < 0.01,
+    `the entry speed IS the speed it was handed: ${entry.toFixed(0)}`,
+  )
+  assert(speed(thrown, 0.9) < speed(thrown, 0.1), "and it eases out from there")
+  for (const m0 of [0, 500, 2500, -800])
+    assert(Math.abs(glide(1000, m0, 1) - 1000) < 1e-9, `arrives whatever ${m0}`)
+}
+// One gesture is one slide, chosen on TRAVEL with the hand still down. Nothing here
+// asks when the fingers left, which is the question the web cannot answer.
+{
+  const w = 1472
+  const decide = (travel: number, from: number, n: number) =>
+    Math.abs(travel) < SWIPE_COMMIT * w
+      ? from
+      : Math.min(n - 1, Math.max(0, from + Math.sign(travel)))
+  assert(decide(0.2 * w, 3, 14) === 3, "a nudge under the line goes back")
+  assert(decide(0.3 * w, 3, 14) === 4, "past it, the neighbour, and only it")
+  assert(decide(9 * w, 3, 14) === 4, "a throw of nine slides still moves one")
+  assert(decide(-9 * w, 3, 14) === 2, "the same backwards")
+  assert(decide(-2 * w, 0, 14) === 0, "and it never walks off either end")
+  assert(decide(2 * w, 13, 14) === 13, "at the far end too")
+  assert(
+    SWIPE_COMMIT > 0.15 && SWIPE_COMMIT < 0.5,
+    "above Embla's ~0.15 so a nudge returns, below Swiper's 0.5 which it applies at release",
+  )
 }
 assert(
   slideCommit(-10, -0.8, 800, { prev: true, next: true }) === 1,

@@ -68,6 +68,7 @@ import {
   FIT,
   fit,
   GLIDE,
+  GLIDE_ENTRY,
   GLIDE_MAX,
   GLIDE_MIN,
   GONE,
@@ -85,6 +86,7 @@ import {
   SLIDE_GAP,
   type SourceView,
   STILL,
+  SWIPE_COMMIT,
   sharpScale,
   sourceView,
   stageBand,
@@ -980,12 +982,12 @@ function Stage(props: StageProps) {
       // browser takes it to the nearest one. Nothing here has to decide which.
       delete trackEl.dataset.stepping
     }
-    /** A step the reader ASKED for by name: a key, a button, a thumbnail. There is no
-     *  gesture to hand off from and nothing to infer, so the timing is ours to pick,
-     *  and `scroll-behavior: smooth` has no duration and reads as a crawl next to the
-     *  rest of this thing. Snapping stands down while this runs: the container may
-     *  only ever rest on a slide, and every frame of a JS scroll looks like a rest. */
-    const glideTo = (i: number) => {
+    /** The track arrives at slide `i`. `vx` is the speed it already had, in px per ms,
+     *  so a swipe that commits with the fingers still moving continues at their speed
+     *  instead of stalling and being shoved; a key press hands over nothing and is
+     *  pulled in from rest. Snapping stands down while this runs: a mandatory
+     *  container treats every frame of a JS scroll as a rest and would fight it. */
+    const glideTo = (i: number, vx = 0) => {
       stopGlide()
       const to = i * slotW()
       const from = trackEl.scrollLeft
@@ -1002,11 +1004,16 @@ function Stage(props: StageProps) {
         GLIDE_MIN,
         GLIDE_MAX,
       )
+      const m0 = clamp(
+        vx * ms,
+        -GLIDE_ENTRY * Math.abs(d),
+        GLIDE_ENTRY * Math.abs(d),
+      )
       trackEl.dataset.stepping = ""
       const t0 = performance.now()
       const step = (t: number) => {
         const s = Math.min(1, (t - t0) / ms)
-        trackEl.scrollLeft = from + glide_(d, s)
+        trackEl.scrollLeft = from + glide_(d, m0, s)
         if (s < 1) {
           glide = requestAnimationFrame(step)
           return
@@ -1724,13 +1731,35 @@ function Stage(props: StageProps) {
     // eye sees: a flight in progress is read at its clock, not the last tick's copy.
     let W: WheelSession | null = null
     let wheelTimer = 0
-    // The whole wheel stream's phase, kept across sessions: hand or device coast is
-    // what tells a deliberate pull down from the tail of one, for the dismiss. The
-    // track never asks, because the browser already knows.
+    // The whole wheel stream's phase, kept across sessions: hand or device coast tells
+    // a deliberate pull down from the tail of one, and tells a NEW swipe from the
+    // coast of the one just answered. It is never asked where a swipe lands.
     let wheelPhase = phaseStart()
-    /** The axis this wheel stream belongs to, once its travel has said. Sideways is
-     *  the scroller's and we never see it again; down is the dismiss and is ours. */
+    /** The axis this wheel stream belongs to, once its travel has said. */
     let streamAxis: "x" | "y" | null = null
+    /** The wheel's grip on the track. `idle`: the next hand event opens a stream.
+     *  `tracking`: following the fingers, with nothing decided yet. `committed`: the
+     *  slide is CHOSEN and everything the device sends until a hand comes back is the
+     *  tail of a question already answered.
+     *
+     *  The whole point of this shape: the answer is decided while the hand is still on
+     *  the glass, on travel alone. Nothing here detects a release, because the web
+     *  cannot, and every version of this that tried to was a lottery. */
+    let swipe: "idle" | "tracking" | "committed" = "idle"
+    /** The slide the stream opened on, and how far it has travelled since, in px. */
+    let swipeFrom = 0
+    let swipeTravel = 0
+    let swipeTimer = 0
+    const endSwipe = () => {
+      // Never reached the threshold and the device has gone quiet: back where it
+      // started. A track is on a slide or on its way to one, never in between.
+      if (swipe === "tracking") glideTo(swipeFrom)
+      swipe = "idle"
+    }
+    const armSwipeEnd = () => {
+      clearTimeout(swipeTimer)
+      swipeTimer = window.setTimeout(endSwipe, wheelPhase.endsIn)
+    }
     const wheelCtx = (): WheelCtx => {
       const { fitted, band, zoomMax, entry } = L.current
       return {
@@ -1802,13 +1831,10 @@ function Stage(props: StageProps) {
       if (fed.read.start) streamAxis = null
       // One axis for the whole stream, read off the travel and then LOCKED. Deciding
       // per event handed the same gesture to the track and to the dismiss by turns,
-      // which is why it stopped feeling attached to the hand at all. Until the travel
-      // says, the event goes to the SCROLLER: a stream that turns out to be sideways
-      // must not have lost its first pixels, and the track can only rest on a slide,
-      // so a few px spent on a stream that turns out to be a pull down come back on
-      // their own.
+      // which is why it stopped feeling attached to the hand at all.
       if (wheelIsTrackable(input, ctx) && streamAxis === null) {
         streamAxis = wheelAxisOf(fed.read.movement)
+        e.preventDefault()
         if (!streamAxis) return
         trace(`wheel axis ${streamAxis}`)
       }
@@ -1819,12 +1845,41 @@ function Stage(props: StageProps) {
         wheelIsTrackable(input, ctx) &&
         streamAxis === "x"
       ) {
-        // The track is the browser's, whole. It alone knows when the fingers left the
-        // trackpad, so it alone can say where a throw comes to rest; `mandatory` says
-        // it rests on a slide and `scroll-snap-stop: always` says it is the next one.
-        // Nothing is preventDefaulted, nothing is measured, nothing lands. A step the
-        // reader asked for by name is the one thing that yields to a hand.
-        stopGlide()
+        e.preventDefault()
+        const w = slotW()
+        const n = L.current.ids.length
+        if (swipe === "committed") {
+          // A push that cuts INTO the device's own coast is a new gesture, and it is
+          // the one thing the phase detector is asked here. Everything else arriving
+          // after a commit is the tail of a question already answered: letting any of
+          // it through is what used to throw the reader two slides for one flick.
+          if (!fed.read.interrupted) return armSwipeEnd()
+          swipe = "idle"
+        }
+        if (swipe === "idle") {
+          // A coast with no hand behind it is leftover, never the start of anything.
+          if (fed.read.momentum && !fed.read.interrupted) return
+          stopGlide()
+          swipe = "tracking"
+          swipeFrom = landedSlot()
+          swipeTravel = 0
+          trackEl.dataset.stepping = ""
+        }
+        // Under the fingers, 1:1. macOS has already put its own acceleration in these
+        // deltas; a gain on top of it is a second acceleration, and it felt like one.
+        swipeTravel += wheelPx(e.deltaX, e.deltaMode, ctx.band.h)
+        trackEl.scrollLeft = clamp(swipeFrom * w + swipeTravel, 0, (n - 1) * w)
+        armSwipeEnd()
+        if (Math.abs(swipeTravel) < SWIPE_COMMIT * w) return
+        // Decided, with the hand still on the glass. Momentum deltas count toward the
+        // travel like any other, so a hard flick crosses the line on its own and
+        // nothing has to notice the release that produced it.
+        const to = clamp(swipeFrom + Math.sign(swipeTravel), 0, n - 1)
+        swipe = "committed"
+        trace(
+          `swipe ${swipeFrom} → ${to} at ${(swipeTravel / w).toFixed(2)} v ${fed.read.velocity.x.toFixed(2)}`,
+        )
+        glideTo(to, fed.read.velocity.x)
         return
       }
       e.preventDefault()
@@ -2032,7 +2087,9 @@ function Stage(props: StageProps) {
     // one. There is nothing to decide here and nothing that can race: the container
     // is `mandatory`, so where it comes to rest IS a slide.
     const onScrollSettled = () => {
-      if (S.ph !== "idle" || glide) return
+      // Nothing of ours may be moving the track: a `scrollend` fires in any lull, and
+      // a swipe still under the fingers has not chosen a slide yet.
+      if (S.ph !== "idle" || glide || swipe !== "idle") return
       commitIndex(landedSlot())
     }
     // The browser says which slide it picked the moment it picks it, mid-flight,
