@@ -18,10 +18,11 @@ The site deploys on every push to main (Vercel project `ui`, team adriangalileas
 
 ## Lightbox
 
-`ui/lightbox.tsx` is the binder. The framework-free libs, each proven by its `scripts/examples/lightbox-*.ts` (run by `mise check`): `lib/lightbox-motion.ts` (fit, source view, zoom, rubber, springs, flight sampling, `frameAt`), `lib/lightbox-flight.ts` (the flight as a table plus a `Clock`: plan, read, landing rule), `lib/lightbox-hold.ts` (held keys to a view per frame), `lib/lightbox-wheel.ts` (the wheel session as a reducer: ticks in, session and effects out; the binder owns the silence timer), `lib/lightbox-gesture.ts` (the pointer state machine as a reducer, plus the tap ladder), `lib/lightbox-actions.ts` (the key table: keys, layers, `resolve`, the escape ladder, `sheet()`). The motion libs ship as one registry item, `lightbox-motion`. Every pose move is a Web Animation sampled from the spring (compositor properties only: transform, and the cover crop as two counter-scaled transforms); a gesture reads the animation's clock and takes over. React state changes on checkpoints.
+`ui/lightbox.tsx` is the binder. The framework-free libs, each proven by its `scripts/examples/lightbox-*.ts` (run by `mise check`): `lib/lightbox-motion.ts` (fit, source view, zoom, rubber, springs, flight sampling, `frameAt`), `lib/lightbox-flight.ts` (the flight as a table plus a `Clock`: plan, read, landing rule), `lib/lightbox-hold.ts` (held keys to a view per frame), `lib/lightbox-wheel.ts` (the wheel session as a reducer: ticks in, session and effects out; the binder owns the silence timer and the track's own swipe state), `lib/lightbox-gesture.ts` (the pointer state machine as a reducer, plus the tap ladder), `lib/lightbox-actions.ts` (the key table: keys, layers, `resolve`, the escape ladder, `sheet()`). The motion libs ship as one registry item, `lightbox-motion`. Every pose move is a Web Animation sampled from the spring (compositor properties only: transform, and the cover crop as two counter-scaled transforms); a gesture reads the animation's clock and takes over. React state changes on checkpoints.
 
 - **WebKit hands `Animation.currentTime` back a hair under the duration** (seconds in, milliseconds out): a frame table indexed by time treats anything within `TIME_EPS` of the last frame as the last frame, or every flight on iOS fails to land and the frame loop dies. `frameAt` clamps its index and screams on a non-finite time.
-- `debug` prop (demo: `?debug`) draws the engine's trace on the stage: pointer, gesture and dispatch decisions with the live pose, the layer's computed matrix, the live animation count, and page errors with a stack. This is how iOS bugs get diagnosed; production source maps are on for the same reason.
+- `debug` prop (demo: `?debug`) draws the engine's trace on the stage: pointer, gesture and dispatch decisions with the live pose, the layer's computed matrix, the live animation count, and page errors with a stack. This is how iOS bugs get diagnosed; production source maps are on for the same reason. **Instrumentation must never read the DOM per event.** `getComputedStyle` and `getAnimations` on the layer a gesture is writing to force a style recalc that flushes the write, a hundred times a second on a trackpad, and the trace becomes the thing it is measuring: the screen's truth is read ONCE a frame, in the rAF that batches the lines.
+- **The trace format is how to tell which build is being tested.** More than one report has been of a version that was never deployed; a changed line format settles it in a glance.
 - iOS selects an image on a double tap unless the stage takes the default on pointerdown and the media carries `user-select: none` and no touch callout.
 - Safari's Tab visits only fields: the dialog walks Tab over its own tabbables.
 - History is replace-only (`#lb=id`); pushState made the iOS edge swipe double-animate a close. Android Back closes via CloseWatcher.
@@ -29,19 +30,17 @@ The site deploys on every push to main (Vercel project `ui`, team adriangalileas
 - Headless Chrome over CDP (bun scripts, `/tmp/lb-*.ts` shape) is the regression rig: drive the demo with `?debug`, read the trace and the active layer's computed matrix, run the same script against the deployed site to diff behavior. A CDP keyup lands the same ms as the keydown, which is how the settle bug surfaced.
 - The architecture debt and the extraction plan are in the todo below; do them before adopting the item in a site.
 
-### The slide track: the browser owns the gesture, end to end
+### The slide track
 
-The track is a real scroll container, and the drag, the momentum, the rubber band, the choice of where it lands AND the animation that lands it are all the browser's. The engine only reads where it went. **Do not move any part of that into JavaScript.** It has been tried twice and lost twice: once as a spring-driven transform (tag `lightbox-js-track`), once as a scroll container with a JS landing (`e3b5663`..`845c463`, thirteen commits of tuning that ended worse than it started).
+The track is a real scroll container. **Touch is the browser's** (`touch-action: pan-x`, with `scroll-snap-type: x mandatory` + `scroll-snap-align: center` + `scroll-snap-stop: always` landing it): the platform knows when fingers leave the glass and both engines enforce snap-stop on momentum, on the compositor. **The wheel is the engine's**, because the platform's own settle is ~950 ms across a slide in Chromium (deltas decaying 0.92 a frame until the last is sub-pixel) and no faster on macOS WebKit, which reads as a different, slower app than the arrow keys and parks a slide visibly off centre on the way. `data-stepping` stands the CSS magnets down wherever the engine is driving.
 
-Three declarations are the whole policy, and they are load-bearing:
+**The rule for a wheel gesture, and the reason it survives where two rewrites did not:** the slide is a FUNCTION of total travel, decided with the hand still on the glass. `swipeSlides` gives one slide as soon as the fingers are `SWIPE_COMMIT` (0.18) of the way, and one more for every whole slide after that, so travel and slides stay one for one at any length. Then `glideTo` at 220 ms nominal (130–300 bounded), leaving at the speed the track already had.
 
-- **`scroll-snap-type: x mandatory`** on the track. It may only ever come to rest on a slide. Remove it and a gesture can park an image between two locks, which is not fixable with a JS watchdog because there is no event that reliably means "the reader is done".
-- **`scroll-snap-align: center`** on every slot.
-- **`scroll-snap-stop: always`** on every slot. **One gesture moves at most one slide, however hard it is thrown.** Both engines enforce this on trackpad momentum, on the compositor. WebKit returns the `Always` offset nearest the origin before it considers anything else (`searchForPotentialSnapPoints` → `if (searchResult.snapStop) return *(searchResult.snapStop)`, `ScrollSnapOffsetsInfo.cpp`). Chromium re-runs the search with `SnapStopAlwaysFilter::kRequire` and keeps whichever candidate is closer to where the gesture began (`SnapContainerData::FindClosestValidArea`); the fling path builds a `DirectionStrategy`, whose `ShouldRespectSnapStop()` is unconditionally `true`.
+Two failure modes, both from a counter that resets on each commit, both live in the git history and neither is allowed back. Let a reset counter pay repeatedly and every 0.18 of finger buys a whole slide: a **5.5× gain wearing a threshold's clothes**, one motion jumping five. Cap it at one commit instead and a long deliberate drag is worth exactly what a flick is worth.
 
-Only the browser knows when the fingers left the trackpad. macOS reports gesture and momentum phases to the engine (Chromium reads them as `is_in_inertial_phase`, and only starts a snap fling inside one); the web platform exposes no equivalent to page JS. A JS landing therefore has to infer the release from wheel deltas, and that inference is exactly what a reader feels as a lottery.
+**Nothing detects a release**, which is the question that made every earlier version a lottery: the web exposes no gesture phase to page JS (macOS reports one to the engine — Chromium reads `is_in_inertial_phase` — but not to us). The phase detector is asked one question, "is this a coast", and the answer only decides when the hand stops paying. Being wrong costs a slide of travel, never a wrong destination. A throw whose hand never travelled far enough is still worth one, by projecting where the momentum was heading (UIKit's rule); the coast itself is never counted, because it carries several slides of deltas and the reader can no longer steer.
 
-**One gesture is one slide. That is the canon, not a limitation.** Every reference implementation caps it, and none of them uses the magnitude of the throw to decide how far to go:
+**One gesture is one slide unless the hand asks for more.** Every reference implementation caps a *flick* at one, and none uses the magnitude of the throw to decide how far to go:
 
 | | commits when | how far | landing |
 |---|---|---|---|
@@ -55,12 +54,14 @@ Only the browser knows when the fingers left the trackpad. macOS reports gesture
 Three things follow, and they settle the questions that used to sit here:
 
 - **The drag is never amplified.** Embla and Swiper both track the finger 1:1 (`touchRatio: 1`); the trackpad's own acceleration curve is already applied by the OS. The `2.6×` gain that was here was a second acceleration on top of one that was already there.
-- **The landing decays, it does not accelerate into place.** WebKit and Chromium both ease out. "It slows down then snaps" is a handoff that does not match the reader's speed, not evidence that the curve should invert.
-- **0.96 is the right threshold for "the hand is gone".** Chromium's `kMaxDecayFactor` and the vendored wheel-gestures detector agree on it independently. Kept only because `lightbox-wheel-phase.ts` still arbitrates the vertical dismiss; it decides nothing about the track.
+- **A move decays, it does not accelerate into place.** WebKit and Chromium both ease out. "It slows down then snaps" is a handoff that does not match the reader's speed, not evidence that the curve should invert; `GLIDE_ENTRY` is what fixes it, by leaving at the speed the track already had.
+- **0.96 is the right threshold for "the hand is gone".** Chromium's `kMaxDecayFactor` and the vendored wheel-gestures detector agree on it independently.
 
-What the engine still owns: which slide is current (`scrollsnapchange`, Chrome 129+/Safari 18.2+, with `scrollend` as the fallback), which is pending so the thumbnail highlights before the slide arrives (`scrollsnapchanging`), which slides carry pixels (two either side of where the reader actually is, not of the committed index, or a fast gesture crosses a slide that is still a grey hole), and the discrete moves (arrows, thumbnails, steps) which have no gesture to hand off from.
+**A wheel pan STOPS at its bound; only a pointer drag rubber-bands.** A band is for direct manipulation, where the image is under a finger and the give is what says "this is the end". On a trackpad nothing is under the finger, so all it buys is a picture frozen at the cap while the reader keeps pushing, and a long way home afterwards. The accumulator is clamped with the pose, or panning back has to unwind the debt before anything moves. The bound is the overflow plus `PAN_INSET` (64) so an edge can be brought INSIDE the viewport: stopping exactly where the picture ends gives no sign that it ended, only a picture that will not move.
 
-Never again, each of these having been tried: a JS spring or curve landing the track; a drag gain; a momentum detector deciding where the track goes; a settle watchdog; a `swipe`/`decided` arbiter. If the track feels wrong, the fix is in those three CSS declarations or in what the engine reads, never in a constant.
+What else the engine owns: which slide is current (`scrollsnapchange`, Chrome 129+/Safari 18.2+, with `scrollend` and a `scroll` timer as fallbacks), which slides carry pixels (two either side of where the reader actually is, not of the committed index, or a fast gesture crosses a slide that is still a grey hole), and the discrete moves (arrows, thumbnails, steps), which count from where the track is HEADING rather than from the committed index, or a fast run of presses all asks for the same slide.
+
+Never again, each of these having been tried and shipped and felt: a drag gain; a commit counter that resets; a settle watchdog; a momentum detector deciding WHERE the track goes; a rubber band on the wheel pan. If the track feels wrong, the fix is in `swipeSlides`, in the CSS declarations, or in what the engine reads — reach for a constant last, not first.
 
 ## Verbs
 
@@ -76,7 +77,9 @@ pnpm's 7-day quarantine and no-downgrade trust policy apply. `pnpm-workspace.yam
 
 The engine is extracted: `lightbox.tsx` is the binder (DOM listeners in, effects out, React state at checkpoints), and every rule lives in a lib that runs in bun.
 
-Left on the item: the demo streams a 17.8 MB trailer from blender.org on every open (host a short clip on the site); Safari frame pacing is unmeasured (needs Develop → Allow Remote Automation, then WebDriver); the sign-off list is `unverified` for Android.
+**Signed off on macOS Chrome, and wants soak time before it is adopted anywhere.** The gestures were settled by feel, in the browser, over many rounds; live with it for a while before trusting it in a site.
+
+Left on the item: the demo streams a 17.8 MB trailer from blender.org on every open (host a short clip on the site); Safari frame pacing is unmeasured (needs Develop → Allow Remote Automation, then WebDriver); the sign-off list is `unverified` for Android, and the new wheel rules have not been felt on Safari or on a mouse wheel (as opposed to a trackpad) yet.
 
 ### then: adopt, wave 2, wave 3
 
