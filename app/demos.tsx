@@ -14,6 +14,7 @@ import Scrims from "@/registry/base-nova/ui/scrims.demo"
 import ScrollStage from "@/registry/base-nova/ui/scroll-stage.demo"
 import TelegramChat from "@/registry/base-nova/ui/telegram-chat.demo"
 import Terminal from "@/registry/base-nova/ui/terminal.demo"
+import ThemeToggle from "@/registry/base-nova/ui/theme-toggle.demo"
 
 export const DEMOS: Record<string, ComponentType> = {
   tokens: Tokens,
@@ -24,6 +25,7 @@ export const DEMOS: Record<string, ComponentType> = {
   reveal: Reveal,
   scrims: Scrims,
   terminal: Terminal,
+  "theme-toggle": ThemeToggle,
   "telegram-chat": TelegramChat,
   "telegram-summary": TelegramSummary,
   "lightbox-motion": LightboxMotion,

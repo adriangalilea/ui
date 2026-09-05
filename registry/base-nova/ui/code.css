@@ -87,12 +87,12 @@
 /* An error or a warning is a highlight that has something to say, so it keeps the
    shape and changes only the hue. */
 .ag-code .line.highlighted.error {
-  background: color-mix(in oklab, var(--destructive, #e5484d) 12%, transparent);
-  border-left-color: var(--destructive, #e5484d);
+  background: color-mix(in oklab, var(--tone-bad) 12%, transparent);
+  border-left-color: var(--tone-bad);
 }
 .ag-code .line.highlighted.warning {
-  background: color-mix(in oklab, #d9822b 12%, transparent);
-  border-left-color: #d9822b;
+  background: color-mix(in oklab, var(--tone-warn) 12%, transparent);
+  border-left-color: var(--tone-warn);
 }
 
 /* ---- a diff.
@@ -109,16 +109,16 @@
   opacity: 0.7;
 }
 .ag-code .line.diff.add {
-  background: color-mix(in oklab, #2ea043 14%, transparent);
-  border-left-color: #2ea043;
+  background: color-mix(in oklab, var(--tone-ok) 14%, transparent);
+  border-left-color: var(--tone-ok);
 }
 .ag-code .line.diff.add::before {
   content: "+";
-  color: #2ea043;
+  color: var(--tone-ok);
 }
 .ag-code .line.diff.remove {
-  background: color-mix(in oklab, #e5484d 12%, transparent);
-  border-left-color: #e5484d;
+  background: color-mix(in oklab, var(--tone-bad) 12%, transparent);
+  border-left-color: var(--tone-bad);
 }
 /* Removed code is still readable, just plainly on its way out. */
 .ag-code .line.diff.remove {
@@ -126,7 +126,7 @@
 }
 .ag-code .line.diff.remove::before {
   content: "-";
-  color: #e5484d;
+  color: var(--tone-bad);
 }
 
 /* ---- focus: everything else steps back, and comes back on hover, because a reader

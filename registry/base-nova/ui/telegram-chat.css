@@ -20,7 +20,40 @@
   --tg-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.tgchat[data-theme="dark"] {
+.tgchat[data-theme="light"],
+.tgchat[data-theme="page"] {
+  --tg-phone: #a2a6ad;
+  --tg-phone-band: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+  --tg-phone-chamfer:
+    inset 0 1px 1px rgba(255, 255, 255, 0.5),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.24);
+  --tg-phone-button: linear-gradient(180deg, #b3b7bd, #8c9097);
+  --tg-lift:
+    0 24px 60px rgba(27, 29, 30, 0.22), 0 4px 14px rgba(27, 29, 30, 0.1);
+  --tg-screen: #ffffff;
+  --tg-island: #16181a;
+  --tg-island-ring: rgba(0, 0, 0, 0.22);
+  --tg-status-ink: #1c1c1a;
+  --tg-bot-bubble: #f1f1f1;
+  --tg-user-bubble: #0b74bd;
+  --tg-on-accent: #ffffff;
+  --tg-border: #e4e4e2;
+  --tg-text: #1c1c1a;
+  --tg-muted: #69675f;
+  --tg-composer-icon: #55534c;
+  --tg-quote-rule: #85837c;
+  --tg-accent: #0b74bd;
+  --tg-link: #0b74bd;
+  --tg-doodle: rgba(0, 0, 0, 0.08);
+  --tg-gesture-pill: #1c1c1a;
+}
+/* `theme="page"`, the default, follows the page instead of being told. It is the same
+   two palettes with a second selector each, never a third copy: the page's own `.dark`
+   picks which one applies, so there is nothing to resolve in JS and nothing to flash
+   on first paint. Telling it `dark` or `light` still pins it, for a chat that has to
+   look like Telegram's own theme whatever the page around it is doing. */
+.tgchat[data-theme="dark"],
+.dark .tgchat[data-theme="page"] {
   --tg-phone: linear-gradient(
     160deg,
     #6c7075 0%,
@@ -51,33 +84,6 @@
   --tg-link: #6ab3f3;
   --tg-doodle: rgba(255, 255, 255, 0.09);
   --tg-gesture-pill: #6e767f;
-}
-
-.tgchat[data-theme="light"] {
-  --tg-phone: #a2a6ad;
-  --tg-phone-band: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
-  --tg-phone-chamfer:
-    inset 0 1px 1px rgba(255, 255, 255, 0.5),
-    inset 0 -1px 1px rgba(255, 255, 255, 0.24);
-  --tg-phone-button: linear-gradient(180deg, #b3b7bd, #8c9097);
-  --tg-lift:
-    0 24px 60px rgba(27, 29, 30, 0.22), 0 4px 14px rgba(27, 29, 30, 0.1);
-  --tg-screen: #ffffff;
-  --tg-island: #16181a;
-  --tg-island-ring: rgba(0, 0, 0, 0.22);
-  --tg-status-ink: #1c1c1a;
-  --tg-bot-bubble: #f1f1f1;
-  --tg-user-bubble: #0b74bd;
-  --tg-on-accent: #ffffff;
-  --tg-border: #e4e4e2;
-  --tg-text: #1c1c1a;
-  --tg-muted: #69675f;
-  --tg-composer-icon: #55534c;
-  --tg-quote-rule: #85837c;
-  --tg-accent: #0b74bd;
-  --tg-link: #0b74bd;
-  --tg-doodle: rgba(0, 0, 0, 0.08);
-  --tg-gesture-pill: #1c1c1a;
 }
 
 /* iPhone shell: titanium band, polished chamfer, ~5px uniform bezel, side buttons

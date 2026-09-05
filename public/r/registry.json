@@ -17,6 +17,24 @@
       ]
     },
     {
+      "name": "theme-toggle",
+      "type": "registry:ui",
+      "title": "theme-toggle",
+      "description": "light, dark and follow-the-system as one radio group; provider-agnostic, so it takes a value and a setter rather than owning the theme",
+      "dependencies": ["lucide-react"],
+      "registryDependencies": ["@ag/tokens"],
+      "files": [
+        {
+          "path": "registry/base-nova/ui/theme-toggle.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/base-nova/ui/theme-toggle.css",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
       "name": "code",
       "type": "registry:ui",
       "title": "code",

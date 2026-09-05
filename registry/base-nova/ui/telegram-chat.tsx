@@ -111,7 +111,9 @@ export interface TelegramChatProps {
   /** URL of Telegram's doodle pattern (telegram-tt's assets/pattern.svg), applied as
    *  a CSS mask tinted per theme, exactly like the client. */
   wallpaper?: string
-  theme?: "dark" | "light"
+  /** `page` follows the page's own light/dark; `dark` or `light` pins it, for a chat
+   *  that must look like Telegram's own theme whatever the page is doing. */
+  theme?: "dark" | "light" | "page"
   className?: string
 }
 
@@ -390,7 +392,7 @@ export function TelegramChat({
   duration,
   afterlifeDelay = 0,
   wallpaper,
-  theme = "dark",
+  theme = "page",
   className,
 }: TelegramChatProps) {
   const timeline = React.useMemo(() => buildTimeline(script), [script])

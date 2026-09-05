@@ -1,0 +1,63 @@
+/* Three options in one track. The chosen one is a filled pill; the others are quiet
+   until hovered, so the control reads as one setting rather than three buttons. */
+
+/* A fieldset, so the reset has to be explicit: browsers give it a border, padding and
+   a min-width of its content. */
+.ag-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0.125rem;
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  background: var(--sidebar);
+}
+.ag-theme-toggle-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition:
+    color var(--dur-1, 150ms) var(--ease-out, ease),
+    background-color var(--dur-1, 150ms) var(--ease-out, ease);
+}
+.ag-theme-toggle-option:hover {
+  color: var(--foreground);
+}
+.ag-theme-toggle-option[data-on] {
+  color: var(--foreground);
+  background: var(--background);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+}
+/* The input is hidden, so the ring has to be drawn on the label that stands in for
+   it, or keyboard focus lands somewhere invisible. */
+.ag-theme-toggle-option:has(:focus-visible) {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+/* The label is read aloud and never drawn: the icon carries it visually, and a
+   `title` alone is not an accessible name on every screen reader. */
+.ag-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ag-theme-toggle-option {
+    transition: none;
+  }
+}

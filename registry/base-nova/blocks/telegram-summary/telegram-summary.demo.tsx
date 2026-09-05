@@ -58,7 +58,6 @@ export default function Demo() {
         script={SCRIPT}
         from="conversation"
         wallpaper="/tg-pattern.svg"
-        theme="dark"
       />
     </div>
   )

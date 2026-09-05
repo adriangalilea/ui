@@ -51,3 +51,32 @@
   --dur-3: 500ms;
   --dur-4: 700ms;
 }
+
+/* Dark. The shadcn surface variables (--background, --border, --sidebar…) are the
+   consumer's own scaffold and already have a dark half; these are the studio's, and
+   without this block every @ag item reading them keeps its light values on a dark
+   page. An item that reads only these two sets never needs to know the theme.
+
+   Lightness moves, hue and chroma do not. A colour on a dark ground has to be
+   lighter to READ as the same colour; sage at 63% against near-black is the same
+   pigment going muddy, not a constant. --brand is still constant across projects,
+   which is what constant meant.
+
+   The alpha ladder rises. A 7% black hairline on white is a clear line; 7% white on
+   near-black is nothing, because the eye judges these against a much smaller range.
+   Keeping the numbers identical across themes is the mistake that makes a dark
+   design look flat and unstructured. */
+.dark {
+  --brand: oklch(72% 0.09 145);
+
+  --tone-ok: oklch(78% 0.16 155);
+  --tone-warn: oklch(84% 0.15 80);
+  --tone-bad: oklch(70% 0.2 27);
+  --tone-info: oklch(78% 0.12 230);
+
+  --alpha-hairline: 0.12;
+  --alpha-wash: 0.09;
+  --alpha-meta: 0.45;
+  --alpha-body: 0.62;
+  --alpha-title: 0.92;
+}
