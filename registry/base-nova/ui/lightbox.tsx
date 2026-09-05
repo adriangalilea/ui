@@ -1869,6 +1869,19 @@ function Stage(props: StageProps) {
     let shots: Shot[] = []
     let shotT0 = 0
     let shotFrom = 0
+    let shotWhy = ""
+    /** Frames the PAGE actually drew, against the events it was fed. Chrome dispatches
+     *  wheel aligned to the frame, so the two rates are normally the same number and
+     *  the interesting case is when they are not: equal and low is the renderer over
+     *  budget (a 165 ms move gets five frames, and five frames across a whole picture
+     *  is the jag), while events slower than frames is the device. Guessing between
+     *  those two cost a round. */
+    let shotFrames = 0
+    let shotRaf = 0
+    const shotTick = () => {
+      shotFrames++
+      shotRaf = requestAnimationFrame(shotTick)
+    }
     /** `at` is the value that was JUST WRITTEN, never a read back off the element.
      *  Reading `scrollLeft` after writing it forces a synchronous layout, and doing
      *  that once per wheel event made the instrument the thing it was measuring. */
@@ -1878,6 +1891,8 @@ function Stage(props: StageProps) {
       if (!shots.length) {
         shotT0 = now
         shotFrom = swipeAnchor
+        shotFrames = 0
+        shotRaf = requestAnimationFrame(shotTick)
       }
       shots.push({ t: Math.round(now - shotT0), dx: Math.round(dx), sum, at })
     }
@@ -1897,6 +1912,8 @@ function Stage(props: StageProps) {
      *  device emits every 8 ms, so anything above that is the PAGE dropping frames,
      *  and a rule fed 33 ms lumps of 189 px cannot be judged at all. */
     const report = (why: string) => {
+      cancelAnimationFrame(shotRaf)
+      shotRaf = 0
       if (!L.current.debug || shots.length < 2) {
         shots = []
         return
@@ -1938,7 +1955,7 @@ function Stage(props: StageProps) {
         )
       L.current.trace(
         [
-          `── ${shotFrom}→${swipeAnchor} · ${last.t}ms · ${shots.length}ev ${rate} · maxdx ${maxDx}`,
+          `── ${shotFrom}→${swipeAnchor} (${shotWhy}) · ${last.t}ms · ${shots.length}ev ${rate} · ${Math.round((shotFrames * 1000) / Math.max(1, last.t))}fps · maxdx ${maxDx}`,
           `   hand ${hand.toFixed(2)} · pics ${moved.toFixed(2)} · ${(Math.abs(last.sum) / Math.max(1, last.t)).toFixed(2)}px/ms · back ${back.toFixed(2)} · ${why}`,
           `   ms    dx hand%track%  (% of a slide, from the start)`,
           ...rows,
@@ -2077,8 +2094,13 @@ function Stage(props: StageProps) {
         const surge =
           Math.abs(dx) > Math.max(SWIPE_SURGE_MIN, SWIPE_SURGE * swipeEnv)
         swipeEnv = Math.max(Math.abs(dx), swipeEnv * SWIPE_SURGE_DECAY)
-        if (swipe && swipeDone && surge) endSwipe()
+        const split = swipe && swipeDone && surge
+        if (split) endSwipe()
         if (!swipe) {
+          // Named in the trace, because a long swoop taking two pictures instead of
+          // one can only be this: the motion accelerated hard enough mid-tail to read
+          // as a hand coming back, and got charged twice for one intent.
+          shotWhy = split ? "SURGE SPLIT" : "new stream"
           // A gesture that opens while the last one's glide is still running: read
           // that one out now, or its rows and this one's share a table and the totals
           // are nonsense (one read 385x gain off two spliced streams).
@@ -2446,6 +2468,7 @@ function Stage(props: StageProps) {
       clearTimeout(wheelTimer)
       clearTimeout(scrollTimer)
       if (glide) cancelAnimationFrame(glide)
+      if (shotRaf) cancelAnimationFrame(shotRaf)
       if (passRaf) cancelAnimationFrame(passRaf)
       if (hasSnapEvents)
         trackEl.removeEventListener("scrollsnapchange", onScrollSettled)
