@@ -58,3 +58,131 @@
   scrollbar-color: color-mix(in oklab, var(--foreground) 20%, transparent)
     transparent;
 }
+
+/* ---- marked lines.
+
+   A marked line is marked EDGE TO EDGE, which is why `.line` is a block that runs the
+   full scroll width: a tint that stops at the end of the text draws a ragged shape
+   down the block and reads as damage rather than emphasis. The gutter bar is what
+   survives being scrolled sideways, when the tint under a long line is off screen. */
+.ag-code .line {
+  display: inline-block;
+  width: 100%;
+  padding-inline: 0.875rem;
+  margin-inline: -0.875rem;
+  border-left: 2px solid transparent;
+}
+.ag-code .line.highlighted {
+  background: color-mix(
+    in oklab,
+    var(--brand, var(--foreground)) 10%,
+    transparent
+  );
+  border-left-color: color-mix(
+    in oklab,
+    var(--brand, var(--foreground)) 55%,
+    transparent
+  );
+}
+/* An error or a warning is a highlight that has something to say, so it keeps the
+   shape and changes only the hue. */
+.ag-code .line.highlighted.error {
+  background: color-mix(in oklab, var(--destructive, #e5484d) 12%, transparent);
+  border-left-color: var(--destructive, #e5484d);
+}
+.ag-code .line.highlighted.warning {
+  background: color-mix(in oklab, #d9822b 12%, transparent);
+  border-left-color: #d9822b;
+}
+
+/* ---- a diff.
+
+   The sign is a real character in the gutter, not a colour: colour alone is invisible
+   to a reader who cannot separate red from green, and it does not survive a
+   screenshot pasted into a grey chat. */
+.ag-code .line.diff {
+  position: relative;
+}
+.ag-code .line.diff::before {
+  position: absolute;
+  left: 0.25rem;
+  opacity: 0.7;
+}
+.ag-code .line.diff.add {
+  background: color-mix(in oklab, #2ea043 14%, transparent);
+  border-left-color: #2ea043;
+}
+.ag-code .line.diff.add::before {
+  content: "+";
+  color: #2ea043;
+}
+.ag-code .line.diff.remove {
+  background: color-mix(in oklab, #e5484d 12%, transparent);
+  border-left-color: #e5484d;
+}
+/* Removed code is still readable, just plainly on its way out. */
+.ag-code .line.diff.remove {
+  opacity: 0.65;
+}
+.ag-code .line.diff.remove::before {
+  content: "-";
+  color: #e5484d;
+}
+
+/* ---- focus: everything else steps back, and comes back on hover, because a reader
+   who wants the surrounding lines should not have to leave the page to see them. */
+.ag-code:has(.focused) .line:not(.focused) {
+  filter: blur(2px);
+  opacity: 0.5;
+  transition:
+    filter 200ms ease,
+    opacity 200ms ease;
+}
+.ag-code:has(.focused):hover .line:not(.focused) {
+  filter: none;
+  opacity: 1;
+}
+
+/* ---- a word, marked inside the line. */
+.ag-code .highlighted-word {
+  border-radius: 0.25rem;
+  padding: 0.1em 0.25em;
+  background: color-mix(
+    in oklab,
+    var(--brand, var(--foreground)) 14%,
+    transparent
+  );
+  box-shadow: 0 0 0 1px
+    color-mix(in oklab, var(--brand, var(--foreground)) 30%, transparent);
+}
+
+/* ---- line numbers, opt-in. A counter, so nothing is added to the copied text. */
+.ag-code-numbered code {
+  counter-reset: ag-line;
+}
+.ag-code-numbered .line {
+  counter-increment: ag-line;
+  padding-left: 3rem;
+}
+.ag-code-numbered .line::after {
+  content: counter(ag-line);
+  position: absolute;
+  left: 0;
+  width: 2.25rem;
+  text-align: right;
+  color: var(--muted-foreground);
+  opacity: 0.5;
+  user-select: none;
+}
+.ag-code-numbered .line {
+  position: relative;
+}
+.ag-code-numbered .line.diff::before {
+  left: 2.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ag-code:has(.focused) .line:not(.focused) {
+    transition: none;
+  }
+}

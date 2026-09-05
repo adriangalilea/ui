@@ -20,8 +20,8 @@
       "name": "code",
       "type": "registry:ui",
       "title": "code",
-      "description": "a code block highlighted on the server by shiki, both themes baked into one render, with the copy control built in",
-      "dependencies": ["shiki"],
+      "description": "a code block highlighted on the server by shiki: marked lines, diffs, focus and word marks, both themes in one render, copy built in",
+      "dependencies": ["shiki", "@shikijs/transformers"],
       "registryDependencies": ["@ag/tokens", "@ag/copy"],
       "files": [
         {

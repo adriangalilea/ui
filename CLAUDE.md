@@ -82,7 +82,7 @@ The engine is extracted: `lightbox.tsx` is the binder (DOM listeners in, effects
 
 **Signed off on macOS Chrome, and wants soak time before it is adopted anywhere.** The gestures were settled by feel, in the browser, over many rounds; live with it for a while before trusting it in a site.
 
-Left on the item: the demo streams a 17.8 MB trailer from blender.org on every open (host a short clip on the site); Safari frame pacing is unmeasured (needs Develop → Allow Remote Automation, then WebDriver); the sign-off list is `unverified` for Android, and the new wheel rules have not been felt on Safari or on a mouse wheel (as opposed to a trackpad) yet.
+Left on the item: the demo streams a 17.8 MB trailer from blender.org on every open (host a short clip on the site); Safari frame pacing is unmeasured (needs Develop → Allow Remote Automation, then WebDriver); the sign-off list is `unverified` for android chrome and macos safari.
 
 ### then: adopt, wave 2, wave 3
 

@@ -225,13 +225,13 @@ function Rail({ entry, facts }: { entry: Entry; facts: Facts }) {
 }
 
 // Each surface is signed off by a hand on the device, never by a build: a round of
-// fixes puts every line back to unverified.
-const DEVICES = [
-  "iphone safari",
-  "android chrome",
-  "macos safari",
-  "macos chrome, trackpad + mouse",
-  "firefox",
+// fixes on the gestures puts the lines it could touch back to unverified.
+const DEVICES: readonly [string, boolean][] = [
+  ["iphone safari", true],
+  ["android chrome", false],
+  ["macos safari", false],
+  ["macos chrome, trackpad + mouse", true],
+  ["firefox", true],
 ]
 
 export default function Demo() {
@@ -439,8 +439,11 @@ export default function Demo() {
             device sign-off
           </div>
           <ul className="space-y-2 font-mono text-xs lowercase text-muted-foreground">
-            {DEVICES.map((d) => (
-              <li key={d}>{d} · unverified</li>
+            {DEVICES.map(([name, verified]) => (
+              <li key={name} className={verified ? "text-foreground/70" : ""}>
+                {name}
+                {verified ? "" : " · unverified"}
+              </li>
             ))}
           </ul>
         </section>
