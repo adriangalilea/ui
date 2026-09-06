@@ -131,10 +131,6 @@
         {
           "path": "registry/base-nova/ui/avatar.tsx",
           "type": "registry:ui"
-        },
-        {
-          "path": "registry/base-nova/ui/avatar.css",
-          "type": "registry:ui"
         }
       ]
     },
@@ -147,10 +143,6 @@
       "files": [
         {
           "path": "registry/base-nova/ui/quote.tsx",
-          "type": "registry:ui"
-        },
-        {
-          "path": "registry/base-nova/ui/quote.css",
           "type": "registry:ui"
         }
       ]

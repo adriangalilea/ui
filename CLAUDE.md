@@ -14,7 +14,12 @@ A public shadcn registry (`registry.json` at the root, items under `registry/bas
 - **Items meant to be used together share the head item's name**: `terminal` + `terminal-session`, `lightbox` + `lightbox-motion` + `lightbox-actions`, `telegram-chat` + `telegram-summary`. They sort together, they read as one thing, and `registry.json` keeps them adjacent. A part stays its own item only when something installs it ALONE (a build script renders a still with `terminal-session` and no React); otherwise it belongs in the head item's `files`, the way six engine files ship as `lightbox-motion`.
 - **Usage is never written by hand.** An item page renders its own `<name>.demo.tsx` verbatim, read at build time, under "the demo above, verbatim". Prose usage beside a demo drifts the first time either is touched; the same file cannot. So a demo is also the documentation: write it as the code you would want copied.
 - **The index is derived, never hand-kept**: `app/registry.ts` reads `registryDependencies` and tells two relations apart. A PART shares the head's name (`quote-card`, `lightbox-motion`) and nests under it ("comes with"); everything else an item depends on is a standalone item it USES (`quote` uses `avatar`, `avatar` uses `lightbox`), which keeps its own row. **Every relation is shown from both ends** on the item pages: "comes with" / "part of", "uses" / "used by", derived from the same list so the two ends cannot disagree. Reading every dependency as a part once nested `avatar` under `quote` and dropped `lightbox` off the index; the validator refuses a name-part its head does not pull in. A demo shows the whole family working together where that is the point (the terminal page draws one script live AND as a still, which is the claim the pair exists to make).
-- Imports inside items use `@/registry/base-nova/{ui,lib,hooks,blocks}/...`; the CLI rewrites them to the consumer's aliases. A `.css` beside a component is imported relatively (`./x.css`) and ships as a second `registry:ui` file.
+- Imports inside items use `@/registry/base-nova/{ui,lib,hooks,blocks}/...`; the CLI rewrites them to the consumer's aliases.
+- **How an item is styled (the pattern; `quote` and `avatar` are the reference).** Three tiers, and which one a value belongs to is decided by one question: is it a fixed value, a computed one, or something CSS alone can express?
+  1. **Fixed values are Tailwind utilities in the JSX**, merged with `cn()` from `@/lib/utils`, consumer `className` last. Padding, radius, the step surface (`bg-foreground/4`), gaps, the type voices (`font-serif` / `font-sans` / `font-mono`, theme vars the consumer names), colours at alpha (`text-foreground/75`). Every `@ag` consumer has Tailwind because shadcn is Tailwind; a `.css` of static rules made `className` a fight with a stylesheet. Group the recurring sets as named constants at the top of the file (`STEP`, `WORDS`, `META`) so a rule has one home and a name.
+  2. **Computed values are custom properties on `style`, consumed by `-(--…)` utilities.** Everything derived from a module's constants — `cqw` sizes, shares of a frame, a focus gradient, a dissolve mask — is arithmetic in TS and lands as `w-(--ag-quote-column)`, `text-(length:--ag-quote-size)`, `mask-(--ag-quote-dissolve)`, `object-(--ag-avatar-focus)`. The property is the seam between the arithmetic and the CSS; the class says which property each number drives; nothing is typed twice, and nothing is `calc()`'d in CSS that TS could have computed (the feature's half-height mark is `FEATURE_MARK` in TS, not a `calc` on a var). A variable holds the WHOLE value the class consumes (`"35.2% 50%"`, not a number the CSS finishes).
+  3. **A `.css` beside an item survives only for what no utility can express**: keyframes, `@property` registration, vendor pseudo-elements with state, a `::before` layer with a computed background. Every rule in it says in a comment why it is not a utility. It is imported relatively (`./x.css`) and ships as a second `registry:ui` file.
+  Every part carries `data-slot="<item>-<part>"` (`quote-body`, `avatar-image`), shadcn's convention: the DOM says what a node is, a consumer styles a part from outside without a class name to know, and nothing on the page depends on an `ag-*` class. `@tailwindcss/typography` is not part of any of this: `prose` is for markdown bodies, not for a composition. The older items (`copy`, `code`, `lightbox`, `reveal`, `scrims`, `scroll-stage`, `telegram-chat`, `theme-toggle`) still carry tier-1 rules in their `.css`; they move to the pattern the next time each is touched, not as a sweep.
 - Motion is CSS-first: scroll-driven animations (`animation-timeline`) drive numbers into custom properties; React state changes on checkpoints, never per frame. Reduced motion renders the completed state.
 - Brand rules from `untitled/CLAUDE.md` bind: lowercase names, three type voices, 8px doubling rhythm, monochrome alpha ladder, no em dashes, nothing animates forever.
 - No Radix. Base UI has no `asChild`; use `render={<a />}`.
@@ -344,18 +349,6 @@ Left on the item:
 3. `charts` + `chart-frame` (adriangalilea.com's wrappers are the taste anchor), `particle-charts` as the opt-in playful voice, `narrated` (Sonoscript: real times only, click to seek, opt-in follow).
 4. A frameless `telegram`, `checklist`, `kanban`, `code-scrolly`.
 5. The garden landing (a static grid under a fog that promises content), then later: cover-image with blur and grain, `magic-input`, the media-library kit for videoclub and lore.
-
-### tailwind pass over quote and avatar, once the design settles
-
-Their static styles (padding, radius, the step surface, gaps, the avatar rungs, the cite
-colours) live in `quote.css` / `avatar.css`, so a consumer overriding one has to fight a
-stylesheet instead of passing `className`. shadcn items are Tailwind in the JSX and every
-`@ag` consumer has Tailwind; these should be too. Only the DERIVED geometry stays as
-custom properties in CSS, because it is arithmetic on the module's constants (`cqw` sizes,
-frame percentages, the focus gradient, the dissolve mask) and no utility class expresses a
-computed value. One pass, after the look stops moving: doing it mid-tuning rewrites every
-rule twice. `@tailwindcss/typography` is not part of this; `prose` is for markdown bodies,
-not a composition.
 
 ### telegram: the phone is in the way of the words
 

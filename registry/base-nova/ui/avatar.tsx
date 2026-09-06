@@ -21,9 +21,14 @@
 // three viewers, never a reel with a strip and arrows), with the person's name as the
 // caption — the lightbox's figcaption fallback would read the quote's whole attribution.
 // Needs nothing above it. Pass nothing and it is a picture.
+//
+// STYLE IS UTILITIES, the way every shadcn item is, so a consumer overrides with
+// `className` and never fights a stylesheet. The two numbers that are not a fixed value —
+// the rung and the focus — arrive as custom properties and land through `size-(--…)` and
+// `object-(--…)`; the class says which property each one drives.
 
+import { cn } from "@/lib/utils"
 import { type Entry, LightboxSolo } from "@/registry/base-nova/ui/lightbox"
-import "./avatar.css"
 
 export type AvatarSize = "sm" | "md" | "lg"
 
@@ -50,6 +55,12 @@ export const AVATAR_SIZES: Record<AvatarSize, string> = {
   lg: "4rem",
 }
 
+/** A HAIRLINE IN THE PICTURE'S OWN COLOUR. On a dark ground a dark portrait has no edge;
+ *  the ring gives it one, and taking the colour from the picture keeps it belonging to the
+ *  picture rather than to the page. Without a tone it is the page's border. */
+const RING = "ring-1 ring-(--ag-avatar-ink)/40"
+const RING_PLAIN = "ring-1 ring-border/40"
+
 export function Avatar({
   src,
   alt,
@@ -61,15 +72,23 @@ export function Avatar({
 }: AvatarProps) {
   const style = {
     "--ag-avatar-size": AVATAR_SIZES[size],
-    "--ag-avatar-focus": `${(focus * 100).toFixed(1)}%`,
+    // The whole object-position, so the class consumes one value.
+    "--ag-avatar-focus": `${(focus * 100).toFixed(1)}% 50%`,
     ...(tone ? { "--ag-avatar-ink": tone.accent } : {}),
   } as React.CSSProperties
-  const classes = `ag-avatar${className ? ` ${className}` : ""}`
+  const classes = cn(
+    "inline-block flex-none size-(--ag-avatar-size) overflow-hidden rounded-full align-middle",
+    tone ? RING : RING_PLAIN,
+    full && "cursor-zoom-in",
+    className,
+  )
   // Decorative inside a trigger: the trigger carries the name. Named on its own.
+  // POSITIONED ON THE SUBJECT, not on the middle of the file.
   const picture = (
     // biome-ignore lint/performance/noImgElement: an item cannot assume next/image
     <img
-      className="ag-avatar-img"
+      data-slot="avatar-image"
+      className="block size-full object-cover object-(--ag-avatar-focus)"
       src={src}
       alt={full ? "" : alt}
       width={64}
@@ -79,7 +98,7 @@ export function Avatar({
   )
   if (!full)
     return (
-      <span className={classes} style={style}>
+      <span data-slot="avatar" className={classes} style={style}>
         {picture}
       </span>
     )
@@ -103,7 +122,13 @@ export function Avatar({
       label="portrait"
       render={
         // biome-ignore lint/a11y/useAnchorContent: the trigger clones the picture into this element, and it carries the name
-        <a href={full.src} className={classes} style={style} aria-label={alt} />
+        <a
+          data-slot="avatar"
+          href={full.src}
+          className={classes}
+          style={style}
+          aria-label={alt}
+        />
       }
     >
       {picture}
