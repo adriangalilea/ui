@@ -74,6 +74,17 @@ export function quoteFontSize(length: number, width: number): number {
  *  is the honest tool and the wrap is allowed to be approximate. */
 export const QUOTE_CH = 0.52
 
+/** How much of the frame the face takes, and how far the veil reaches BEYOND it. The
+ *  feather is what stops the picture having a visible left edge. */
+export const FACE_SHARE = 0.5
+export const FACE_FEATHER = 0.12
+
+/** The opening mark, as a share of the frame. It is a watermark, drawn behind the
+ *  words: big enough to read as one, small enough that the glyph's own ascender is
+ *  not cut off by the top edge, which reads as a mistake rather than as a crop. */
+export const MARK_EM = 0.22
+export const MARK_Y = 0.4
+
 export function quoteWrap(
   text: string,
   fontSize: number,
@@ -152,12 +163,16 @@ export function renderQuoteSvg(
   assert(text.length > 0, "a quote with no words")
   const ink = accent ?? quoteAccent(quote.seed ?? quote.author?.name ?? text)
   const pad = Math.round(width / 20)
+  const faceX = width - Math.round(width * FACE_SHARE)
+  const veilX = faceX - Math.round(width * FACE_FEATHER)
   const size = quoteFontSize(text.length, width)
   const step = Math.round(size * 1.35)
-  // The face takes the right half, so the words get the left: wrapping to the full
-  // frame would run them under it.
-  const column = avatar ? Math.round(width * 0.62) : width - 2 * pad
-  const lines = quoteWrap(text, size, column - 2 * pad)
+  // The words run to where the veil is still SOLID, which is the picture's own left
+  // edge: past that the backdrop starts giving way and a line ending there would sit
+  // on the photograph. Not to where the veil begins, which is a column so narrow the
+  // ladder cannot save it.
+  const textW = avatar ? faceX - pad : width - 2 * pad
+  const lines = quoteWrap(text, size, textW)
   const foot = quote.author || quote.date ? Math.round(size * 2.6) : 0
   const block = lines.length * step
   const top = Math.round((height - block - foot) / 2) + size
@@ -179,22 +194,27 @@ export function renderQuoteSvg(
   const when = quote.date
     ? `<text x="${pad}" y="${by + Math.round(size * 0.9)}" font-size="${Math.round(size * 0.5)}" fill="${muted}">${esc(quote.date)}</text>`
     : ""
+  // The veil starts BEFORE the picture and is still fully opaque where the picture
+  // begins, so its left edge is feathered away. A veil that has already started fading
+  // there leaves a hard vertical cut down the middle of the frame, which is the one
+  // thing that makes a preview look assembled rather than composed.
   const face = avatar
-    ? `<image href="${esc(avatar)}" x="${width - Math.round(width * 0.5)}" y="0" width="${Math.round(width * 0.5)}" height="${height}" preserveAspectRatio="xMidYMin slice" opacity="0.55"/>
-  <rect x="${Math.round(width * 0.36)}" y="0" width="${width - Math.round(width * 0.36)}" height="${height}" fill="url(#veil)"/>`
+    ? `<image href="${esc(avatar)}" x="${faceX}" y="0" width="${Math.round(width * FACE_SHARE)}" height="${height}" preserveAspectRatio="xMidYMin slice" opacity="0.55"/>
+  <rect x="${veilX}" y="0" width="${width - veilX}" height="${height}" fill="url(#veil)"/>`
     : ""
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
   <defs>
     <linearGradient id="veil" x1="0" x2="1">
       <stop offset="0" stop-color="${background}"/>
-      <stop offset="0.45" stop-color="${background}" stop-opacity="0.5"/>
-      <stop offset="1" stop-color="${background}" stop-opacity="0.2"/>
+      <stop offset="${FACE_FEATHER / (FACE_SHARE + FACE_FEATHER)}" stop-color="${background}"/>
+      <stop offset="0.62" stop-color="${background}" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="${background}" stop-opacity="0.15"/>
     </linearGradient>
   </defs>
   <rect width="${width}" height="${height}" fill="${background}"/>
   ${face}
-  <text x="${pad - Math.round(size * 0.5)}" y="${Math.round(height * 0.42)}" font-size="${Math.round(width * 0.3)}" fill="${ink}" opacity="0.2" font-family="${esc(fontFamily)}">&#8220;</text>
+  <text x="${pad - Math.round(size * 0.5)}" y="${Math.round(height * MARK_Y)}" font-size="${Math.round(width * MARK_EM)}" fill="${ink}" opacity="0.2" font-family="${esc(fontFamily)}">&#8220;</text>
   <g font-family="${esc(fontFamily)}" font-size="${size}" xml:space="preserve">
     ${rows}
     ${attribution}
