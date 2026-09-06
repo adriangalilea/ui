@@ -35,10 +35,19 @@ run = "pnpm biome check --write ."
 [tasks.still]
 description = "render the quote card into .renders/ and open it. `marks` and `attrib` sweep a placement with the words stripped"
 usage = '''
-arg "[mode]" help="corpus | ground | marks | attrib | text | width" default=""
+arg "[mode]" help="corpus | faces | ground | share | marks | attrib | text | width" default=""
 arg "[n]" help="how many, for corpus" default="12"
 '''
 run = 'bun scripts/quote-still.ts {{arg(name="mode")}} {{arg(name="n")}}'
+
+[tasks.portrait]
+description = "crop any picture into the square portrait the quote card wants, on the face rather than on the middle"
+usage = '''
+arg "<src>" help="an image path, or wikipedia:Article_Title"
+arg "<out>" help="where the png goes"
+arg "[size]" help="square side in px" default="256"
+'''
+run = 'bun scripts/portrait.ts {{arg(name="src")}} {{arg(name="out")}} {{arg(name="size")}}'
 
 [tasks.add]
 description = "build, then copy one item into a consumer (default: the garden)"

@@ -387,6 +387,22 @@ const GROUNDS: readonly [string, number][] = [
   ["d-32", 0.32],
 ]
 
+/** How much frame the picture takes. THE REAL FRAMING CONTROL, and the reason a sweep
+ *  of anchors would have shown four identical cards: these portraits are square and the
+ *  slot is taller than it is wide, so the image scales to the height and the whole of it
+ *  is always on screen. Only the slot's SHAPE decides what gets cut.
+ *
+ *  Past about half the width the slot turns wider than the source, the scaling flips to
+ *  the width, and the crop starts eating the top and the bottom instead — which is where
+ *  heads begin to go, and where a focal point would start to earn its keep. */
+const SHARES: readonly [string, number][] = [
+  ["a-third", 1 / 3],
+  ["b-golden", 0.382],
+  ["c-42", 0.42],
+  ["d-half", 0.5],
+  ["e-58", 0.58],
+]
+
 /** Move every line of the quote, and the scrim under them, by the same amount. */
 const moveWords = (svg: string, dy: number) =>
   svg
@@ -417,6 +433,60 @@ const shots: [string, string][] = await (async () => {
       faces.map(([slug, q, x]): [string, string] => [
         `ground-${variant}-${slug}`,
         stripWords(renderQuoteSvg(q, { ...LOOK, ...x, faceFeather })),
+      ]),
+    )
+  }
+  // Every source portrait at once, unretouched and unscaled beyond fitting the sheet.
+  // A card that cuts a head is either cropping badly or drawing a file that arrived
+  // cropped, and those two have opposite fixes: one is this module's problem and the
+  // other is the content's. Nothing tells them apart faster than looking at the files.
+  if (mode === "faces") {
+    const { readdir } = await import("node:fs/promises")
+    const slugs = (await readdir(CORPUS))
+      .filter((s) => !s.endsWith(".md"))
+      .sort()
+    const COLS = 8
+    const CELL = 150
+    const rows = Math.ceil(slugs.length / COLS)
+    // Embedded, not referenced: librsvg refuses to follow an href out of the SVG's own
+    // directory, and a sheet of empty boxes with correct labels under them is the most
+    // convincing wrong answer this script could produce.
+    const cells: string[] = []
+    for (const [i, slug] of slugs.entries()) {
+      let png: string
+      try {
+        png = (await readFile(join(CORPUS, slug, "avatar.png"))).toString(
+          "base64",
+        )
+      } catch {
+        png = ""
+      }
+      const x = (i % COLS) * CELL
+      const y = Math.floor(i / COLS) * (CELL + 22)
+      cells.push(
+        `${png ? `<image href="data:image/png;base64,${png}" x="${x + 5}" y="${y + 5}" width="${CELL - 10}" height="${CELL - 10}" preserveAspectRatio="xMidYMid meet"/>` : ""}
+  <text x="${x + CELL / 2}" y="${y + CELL + 12}" font-size="11" font-family="monospace" fill="${png ? "#8f8f8f" : "#c05050"}" text-anchor="middle">${slug}</text>`,
+      )
+    }
+    const w = COLS * CELL
+    const h = rows * (CELL + 22)
+    return [
+      [
+        "faces",
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+  <rect width="${w}" height="${h}" fill="#0d0d0f"/>
+  ${cells.join("\n  ")}
+</svg>
+`,
+      ],
+    ]
+  }
+  if (mode === "share") {
+    const faces = await loadCorpus(GROUND_FACES.length, GROUND_FACES)
+    return SHARES.flatMap(([variant, faceShare]) =>
+      faces.map(([slug, q, x]): [string, string] => [
+        `share-${variant}-${slug}`,
+        stripWords(renderQuoteSvg(q, { ...LOOK, ...x, faceShare })),
       ]),
     )
   }
