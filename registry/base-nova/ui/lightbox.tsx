@@ -2106,12 +2106,20 @@ function Stage(props: StageProps) {
       // motion, never the ownership.
       if (e.ctrlKey) e.preventDefault()
       // LEAVING: the momentum still arriving is the reader's, and it belongs to the
-      // page they are going back to. Holding it until the picture had finished flying
-      // home and only then starting to scroll reads as a delay the reader did not ask
-      // for and cannot steer — the room re-lights, then a beat, then the page moves on
-      // its own. Handing it over the instant the exit is DECIDED, rather than when it
-      // lands, is what makes a dismiss and the scroll under it one motion.
-      if (S.ph === "exit") return
+      // page they are going back to. It has to be HANDED over, not merely released:
+      // a scroll stream latches to the scroller it started on, so every remaining
+      // delta keeps being delivered here whatever this handler does with them, and
+      // ignoring them is why the page sat still and then moved on its own once a new
+      // stream began. Applying them to the page directly is the only way the dismiss
+      // and the scroll under it are one motion instead of two.
+      if (S.ph === "exit") {
+        e.preventDefault()
+        window.scrollBy(
+          wheelPx(e.deltaX, e.deltaMode, window.innerHeight),
+          wheelPx(e.deltaY, e.deltaMode, window.innerHeight),
+        )
+        return
+      }
       if (chromeTarget(e.target)) return
       const ctx = wheelCtx()
       const input = {
