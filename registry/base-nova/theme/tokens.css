@@ -17,6 +17,11 @@
 
 @theme inline {
   --font-typewriter: var(--font-typewriter);
+  /* The face somebody else's words are set in (quote). ITS OWN SLOT, not --font-serif:
+     a page's serif is usually its heading face, and a display serif drawn for 28px
+     headlines is illegible at reading size. Name a reading serif here (Tinos, Georgia,
+     Source Serif); unset, the stack every machine has. */
+  --font-quote: Georgia, "Times New Roman", Times, serif;
   --color-brand: var(--brand);
   --color-tone-ok: var(--tone-ok);
   --color-tone-warn: var(--tone-warn);

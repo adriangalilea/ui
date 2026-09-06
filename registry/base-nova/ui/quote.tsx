@@ -124,9 +124,12 @@ const FEATURE_CLIMB = 0.25
  *  author's own. A mix off the foreground rather than a theme token, so it is one step up
  *  on any ground — light, dark, tinted — without a variable to wire. */
 const STEP = "rounded-xl bg-foreground/4"
-/** The words are a QUOTATION and take the serif — `--font-serif` on the page names the
- *  face, the same slot the still fills with its `fontFamily`. */
-const WORDS = "m-0 font-serif *:m-0 [&>p+p]:mt-2"
+/** The words are a QUOTATION and take a reading serif: `--font-quote` (tokens) names
+ *  the face, the same slot the still fills with its `fontFamily`. NOT `--font-serif`: a
+ *  page's serif is usually its heading face, and a display serif drawn for headlines
+ *  (Instrument Serif on adriangalilea.com) was illegible at reading size the moment the
+ *  quote inherited it. */
+const WORDS = "m-0 font-quote *:m-0 [&>p+p]:mt-2"
 /** The attribution line: one row, the page's muted voice, never italic (a figcaption is
  *  not a caption in the typographic sense here). */
 const BY = "flex items-center not-italic text-muted-foreground"
