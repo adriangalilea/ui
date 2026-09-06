@@ -7,6 +7,7 @@
 // still drew a plain <img> where the source had used <Avatar> for a day. Remembering an
 // order is not a fix. This adds the item, then re-adds every transitive local
 // dependency after it, so the last write for every file is the local one.
+import { spawnSync } from "node:child_process"
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
@@ -39,19 +40,11 @@ while (queue.length > 0) {
 
 for (const name of order) {
   console.log(`→ ${name}`)
-  const proc = Bun.spawnSync(
-    [
-      "pnpm",
-      "shadcn",
-      "add",
-      jsonOf(name),
-      "--cwd",
-      dir,
-      "--overwrite",
-      "--yes",
-    ],
-    { stdout: "inherit", stderr: "inherit" },
+  const proc = spawnSync(
+    "pnpm",
+    ["shadcn", "add", jsonOf(name), "--cwd", dir, "--overwrite", "--yes"],
+    { stdio: "inherit" },
   )
-  if (proc.exitCode !== 0) process.exit(proc.exitCode ?? 1)
+  if (proc.status !== 0) process.exit(proc.status ?? 1)
 }
 console.log(`✓ ${order.join(", ")} → ${dir}`)
