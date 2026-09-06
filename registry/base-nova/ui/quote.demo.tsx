@@ -60,7 +60,10 @@ export default function Demo() {
   // link and the page it opens cannot disagree about what somebody said.
   // The page really loads Geist, so the still is told it can name it — and told so
   // EXPLICITLY, because a face that is merely hoped for is substituted in silence.
-  const faces = { fontFamily: FACE, nameFamily: FACE, fonts: [FACE] }
+  // Only the NAME names a face. The words are left on the component's own serif slot, the
+  // same one the card's CSS fills — naming Geist here drew the still in a sans while the
+  // card above it sat in a serif, which is the drift this page exists to show is absent.
+  const faces = { nameFamily: FACE, fonts: [FACE] }
   const withFace = renderQuoteSvg(LETTER, {
     ...faces,
     avatar: dataUri(TWAIN),
