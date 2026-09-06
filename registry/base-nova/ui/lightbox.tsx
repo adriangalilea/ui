@@ -763,18 +763,38 @@ function Stage(props: StageProps) {
     if (fullscreen) s.add("fullscreen")
     return s
   }, [zoomed, media.kind, sheet, fullscreen])
-  const unavailable = React.useMemo(() => {
+  // ABSENT is not UNAVAILABLE. Unavailable is a STATE — prev at the first slide, zoom on
+  // a frame — and its control shows dimmed, because it says where you are and it comes
+  // back. Absent can never happen in this session: a rail nobody provided, arrows and a
+  // strip on a reel of one, fullscreen where the browser has none. A control with nothing
+  // behind it does not appear, in the bar or in the `?` sheet; a lightbox around one
+  // portrait drew two dead arrows and a dead "i" before this distinction existed.
+  const absent = React.useMemo(() => {
     const u = new Set<ActionId>()
+    if (!renderRail) u.add("rail")
+    if (count < 2)
+      for (const a of [
+        "prev",
+        "next",
+        "step.prev",
+        "step.next",
+        "first",
+        "last",
+        "strip",
+      ] as const)
+        u.add(a)
+    if (!document.fullscreenEnabled) u.add("fullscreen")
+    return u
+  }, [count, renderRail])
+  const unavailable = React.useMemo(() => {
+    const u = new Set<ActionId>(absent)
     if (media.kind === "frame")
       for (const a of ["zoom.in", "zoom.out", "zoom.fit"] as const) u.add(a)
-    if (!document.fullscreenEnabled) u.add("fullscreen")
-    if (!renderRail) u.add("rail")
-    if (count < 2) u.add("strip")
     const can = neighbours(index, count, loop)
     if (!can.prev) for (const a of ["prev", "step.prev"] as const) u.add(a)
     if (!can.next) for (const a of ["next", "step.next"] as const) u.add(a)
     return u
-  }, [media.kind, loop, index, count, renderRail])
+  }, [absent, media.kind, loop, index, count])
 
   // Everything the engine reads, one frame fresh, never a stale closure.
   const live = React.useRef({
@@ -2762,6 +2782,7 @@ function Stage(props: StageProps) {
             id="rail"
             dispatch={dispatch}
             unavailable={unavailable}
+            absent={absent}
             pressed={rail}
           >
             <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -2778,6 +2799,7 @@ function Stage(props: StageProps) {
           id="prev"
           dispatch={dispatch}
           unavailable={unavailable}
+          absent={absent}
           className="ag-lb-nav"
           data-side="left"
         >
@@ -2789,6 +2811,7 @@ function Stage(props: StageProps) {
           id="next"
           dispatch={dispatch}
           unavailable={unavailable}
+          absent={absent}
           className="ag-lb-nav"
           data-side="right"
         >
@@ -3054,6 +3077,7 @@ function Button({
   id,
   dispatch,
   unavailable,
+  absent,
   pressed,
   className,
   children,
@@ -3062,10 +3086,13 @@ function Button({
   id: ActionId
   dispatch: (id: ActionId) => void
   unavailable: ReadonlySet<ActionId>
+  /** Actions that cannot happen in this session render nothing. */
+  absent?: ReadonlySet<ActionId>
   pressed?: boolean
   className?: string
   children: React.ReactNode
 } & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "id" | "children">) {
+  if (absent?.has(id)) return null
   const a: Action = action(id)
   return (
     <button

@@ -161,6 +161,14 @@ figcaption, and a quote's is its attribution. The one thing that IS page-wide: e
 `id`s, because `history` writes `#lb=<id>`. Two providers with the same id on one page
 fight over the hash.
 
+**Absent is not unavailable.** An action that is a STATE (prev at the first slide, zoom
+on a frame) is `unavailable`: its button stays, dimmed and focusable, because it says
+where you are and it comes back. An action that cannot happen in this session — a rail
+with no `renderRail`, arrows / strip / first / last on a reel of one, fullscreen where
+the browser has none — is `absent`: no button, no row in the `?` sheet. The set is
+computed once in `Stage` and `Button` returns null for it. A solo portrait that drew two
+dead arrows and a dead "i" is what the distinction exists to prevent.
+
 ### Leaving
 
 **A relock is a RUN of motion, never one event.** Both axis relocks read consecutive
