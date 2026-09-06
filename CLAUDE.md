@@ -339,11 +339,23 @@ Left on the item:
 
 ### then: adopt, wave 2, wave 3
 
-1. adriangalilea.com prose figures (retire its `components/lightbox.tsx`), the garden's feature stills, videoclub.
+1. The garden's feature stills, videoclub. (adriangalilea.com is fully on it: figures, covers, card expand buttons and avatars, its own copy retired.)
 2. `scrollspy` (scroll-intent stand-down), `page-exit` / `page-enter` (the faked cross-origin morph: exit animation, Speculation Rules prerender with `Supports-Loading-Mode: credentialed-prerender` on the subdomain, entrance), `keymap` + `cursor-list` / `cursor-grid` (swift-utils Keymap; the lightbox's action table is the first client).
 3. `charts` + `chart-frame` (adriangalilea.com's wrappers are the taste anchor), `particle-charts` as the opt-in playful voice, `narrated` (Sonoscript: real times only, click to seek, opt-in follow).
 4. A frameless `telegram`, `checklist`, `kanban`, `code-scrolly`.
 5. The garden landing (a static grid under a fog that promises content), then later: cover-image with blur and grain, `magic-input`, the media-library kit for videoclub and lore.
+
+### tailwind pass over quote and avatar, once the design settles
+
+Their static styles (padding, radius, the step surface, gaps, the avatar rungs, the cite
+colours) live in `quote.css` / `avatar.css`, so a consumer overriding one has to fight a
+stylesheet instead of passing `className`. shadcn items are Tailwind in the JSX and every
+`@ag` consumer has Tailwind; these should be too. Only the DERIVED geometry stays as
+custom properties in CSS, because it is arithmetic on the module's constants (`cqw` sizes,
+frame percentages, the focus gradient, the dissolve mask) and no utility class expresses a
+computed value. One pass, after the look stops moving: doing it mid-tuning rewrites every
+rule twice. `@tailwindcss/typography` is not part of this; `prose` is for markdown bodies,
+not a composition.
 
 ### telegram: the phone is in the way of the words
 
