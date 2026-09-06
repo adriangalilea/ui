@@ -7,6 +7,7 @@ import {
   assertAvatar,
   assertFonts,
   GROUND_LIGHT,
+  MEASURE_MAX,
   MEASURE_STEPS,
   QUOTE_CH,
   quoteClean,
@@ -79,6 +80,18 @@ import {
   assert(
     MEASURE_STEPS[MEASURE_STEPS.length - 1]?.under === Number.POSITIVE_INFINITY,
     "the last rung must be open, or a long quote has no measure at all",
+  )
+  // A WIDER WEIGHT NEVER CROSSES THE CEILING. The feature weight scales the ladder by one
+  // and a half; on the longest rung that is 84 characters a line, past MEASURE_MAX, and
+  // the first cut of this threw on a 435-character Cervantes and took a production build
+  // down with it. The ceiling wins, silently, and the fit still works.
+  assert(
+    quoteMeasure(500, 1.5) === MEASURE_MAX,
+    `a scaled measure must stop at ${MEASURE_MAX}, got ${quoteMeasure(500, 1.5)}`,
+  )
+  assert(
+    quoteSet("word ".repeat(100), 646, { measure: 1.5 }).lines.length > 0,
+    "a long quote at a wide weight must set, not throw",
   )
   // A band it cannot fit is a THROW, never a cut.
   let screamed = false

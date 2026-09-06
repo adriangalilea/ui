@@ -96,11 +96,15 @@ export const FEATURE_MEASURE = 1.5
  *  a MEASURE rather than a pixel size so it means the same thing in any column. */
 export const MEASURE_MAX = 80
 
-/** How many characters a line should carry, for a quote this long. */
-export function quoteMeasure(length: number): number {
+/** How many characters a line should carry, for a quote this long, at a scale of the
+ *  ladder — and never past MEASURE_MAX. A weight that reads wider than the poster scales
+ *  the whole ladder, and on the longest rung that scale would cross the ceiling; the
+ *  ceiling wins, silently, because "this quote is long and this weight reads wide" is not
+ *  a caller's mistake. Both emitters take the measure from here, so they clamp alike. */
+export function quoteMeasure(length: number, measure = 1): number {
   const step = MEASURE_STEPS.find((s) => length < s.under)
   assert(step, "the measure ladder has no last rung")
-  return step.ch
+  return Math.min(step.ch * measure, MEASURE_MAX)
 }
 
 /** Line to line, as a multiple of the em. */
@@ -146,15 +150,11 @@ export function quoteSet(
     ch > 0.2 && ch < 0.8,
     `a character advance of ${ch} em is no face anyone sets`,
   )
-  const floor = colW / (MEASURE_MAX * ch)
-  let size = Math.round(colW / (quoteMeasure(text.length) * measure * ch))
-  // The floor holds at the DOOR too, not only on the way down: a scale wide enough to
-  // ask for more than MEASURE_MAX characters a line is already a paragraph in a
-  // thumbnail, whether or not the block happens to fit.
-  assert(
-    size > floor,
-    `a measure of ${quoteMeasure(text.length) * measure} characters a line is past ${MEASURE_MAX}, which stops being a card`,
-  )
+  // The floor is MEASURE_MAX in pixels. quoteMeasure never asks for more than that, so the
+  // starting size is at or above it; the loop below only ever steps DOWN from there, and
+  // throws the moment it would have to cross.
+  const floor = Math.floor(colW / (MEASURE_MAX * ch))
+  let size = Math.round(colW / (quoteMeasure(text.length, measure) * ch))
   for (;;) {
     const lines = quoteWrap(text, size, colW, ch)
     const high =

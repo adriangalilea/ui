@@ -143,7 +143,7 @@ export function Quote({
           {
             "--ag-quote-ink": ink,
             "--ag-quote-indent": pct(unit * INDENT),
-            "--ag-quote-measure": `${quoteMeasure(words.length) * FEATURE_MEASURE}ch`,
+            "--ag-quote-measure": `${quoteMeasure(words.length, FEATURE_MEASURE)}ch`,
             "--ag-quote-size": cqw(size / width),
             "--ag-quote-mark": cqw(MARK_EM / aspect),
             "--ag-quote-mark-fill": String(MARK_OPACITY),
