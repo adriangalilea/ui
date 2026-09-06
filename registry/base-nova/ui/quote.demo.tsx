@@ -6,7 +6,6 @@ import {
   renderQuoteSvg,
   toneFrom,
 } from "@/registry/base-nova/lib/quote-card"
-import { Lightbox } from "@/registry/base-nova/ui/lightbox"
 import { Quote, type QuoteVariant } from "@/registry/base-nova/ui/quote"
 
 /** Mark Twain, photographed before 1910 and long in the public domain. A real face,
@@ -147,57 +146,51 @@ export default function Demo() {
       avatar: q.author?.avatar ? dataUri(q.author.avatar) : undefined,
     }),
   ])
-  // ONE lightbox provider for the page, the way the lightbox is meant to be mounted: every
-  // avatar below is a trigger into it, so a face that invites a closer look can be looked
-  // at closer.
   return (
-    <Lightbox>
-      <div className="space-y-16">
-        {WEIGHTS.map(([variant, what]) => (
-          <section key={variant} className="space-y-6">
-            <div className="font-mono text-muted-foreground text-xs lowercase">
-              {variant} · {what}
-            </div>
-            {CASES.map(([label, q, x]) => (
-              <div key={label} className="space-y-2">
-                <div className="font-mono text-muted-foreground/60 text-xs lowercase">
-                  {label}
-                </div>
-                <Quote {...q} tone={x.tone} focus={x.focus} variant={variant} />
-              </div>
-            ))}
-          </section>
-        ))}
-        <section className="space-y-6">
+    <div className="space-y-16">
+      {WEIGHTS.map(([variant, what]) => (
+        <section key={variant} className="space-y-6">
           <div className="font-mono text-muted-foreground text-xs lowercase">
-            the still · the same cases, drawn without React
+            {variant} · {what}
           </div>
-          <p className="max-w-prose text-foreground/60 text-sm">
-            Not a component and not on any page: this is what an OG route
-            answers with, at the 1200×630 every platform crops from. It is drawn
-            by <code className="font-mono text-xs">renderQuoteSvg</code>, which
-            takes no React, so a build script can write it to disk or a route
-            can return it. Inlined here only so it can be looked at without
-            sharing anything — and next to the card above it, so a drift between
-            them would be visible on this page before it was visible on a shared
-            link.
-          </p>
-          <div className="grid gap-4">
-            {stills.map(([label, svg]) => (
-              <div key={label} className="space-y-2">
-                <div className="font-mono text-muted-foreground/60 text-xs lowercase">
-                  {label}
-                </div>
-                <div
-                  className="overflow-hidden rounded-lg border border-border [&>svg]:h-auto [&>svg]:w-full"
-                  // biome-ignore lint/security/noDangerouslySetInnerHtml: the renderer escapes every value it interpolates
-                  dangerouslySetInnerHTML={{ __html: svg }}
-                />
+          {CASES.map(([label, q, x]) => (
+            <div key={label} className="space-y-2">
+              <div className="font-mono text-muted-foreground/60 text-xs lowercase">
+                {label}
               </div>
-            ))}
-          </div>
+              <Quote {...q} tone={x.tone} focus={x.focus} variant={variant} />
+            </div>
+          ))}
         </section>
-      </div>
-    </Lightbox>
+      ))}
+      <section className="space-y-6">
+        <div className="font-mono text-muted-foreground text-xs lowercase">
+          the still · the same cases, drawn without React
+        </div>
+        <p className="max-w-prose text-foreground/60 text-sm">
+          Not a component and not on any page: this is what an OG route answers
+          with, at the 1200×630 every platform crops from. It is drawn by{" "}
+          <code className="font-mono text-xs">renderQuoteSvg</code>, which takes
+          no React, so a build script can write it to disk or a route can return
+          it. Inlined here only so it can be looked at without sharing anything
+          — and next to the card above it, so a drift between them would be
+          visible on this page before it was visible on a shared link.
+        </p>
+        <div className="grid gap-4">
+          {stills.map(([label, svg]) => (
+            <div key={label} className="space-y-2">
+              <div className="font-mono text-muted-foreground/60 text-xs lowercase">
+                {label}
+              </div>
+              <div
+                className="overflow-hidden rounded-lg border border-border [&>svg]:h-auto [&>svg]:w-full"
+                // biome-ignore lint/security/noDangerouslySetInnerHtml: the renderer escapes every value it interpolates
+                dangerouslySetInnerHTML={{ __html: svg }}
+              />
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
   )
 }

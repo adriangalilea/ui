@@ -581,6 +581,24 @@ export function LightboxTrigger({
   )
 }
 
+/** A picture that opens ALONE: its own provider around its own trigger, so it is never
+ *  a slide in whatever reel surrounds it. The grouping model has no prop for this on
+ *  purpose (the reel IS the provider); this is that model applied to one figure, and it
+ *  is exported because an avatar in an attribution, an inline image in prose and a
+ *  cover on a card all want exactly it. Arrows, strip and counter stand down on their
+ *  own: the count is 1. The nearest provider wins, so it nests inside a page reel
+ *  without joining it. `label` is what the dialog is announced as. */
+export function LightboxSolo({
+  label,
+  ...trigger
+}: LightboxTriggerProps & { label?: string }) {
+  return (
+    <Lightbox label={label}>
+      <LightboxTrigger {...trigger} />
+    </Lightbox>
+  )
+}
+
 type StageProps = {
   ids: string[]
   index: number
