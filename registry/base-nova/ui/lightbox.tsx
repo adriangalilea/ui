@@ -1384,8 +1384,19 @@ function Stage(props: StageProps) {
       }
       exitRaf = requestAnimationFrame(followOut)
       const y = window.scrollY
-      if (y === exitY) return
+      const dy = y - exitY
+      if (!dy) return
       exitY = y
+      // The PICTURE moves with the content too, not just its target. Re-aiming alone
+      // leaves a critically damped spring chasing a point that keeps fleeing, and a
+      // spring tracking a constant velocity has a standing error of v/ω — it trails
+      // the trigger by more the longer the reader keeps scrolling, and the move takes
+      // longer the further the ground has run. Shifting BOTH ends by the same scroll
+      // leaves the remaining flight identical in shape and in duration: the exit is a
+      // move through the DOCUMENT, and how fast the ground goes by is not its
+      // business.
+      sync()
+      pose.value = { ...pose.value, y: pose.value.y - dy }
       beginExit()
     }
     const followScroll = () => {
