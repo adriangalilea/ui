@@ -55,6 +55,14 @@ for (const item of registry.items) {
     if (dep.startsWith("@ag/") && !names.has(dep.slice(4)))
       fail(`${item.name}: unknown dependency ${dep}`)
   }
+  // An item named `<head>-<x>` is that head's PART: the index nests it under the head,
+  // which must therefore pull it in. Named like a part and not depended on, it would
+  // be neither a row nor a nested line.
+  const head = registry.items.find((h) => item.name.startsWith(`${h.name}-`))
+  if (head && !(head.registryDependencies ?? []).includes(`@ag/${item.name}`))
+    fail(
+      `${item.name}: named as a part of ${head.name}, which does not depend on it`,
+    )
 }
 
 const built = join(root, "public/r")

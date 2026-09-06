@@ -5,7 +5,16 @@ import { notFound } from "next/navigation"
 import { Code } from "@/registry/base-nova/ui/code"
 import { Copy } from "@/registry/base-nova/ui/copy"
 import { DEMOS } from "../demos"
-import { ITEMS, type Item, item, partsOf, sourceUrl } from "../registry"
+import {
+  headOf,
+  ITEMS,
+  type Item,
+  item,
+  partsOf,
+  sourceUrl,
+  usedBy,
+  usesOf,
+} from "../registry"
 
 export function generateStaticParams() {
   return ITEMS.map((i) => ({ item: i.name }))
@@ -34,7 +43,16 @@ export default async function ItemPage({ params }: PageProps<"/[item]">) {
   if (!meta || !Demo) notFound()
   const src = await demoSource(meta)
   const install = `npx shadcn add @ag/${meta.name}`
-  const parts = partsOf(meta)
+  // Every relation an item has, from THIS end. The other end says the reverse: what
+  // `quote` lists under "uses", `avatar` lists under "used by". Derived, so the two
+  // ends cannot disagree.
+  const head = headOf(meta)
+  const relations: [string, Item[]][] = [
+    ["comes with", partsOf(meta)],
+    ["part of", head ? [head] : []],
+    ["uses", usesOf(meta)],
+    ["used by", usedBy(meta)],
+  ]
   return (
     <main className="mx-auto w-full max-w-5xl px-6 py-16">
       <Link
@@ -62,22 +80,27 @@ export default async function ItemPage({ params }: PageProps<"/[item]">) {
         <code className="font-mono text-xs">{install}</code>
         <Copy value={install} />
       </div>
-      {parts.length > 0 && (
-        <p className="mt-3 font-mono text-xs text-muted-foreground">
-          comes with{" "}
-          {parts.map((p, i) => (
-            <span key={p.name}>
-              {i > 0 && ", "}
-              <Link
-                href={`/${p.name}`}
-                className="underline-offset-4 hover:underline"
-              >
-                {p.name}
-              </Link>
-            </span>
-          ))}
-        </p>
-      )}
+      {relations
+        .filter(([, items]) => items.length > 0)
+        .map(([kind, items], n) => (
+          <p
+            key={kind}
+            className={`${n === 0 ? "mt-3" : "mt-1"} font-mono text-xs text-muted-foreground`}
+          >
+            {kind}{" "}
+            {items.map((p, i) => (
+              <span key={p.name}>
+                {i > 0 && ", "}
+                <Link
+                  href={`/${p.name}`}
+                  className="underline-offset-4 hover:underline"
+                >
+                  {p.name}
+                </Link>
+              </span>
+            ))}
+          </p>
+        ))}
 
       <div className="mt-16">
         <Demo />

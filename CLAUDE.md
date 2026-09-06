@@ -13,7 +13,7 @@ A public shadcn registry (`registry.json` at the root, items under `registry/bas
 - Every item has a `<name>.demo.tsx` beside its source and an entry in `app/demos.tsx`; `scripts/validate-registry.ts` refuses anything else. `lib/*` files are framework-free (no react, no DOM), asserted.
 - **Items meant to be used together share the head item's name**: `terminal` + `terminal-session`, `lightbox` + `lightbox-motion` + `lightbox-actions`, `telegram-chat` + `telegram-summary`. They sort together, they read as one thing, and `registry.json` keeps them adjacent. A part stays its own item only when something installs it ALONE (a build script renders a still with `terminal-session` and no React); otherwise it belongs in the head item's `files`, the way six engine files ship as `lightbox-motion`.
 - **Usage is never written by hand.** An item page renders its own `<name>.demo.tsx` verbatim, read at build time, under "the demo above, verbatim". Prose usage beside a demo drifts the first time either is touched; the same file cannot. So a demo is also the documentation: write it as the code you would want copied.
-- **The index is derived, never hand-kept**: `FAMILIES` in `app/registry.ts` reads `registryDependencies`, leads with the item you would add and nests what comes with it, so the page cannot drift from what `shadcn add` really installs. A demo shows the whole family working together where that is the point (the terminal page draws one script live AND as a still, which is the claim the pair exists to make).
+- **The index is derived, never hand-kept**: `app/registry.ts` reads `registryDependencies` and tells two relations apart. A PART shares the head's name (`quote-card`, `lightbox-motion`) and nests under it ("comes with"); everything else an item depends on is a standalone item it USES (`quote` uses `avatar`, `avatar` uses `lightbox`), which keeps its own row. **Every relation is shown from both ends** on the item pages: "comes with" / "part of", "uses" / "used by", derived from the same list so the two ends cannot disagree. Reading every dependency as a part once nested `avatar` under `quote` and dropped `lightbox` off the index; the validator refuses a name-part its head does not pull in. A demo shows the whole family working together where that is the point (the terminal page draws one script live AND as a still, which is the claim the pair exists to make).
 - Imports inside items use `@/registry/base-nova/{ui,lib,hooks,blocks}/...`; the CLI rewrites them to the consumer's aliases. A `.css` beside a component is imported relatively (`./x.css`) and ships as a second `registry:ui` file.
 - Motion is CSS-first: scroll-driven animations (`animation-timeline`) drive numbers into custom properties; React state changes on checkpoints, never per frame. Reduced motion renders the completed state.
 - Brand rules from `untitled/CLAUDE.md` bind: lowercase names, three type voices, 8px doubling rhythm, monochrome alpha ladder, no em dashes, nothing animates forever.
@@ -143,9 +143,16 @@ arrows, swipe, strip and counter all stand down on their own because `count` is 
 Nothing has to be turned off, and there is no prop for it — which is the point.
 
 In prose, that means a `<Figure>` of one's own that renders a provider and a trigger,
-used per image, and a separate provider around anything meant to be browsed. The one
-thing that IS page-wide: entry `id`s, because `history` writes `#lb=<id>`. Two
-providers with the same id on one page fight over the hash.
+used per image, and a separate provider around anything meant to be browsed. That
+per-image composition is exported as `LightboxSolo` (a provider around one trigger):
+`avatar` is built on it, so three faces on a page are three viewers, and it nests inside
+a page reel without joining it because the nearest provider wins. A face that landed in
+the page's reel, with a strip of every other face and arrows between them, is the
+failure this exists to prevent. One more thing a solo trigger inside somebody else's
+`<figure>` must do: pass `caption`, because the fallback reads that figure's
+figcaption, and a quote's is its attribution. The one thing that IS page-wide: entry
+`id`s, because `history` writes `#lb=<id>`. Two providers with the same id on one page
+fight over the hash.
 
 ### Leaving
 
@@ -238,6 +245,26 @@ pnpm's 7-day quarantine and no-downgrade trust policy apply. `pnpm-workspace.yam
 
 ## todo
 
+### bidirectional linking — CRITICAL
+
+A relation shown from one end only is a lie by omission: the reader on the other end
+never learns it exists. The rule is that every link between two things is rendered at
+BOTH of them, derived from ONE declaration so the ends cannot drift. It holds for the
+item index today (`comes with` / `part of`, `uses` / `used by`, `app/registry.ts`).
+Still one-way, in order of damage:
+
+- **lab ↔ items.** `/lab` is built on `scroll-stage`, `reveal`, `scrims`; the item pages
+  do not say so and the lab page does not link back. Declare what the lab uses once and
+  render it at both ends, the same code path as the index.
+- **items ↔ this file.** A `## Lightbox` section here, no link from `/lightbox`; a
+  todo per item, no link from its page. Either the page links the section (anchors in
+  the repo's markdown) or the doc moves to the item and the page renders it.
+- **consumers.** `used by` stops at this registry. The garden and adriangalilea.com
+  install items; nothing here says which, and nothing there points back at the item
+  page. Their `components.json` + installed files are the declaration to derive from.
+- **demo prose.** A demo that mentions another item in words (`quote` saying "the
+  avatar's lightbox") links nothing. Mentions become links or they go.
+
 ### quote
 
 The mark ships as an outline (`MARK_PATH`), taken from Instrument Serif under the SIL
@@ -263,10 +290,11 @@ tone rule re-annotates nothing.
 **`avatar` reads the same sidecar.** A person's face is one item everywhere it appears —
 quote attribution, page header, feed card, comment: a round crop on the rungs (24/40/64),
 `object-position` from `focus` so a subject to one side of the file is not cropped to an
-ear, a hairline ring in the tone. With `full` (the portrait and its `size`) it is a
-`LightboxTrigger`, so it depends on `lightbox` and needs ONE `<Lightbox>` provider on the
-page — mount it in the layout, not per card. `quote` depends on `avatar` for its
-attribution. Both are ASSET PREPARATION, done once on the Mac with
+ear, a hairline ring in the tone. With `full` (the portrait and its `size`) it opens the
+portrait ALONE (`LightboxSolo`, its own provider, nothing to mount above it), captioned
+with the name. `quote` uses `avatar` for its attribution, `avatar` uses `lightbox`; each
+is its own item and the index links both ends. The sidecar and the crop are ASSET
+PREPARATION, done once on the Mac with
 the tools the Mac has; a consumer reads two numbers and never runs sips, sharp or Vision
 in its build. A detected focus is a guess that is right often, not always — two people in
 a frame, a face in profile at the edge — and the sidecar is the override: edit the number,
