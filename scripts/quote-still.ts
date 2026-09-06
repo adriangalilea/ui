@@ -1,18 +1,15 @@
-// Draw the quote still and LOOK at it. `mise still` renders three lengths into
-// `.renders/` and opens them; `mise still marks` sweeps the mark's position with the
-// words stripped out. Dev tooling, not a check — the only judge of how a card reads is
-// a person, and this is the shortest path to putting one in front of them.
-//
-// Three lengths on purpose. The attribution is anchored to the bottom of the frame and
-// the mark to the top, so only the words may move between them: one card cannot show
-// that and three show it at a glance.
+// Draw the quote still and LOOK at it. `mise still` renders three built-in lengths into
+// `.renders/` and opens them; `corpus` draws every real quote, `faces` sheets the source
+// portraits, `ground`/`share`/`block` sweep ONE variable each. Dev tooling, not a check —
+// the only judge of how a card reads is a person, and this is the shortest path to
+// putting one in front of them.
 //
 // Node APIs throughout, no Bun globals, so it typechecks with everything else.
 // Rasterizing needs `rsvg-convert` (librsvg); without it the SVGs are still written
 // and it says so, because a missing tool is not a broken card.
 
 import { spawn } from "node:child_process"
-import { mkdir, readFile, writeFile } from "node:fs/promises"
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -61,6 +58,7 @@ const averageColor = async (
     `sips could not read ${path}`,
   )
   const png = await readFile(out)
+  await unlink(out).catch(() => {})
   let at = 8
   const idat: Buffer[] = []
   let colorType = -1
@@ -153,8 +151,6 @@ const capture = (cmd: string, args: string[]): Promise<[number, string]> =>
     p.on("close", (code) => ok([code ?? 1, out]))
   })
 
-const face = await look(join(PUBLIC, "mark-twain.png"))
-
 /** `mise still corpus` draws REAL quotes with REAL portraits, read out of
  *  adriangalilea.com's own content. Three invented cards cannot show what a set of
  *  these looks like: the corpus has names of two words and of four, quotes of forty
@@ -188,7 +184,7 @@ const loadCorpus = async (
     authors = await readdir(CORPUS)
   } catch {
     console.error(`no corpus at ${CORPUS} — falling back to the built-in cards`)
-    return [...CARDS]
+    return builtin()
   }
   const out: [string, Quote, QuoteStillOptions][] = []
   const slugs = only ?? authors.sort()
@@ -256,35 +252,41 @@ const loadCorpus = async (
   return out
 }
 
-const CARDS: readonly [string, Quote, QuoteStillOptions][] = [
-  [
-    "medium",
-    {
-      text: "I did not have time to write a short letter, so I wrote a long one instead.",
-      author: { name: "Mark Twain" },
-      date: "1876",
-    },
-    face,
-  ],
-  [
-    "short",
-    {
-      text: "The purpose of a system is what it does.",
-      author: { name: "Stafford Beer" },
-      date: "2002",
-    },
-    {},
-  ],
-  [
-    "long",
-    {
-      text: "It is not the critic who counts, nor the man who points out how the strong man stumbles. The credit belongs to the man who is actually in the arena.",
-      author: { name: "Theodore Roosevelt" },
-      date: "1910",
-    },
-    face,
-  ],
-]
+/** The three invented cards, built ON DEMAND: assembling them reads and averages the
+ *  Twain portrait, and most modes never look at them — a corpus render paying a sips
+ *  call for cards it will not draw is work done to be thrown away. */
+const builtin = async (): Promise<[string, Quote, QuoteStillOptions][]> => {
+  const face = await look(join(PUBLIC, "mark-twain.png"))
+  return [
+    [
+      "medium",
+      {
+        text: "I did not have time to write a short letter, so I wrote a long one instead.",
+        author: { name: "Mark Twain" },
+        date: "1876",
+      },
+      face,
+    ],
+    [
+      "short",
+      {
+        text: "The purpose of a system is what it does.",
+        author: { name: "Stafford Beer" },
+        date: "2002",
+      },
+      {},
+    ],
+    [
+      "long",
+      {
+        text: "It is not the critic who counts, nor the man who points out how the strong man stumbles. The credit belongs to the man who is actually in the arena.",
+        author: { name: "Theodore Roosevelt" },
+        date: "1910",
+      },
+      face,
+    ],
+  ]
+}
 
 /** Remove the QUOTE'S LINES and nothing else — the mark and the attribution stay, so
  *  what is judged is the real card minus the one thing that pulls an eye. They are the
@@ -373,7 +375,16 @@ const shots: [string, string][] = await (async () => {
   // other is the content's. Nothing tells them apart faster than looking at the files.
   if (mode === "faces") {
     const { readdir } = await import("node:fs/promises")
-    const slugs = (await readdir(CORPUS, { withFileTypes: true }))
+    let entries: import("node:fs").Dirent[]
+    try {
+      entries = await readdir(CORPUS, { withFileTypes: true })
+    } catch {
+      // The same admission the corpus loader makes: a fixture that is not there is
+      // said out loud, not thrown as a raw ENOENT.
+      console.error(`no corpus at ${CORPUS} — nothing to sheet`)
+      return []
+    }
+    const slugs = entries
       .filter((e) => e.isDirectory())
       .map((e) => e.name)
       .sort()
@@ -431,7 +442,7 @@ const shots: [string, string][] = await (async () => {
       ]),
     )
   }
-  return CARDS.map(([name, q, x]): [string, string] => [
+  return (await builtin()).map(([name, q, x]): [string, string] => [
     `quote-${name}`,
     renderQuoteSvg(q, { ...LOOK, ...x }),
   ])

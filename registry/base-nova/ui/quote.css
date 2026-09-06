@@ -114,7 +114,7 @@
   width: auto;
   fill: var(--ag-quote-ink);
   opacity: var(--ag-quote-mark-fill);
-  filter: blur(0.35cqw);
+  filter: blur(var(--ag-quote-soften));
 }
 
 /* The words are CENTRED in the band the mark and the attribution leave, so the air
@@ -123,17 +123,17 @@
   position: absolute;
   left: var(--ag-quote-indent);
   top: var(--ag-quote-edge);
-  bottom: calc(var(--ag-quote-edge) + var(--ag-quote-name));
-  width: calc(
-    var(--ag-quote-column) -
-    var(--ag-quote-indent) +
-    var(--ag-quote-margin)
-  );
+  /* The band's floor is the attribution's CAP, not its baseline: the still reserves
+     (CAP+DESC)·nameSize below the band and the block is centred against that. */
+  bottom: var(--ag-quote-floor);
+  /* The column IS --ag-quote-column: quoteSet was fed exactly this width, so any
+     arithmetic on top of it here re-wraps the lines the size was chosen for. */
+  width: var(--ag-quote-column);
   display: flex;
   flex-direction: column;
   justify-content: center;
   font-size: var(--ag-quote-size);
-  line-height: 1.35;
+  line-height: var(--ag-quote-line);
   color: var(--foreground);
 }
 /* THE MEASURE IS THE RULE, and here it is in real `ch` — the browser knows exactly how

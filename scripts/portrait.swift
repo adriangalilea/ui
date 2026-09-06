@@ -45,11 +45,16 @@ struct Found: Encodable {
 var out: [Found] = []
 for path in CommandLine.arguments.dropFirst() {
     let url = URL(fileURLWithPath: path)
+    // A file that cannot be read is SKIPPED, loudly, not fatal: this runs over whole
+    // corpora, and one truncated avatar among forty-three killing the entire batch —
+    // with every already-computed answer discarded — is a worse failure than one card
+    // falling back to a centred focus. The caller sees the note on stderr and gets no
+    // entry for the path, which its own default already covers.
     guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
         let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
     else {
-        FileHandle.standardError.write("portrait: cannot read \(path)\n".data(using: .utf8)!)
-        exit(1)
+        FileHandle.standardError.write("portrait: cannot read \(path), skipping\n".data(using: .utf8)!)
+        continue
     }
     let faces = VNDetectFaceRectanglesRequest()
     let attention = VNGenerateAttentionBasedSaliencyImageRequest()

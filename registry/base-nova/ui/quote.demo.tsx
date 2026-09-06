@@ -8,8 +8,8 @@ import {
 import { Quote } from "@/registry/base-nova/ui/quote"
 
 /** Mark Twain, photographed before 1910 and long in the public domain. A real face,
- *  because the still crops one from the top (`xMidYMin slice`) so a head stays a head:
- *  a landscape in that slot proves the layout runs and nothing about whether it works. */
+ *  because the card slides a portrait so its subject clears the dissolve: a landscape in
+ *  that slot proves the layout runs and nothing about whether it works. */
 const TWAIN = "/mark-twain.png"
 
 /** What THIS page has: `app/layout.tsx` loads Geist through next/font, so the browser

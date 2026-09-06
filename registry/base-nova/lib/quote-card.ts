@@ -109,8 +109,19 @@ export function quoteSet(
   measure = 1,
 ): QuoteSet {
   assert(colW > 0, `a column ${colW} wide`)
+  assert(
+    Number.isFinite(measure) && measure > 0,
+    `a measure scale of ${measure} — zero divides the size into Infinity and the fit loop never ends`,
+  )
   const floor = colW / (MEASURE_MAX * QUOTE_CH)
   let size = Math.round(colW / (quoteMeasure(text.length) * measure * QUOTE_CH))
+  // The floor holds at the DOOR too, not only on the way down: a scale wide enough to
+  // ask for more than MEASURE_MAX characters a line is already a paragraph in a
+  // thumbnail, whether or not the block happens to fit.
+  assert(
+    size > floor,
+    `a measure of ${quoteMeasure(text.length) * measure} characters a line is past ${MEASURE_MAX}, which stops being a card`,
+  )
   for (;;) {
     const lines = quoteWrap(text, size, colW)
     const high =
@@ -477,6 +488,11 @@ export interface QuoteTone {
   accent: string
 }
 export function toneFrom(r: number, g: number, b: number): QuoteTone {
+  for (const c of [r, g, b])
+    assert(
+      Number.isFinite(c) && c >= 0 && c <= 255,
+      `a channel of ${c} is not a colour — a bad decode lands here, and hsl(NaN) is a silently invalid CSS value`,
+    )
   const [rr, gg, bb] = [r / 255, g / 255, b / 255]
   const max = Math.max(rr, gg, bb)
   const min = Math.min(rr, gg, bb)
@@ -620,8 +636,13 @@ export function renderQuoteSvg(
   assert(text.length > 0, "a quote with no words")
   assertFonts([fontFamily, nameFamily, dateFamily], fonts, systemFonts)
   if (avatar) assertAvatar(avatar)
-  const ink = accent ?? foreground
-  const ground = background ?? GROUND
+  // COLOURS ARE INTERPOLATION POINTS like any other string. These four land in fill=""
+  // and <rect fill> attributes, they arrive from options, and the module escapes every
+  // other thing it interpolates — an unescaped one is a hole one esc() away from closed.
+  const ink = esc(accent ?? foreground)
+  const ground = esc(background ?? GROUND)
+  const fg = esc(foreground)
+  const mut = esc(muted)
   const unit = unitOf(width)
   const pad = Math.round(unit * MARGIN)
   // THE PICTURE IS NEVER CROPPED SIDEWAYS, and it is not aligned either — it is SLID so
@@ -701,14 +722,14 @@ export function renderQuoteSvg(
   const rows = lines
     .map((l, i) => {
       const at = Math.round(y + i * step)
-      return `<text x="${textX}" y="${at}" fill="${foreground}">${esc(l)}</text>`
+      return `<text x="${textX}" y="${at}" fill="${fg}">${esc(l)}</text>`
     })
     .join("\n    ")
   const attribution = quote.author
-    ? `<text x="${pad}" y="${Math.round(attrBase)}" font-size="${nameSize}" font-family="${esc(nameFamily)}" fill="${foreground}" opacity="0.75">${esc(quote.author.name)}</text>`
+    ? `<text x="${pad}" y="${Math.round(attrBase)}" font-size="${nameSize}" font-family="${esc(nameFamily)}" fill="${fg}" opacity="0.75">${esc(quote.author.name)}</text>`
     : ""
   const when = quote.date
-    ? `<text x="${quote.author ? dateX : pad}" y="${Math.round(attrBase)}" font-size="${dateSize}" font-family="${esc(dateFamily)}" fill="${muted}">${esc(quote.date)}</text>`
+    ? `<text x="${quote.author ? dateX : pad}" y="${Math.round(attrBase)}" font-size="${dateSize}" font-family="${esc(dateFamily)}" fill="${mut}">${esc(quote.date)}</text>`
     : ""
 
   // The picture dissolves into the flat ground, and there is nothing between them.

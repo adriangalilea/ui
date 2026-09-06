@@ -20,11 +20,11 @@
 // takes whatever pixels it is given.
 
 import { spawn } from "node:child_process"
-import { readFile, writeFile } from "node:fs/promises"
+import { readFile, unlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { assert } from "../registry/base-nova/lib/quote-card"
+import { assert, IMAGE_MAGIC } from "../registry/base-nova/lib/quote-card"
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const SIZE = 256
@@ -162,12 +162,24 @@ const portrait = async (
   // documented as one thing and behaves as another depending on the release. A viewBox
   // is four numbers with one meaning, and librsvg is already required here.
   const bytes = await readFile(source)
-  const mime = /\.png$/i.test(source) ? "image/png" : "image/jpeg"
+  // The mime comes from the BYTES, never from the name: a Wikipedia download lands in a
+  // tmp file with no extension at all, and librsvg draws NOTHING — silently, exit 0 —
+  // for a data URI whose declared type disagrees with its payload. Guessing jpeg wrote
+  // fully transparent avatars for every PNG original, and the never-overwrite rule then
+  // protected the blanks forever.
+  const b64 = bytes.toString("base64")
+  const mime = Object.entries(IMAGE_MAGIC).find(([, magic]) =>
+    b64.startsWith(magic),
+  )?.[0]
+  assert(
+    mime !== undefined,
+    `${source} is not a raster image this can crop (starts "${b64.slice(0, 12)}") — an svg or an html error page both land here`,
+  )
   const svg = join(tmpdir(), `portrait-${Date.now()}.svg`)
   await writeFile(
     svg,
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="${box.x} ${box.y} ${box.side} ${box.side}">
-  <image href="data:${mime};base64,${bytes.toString("base64")}" x="0" y="0" width="${found.width}" height="${found.height}" preserveAspectRatio="none"/>
+  <image href="data:${mime};base64,${b64}" x="0" y="0" width="${found.width}" height="${found.height}" preserveAspectRatio="none"/>
 </svg>
 `,
   )
@@ -185,6 +197,9 @@ const portrait = async (
     )[0] === 0,
     "rsvg-convert failed: brew install librsvg",
   )
+  // A corpus run otherwise leaves one download and one crop svg in tmpdir per author.
+  await unlink(svg).catch(() => {})
+  if (source !== src) await unlink(source).catch(() => {})
   return `${found.width}x${found.height} at ${box.x},${box.y} +${box.side} (${box.why})`
 }
 

@@ -16,9 +16,11 @@
 import {
   assert,
   BLOCK_AT,
+  CAP,
   CARD_H,
   CARD_W,
   DATE_EM,
+  DESC,
   DISSOLVE,
   EDGE,
   FACE_FEATHER,
@@ -26,7 +28,9 @@ import {
   FOCUS,
   GROUND,
   INDENT,
+  LINE,
   MARGIN,
+  MARK_BLUR,
   MARK_BOX,
   MARK_EM,
   MARK_OPACITY,
@@ -54,7 +58,10 @@ export interface QuoteProps extends QuoteData {
    *  it. Same number the still takes, from the same detector. */
   focus?: number
   /** The width the measure is set against, in px. Only for `display`, and only worth
-   *  passing when the card is not the usual reading column. */
+   *  passing when the card is not the usual reading column.
+   *
+   *  `source` is drawn only in prose: the still has nowhere to put a link, and the card
+   *  matching its own preview outranks carrying one more affordance. */
   width?: number
   className?: string
   children?: React.ReactNode
@@ -64,6 +71,9 @@ export interface QuoteProps extends QuoteData {
 export const QUOTE_WIDTH = 768
 
 const pct = (n: number) => `${(n * 100).toFixed(3)}%`
+/** A hundredth of the CARD's width, whatever property it lands on. `%` means that only
+ *  for horizontal offsets and widths; everywhere else it means something surprising. */
+const cqw = (n: number) => `${(n * 100).toFixed(3)}cqw`
 
 export function Quote({
   text,
@@ -104,10 +114,27 @@ export function Quote({
     BLOCK_AT === 0.5,
     `the web card can only centre its words; BLOCK_AT is ${BLOCK_AT}`,
   )
+  // TWO KINDS OF SHARE, and confusing them is invisible until measured. A width-share
+  // written as `%` is only correct where CSS resolves that percentage against the
+  // CONTAINER'S WIDTH — abspos left/right, and the `width` property. A `%` font-size
+  // resolves against the PARENT'S FONT-SIZE (the attribution came out at 0.37px), a `%`
+  // height against the container's HEIGHT (the mark drew at half size). Anything that is
+  // not a horizontal offset or a width is therefore emitted in `cqw`, which always means
+  // one hundredth of the card.
   const unit = 1 / 150
   const aspect = CARD_W / CARD_H
-  const column = 1 - FACE_SHARE - unit * (MARGIN + INDENT)
-  const { size } = quoteSet(words, width * column)
+  const height = width / aspect
+  // Without a picture the words take the whole frame, exactly as the still gives it to
+  // them; sizing them for the picture's column anyway set a bare quote 59% small.
+  const column = author?.avatar
+    ? 1 - FACE_SHARE - unit * (MARGIN + INDENT)
+    : 1 - unit * (2 * MARGIN + INDENT)
+  // The band the still composes in, so a quote too long for the frame THROWS here the
+  // way it throws there. Without it the fixed aspect-ratio box just clipped the words
+  // mid-sentence, silently — the one thing the module promises never happens.
+  const nameSize = NAME_EM * width
+  const band = height - 2 * unit * EDGE * width - (CAP + DESC) * nameSize
+  const { size } = quoteSet(words, width * column, band)
 
   // The picture is a square as tall as the frame, slid so the subject clears the
   // dissolve, and bounded so it neither leaves ground at the right edge nor empties the
@@ -135,13 +162,18 @@ export function Quote({
           "--ag-quote-margin": pct(unit * MARGIN),
           "--ag-quote-indent": pct(unit * (MARGIN + INDENT)),
           "--ag-quote-edge": pct(unit * EDGE * aspect),
+          "--ag-quote-floor": pct(
+            unit * EDGE * aspect + (CAP + DESC) * NAME_EM * aspect,
+          ),
           "--ag-quote-column": pct(column),
           "--ag-quote-measure": `${quoteMeasure(words.length)}ch`,
-          "--ag-quote-size": `${(size / width) * 100}cqw`,
-          "--ag-quote-name": pct(NAME_EM),
-          "--ag-quote-date": pct(DATE_EM),
-          "--ag-quote-mark": pct(MARK_EM / aspect),
+          "--ag-quote-size": cqw(size / width),
+          "--ag-quote-name": cqw(NAME_EM),
+          "--ag-quote-date": cqw(DATE_EM),
+          "--ag-quote-mark": cqw(MARK_EM / aspect),
           "--ag-quote-mark-fill": String(MARK_OPACITY),
+          "--ag-quote-soften": cqw((MARK_EM / aspect) * MARK_BLUR),
+          "--ag-quote-line": String(LINE),
           "--ag-quote-slot": pct(slotX),
           "--ag-quote-dissolve": dissolve,
         } as React.CSSProperties
@@ -158,7 +190,6 @@ export function Quote({
         viewBox={`0 0 ${MARK_BOX.w} ${MARK_BOX.h}`}
         aria-hidden="true"
       >
-        <title>opening quotation mark</title>
         <path d={MARK_PATH} />
       </svg>
       <blockquote className="ag-quote-body">

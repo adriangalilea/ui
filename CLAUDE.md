@@ -253,6 +253,12 @@ side — somewhere to pin one per picture, the way `portraits.json` pins a slug 
 article, and the still reading it in preference to the detector. Build it the first time
 a card needs it, not before; auto is the default and the override is the exception.
 
+**Next, by leverage: adopt the pair in adriangalilea.com.** Its `components/quote.tsx`
+and the quote half of its `lib/og.tsx` are hand-rolled and share nothing with the module
+the corpus tooling was tuned against; wiring them onto `quote` + `renderQuoteSvg` is the
+payoff of the whole build, and it closes the site's own gap where notes without a quote
+ancestor generate no OG image at all.
+
 ### lightbox
 
 The engine is extracted: `lightbox.tsx` is the binder (DOM listeners in, effects out, React state at checkpoints), and every rule lives in a lib that runs in bun.
@@ -343,6 +349,8 @@ Every site re-solves the same thing by hand and it always eats an afternoon: the
 
 Vehicle: the registry, not ts-utils. The generator is React-shaped (satori renders JSX through `ImageResponse`), so it cannot live in a runtime-agnostic utils package; a shadcn item can ship files at explicit targets (`registry:file` → `app/opengraph-image.tsx`, `lib/og.tsx`), which is exactly a template plus a layout library. ts-utils only ever gets the pure parts if any appear (text fitting, title truncation rules).
 
-Shape to build: an `og` item with `lib/og.tsx` = card layouts as components for `ImageResponse` (cover card, quote card, wordmark-only card, terminal-still card), one font loader (Geist, Geist Mono, Courier Prime from the same next/font sources the site already uses), the safe-area rules per platform baked into the layouts, and the size constants; plus a `registry:file` template `app/opengraph-image.tsx` that reads a page's title, description and cover and picks the layout. A demo page renders every layout at 1200x630 with the crop overlays of each platform drawn on top, so a card is designed once against all of them. Seeds: adriangalilea.com `lib/og.tsx` (quote and cover cards with local Geist TTFs), the garden's `app/icon.tsx` (SPROUT_PATHS through `ImageResponse`) and its `app/dev/mock/cover` page (the xtldr phone trio framed for the link preview).
+Shape to build: an `og` item with `lib/og.tsx` = card layouts as components for `ImageResponse` (cover card, wordmark-only card, terminal-still card), one font loader (Geist, Geist Mono, Courier Prime from the same next/font sources the site already uses), the safe-area rules per platform baked into the layouts, and the size constants; plus a `registry:file` template `app/opengraph-image.tsx` that reads a page's title, description and cover and picks the layout. A demo page renders every layout at 1200x630 with the crop overlays of each platform drawn on top, so a card is designed once against all of them. Seeds: adriangalilea.com `lib/og.tsx` (cover card with local Geist TTFs), the garden's `app/icon.tsx` (SPROUT_PATHS through `ImageResponse`) and its `app/dev/mock/cover` page (the xtldr phone trio framed for the link preview).
+
+**The QUOTE card is NOT part of this item and must not be rebuilt in it.** `renderQuoteSvg` in `quote-card` already is that layout — framework-free, measure ladder, balanced wrap, tone, focus — and needs no satori at all: an OG route returns the SVG rasterized, or the SVG itself where the unfurler takes one. The og item's quote job is only the route template that CALLS it. A second quote drawing inside `lib/og.tsx` is exactly the duplicate this whole registry exists to prevent.
 
 @AGENTS.md
