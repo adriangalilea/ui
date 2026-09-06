@@ -88,16 +88,21 @@ export const FACE_FEATHER = 0.12
  *
  *  Two slanted strokes with round caps: the studio's own mark is stroke-drawn, it has
  *  no corners to be harsh, and its left edge is a number rather than a bearing. */
-export const MARK_EM = 1.5
+export const MARK_EM = 1.05
 /** The mark's own drawing, in a 100x140 box: a ball at the foot and a tail sweeping up
  *  and to the right, which is the shape an opening quote actually is — a rotated
- *  comma, a six. Two straight strokes read as parallel bars however they are slanted,
- *  and a glyph reads as whatever face the rasterizer happens to find. */
+ *  comma. Two straight strokes read as parallel bars however they are slanted, and a
+ *  glyph reads as whatever face the rasterizer happens to find, which for a still is
+ *  not a guess worth making.
+ *
+ *  ONE of them, at roughly the size of the words. Doubled and set at watermark size it
+ *  stopped being punctuation and became a pair of sixes: loud, and the first thing the
+ *  eye lands on in a frame whose whole job is to carry somebody else's sentence. A
+ *  mark should be recognised, not read. */
 export const MARK_PATH =
   "M100 0C55 10 15 45 5 85C-5 120 20 140 48 140C75 140 95 120 95 95C95 72 78 58 58 58C62 35 78 14 100 0Z"
 export const MARK_BOX = { w: 100, h: 140 }
-export const MARK_GAP = 0.62
-export const MARK_OPACITY = 0.4
+export const MARK_OPACITY = 0.55
 
 /** Cap height and descender as shares of the em, for Geist and near enough for any
  *  humanist sans. The still has no way to measure text, so a block is composed from
@@ -139,6 +144,27 @@ export function quoteTrim(text: string, max = QUOTE_MAX): string {
   return `${(space > max * 0.6 ? cut.slice(0, space) : cut).trimEnd()}…`
 }
 
+/** THREE VOICES, and the distinction is the point: the words are the quote, the name
+ *  is a person, the date is metadata. A serif says "this is a quotation" before a
+ *  single word is read; mono says "this is a fact about it". All three stacks fall
+ *  back to something every rasterizer has, because a still that needs a font shipped
+ *  with it is a still that renders differently on the machine that builds it. */
+export const QUOTE_SERIF = 'Georgia, "Times New Roman", Times, serif'
+export const QUOTE_SANS = "Geist, ui-sans-serif, system-ui, sans-serif"
+export const QUOTE_MONO =
+  'ui-monospace, SFMono-Regular, Menlo, "Courier New", monospace'
+
+/** The card's ground is TINTED from the same seed the accent comes from, at a
+ *  lightness low enough to read as black at a glance. A quote on pure #000 next to a
+ *  photograph looks like two things pasted together; a ground that shares the accent's
+ *  hue looks like one image, and it costs a hue rotation rather than decoding the
+ *  picture. */
+export const GROUND_SAT = 26
+export const GROUND_LIGHT = 5
+export function quoteGround(seed: string): string {
+  return `hsl(${quoteHue(seed)}, ${GROUND_SAT}%, ${GROUND_LIGHT}%)`
+}
+
 export interface QuoteStillOptions {
   width?: number
   height?: number
@@ -146,11 +172,14 @@ export interface QuoteStillOptions {
   background?: string
   foreground?: string
   muted?: string
-  /** Overrides the seeded accent. */
+  /** Overrides the seeded accent, and the seeded ground. */
   accent?: string
   /** A DATA URI. A still cannot fetch, so a URL renders as nothing. */
   avatar?: string | null
+  /** The three voices. Defaults are QUOTE_SERIF / QUOTE_SANS / QUOTE_MONO. */
   fontFamily?: string
+  nameFamily?: string
+  dateFamily?: string
 }
 
 const esc = (s: string) =>
@@ -172,17 +201,21 @@ export function renderQuoteSvg(
   {
     width = 1200,
     height = 630,
-    background = "#0a0a0a",
+    background,
     foreground = "#fafafa",
     muted = "#8f8f8f",
     accent,
     avatar,
-    fontFamily = "Geist, ui-sans-serif, system-ui, sans-serif",
+    fontFamily = QUOTE_SERIF,
+    nameFamily = QUOTE_SANS,
+    dateFamily = QUOTE_MONO,
   }: QuoteStillOptions = {},
 ): string {
   const text = quoteTrim(quote.text)
   assert(text.length > 0, "a quote with no words")
-  const ink = accent ?? quoteAccent(quote.seed ?? quote.author?.name ?? text)
+  const seed = quote.seed ?? quote.author?.name ?? text
+  const ink = accent ?? quoteAccent(seed)
+  const ground = background ?? quoteGround(seed)
   const pad = Math.round(width / 20)
   const faceX = width - Math.round(width * FACE_SHARE)
   const veilX = faceX - Math.round(width * FACE_FEATHER)
@@ -217,7 +250,7 @@ export function renderQuoteSvg(
   const k = markH / MARK_BOX.h
   const glyph = (dx: number) =>
     `<path d="${MARK_PATH}" transform="translate(${pad + dx} ${top}) scale(${k.toFixed(4)})" fill="${ink}" opacity="${MARK_OPACITY}"/>`
-  const mark = `${glyph(0)}\n  ${glyph(Math.round(MARK_BOX.w * k * MARK_GAP + MARK_BOX.w * k))}`
+  const mark = glyph(0)
 
   let y = top + markH + markGap + CAP * size
   const rows = lines
@@ -228,11 +261,11 @@ export function renderQuoteSvg(
     .join("\n    ")
   y += (lines.length - 1) * step + DESC * size + footGap
   const attribution = quote.author
-    ? `<text x="${pad}" y="${Math.round(y + CAP * nameSize)}" font-size="${nameSize}" fill="${ink}">${esc(quote.author.name)}</text>`
+    ? `<text x="${pad}" y="${Math.round(y + CAP * nameSize)}" font-size="${nameSize}" font-family="${esc(nameFamily)}" fill="${foreground}" opacity="0.75">${esc(quote.author.name)}</text>`
     : ""
   y += nameH + nameGap
   const when = quote.date
-    ? `<text x="${pad}" y="${Math.round(y + CAP * dateSize)}" font-size="${dateSize}" fill="${muted}">${esc(quote.date)}</text>`
+    ? `<text x="${pad}" y="${Math.round(y + CAP * dateSize)}" font-size="${dateSize}" font-family="${esc(dateFamily)}" fill="${muted}">${esc(quote.date)}</text>`
     : ""
 
   // The picture is at FULL strength and the veil does all of the fading. Dimming the
@@ -246,13 +279,13 @@ export function renderQuoteSvg(
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
   <defs>
     <linearGradient id="veil" x1="0" x2="1">
-      <stop offset="0" stop-color="${background}"/>
-      <stop offset="${FACE_FEATHER / (FACE_SHARE + FACE_FEATHER)}" stop-color="${background}"/>
-      <stop offset="0.62" stop-color="${background}" stop-opacity="0.45"/>
-      <stop offset="1" stop-color="${background}" stop-opacity="0.05"/>
+      <stop offset="0" stop-color="${ground}"/>
+      <stop offset="${FACE_FEATHER / (FACE_SHARE + FACE_FEATHER)}" stop-color="${ground}"/>
+      <stop offset="0.62" stop-color="${ground}" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="${ground}" stop-opacity="0.05"/>
     </linearGradient>
   </defs>
-  <rect width="${width}" height="${height}" fill="${background}"/>
+  <rect width="${width}" height="${height}" fill="${ground}"/>
   ${face}
   ${mark}
   <g font-family="${esc(fontFamily)}" font-size="${size}" xml:space="preserve">

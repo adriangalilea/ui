@@ -9,10 +9,13 @@
 .ag-quote[data-display] {
   padding-inline-start: 1.5rem;
 }
+/* THREE VOICES, the same three the still draws with: the words are a quotation, the
+   name is a person, the date is metadata. A serif says which is which before a word is
+   read, and it is the one thing a card and its social preview must not disagree on. */
 .ag-quote-body {
   margin: 0;
-  font-style: italic;
-  color: color-mix(in oklch, var(--foreground) 90%, transparent);
+  font-family: var(--font-serif, Georgia, "Times New Roman", Times, serif);
+  color: color-mix(in oklch, var(--foreground) 92%, transparent);
 }
 .ag-quote-body > p {
   margin: 0;
@@ -52,9 +55,12 @@
   width: 2.5rem;
   height: 2.5rem;
 }
+/* The name is a NAME. Colouring it makes the accent mean "person", which it does not
+   mean anywhere else on the card, and it pulls the eye off the sentence. */
 .ag-quote-by cite {
+  font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
   font-style: normal;
-  color: var(--ag-quote-accent);
+  color: color-mix(in oklch, var(--foreground) 75%, transparent);
 }
 .ag-quote-by a {
   color: inherit;
