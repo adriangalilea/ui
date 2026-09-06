@@ -214,24 +214,29 @@ pnpm's 7-day quarantine and no-downgrade trust policy apply. `pnpm-workspace.yam
 
 The engine is extracted: `lightbox.tsx` is the binder (DOM listeners in, effects out, React state at checkpoints), and every rule lives in a lib that runs in bun.
 
-**Signed off on macOS Chrome by feel, and wants soak time before it is adopted
-anywhere.** The gestures were settled in the browser over many rounds; live with it
-for a while before trusting it in a site.
+**Signed off by hand on macOS Chrome (trackpad + mouse) and iPhone Safari, and READY
+TO ADOPT.** The gestures were settled in the browser over many rounds, by feel, one
+change at a time; the traces that settled them are quoted throughout the rules above.
 
-The touch path is STRUCTURALLY verified and unverified BY HAND. A CDP rig
-(`/tmp/lb-*.ts` shape, emulated phone metrics + `Emulation.setTouchEmulationEnabled`
-with `maxTouchPoints`, `Input.dispatchTouchEvent`) drove the deployed site and proved
-the four things that changed when the engine took the pan: a finger moves the track,
-it lands on a slide (462 px, exactly one slot), the sideways half of a gesture is
-felt, and turning UP mid-touch dismisses without lifting (`--lb-p` 0.226, where 1
-would mean it never engaged). That last one passing is itself proof the build under
-test has the new path, since under `pan-x` it could not. None of it says how any of it
-FEELS, which is the only sign-off that counts (see **Who judges**).
+The touch path is also structurally verified: a CDP rig (`/tmp/lb-*.ts` shape,
+emulated phone metrics + `Emulation.setTouchEmulationEnabled` with `maxTouchPoints`,
+`Input.dispatchTouchEvent`) drove the deployed site and proved a finger moves the
+track, it lands exactly one slot, the sideways half is felt, and turning up mid-touch
+dismisses. **It also passed the relock while the relock was broken**, by stepping 30 px
+where a finger sends 3 — the sharpest example on record of why a rig does not grant
+sign-off (see **Who judges**).
 
-Left on the item: a hand on iphone safari, android chrome and macos safari (the whole
-`DEVICES` list is back to unverified but the one Adrian judged, by that list's own
-rule — the rules were rewritten whole); Safari frame pacing is unmeasured (needs
-Develop → Allow Remote Automation, then WebDriver).
+Left on the item:
+
+- **Frame rate, DEFERRED as good enough.** Measured healthy at `123fps @8ms 125Hz` on
+  mains; a session on battery ran `@33ms 30Hz · 31fps`. Equal-and-low cannot separate
+  a 30 Hz screen from a renderer missing every other frame, and no trace was captured
+  at a bad moment, so the cause is unproven. If it returns, ONE trace header settles
+  it: frames faster than events is delivery, equal-and-low is paint cost.
+- A hand on android chrome, macos safari and firefox. Reported as encountered rather
+  than chased.
+- Safari frame pacing is unmeasured (needs Develop → Allow Remote Automation, then
+  WebDriver).
 
 ### then: adopt, wave 2, wave 3
 

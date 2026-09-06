@@ -228,9 +228,7 @@ function Rail({ entry, facts }: { entry: Entry; facts: Facts }) {
 // Each surface is signed off by a hand on the device, never by a build: a round of
 // fixes on the gestures puts the lines it could touch back to unverified.
 const DEVICES: readonly [string, boolean][] = [
-  // The track's gesture rules were rewritten whole, and the ENGINE took the pan from
-  // the browser, so every pointer surface goes back to unverified by that rule.
-  ["iphone safari", false],
+  ["iphone safari", true],
   ["android chrome", false],
   ["macos safari", false],
   ["macos chrome, trackpad + mouse", true],
