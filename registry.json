@@ -122,11 +122,28 @@
       ]
     },
     {
+      "name": "avatar",
+      "type": "registry:ui",
+      "title": "avatar",
+      "description": "a person's face, the same object everywhere it appears: one round crop on the studio's rungs, positioned on the subject from the portrait's sidecar, ringed in the picture's own colour, and a lightbox trigger when the full portrait is worth a look",
+      "registryDependencies": ["@ag/tokens", "@ag/lightbox"],
+      "files": [
+        {
+          "path": "registry/base-nova/ui/avatar.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/base-nova/ui/avatar.css",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
       "name": "quote",
       "type": "registry:ui",
       "title": "quote",
       "description": "somebody else's words, and the social preview of them: the card and the still read one set of rules, so a shared link and the page it opens cannot drift apart",
-      "registryDependencies": ["@ag/tokens", "@ag/quote-card"],
+      "registryDependencies": ["@ag/tokens", "@ag/quote-card", "@ag/avatar"],
       "files": [
         {
           "path": "registry/base-nova/ui/quote.tsx",

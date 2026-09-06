@@ -7,6 +7,7 @@ import LightboxMotion from "@/registry/base-nova/lib/lightbox-motion.demo"
 import QuoteCard from "@/registry/base-nova/lib/quote-card.demo"
 import TerminalSession from "@/registry/base-nova/lib/terminal-session.demo"
 import Tokens from "@/registry/base-nova/theme/tokens.demo"
+import Avatar from "@/registry/base-nova/ui/avatar.demo"
 import Code from "@/registry/base-nova/ui/code.demo"
 import Copy from "@/registry/base-nova/ui/copy.demo"
 import Lightbox from "@/registry/base-nova/ui/lightbox.demo"
@@ -23,6 +24,7 @@ export const DEMOS: Record<string, ComponentType> = {
   "quote-card": QuoteCard,
   "terminal-session": TerminalSession,
   "scroll-stage": ScrollStage,
+  avatar: Avatar,
   code: Code,
   copy: Copy,
   reveal: Reveal,

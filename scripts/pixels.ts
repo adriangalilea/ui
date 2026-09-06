@@ -30,6 +30,8 @@ export interface Sidecar {
   focus: number
   /** The picture's average colour, 0 to 255 each. `toneFrom(...average)` is the tone. */
   average: [number, number, number]
+  /** Natural pixels, width then height — what a lightbox needs to fly it home. */
+  size: [number, number]
 }
 
 /** The sidecar's path for a portrait: the same name, `.json`. */
@@ -148,9 +150,17 @@ export async function annotate(pngs: readonly string[]): Promise<string[]> {
   const focus = await focusOf(missing)
   const written: string[] = []
   for (const png of missing) {
+    // Natural size straight off the PNG header: width and height are the first two
+    // fields of IHDR, at bytes 16 and 20, and IHDR is always the first chunk.
+    const head = await readFile(png)
+    assert(
+      head.toString("ascii", 1, 4) === "PNG",
+      `${png} is not a PNG, and a sidecar describes a PNG`,
+    )
     const sidecar: Sidecar = {
       focus: Math.round((focus.get(png) ?? FOCUS) * 1000) / 1000,
       average: await averageColor(png),
+      size: [head.readUInt32BE(16), head.readUInt32BE(20)],
     }
     await writeFile(sidecarOf(png), `${JSON.stringify(sidecar, null, 2)}\n`)
     written.push(sidecarOf(png))

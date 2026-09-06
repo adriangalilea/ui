@@ -72,11 +72,14 @@ const unwritten = async (
   )
   const focus = await focusOf(missing)
   const out = new Map<string, Sidecar>()
-  for (const png of missing)
+  for (const png of missing) {
+    const head = await readFile(png)
     out.set(png, {
       focus: focus.get(png) ?? 0.5,
       average: await averageColor(png),
+      size: [head.readUInt32BE(16), head.readUInt32BE(20)],
     })
+  }
   return out
 }
 

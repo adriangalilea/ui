@@ -14,6 +14,9 @@ export interface QuoteAuthor {
   name: string
   /** A URL on the web; a data URI in the still, which cannot fetch. */
   avatar?: string | null
+  /** The portrait worth opening, with its natural size — the sidecar's `size`. With it
+   *  the web card's avatar is a lightbox trigger; the still ignores it. */
+  full?: { src: string; width: number; height: number } | null
   href?: string | null
 }
 

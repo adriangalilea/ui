@@ -72,13 +72,6 @@
   font-style: normal;
   color: var(--muted-foreground);
 }
-.ag-quote-face {
-  flex: none;
-  width: 1.5rem;
-  height: 1.5rem;
-  object-fit: cover;
-  border-radius: 9999px;
-}
 /* The name is a NAME. Colouring it makes the accent mean "person", which it does not
    mean anywhere else, and it pulls the eye off the sentence. */
 .ag-quote-by cite {
@@ -156,10 +149,6 @@
   margin-block-start: var(--ag-quote-gap);
   gap: 0.75rem;
   font-size: var(--text-sm, 0.875rem);
-}
-.ag-quote-feature .ag-quote-face {
-  width: 2.5rem;
-  height: 2.5rem;
 }
 
 /* ── the card ───────────────────────────────────────────────────────────────── */
