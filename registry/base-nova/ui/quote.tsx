@@ -30,6 +30,7 @@ import {
   EDGE,
   FACE_FEATHER,
   FACE_SHARE,
+  FEATURE_MEASURE,
   FOCUS,
   GLOW,
   GROUND,
@@ -131,7 +132,10 @@ export function Quote({
     // the overlap is the depth. No band to centre in: the block flows, and it starts
     // half way down the mark so the words climb into it rather than hang below it.
     const column = 1 - unit * INDENT
-    const { size } = quoteSet(words, width * column, { ch })
+    const { size } = quoteSet(words, width * column, {
+      ch,
+      measure: FEATURE_MEASURE,
+    })
     return (
       <figure
         className={classes}
@@ -139,7 +143,7 @@ export function Quote({
           {
             "--ag-quote-ink": ink,
             "--ag-quote-indent": pct(unit * INDENT),
-            "--ag-quote-measure": `${quoteMeasure(words.length)}ch`,
+            "--ag-quote-measure": `${quoteMeasure(words.length) * FEATURE_MEASURE}ch`,
             "--ag-quote-size": cqw(size / width),
             "--ag-quote-mark": cqw(MARK_EM / aspect),
             "--ag-quote-mark-fill": String(MARK_OPACITY),

@@ -80,6 +80,15 @@ export const MEASURE_STEPS: readonly { under: number; ch: number }[] = [
   { under: Number.POSITIVE_INFINITY, ch: 56 },
 ]
 
+/** THE PAGE READS WIDER THAN THE POSTER. The ladder above is the card's: in a frame two
+ *  to one, a short measure is what fits beside a portrait and the type is big because
+ *  the frame is a poster seen small. A quote's own page is neither — the same 110
+ *  characters at 36 a line came out as five lines of 54px type in a reading column,
+ *  a wall to read rather than a sentence. The feature weight scales the ladder by this,
+ *  so the same quote lands in two or three lines at reading size, and a short quote is
+ *  still bigger than a long one. */
+export const FEATURE_MEASURE = 1.5
+
 /** The widest a line may get before the card stops being one. Stepping the type down to
  *  make something fit has to stop somewhere, and "however small it takes" is not an
  *  answer: at eighty characters a line the words are a paragraph in a thumbnail, which
