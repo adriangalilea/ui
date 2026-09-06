@@ -88,21 +88,69 @@ const averageColor = async (
   return [r, g, b]
 }
 
-/** A picture, the ground it bleeds into, and the ink its mark is drawn in — all three
- *  from one file, because all three are the same colour at different lightnesses. */
-const look = async (path: string): Promise<QuoteStillOptions> => {
+/** WHERE THE SUBJECT IS, for every picture at once. The card slides a portrait so its
+ *  subject clears the dissolve, and it cannot know where that is — the fact lives in the
+ *  pixels, so this side finds it and says.
+ *
+ *  One call for the whole corpus, not one per card. Vision costs about seven
+ *  milliseconds an image once the model is warm and roughly a second to launch, so
+ *  eighty-four spawns is a minute and a half of nothing but process startup. */
+const focusOf = async (
+  paths: readonly string[],
+): Promise<Map<string, number>> => {
+  if (paths.length === 0) return new Map()
+  const [code, json] = await capture("swift", [
+    join(HERE, "portrait.swift"),
+    ...paths,
+  ])
+  assert(code === 0, "portrait.swift could not read the corpus")
+  const found = JSON.parse(json) as {
+    path: string
+    face?: { x: number; w: number }
+    salient?: { x: number; w: number }
+  }[]
+  // A face when there is one, what the attention model calls the subject when there is
+  // not, and the middle when there is neither — the same ladder the crop uses.
+  return new Map(
+    found.map((f) => {
+      const box = f.face ?? f.salient
+      return [f.path, box ? box.x + box.w / 2 : 0.5]
+    }),
+  )
+}
+
+/** A picture, the ground it bleeds into, the ink its mark is drawn in, and where its
+ *  subject sits. The first three are the same colour at different lightnesses; the
+ *  fourth is why a portrait drawn to one side of its own frame survives. */
+const look = async (
+  path: string,
+  focus?: number,
+): Promise<QuoteStillOptions> => {
   const bytes = await readFile(path)
   const { ground, accent } = toneFrom(...(await averageColor(path)))
   return {
     avatar: `data:image/png;base64,${bytes.toString("base64")}`,
     background: ground,
     accent,
+    ...(focus === undefined ? {} : { focus }),
   }
 }
 
 const run = (cmd: string, args: string[]): Promise<number> =>
   new Promise((ok) => {
     spawn(cmd, args, { stdio: "ignore" }).on("close", (code) => ok(code ?? 1))
+  })
+
+/** The same, when the answer is on stdout rather than in the exit code. */
+const capture = (cmd: string, args: string[]): Promise<[number, string]> =>
+  new Promise((ok) => {
+    const p = spawn(cmd, args)
+    let out = ""
+    p.stdout.on("data", (d) => {
+      out += d
+    })
+    p.stderr.on("data", (d) => process.stderr.write(d))
+    p.on("close", (code) => ok([code ?? 1, out]))
   })
 
 const face = await look(join(PUBLIC, "mark-twain.png"))
@@ -143,9 +191,20 @@ const loadCorpus = async (
     return [...CARDS]
   }
   const out: [string, Quote, QuoteStillOptions][] = []
+  const slugs = only ?? authors.sort()
+  const { stat } = await import("node:fs/promises")
+  const avatars: string[] = []
+  for (const slug of slugs) {
+    const at = join(CORPUS, slug, "avatar.png")
+    try {
+      await stat(at)
+      avatars.push(at)
+    } catch {}
+  }
+  const focus = await focusOf(avatars)
   // `only` keeps the order it was written in, so a sweep's frames come out in the order
   // they are meant to be flicked through.
-  for (const slug of only ?? authors.sort()) {
+  for (const slug of slugs) {
     if (out.length >= limit) break
     let files: string[]
     let title = slug
@@ -156,9 +215,10 @@ const loadCorpus = async (
     } catch {
       continue
     }
+    const at = join(CORPUS, slug, "avatar.png")
     let picture: QuoteStillOptions = {}
     try {
-      picture = await look(join(CORPUS, slug, "avatar.png"))
+      picture = await look(at, focus.get(at))
     } catch {}
     // EVERY quote, not one per author. An author's quotes are not the same length, and
     // length is the only thing the layout has to absorb — taking the first of each threw

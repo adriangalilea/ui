@@ -244,6 +244,15 @@ already diagnosed in `~/Developer/_smarthome/network/`). Retry, extract the glyp
 same way, and put them in the comparison sheet against the current one before
 swapping.
 
+**Pending: a hand-set focus, per picture.** `focus` slides a portrait so its subject
+clears the dissolve, and `scripts/portrait.swift` fills it in from Vision — a face, else
+the attention model's subject, else the middle. That is right often, not always: two
+people in a frame, a face in profile at the edge, a bust whose plinth outweighs its
+head. The card already takes the number by hand, so the missing half is on the CONTENT
+side — somewhere to pin one per picture, the way `portraits.json` pins a slug to an
+article, and the still reading it in preference to the detector. Build it the first time
+a card needs it, not before; auto is the default and the override is the exception.
+
 ### lightbox
 
 The engine is extracted: `lightbox.tsx` is the binder (DOM listeners in, effects out, React state at checkpoints), and every rule lives in a lib that runs in bun.

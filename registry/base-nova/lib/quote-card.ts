@@ -110,6 +110,23 @@ export const FACE_SHARE = GOLDEN_MINOR
  *  be: at a third of the frame the same feather dissolved two thirds of the portrait. */
 export const FACE_FEATHER = 0.52
 
+/** Where the subject is ACROSS the picture: 0 at its left edge, 1 at its right, and a
+ *  half when nobody said. The card slides the picture so this point lands in the middle
+ *  of the band that survives the dissolve.
+ *
+ *  It exists because no fixed alignment can be right. The dissolve always eats the same
+ *  side, so a subject sitting there is always the one that suffers — Confucius drawn to
+ *  the left of his square and Eric Gill to the right cannot both be saved by a rule that
+ *  does not know where they are. That fact is in the PIXELS, and this module has none;
+ *  whoever draws the card can find it (`scripts/portrait.swift` asks Vision) and say.
+ *
+ *  A DETECTED FOCUS IS A GUESS, and it is right often rather than always: two people in
+ *  a frame, a face in profile at the edge, a bust whose plinth outweighs its head, and
+ *  the model answers something defensible that is not what a person would have picked.
+ *  This number is the escape hatch and it is meant to be used — pass it by hand and the
+ *  detector is out of the loop entirely for that card. */
+export const FOCUS = 0.5
+
 /** THE DISSOLVE'S CURVE, sampled as mask stops. A straight ramp is what a first attempt
  *  writes and it has two visible ends: the picture jumps out of nothing at the start,
  *  and it stops arriving on a line at the finish. Both are edges, which is the one thing
@@ -506,6 +523,9 @@ export interface QuoteStillOptions {
    *  are the cases worth overriding for. */
   faceShare?: number
   faceFeather?: number
+  /** Where the subject sits across the picture, 0 to 1. Defaults to the middle; pass the
+   *  real one and a face on either side of its own frame survives. */
+  focus?: number
   /** Where the block of words sits in the band between the ceiling and the attribution,
    *  as the share of the slack that goes ABOVE it. Defaults to BLOCK_AT. */
   blockAt?: number
@@ -542,6 +562,7 @@ export function renderQuoteSvg(
     systemFonts = false,
     faceShare = FACE_SHARE,
     faceFeather = FACE_FEATHER,
+    focus = FOCUS,
     blockAt = BLOCK_AT,
   }: QuoteStillOptions = {},
 ): string {
@@ -553,8 +574,26 @@ export function renderQuoteSvg(
   const ground = background ?? GROUND
   const unit = unitOf(width)
   const pad = Math.round(unit * MARGIN)
+  // THE PICTURE IS NEVER CROPPED SIDEWAYS, and it is not aligned either — it is SLID so
+  // that its subject lands in the band that survives the dissolve.
+  //
+  // Cropping it into a narrow slot was the first attempt, and then the alignment decides
+  // whose face lives: centred, a subject in the middle of the source falls in the fade
+  // and appears bitten; aligned left, the right of the source is cut away and a portrait
+  // framed to that side loses its head. Both are one mistake, asking a crop to do a
+  // fade's job. Sliding a square drawn at full height cuts nothing and works for a face
+  // on the left, in the middle or on the right — but only because it is TOLD which.
+  //
+  // The travel is bounded at both ends: never so far left that ground shows past the
+  // right edge, never so far right that the fade has no picture in it.
   const faceX = width - Math.round(width * faceShare)
   const featherX = faceX + Math.round((width - faceX) * faceFeather)
+  const slotX = Math.round(
+    Math.max(
+      width - height,
+      Math.min(faceX, (featherX + width) / 2 - focus * height),
+    ),
+  )
   const size = quoteFontSize(text.length, width)
   const step = Math.round(size * 1.35)
   // The column ends exactly where the picture begins, so ONE ratio divides the card and
@@ -625,16 +664,8 @@ export function renderQuoteSvg(
     : ""
 
   // The picture dissolves into the flat ground, and there is nothing between them.
-  //
-  // ALIGNED LEFT, NOT CENTRED, and that is the whole point. A portrait has its subject
-  // in the middle, and the slot is narrower than the source, so centring lands that
-  // subject in the middle of the slot — which is where the dissolve is, because the
-  // dissolve eats the left half. The person then appears half faded, as though a bite
-  // had been taken out of them. Anchoring the image's left edge slides the same content
-  // rightwards into the band that is actually at full strength, and what it gives up is
-  // the far right of the source, which on a square portrait is background.
   const face = avatar
-    ? `<image href="${esc(avatar)}" x="${faceX}" y="0" width="${width - faceX}" height="${height}" preserveAspectRatio="xMinYMin slice" mask="url(#dissolve)"/>`
+    ? `<image href="${esc(avatar)}" x="${slotX}" y="0" width="${height}" height="${height}" preserveAspectRatio="xMidYMid slice" mask="url(#dissolve)"/>`
     : ""
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
