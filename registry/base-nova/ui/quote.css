@@ -24,10 +24,16 @@
    is what says so: the same words flat on the page read as the author's own. The step
    is a mix off the foreground rather than a theme token, so it is one step up on any
    ground — light, dark, tinted — without a variable to wire. */
+/* THE SAME LEFT EDGE AT EVERY WEIGHT: the mark and the attribution hang from the margin,
+   and only the words step in from it. The padding IS the margin the glyph sits at; the
+   words carry the indent themselves. */
 .ag-quote-prose {
-  padding: 1rem 1.25rem 1rem 2.25rem;
+  padding: 1rem 1.25rem 1rem 0.9rem;
   border-radius: 0.75rem;
   background: color-mix(in oklch, var(--foreground) 4%, transparent);
+}
+.ag-quote-prose .ag-quote-body {
+  margin-inline-start: 1.35rem;
 }
 /* AT THIS SCALE THE MARK IS A GLYPH, NOT A GHOST. The card's mark is a big soft shape
    the words climb over, and that only works with a block of words to climb; behind a
