@@ -1,8 +1,8 @@
 import {
   QUOTE_STEPS,
   quoteAccent,
+  quoteClean,
   quoteFontSize,
-  quoteTrim,
   quoteWrap,
 } from "@/registry/base-nova/lib/quote-card"
 
@@ -29,7 +29,7 @@ export default function Demo() {
         </thead>
         <tbody>
           {SAMPLES.map((text) => {
-            const trimmed = quoteTrim(text)
+            const trimmed = quoteClean(text)
             const size = quoteFontSize(trimmed.length, 1200)
             return (
               <tr key={text} className="border-border border-t">

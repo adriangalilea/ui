@@ -1,7 +1,7 @@
 // Somebody else's words, on the page. The SAME quote drawn by `renderQuoteSvg` for a
-// social preview: the accent, the size ladder and the trim all come out of
-// `quote-card`, so the card and the link preview cannot drift apart. Two emitters, one
-// set of rules — the terminal and its still are the same arrangement.
+// social preview: the accent and the size ladder both come out of `quote-card`, so the
+// card and the link preview cannot drift apart. Two emitters, one set of rules — the
+// terminal and its still are the same arrangement.
 //
 // It renders a real `<blockquote>` with a real `<cite>`, because that is what this is,
 // and a screen reader announcing "blockquote" is information the styling cannot carry.
@@ -9,8 +9,8 @@
 import {
   type Quote as QuoteData,
   quoteAccent,
+  quoteClean,
   quoteFontSize,
-  quoteTrim,
 } from "@/registry/base-nova/lib/quote-card"
 import "./quote.css"
 
@@ -19,9 +19,6 @@ export interface QuoteProps extends QuoteData {
    *  ladder: a short quote is a poster and a long one is a paragraph. Inline keeps the
    *  page's own type, for a quote inside prose that must not shout over it. */
   display?: boolean
-  /** Cap the words the way a preview does. Off by default: a page has room, and
-   *  truncating on it would lose the end of what somebody said. */
-  trim?: boolean
   /** The measured width the ladder steps against. Only for `display`, and only worth
    *  passing when the card is not the usual reading column. */
   width?: number
@@ -39,12 +36,11 @@ export function Quote({
   date,
   seed,
   display = false,
-  trim = false,
   width = QUOTE_WIDTH,
   className,
   children,
 }: QuoteProps) {
-  const words = trim ? quoteTrim(text) : text
+  const words = quoteClean(text)
   const accent = quoteAccent(seed ?? author?.name ?? text)
   // The one place the still's arithmetic reaches the DOM: the size a preview would
   // set these words at, in the units CSS wants.

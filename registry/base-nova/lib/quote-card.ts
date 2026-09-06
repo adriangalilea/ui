@@ -47,18 +47,30 @@ export function quoteAccent(seed: string): string {
   return `hsl(${quoteHue(seed)}, ${QUOTE_SAT}%, ${QUOTE_LIGHT}%)`
 }
 
-/** How big the words are set, by how many there are. A short line earns display size;
- *  a long one has to fit, and the step down is what stops a 240-character quote
- *  overflowing its frame or being clipped without a word.
+/** How big the words are set, by how many there are. A short line earns display size; a
+ *  long one has to fit, and the step down is what keeps it inside the frame.
  *
  *  Read as a share of the frame's width, not in px, so the web card and a still of any
- *  size step at the same PLACE in the text rather than at the same pixel. */
+ *  size step at the same PLACE in the text rather than at the same pixel.
+ *
+ *  THE LADDER GOES ALL THE WAY DOWN, and nothing is ever cut. It used to stop at 240
+ *  characters and hand whatever was left to an ellipsis, which is the one thing a quote
+ *  must never do: an author is made to trail off mid-sentence, and the reader is told
+ *  the card ran out of room rather than the thinking. The words are the content. They
+ *  set the size; the size does not set them.
+ *
+ *  When even the last rung will not hold the text the card THROWS. A quote too long for
+ *  a preview is a decision for whoever wrote it, made at build time with the whole
+ *  sentence in front of them — never a silent amputation made here. */
 export const QUOTE_STEPS: readonly { under: number; em: number }[] = [
   { under: 60, em: 0.0433 },
   { under: 100, em: 0.0383 },
   { under: 140, em: 0.0333 },
   { under: 180, em: 0.03 },
-  { under: Number.POSITIVE_INFINITY, em: 0.0283 },
+  { under: 240, em: 0.0283 },
+  { under: 320, em: 0.0258 },
+  { under: 420, em: 0.0233 },
+  { under: Number.POSITIVE_INFINITY, em: 0.0208 },
 ]
 
 /** The type size for `length` characters across a frame `width` wide. */
@@ -81,8 +93,15 @@ export const QUOTE_CH = 0.52
  *  vertical cut and the fade only produces a second edge of its own. The dissolve has
  *  to eat into the image, and what it reveals underneath is the same image blurred,
  *  which is why no seam is possible. */
-export const FACE_SHARE = 0.42
-export const FACE_FEATHER = 0.22
+/** The golden minor, so the picture and the words divide the frame the way a ratio
+ *  divides it rather than the way an eye guessed it. Past about half the frame the slot
+ *  turns wider than a square source, the scaling flips to the width, and the crop starts
+ *  eating the top and the bottom — which is where heads go. */
+export const FACE_SHARE = 0.382
+/** A share of the PICTURE, never of the frame. Measured against the frame it is a fixed
+ *  number of pixels eating an arbitrary fraction of whatever the picture turns out to
+ *  be: at a third of the frame the same feather dissolved two thirds of the portrait. */
+export const FACE_FEATHER = 0.52
 
 /** THE DISSOLVE'S CURVE, sampled as mask stops. A straight ramp is what a first attempt
  *  writes and it has two visible ends: the picture jumps out of nothing at the start,
@@ -170,16 +189,13 @@ export const AFTER_MARK = 4
  *  the words are and transparent by the time it reaches anything, which is
  *  edgelessness by construction and not by tuning.
  *
- *  The radii are multiples of the block it covers, so it grows with the words. */
-/** How far right the words may run, as a share of the width. Stopping at the
- *  picture's own edge wastes the whole band where the veil is still nearly solid, and
- *  a column that narrow breaks a plain sentence into six lines. Past it the scrim is
- *  what keeps the type readable, which is why the two are tuned together. */
-export const TEXT_RIGHT = 0.64
-export const SCRIM_OPACITY = 0.8
-
-export const SCRIM_RX = 0.78
-export const SCRIM_RY = 1.15
+ *  THERE IS NO SCRIM UNDER THE WORDS, and there must not be one. It belonged to a card
+ *  whose ground was a blurred photograph and whose lines ran out over the picture, and
+ *  neither is true now: the words stop at the golden line, where the picture has no
+ *  strength yet, and the mark sits at a tenth of an opacity. A darkening laid over a FLAT
+ *  ground has nothing to hide in — it reads as a stain in the middle of the frame. If
+ *  type ever stops being legible here, the ground is wrong or the column is, and a wash
+ *  over the top would only be covering for it. */
 
 /** Cap height and descender as shares of the em, for Geist and near enough for any
  *  humanist sans. The still has no way to measure text, so a block is composed from
@@ -270,15 +286,10 @@ export function quoteWrap(
   return out
 }
 
-/** The longest a preview carries. Past this the reader is being asked to read a page
- *  in a thumbnail, so it ends on an ellipsis and the link does the rest. */
-export const QUOTE_MAX = 240
-export function quoteTrim(text: string, max = QUOTE_MAX): string {
-  const clean = text.replace(/\s+/g, " ").trim()
-  if (clean.length <= max) return clean
-  const cut = clean.slice(0, max)
-  const space = cut.lastIndexOf(" ")
-  return `${(space > max * 0.6 ? cut.slice(0, space) : cut).trimEnd()}…`
+/** One space between words, none at the ends. A quote arrives with the line breaks of
+ *  the file it was typed into, and those are not the card's line breaks. */
+export function quoteClean(text: string): string {
+  return text.replace(/\s+/g, " ").trim()
 }
 
 /** THREE VOICES, and the distinction is the point: the words are the quote, the name
@@ -468,9 +479,6 @@ export interface QuoteStillOptions {
   fonts?: readonly string[]
   /** Accept whatever the renderer substitutes. Deliberate, and it says so. */
   systemFonts?: boolean
-  /** How far right the words may run, as a share of the width. Defaults to
-   *  TEXT_RIGHT; only worth passing to try a different one. */
-  textRight?: number
   /** THE FUSION, and the one part of this card that legitimately depends on the
    *  picture: how much frame the portrait takes, and how far it dissolves into the
    *  ground. The defaults suit a portrait; a wide painting or a near-white photograph
@@ -508,12 +516,11 @@ export function renderQuoteSvg(
     dateFamily = QUOTE_MONO,
     fonts = [],
     systemFonts = false,
-    textRight,
     faceShare = FACE_SHARE,
     faceFeather = FACE_FEATHER,
   }: QuoteStillOptions = {},
 ): string {
-  const text = quoteTrim(quote.text)
+  const text = quoteClean(quote.text)
   assert(text.length > 0, "a quote with no words")
   assertFonts([fontFamily, nameFamily, dateFamily], fonts, systemFonts)
   if (avatar) assertAvatar(avatar)
@@ -522,15 +529,14 @@ export function renderQuoteSvg(
   const unit = unitOf(width)
   const pad = Math.round(unit * MARGIN)
   const faceX = width - Math.round(width * faceShare)
-  const featherX = faceX + Math.round(width * faceFeather)
+  const featherX = faceX + Math.round((width - faceX) * faceFeather)
   const size = quoteFontSize(text.length, width)
   const step = Math.round(size * 1.35)
-  // The words stop short of where the picture has any strength left, so a line never
-  // ends on a face.
+  // The column ends exactly where the picture begins, so ONE ratio divides the card and
+  // there is no second number to argue about. At that line the dissolve has not started,
+  // so a line ending there sits on the ground, not on a face.
   const textX = Math.round(unit * (MARGIN + INDENT))
-  const textW =
-    (avatar ? Math.round(width * (textRight ?? TEXT_RIGHT)) : width - pad) -
-    textX
+  const textW = (avatar ? faceX : width - pad) - textX
   const lines = quoteWrap(text, size, textW)
 
   // WHAT MOVES AND WHAT DOES NOT. The attribution is anchored to the bottom of the
@@ -576,14 +582,6 @@ export function renderQuoteSvg(
     )
   const mark = `<path d="${MARK_PATH}" transform="translate(${pad} ${markY}) scale(${markK.toFixed(4)})" fill="${ink}" opacity="${MARK_OPACITY}" filter="url(#soften)"/>`
 
-  // The scrim sits under the words and over the mark: darkest where the type is, gone
-  // by the time it reaches anything else.
-  const scrimCX = Math.round(textX + textW / 2)
-  const scrimCY = Math.round(top + textH / 2)
-  const scrimRX = Math.round(textW * SCRIM_RX)
-  const scrimRY = Math.round(textH * SCRIM_RY)
-  const scrim = `<ellipse cx="${scrimCX}" cy="${scrimCY}" rx="${scrimRX}" ry="${scrimRY}" fill="url(#scrim)"/>`
-
   const y = top + CAP * size
   const rows = lines
     .map((l, i) => {
@@ -599,8 +597,16 @@ export function renderQuoteSvg(
     : ""
 
   // The picture dissolves into the flat ground, and there is nothing between them.
+  //
+  // ALIGNED LEFT, NOT CENTRED, and that is the whole point. A portrait has its subject
+  // in the middle, and the slot is narrower than the source, so centring lands that
+  // subject in the middle of the slot — which is where the dissolve is, because the
+  // dissolve eats the left half. The person then appears half faded, as though a bite
+  // had been taken out of them. Anchoring the image's left edge slides the same content
+  // rightwards into the band that is actually at full strength, and what it gives up is
+  // the far right of the source, which on a square portrait is background.
   const face = avatar
-    ? `<image href="${esc(avatar)}" x="${faceX}" y="0" width="${width - faceX}" height="${height}" preserveAspectRatio="xMidYMin slice" mask="url(#dissolve)"/>`
+    ? `<image href="${esc(avatar)}" x="${faceX}" y="0" width="${width - faceX}" height="${height}" preserveAspectRatio="xMinYMin slice" mask="url(#dissolve)"/>`
     : ""
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
@@ -608,11 +614,6 @@ export function renderQuoteSvg(
     <filter id="soften" x="-25%" y="-25%" width="150%" height="150%">
       <feGaussianBlur stdDeviation="${Math.round(markH * MARK_BLUR)}"/>
     </filter>
-    <radialGradient id="scrim">
-      <stop offset="0" stop-color="${ground}" stop-opacity="${SCRIM_OPACITY}"/>
-      <stop offset="0.55" stop-color="${ground}" stop-opacity="${SCRIM_OPACITY * 0.8}"/>
-      <stop offset="1" stop-color="${ground}" stop-opacity="0"/>
-    </radialGradient>
     <linearGradient id="fade" gradientUnits="userSpaceOnUse" x1="${faceX}" x2="${featherX}">
       ${DISSOLVE.map(([at, on]) => `<stop offset="${at}" stop-color="#fff" stop-opacity="${on}"/>`).join("\n      ")}
     </linearGradient>
@@ -623,7 +624,6 @@ export function renderQuoteSvg(
   <rect width="${width}" height="${height}" fill="${ground}"/>
   ${face}
   ${mark}
-  ${scrim}
   <g font-family="${esc(fontFamily)}" font-size="${size}" xml:space="preserve">
     ${rows}
     ${attribution}

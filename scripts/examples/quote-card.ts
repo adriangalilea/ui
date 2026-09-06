@@ -7,12 +7,11 @@ import {
   assertAvatar,
   assertFonts,
   QUOTE_CH,
-  QUOTE_MAX,
   QUOTE_STEPS,
   quoteAccent,
+  quoteClean,
   quoteFontSize,
   quoteHue,
-  quoteTrim,
   quoteWrap,
   renderQuoteSvg,
 } from "../../registry/base-nova/lib/quote-card"
@@ -77,23 +76,25 @@ import {
   )
 }
 
-// The trim ends on a WORD and says that it did.
+// NOTHING IS EVER CUT. The words arrive whole, whatever the file's own line breaks
+// were, and a length the frame cannot hold is a throw rather than an ellipsis.
 {
-  const long = "word ".repeat(200)
-  const cut = quoteTrim(long)
-  assert(cut.length <= QUOTE_MAX + 1, `trim overran: ${cut.length}`)
-  assert(cut.endsWith("…"), "a cut quote must admit it was cut")
-  assert(!cut.includes("  "), "whitespace is collapsed")
   const short = "The purpose of a system is what it does."
-  assert(quoteTrim(short) === short, "a short quote is returned whole")
-  assert(quoteTrim(`  ${short}\n\n`) === short, "and trimmed of its edges")
-  console.log(`trim     ${QUOTE_MAX} chars, on a word boundary`)
+  assert(quoteClean(short) === short, "a quote is returned whole")
+  assert(quoteClean(`  ${short}\n\n`) === short, "and trimmed of its edges")
+  assert(
+    quoteClean("two\n  lines\there") === "two lines here",
+    "every run of whitespace is one space",
+  )
+  const long = "word ".repeat(200)
+  assert(quoteClean(long).length === 999, "a long quote is not shortened")
+  console.log("clean    whitespace only, never a cut")
 }
 
 // The wrap never drops or reorders a word: a preview that silently loses text is the
 // one failure nobody sees until it is public.
 {
-  const text = quoteTrim(
+  const text = quoteClean(
     "A designer knows he has achieved perfection not when there is nothing left to add, but when there is nothing left to take away.",
   )
   const size = quoteFontSize(text.length, 1200)

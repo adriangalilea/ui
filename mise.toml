@@ -49,6 +49,14 @@ arg "[size]" help="square side in px" default="256"
 '''
 run = 'bun scripts/portrait.ts {{arg(name="src")}} {{arg(name="out")}} {{arg(name="size")}}'
 
+[tasks.portraits]
+description = "fill every author folder under <dir> that has no avatar.png, from wikipedia"
+usage = '''
+arg "<dir>" help="a directory of author folders"
+arg "[size]" help="square side in px" default="256"
+'''
+run = 'bun scripts/portrait.ts --fill {{arg(name="dir")}} {{arg(name="size")}}'
+
 [tasks.add]
 description = "build, then copy one item into a consumer (default: the garden)"
 usage = '''

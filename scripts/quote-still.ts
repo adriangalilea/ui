@@ -160,11 +160,11 @@ const loadCorpus = async (
     const first = quotes[0]
     if (!first) continue
     const raw = await readFile(join(CORPUS, slug, first), "utf8")
-    // Take everything after the SECOND `---`, matched as a whole line. Slicing from
-    // the first one it can find leaves the closing fence in the body when the
-    // frontmatter is empty — which two files in this corpus have — and the card then
-    // renders "--- A determined person…" as if that were the quote.
-    const fence = raw.match(/^---\n[\s\S]*?\n---\n/)
+    // Take everything after the SECOND `---`, matched as a whole line. The body between
+    // the fences is OPTIONAL: two files in this corpus are `---\n---\n` with nothing at
+    // all in between, so a pattern that demands a newline before the closing fence never
+    // matches and the card renders "--- --- A determined person…" as the quote.
+    const fence = raw.match(/^---\r?\n(?:[\s\S]*?\r?\n)?---\r?\n/)
     const body = (fence ? raw.slice(fence[0].length) : raw).trim()
     if (!body) continue
     let picture: QuoteStillOptions = {}
@@ -215,152 +215,16 @@ const CARDS: readonly [string, Quote, QuoteStillOptions][] = [
   ],
 ]
 
-/** The mark's position, in multiples of the margin. With a quote on top the eye reads
- *  the text and the placement is guesswork, so the sweep strips the words — from the
- *  FINISHED card, so the frame, the photograph and the veil under it are the real
- *  ones. */
-const MARKS: readonly [string, number, number][] = [
-  ["a-left-low", 0.5, 1],
-  ["b-mid-low", 1, 1],
-  ["c-right-low", 1.6, 1],
-  ["d-left-high", 0.5, 0.4],
-  ["e-mid-high", 1, 0.4],
-  ["f-right-high", 1.6, 0.4],
-]
-
-/** Remove the QUOTE'S LINES and nothing else. They are the only `<text>` that carries
- *  no `font-size`, because they inherit it from the group — which also holds the name
- *  and the date, so dropping the whole group takes the attribution with it and every
- *  variant of a sweep comes out identical and empty. */
+/** Remove the QUOTE'S LINES and nothing else — the mark and the attribution stay, so
+ *  what is judged is the real card minus the one thing that pulls an eye. They are the
+ *  only `<text>` carrying no `font-size`, because they inherit it from the group, and
+ *  that group also holds the name and the date: drop the group and every frame of a
+ *  sweep comes out identical and empty. */
 const stripWords = (svg: string) =>
-  svg
-    .replace(/<text x="[\d.-]+" y="[\d.-]+" fill="[^"]*">[^<]*<\/text>\s*/g, "")
-    // The scrim exists to carry those lines, so it goes with them. Left behind it is a
-    // dark blob in the middle of a frame that is being judged for its evenness.
-    .replace(/<ellipse[^>]*\/>\s*/, "")
-/** The mark is drawn with one `translate`, so a sweep is a substitution on it and
- *  nothing else about the card changes between frames. */
-const moveMark = (svg: string, x: number, y: number) =>
   svg.replace(
-    /(<path d="M[\s\S]*?transform="translate\()[\d.-]+ [\d.-]+/,
-    `$1${x} ${y}`,
+    /<text x="[\d.-]+" y="[\d.-]+" fill="[^"]*">[^<]*<\/text>\s*/g,
+    "",
   )
-
-/** The attribution's two lines, found by what makes each one what it is: the name is
- *  the one drawn at reduced opacity, the date is the one in the muted ink. Neither
- *  changes SIZE in any variant below — the whole question is where they sit. */
-const NAME =
-  /(<text x=")([\d.-]+)(" y=")([\d.-]+)("[^>]*opacity="0\.75">)([^<]*)(<\/text>)/
-const DATE =
-  /(<text x=")([\d.-]+)(" y=")([\d.-]+)("[^>]*fill="#8f8f8f">)([^<]*)(<\/text>)/
-
-const place = (
-  svg: string,
-  re: RegExp,
-  at: (x: number, y: number) => { x: number; y: number; extra?: string },
-) =>
-  svg.replace(re, (_m, a, x, b, y, c, text, d) => {
-    const p = at(Number(x), Number(y))
-    const tail = p.extra ? c.replace(">", ` ${p.extra}>`) : c
-    return `${a}${p.x}${b}${p.y}${tail}${text}${d}`
-  })
-
-/** Where the name and the date go. Same faces, same sizes, same left margin: only the
- *  arrangement moves, which is the one thing that can be judged by looking. */
-const ATTRIBS: readonly [string, (svg: string) => string][] = [
-  ["a-stacked", (s) => s],
-  [
-    "b-lower",
-    (s) =>
-      place(
-        place(s, NAME, (x, y) => ({ x, y: y + 22 })),
-        DATE,
-        (x, y) => ({ x, y: y + 22 }),
-      ),
-  ],
-  [
-    "c-higher",
-    (s) =>
-      place(
-        place(s, NAME, (x, y) => ({ x, y: y - 40 })),
-        DATE,
-        (x, y) => ({ x, y: y - 40 }),
-      ),
-  ],
-  [
-    "d-one-line",
-    (s) =>
-      place(
-        place(s, NAME, (x, y) => ({ x, y: y + 44 })),
-        DATE,
-        (_x, y) => ({
-          x: 260,
-          y,
-        }),
-      ),
-  ],
-  [
-    "e-date-first",
-    (s) =>
-      place(
-        place(s, NAME, (x, y) => ({ x, y: y + 44 })),
-        DATE,
-        (x, y) => ({
-          x,
-          y: y - 44,
-        }),
-      ),
-  ],
-  [
-    "f-spread",
-    (s) =>
-      place(
-        place(s, NAME, (x, y) => ({ x, y: y + 44 })),
-        DATE,
-        (_x, y) => ({
-          x: 636,
-          y,
-          extra: 'text-anchor="end"',
-        }),
-      ),
-  ],
-]
-
-/** Where the WORDS sit, in px from where they sit now. Stacking them over the mark is
- *  encouraged — the overlap is what gives the card depth — so the sweep deliberately
- *  climbs into it, and the scrim is what keeps near-white type legible over the pale
- *  grey when it gets there. */
-const TEXTS: readonly [string, number][] = [
-  ["a-now", 0],
-  ["b-up-40", -40],
-  ["c-up-90", -90],
-  ["d-up-140", -140],
-  ["e-up-190", -190],
-  ["f-down-40", 40],
-]
-
-/** How far right the words may run, as a share of the width, against a scrim strong
- *  enough to carry them there. The picture starts at 0.58, so everything past it is
- *  type over photograph and the scrim is the only reason it reads. */
-const WIDTHS: readonly [string, number, number][] = [
-  ["a-58", 0.58, 0.72],
-  ["b-64", 0.64, 0.8],
-  ["c-70", 0.7, 0.86],
-  ["d-76", 0.76, 0.9],
-]
-
-/** Raise the scrim's own opacity in the finished card: the two stops it uses are the
- *  full value and four fifths of it. */
-const scrimAt = (svg: string, o: number) =>
-  svg
-    .replace(
-      /(<stop offset="0" stop-color="[^"]*" stop-opacity=")[\d.]+/,
-      `$1${o}`,
-    )
-    .replace(
-      /(<stop offset="0\.55" stop-color="[^"]*" stop-opacity=")[\d.]+/,
-      `$1${(o * 0.8).toFixed(3)}`,
-    )
 
 /** THE GROUND ALONE: the frame, the portrait and the tone it bleeds into, with the
  *  words, the mark and the scrim all taken out. Whether a picture melts into its
@@ -403,23 +267,8 @@ const SHARES: readonly [string, number][] = [
   ["e-58", 0.58],
 ]
 
-/** Move every line of the quote, and the scrim under them, by the same amount. */
-const moveWords = (svg: string, dy: number) =>
-  svg
-    .replace(
-      /<rect x="[\d.-]+" y="([\d.-]+)"([^>]*filter="url\(#scrim\)")/,
-      (_m, y, rest) => `<rect x="${PAD - 46}" y="${Number(y) + dy}"${rest}`,
-    )
-    .replace(
-      /<text x="([\d.-]+)" y="([\d.-]+)" fill="([^"]*)">/g,
-      (_m, x, y, fill) =>
-        `<text x="${x}" y="${Number(y) + dy}" fill="${fill}">`,
-    )
-
 const shots: [string, string][] = await (async () => {
   const mode = process.argv[2]
-  const [, quote, extra] = CARDS[0] as (typeof CARDS)[number]
-  const bare = () => stripWords(renderQuoteSvg(quote, { ...LOOK, ...extra }))
   if (mode === "corpus")
     return (await loadCorpus(Number(process.argv[3] ?? 12))).map(
       ([name, q, x]): [string, string] => [
@@ -442,8 +291,9 @@ const shots: [string, string][] = await (async () => {
   // other is the content's. Nothing tells them apart faster than looking at the files.
   if (mode === "faces") {
     const { readdir } = await import("node:fs/promises")
-    const slugs = (await readdir(CORPUS))
-      .filter((s) => !s.endsWith(".md"))
+    const slugs = (await readdir(CORPUS, { withFileTypes: true }))
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
       .sort()
     const COLS = 8
     const CELL = 150
@@ -490,29 +340,6 @@ const shots: [string, string][] = await (async () => {
       ]),
     )
   }
-  if (mode === "width")
-    return WIDTHS.map(([name, right, scrim]): [string, string] => [
-      `width-${name}`,
-      scrimAt(
-        renderQuoteSvg(quote, { ...LOOK, ...extra, textRight: right }),
-        scrim,
-      ),
-    ])
-  if (mode === "text")
-    return TEXTS.map(([name, dy]): [string, string] => [
-      `text-${name}`,
-      moveWords(renderQuoteSvg(quote, { ...LOOK, ...extra }), dy),
-    ])
-  if (mode === "marks")
-    return MARKS.map(([name, kx, ky]): [string, string] => [
-      `mark-${name}`,
-      moveMark(bare(), Math.round(PAD * kx), Math.round(PAD * ky)),
-    ])
-  if (mode === "attrib")
-    return ATTRIBS.map(([name, move]): [string, string] => [
-      `attrib-${name}`,
-      move(bare()),
-    ])
   return CARDS.map(([name, q, x]): [string, string] => [
     `quote-${name}`,
     renderQuoteSvg(q, { ...LOOK, ...x }),

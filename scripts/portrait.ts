@@ -2,6 +2,7 @@
 // rather than on the middle of the frame.
 //
 //   mise portrait <source|wikipedia:Article_Title> <out.png> [size]
+//   mise portraits <dir>            fill every author folder under <dir> that has none
 //
 // Why this lives beside the component instead of in whatever site consumes it: the card
 // derives its ground and its mark from the picture's own colour, and it shows the whole
@@ -139,50 +140,124 @@ export function portraitBox(found: Found): {
   return clamp((width - limit) / 2, 0, limit, "top")
 }
 
-const [, , src, out, sizeArg] = process.argv
-assert(
-  src !== undefined && out !== undefined,
-  "usage: mise portrait <source|wikipedia:Article_Title> <out.png> [size]",
-)
-const size = Number(sizeArg ?? SIZE)
+/** One picture in, one square portrait out. */
+const portrait = async (
+  src: string,
+  out: string,
+  size: number,
+): Promise<string> => {
+  const source = src.startsWith("wikipedia:")
+    ? await fromWikipedia(src.slice("wikipedia:".length))
+    : src
+  const [code, json] = await run("swift", [
+    join(HERE, "portrait.swift"),
+    source,
+  ])
+  assert(code === 0, `portrait.swift failed on ${source}`)
+  const found = (JSON.parse(json) as Found[])[0]
+  assert(found !== undefined, `no answer for ${source}`)
 
-const source = src.startsWith("wikipedia:")
-  ? await fromWikipedia(src.slice("wikipedia:".length))
-  : src
-
-const [code, json] = await run("swift", [join(HERE, "portrait.swift"), source])
-assert(code === 0, `portrait.swift failed on ${source}`)
-const found = (JSON.parse(json) as Found[])[0]
-assert(found !== undefined, `no answer for ${source}`)
-
-const box = portraitBox(found)
-// Cropped through an SVG viewBox rather than through `sips -c`, whose offset is
-// documented as one thing and behaves as another depending on the release. A viewBox is
-// four numbers with one meaning, and librsvg is already required here.
-const bytes = await readFile(source)
-const mime = /\.png$/i.test(source) ? "image/png" : "image/jpeg"
-const svg = join(tmpdir(), `portrait-${Date.now()}.svg`)
-await writeFile(
-  svg,
-  `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="${box.x} ${box.y} ${box.side} ${box.side}">
+  const box = portraitBox(found)
+  // Cropped through an SVG viewBox rather than through `sips -c`, whose offset is
+  // documented as one thing and behaves as another depending on the release. A viewBox
+  // is four numbers with one meaning, and librsvg is already required here.
+  const bytes = await readFile(source)
+  const mime = /\.png$/i.test(source) ? "image/png" : "image/jpeg"
+  const svg = join(tmpdir(), `portrait-${Date.now()}.svg`)
+  await writeFile(
+    svg,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="${box.x} ${box.y} ${box.side} ${box.side}">
   <image href="data:${mime};base64,${bytes.toString("base64")}" x="0" y="0" width="${found.width}" height="${found.height}" preserveAspectRatio="none"/>
 </svg>
 `,
-)
-assert(
-  (
-    await run("rsvg-convert", [
-      "-w",
-      String(size),
-      "-h",
-      String(size),
-      svg,
-      "-o",
-      out,
-    ])
-  )[0] === 0,
-  "rsvg-convert failed: brew install librsvg",
-)
-console.log(
-  `${out}  ${size}x${size}  from ${found.width}x${found.height} at ${box.x},${box.y} +${box.side} (${box.why})`,
-)
+  )
+  assert(
+    (
+      await run("rsvg-convert", [
+        "-w",
+        String(size),
+        "-h",
+        String(size),
+        svg,
+        "-o",
+        out,
+      ])
+    )[0] === 0,
+    "rsvg-convert failed: brew install librsvg",
+  )
+  return `${found.width}x${found.height} at ${box.x},${box.y} +${box.side} (${box.why})`
+}
+
+/** A slug is already the article title nine times in ten. Deriving it beats keeping a
+ *  map of forty-odd names that has to be edited before anyone can add an author, and the
+ *  tenth case is what `portraits.json` is for. */
+const titleOf = (slug: string) =>
+  slug
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join("_")
+
+/** FILL A CORPUS: every folder under `dir` that has no `avatar.png` gets one.
+ *
+ *  The slug-to-article exceptions live in `<dir>/portraits.json`, WITH the content,
+ *  because that is content: which article is the right Felipe II is a fact about this
+ *  collection, not about cropping. `null` means no encyclopaedia has a usable picture
+ *  and a person has to choose one — anonymous authors, living people with no free
+ *  photograph, anyone whose portrait is better generated than borrowed.
+ *
+ *  It NEVER overwrites. A portrait someone chose by hand outranks anything fetched, and
+ *  a fetcher that reaches in and replaces it is a fetcher nobody can leave running. */
+const fill = async (dir: string, size: number) => {
+  const { readdir, stat } = await import("node:fs/promises")
+  let map: Record<string, string | null> = {}
+  try {
+    map = JSON.parse(await readFile(join(dir, "portraits.json"), "utf8"))
+  } catch {}
+  const ok: string[] = []
+  const asks: string[] = []
+  const broke: [string, string][] = []
+  for (const slug of (await readdir(dir)).sort()) {
+    if (!(await stat(join(dir, slug))).isDirectory()) continue
+    const out = join(dir, slug, "avatar.png")
+    try {
+      await stat(out)
+      continue
+    } catch {}
+    const title = slug in map ? map[slug] : titleOf(slug)
+    if (title === null || title === "") {
+      asks.push(slug)
+      continue
+    }
+    try {
+      console.log(
+        `  ${slug}  ${await portrait(`wikipedia:${title}`, out, size)}`,
+      )
+      ok.push(slug)
+    } catch (e) {
+      broke.push([slug, e instanceof Error ? e.message : String(e)])
+    }
+  }
+  console.log(
+    `\nfetched ${ok.length}, ${asks.length} need a person, ${broke.length} failed`,
+  )
+  for (const [slug, why] of broke) console.log(`  FAILED  ${slug}: ${why}`)
+  // NEVER pick for these. A generic engraving of the wrong century is worse than a card
+  // with no picture on it, and the card is designed to read without one.
+  if (asks.length)
+    console.log(
+      `\nthese need a picture chosen by a person, then \`mise portrait <file> ${dir}/<slug>/avatar.png\`:\n  ${asks.join("\n  ")}`,
+    )
+}
+
+const [, , a, b, c] = process.argv
+if (a === "--fill") {
+  assert(b !== undefined, "usage: mise portraits <dir>")
+  await fill(b, Number(c ?? SIZE))
+} else {
+  assert(
+    a !== undefined && b !== undefined,
+    "usage: mise portrait <source|wikipedia:Article_Title> <out.png> [size]",
+  )
+  const size = Number(c ?? SIZE)
+  console.log(`${b}  ${size}x${size}  from ${await portrait(a, b, size)}`)
+}
