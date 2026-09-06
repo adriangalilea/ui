@@ -6,27 +6,30 @@ import {
 } from "@/registry/base-nova/lib/quote-card"
 import { Quote } from "@/registry/base-nova/ui/quote"
 
-const AVATAR = "/adriangalilea.jpg"
+/** Mark Twain, photographed before 1910 and long in the public domain. A real face,
+ *  because the still crops one from the top (`xMidYMin slice`) so a head stays a head:
+ *  a landscape in that slot proves the layout runs and nothing about whether it works. */
+const TWAIN = "/mark-twain.png"
 
-const SHORT: QuoteData = {
+const LETTER: QuoteData = {
+  text: "I didn't have time to write a short letter, so I wrote a long one instead.",
+  author: { name: "Mark Twain", href: "#", avatar: TWAIN },
+  source: "#",
+  date: "1876",
+  seed: "quotes/mark-twain/on-brevity",
+}
+
+const SYSTEM: QuoteData = {
   text: "The purpose of a system is what it does.",
   author: { name: "Stafford Beer", href: "#" },
   date: "2002",
-  seed: "beer/posiwid",
-}
-
-const LONG: QuoteData = {
-  text: "A designer knows he has achieved perfection not when there is nothing left to add, but when there is nothing left to take away.",
-  author: { name: "Adrian Galilea", href: "#", avatar: AVATAR },
-  source: "#",
-  date: "1939",
-  seed: "saint-exupery/wind-sand-and-stars",
+  seed: "quotes/stafford-beer/posiwid",
 }
 
 /** A still cannot fetch, so the face has to arrive as bytes. This is the whole of what
  *  an OG route does with an avatar, and the reason `renderQuoteSvg` takes a data URI
  *  rather than a URL: at the moment the preview is drawn there is no browser, no
- *  network and no origin to resolve `/adriangalilea.jpg` against. */
+ *  network and no origin to resolve `/mark-twain.png` against. */
 function dataUri(publicPath: string): string {
   const buf = readFileSync(join(process.cwd(), "public", publicPath))
   const mime = publicPath.endsWith(".png") ? "image/png" : "image/jpeg"
@@ -34,43 +37,47 @@ function dataUri(publicPath: string): string {
 }
 
 export default function Demo() {
-  // The SAME quote, drawn twice: the card in the DOM, and the social preview by the
-  // renderer in quote-card, which runs without React so a build can rasterize it. One
-  // set of rules — the accent, the size ladder, the trim — so a shared link and the
-  // page it opens cannot disagree about what somebody said.
-  const still = renderQuoteSvg(LONG, { avatar: dataUri(AVATAR) })
-  const plain = renderQuoteSvg(SHORT)
+  // The SAME quotes, drawn twice: the cards below in the DOM, and the previews by the
+  // renderer in quote-card, which runs without React so a build or an OG route can
+  // draw one. The accent, the size ladder and the trim come from there, so a shared
+  // link and the page it opens cannot disagree about what somebody said.
+  const withFace = renderQuoteSvg(LETTER, { avatar: dataUri(TWAIN) })
+  const without = renderQuoteSvg(SYSTEM)
   return (
     <div className="space-y-8">
       <div className="space-y-2">
         <div className="font-mono text-muted-foreground text-xs lowercase">
           display · a quote the page is about
         </div>
-        <Quote {...LONG} display />
+        <Quote {...LETTER} display />
       </div>
       <div className="space-y-2">
         <div className="font-mono text-muted-foreground text-xs lowercase">
           inline · a quote inside prose, at the page's own size
         </div>
-        <Quote {...SHORT} />
+        <Quote {...SYSTEM} />
       </div>
       <div className="space-y-2">
         <div className="font-mono text-muted-foreground text-xs lowercase">
-          still · quote-card, no react · 1200×630, the size every platform crops
+          the social preview · what a shared link looks like
         </div>
-        {/* A string of SVG: what a build script writes to disk, and what an OG route
-            answers with. With a face it bleeds into the right edge under a gradient;
-            without one the words take the whole frame. */}
+        <p className="max-w-prose text-foreground/60 text-sm">
+          Not a component and not on any page: this is what an OG route answers
+          with, at the 1200×630 every platform crops from. It is drawn by{" "}
+          <code className="font-mono text-xs">renderQuoteSvg</code>, which takes
+          no React, so a build script can write it to disk or a route can return
+          it. Inlined here only so it can be looked at without sharing anything.
+        </p>
         <div className="grid gap-4">
           <div
             className="overflow-hidden rounded-lg border border-border [&>svg]:h-auto [&>svg]:w-full"
             // biome-ignore lint/security/noDangerouslySetInnerHtml: the renderer escapes every value it interpolates
-            dangerouslySetInnerHTML={{ __html: still }}
+            dangerouslySetInnerHTML={{ __html: withFace }}
           />
           <div
             className="overflow-hidden rounded-lg border border-border [&>svg]:h-auto [&>svg]:w-full"
             // biome-ignore lint/security/noDangerouslySetInnerHtml: as above
-            dangerouslySetInnerHTML={{ __html: plain }}
+            dangerouslySetInnerHTML={{ __html: without }}
           />
         </div>
       </div>
