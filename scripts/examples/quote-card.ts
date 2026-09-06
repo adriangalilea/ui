@@ -16,6 +16,7 @@ import {
   quoteSet,
   quoteWrap,
   renderQuoteSvg,
+  SIZE_MAX,
   toneFrom,
 } from "../../registry/base-nova/lib/quote-card"
 
@@ -70,17 +71,38 @@ import {
       `a narrower column must set smaller type at ${len} chars`,
     )
   }
-  // Monotone: more words is never a narrower measure.
+  // Monotone from the first rung on: more words is never a narrower measure. Below the
+  // first rung the rule is different and deliberate — a quote shorter than the rung takes
+  // its OWN length as its measure so it never breaks, which is why 39 characters get 39
+  // and 40 get the rung's 30.
   let prev = 0
-  for (const len of [10, 39, 40, 89, 90, 159, 259, 500]) {
+  for (const len of [40, 89, 90, 159, 259, 500]) {
     const ch = quoteMeasure(len)
     assert(ch >= prev, `the measure narrowed at ${len} chars: ${ch} < ${prev}`)
     prev = ch
   }
+  assert(quoteMeasure(10) === 24, "a tiny quote keeps the first rung's measure")
+  assert(quoteMeasure(39) === 39, "a quote under the first rung never breaks")
   assert(
     MEASURE_STEPS[MEASURE_STEPS.length - 1]?.under === Number.POSITIVE_INFINITY,
     "the last rung must be open, or a long quote has no measure at all",
   )
+  // A SHORT QUOTE NEVER BREAKS, AND THE TYPE HAS A CEILING. Four words split over two
+  // lines is an accident of the measure, not a measure; and a four-word quote in an empty
+  // frame came out at 128px, a poster headline where a sentence was wanted.
+  {
+    const short = "Feelings are cognition metadata."
+    const cap = Math.round(630 * SIZE_MAX)
+    const set = quoteSet(short, 1027, { ch: 0.333, sizeMax: cap })
+    assert(
+      set.lines.length === 1,
+      `a ${short.length}-character quote broke into ${set.lines.length} lines`,
+    )
+    assert(
+      set.size <= cap,
+      `the type ran past its ceiling: ${set.size} > ${cap}`,
+    )
+  }
   // A WIDER WEIGHT NEVER CROSSES THE CEILING. The feature weight scales the ladder by one
   // and a half; on the longest rung that is 84 characters a line, past MEASURE_MAX, and
   // the first cut of this threw on a 435-character Cervantes and took a production build

@@ -51,6 +51,7 @@ import {
   quoteClean,
   quoteMeasure,
   quoteSet,
+  SIZE_MAX,
 } from "@/registry/base-nova/lib/quote-card"
 import "./quote.css"
 
@@ -135,6 +136,7 @@ export function Quote({
     const { size } = quoteSet(words, width * column, {
       ch,
       measure: FEATURE_MEASURE,
+      sizeMax: (width / aspect) * SIZE_MAX,
     })
     return (
       <figure
@@ -183,7 +185,11 @@ export function Quote({
   // mid-sentence, silently — the one thing the module promises never happens.
   const nameSize = NAME_EM * width
   const band = height - 2 * unit * EDGE * width - (CAP + DESC) * nameSize
-  const { size } = quoteSet(words, width * column, { bandH: band, ch })
+  const { size } = quoteSet(words, width * column, {
+    bandH: band,
+    ch,
+    sizeMax: height * SIZE_MAX,
+  })
 
   // The picture is a square as tall as the frame, slid so the subject clears the
   // dissolve, and bounded so it neither leaves ground at the right edge nor empties the

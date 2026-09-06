@@ -24,7 +24,6 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const OUT = join(HERE, "..", ".renders")
 const PUBLIC = join(HERE, "..", "public")
 const WIDTH = 1200
-const PAD = Math.round(WIDTH / 20)
 
 /** This machine's own face, declared honestly: these are rasterized offline by
  *  librsvg, which reads fontconfig, so what a browser has is beside the point. */

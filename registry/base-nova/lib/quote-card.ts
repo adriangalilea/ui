@@ -104,8 +104,21 @@ export const MEASURE_MAX = 80
 export function quoteMeasure(length: number, measure = 1): number {
   const step = MEASURE_STEPS.find((s) => length < s.under)
   assert(step, "the measure ladder has no last rung")
-  return Math.min(step.ch * measure, MEASURE_MAX)
+  // A QUOTE SHORTER THAN THE FIRST RUNG NEVER BREAKS. Four words split over two lines is
+  // not a measure, it is an accident of one: "Feelings are cognition metadata." at
+  // twenty-four a line came out as two lines of two words. Its own length is its measure.
+  const first = MEASURE_STEPS[0]
+  const ch = first && length < first.under ? Math.max(step.ch, length) : step.ch
+  return Math.min(ch * measure, MEASURE_MAX)
 }
+
+/** THE TYPE HAS A CEILING, as a share of the frame's height. The ladder exists so a long
+ *  quote stays legible, not so a short one is blown up without bound: a four-word quote
+ *  in an empty frame came out at 128px, a poster headline where a sentence was wanted.
+ *  Eleven hundredths of the height is 69px on the card, and every weight caps at the
+ *  same share of the height its width implies, so the three agree on how loud a quote
+ *  may get. */
+export const SIZE_MAX = 0.11
 
 /** Line to line, as a multiple of the em. */
 export const LINE = 1.35
@@ -130,6 +143,8 @@ export interface QuoteFit {
   measure?: number
   /** The face's average character advance — see QUOTE_CH. */
   ch?: number
+  /** The loudest the type may get, in px — SIZE_MAX of the frame's height. */
+  sizeMax?: number
 }
 
 export function quoteSet(
@@ -139,6 +154,7 @@ export function quoteSet(
     bandH = Number.POSITIVE_INFINITY,
     measure = 1,
     ch = QUOTE_CH,
+    sizeMax = Number.POSITIVE_INFINITY,
   }: QuoteFit = {},
 ): QuoteSet {
   assert(colW > 0, `a column ${colW} wide`)
@@ -154,7 +170,10 @@ export function quoteSet(
   // starting size is at or above it; the loop below only ever steps DOWN from there, and
   // throws the moment it would have to cross.
   const floor = Math.floor(colW / (MEASURE_MAX * ch))
-  let size = Math.round(colW / (quoteMeasure(text.length, measure) * ch))
+  let size = Math.min(
+    Math.floor(sizeMax),
+    Math.round(colW / (quoteMeasure(text.length, measure) * ch)),
+  )
   for (;;) {
     const lines = quoteWrap(text, size, colW, ch)
     const high =
@@ -816,6 +835,7 @@ export function renderQuoteSvg(
     bandH: attrTop - markY,
     measure,
     ch,
+    sizeMax: height * SIZE_MAX,
   })
   const step = Math.round(size * LINE)
   const textH = (lines.length - 1) * step + (CAP + DESC) * size

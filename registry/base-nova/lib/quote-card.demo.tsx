@@ -2,7 +2,6 @@ import {
   MEASURE_STEPS,
   quoteClean,
   quoteSet,
-  quoteWrap,
 } from "@/registry/base-nova/lib/quote-card"
 
 const SAMPLES = [
