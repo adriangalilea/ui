@@ -98,26 +98,34 @@
 
 /* ── feature ────────────────────────────────────────────────────────────────── */
 
-/* The page's own weight: what a quote's page opens with. No frame, no portrait, no
-   ground — it flows with the column — but the same mark, the same measure ladder and the
-   same indent as the card, so it is recognisably the card's words set free of the frame.
-   A container, so the mark and the type scale with the column it is actually in. */
+/* The page's own weight: what a quote's page opens with. No portrait and no tinted
+   ground, but the same STEP prose stands on, the same mark, the same measure ladder and
+   the same indent as the card — recognisably the card's words set free of the frame.
+   Bare, it was a wall of type with nothing to say where the quotation began and ended;
+   the step is the hierarchy. A container, so the mark and the type scale with the column
+   it is actually in. */
 .ag-quote-feature {
   container-type: inline-size;
-  padding-inline-start: var(--ag-quote-indent);
+  padding: 1.5rem 2rem 1.5rem calc(var(--ag-quote-indent) + 2rem);
+  border-radius: 0.75rem;
+  background: color-mix(in oklch, var(--foreground) 4%, transparent);
 }
+/* THE MARK SCALES WITH THE WEIGHT. At the card's size it is a ghost in the picture's
+   colour and belongs to the picture; here there is no picture, so at that size and blur
+   it is a smear behind the first line. Half the height, a quarter of the blur, a shade
+   fainter: a mark that says "quotation" and then gets out of the way of the words. */
 .ag-quote-feature .ag-quote-mark {
-  left: 0;
-  top: 0;
-  height: var(--ag-quote-mark);
-  opacity: var(--ag-quote-mark-fill);
-  filter: blur(var(--ag-quote-soften));
+  left: 2rem;
+  top: 1.5rem;
+  height: calc(var(--ag-quote-mark) * 0.5);
+  opacity: calc(var(--ag-quote-mark-fill) * 0.8);
+  filter: blur(calc(var(--ag-quote-soften) * 0.25));
 }
 /* THE WORDS CLIMB INTO THE MARK. There is no band to centre them in, so they start half
    way down it: the overlap is what gives the composition depth on the card, and hanging
    them below the mark instead is what reads as two objects stacked. */
 .ag-quote-feature .ag-quote-body {
-  padding-block-start: calc(var(--ag-quote-mark) * 0.5);
+  padding-block-start: calc(var(--ag-quote-mark) * 0.25);
   font-size: var(--ag-quote-size);
   line-height: var(--ag-quote-line);
 }
