@@ -23,34 +23,30 @@ export interface Quote {
   source?: string | null
   /** Already formatted for display: this module does not own a locale. */
   date?: string | null
-  /** Any stable string — a slug, a path. The accent is derived from it, so a quote
-   *  keeps its colour across renders without anybody choosing one. */
-  seed?: string
 }
+
+/** The size platforms crop a link preview from, and therefore the card's proportions
+ *  everywhere — the web card is the same composition, so it keeps the same frame. */
+export const CARD_W = 1200
+export const CARD_H = 630
 
 export function assert(cond: unknown, msg: string): asserts cond {
   if (!cond) throw new Error(`quote: ${msg}`)
 }
 
-/** A stable hue from a string. Not for identity or security: it exists so a quote
- *  looks like itself every time, and so a wall of them is varied without a palette
- *  to maintain. */
-export function quoteHue(seed: string): number {
-  let h = 0
-  for (let i = 0; i < seed.length; i++)
-    h = ((h << 5) - h + seed.charCodeAt(i)) | 0
-  return Math.abs(h % 360)
-}
+/** How far a character advances, as a share of the em — the `ch` unit, estimated. Every
+ *  humanist sans and every mono face here average near this.
+ *
+ *  ESTIMATED, and only ever by the still, which has no way to measure text. A browser
+ *  does: the web card states the same rule in real `ch` and gets the measure exactly
+ *  right for whatever face the page is actually using. So the rule is shared and only
+ *  the still approximates it, which is the honest split — a card and its preview agree
+ *  on how many characters a line carries, and disagree only about where a particular
+ *  word lands. */
+export const QUOTE_CH = 0.52
+
 export const QUOTE_SAT = 70
 export const QUOTE_LIGHT = 65
-export function quoteAccent(seed: string): string {
-  return `hsl(${quoteHue(seed)}, ${QUOTE_SAT}%, ${QUOTE_LIGHT}%)`
-}
-
-/** Roughly how many characters fit on a line at this size. Geist and the mono faces
- *  both average near this ratio of the em; the still measures nothing, so a constant
- *  is the honest tool and the wrap is allowed to be approximate. */
-export const QUOTE_CH = 0.52
 
 /** THE LADDER IS IN CHARACTERS PER LINE, NOT IN PIXELS, and the size falls out of it.
  *
@@ -372,12 +368,19 @@ export function quoteClean(text: string): string {
   return text.replace(/\s+/g, " ").trim()
 }
 
-/** THREE VOICES, and the distinction is the point: the words are the quote, the name
- *  is a person, the date is metadata. They are three SLOTS, not three typefaces: a
- *  component that names Georgia and Geist forces its taste on every page that installs
- *  it, which is not a component, and the defaults here are therefore the GENERIC
- *  families every renderer resolves to the reader's own. Pass real stacks to get the
- *  three voices; pass nothing and it borrows the page's. */
+/** THREE VOICES, and the distinction is the point: the words are a QUOTATION and take a
+ *  serif, the name is a person and takes the page's own sans, the date is metadata and
+ *  takes mono. Three roles, and a reader knows which is which before reading a word.
+ *
+ *  They are three SLOTS, not three typefaces: a component that names Georgia and Geist
+ *  forces its taste on every page that installs it, which is not a component, so the
+ *  defaults are the GENERIC families every renderer resolves to the reader's own. Pass
+ *  real stacks to get the three voices; pass nothing and it borrows the page's.
+ *
+ *  The web card's CSS defaults to the same three, in the same order, because a card and
+ *  its own link preview disagreeing about which voice the words are in is the drift the
+ *  shared module exists to prevent. */
+export const QUOTE_SERIF = "serif"
 export const QUOTE_SANS = "sans-serif"
 export const QUOTE_MONO = "monospace"
 
@@ -601,7 +604,7 @@ export function renderQuoteSvg(
     muted = "#8f8f8f",
     accent,
     avatar,
-    fontFamily = QUOTE_SANS,
+    fontFamily = QUOTE_SERIF,
     nameFamily = QUOTE_SANS,
     dateFamily = QUOTE_MONO,
     fonts = [],

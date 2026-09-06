@@ -6,38 +6,46 @@ import {
   assert,
   assertAvatar,
   assertFonts,
+  GROUND_LIGHT,
   MEASURE_STEPS,
   QUOTE_CH,
-  quoteAccent,
   quoteClean,
-  quoteHue,
+  quoteGround,
   quoteMeasure,
   quoteSet,
   quoteWrap,
   renderQuoteSvg,
+  toneFrom,
 } from "../../registry/base-nova/lib/quote-card"
 
-// The accent is a FUNCTION of the seed, which is the only reason a quote looks like
-// itself in a card and in the preview of the same card.
+// THE COLOUR COMES FROM THE PICTURE, never from a hash of a name. A seeded hue lands
+// wherever the hash lands, which is how a violet ground ended up behind a
+// black-and-white photograph; a hue taken from the pixels cannot. Only the DIRECTION of
+// the colour is kept — the average itself is a mid-grey mud no white type survives — so
+// every card in a set is equally dark and only the temperature moves.
 {
-  const seed = "saint-exupery/wind-sand-and-stars"
   assert(
-    quoteAccent(seed) ===
-      quoteAccent(["saint-exupery", "wind-sand-and-stars"].join("/")),
-    "the accent is not a function of the seed alone",
+    toneFrom(120, 120, 120).ground === quoteGround(0, 0),
+    "a grey picture must give a grey ground",
   )
-  assert(quoteHue(seed) >= 0 && quoteHue(seed) < 360, "hue out of the wheel")
-  const hues = new Set(
-    ["a", "b", "c", "d", "e", "f", "g", "h"].map((s) =>
-      quoteHue(`quotes/${s}`),
-    ),
+  // And a NEARLY grey one stays nearly grey. Saturation is carried from the picture
+  // rather than assumed, so a black-and-white photograph cannot come out tinted.
+  const grey = toneFrom(120, 122, 121)
+  const sat = Number(grey.ground.split(",")[1]?.trim().replace("%", ""))
+  assert(sat <= 4, `a near-grey picture tinted to ${grey.ground}`)
+  const warm = toneFrom(180, 120, 70)
+  assert(warm.ground.startsWith("hsl(2"), `a warm picture, got ${warm.ground}`)
+  assert(
+    warm.ground.endsWith(`${GROUND_LIGHT}%)`),
+    "the ground takes the CARD's lightness, not the picture's",
   )
   assert(
-    hues.size > 5,
-    `neighbouring seeds collapse to one colour: ${hues.size}`,
+    toneFrom(20, 13, 8).ground === toneFrom(200, 130, 80).ground,
+    "the same hue at any exposure must give the same ground",
   )
-  assert(quoteHue("") === 0, "an empty seed still answers")
-  console.log(`accent   stable, ${hues.size}/8 distinct across near seeds`)
+  console.log(
+    `tone     ${warm.ground} from a warm picture, ${grey.ground} from grey`,
+  )
 }
 
 // THE LADDER IS A MEASURE, so the SAME quote breaks into the same number of lines in a
@@ -134,7 +142,6 @@ import {
     text: "The purpose of a system is what it does.",
     author: { name: "Stafford Beer" },
     date: "2002",
-    seed: "beer/posiwid",
   })
   assert(svg.startsWith("<svg "), "not an svg")
   assert(svg.trimEnd().endsWith("</svg>"), "unterminated svg")

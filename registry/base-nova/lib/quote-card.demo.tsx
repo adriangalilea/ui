@@ -1,6 +1,5 @@
 import {
   MEASURE_STEPS,
-  quoteAccent,
   quoteClean,
   quoteSet,
   quoteWrap,
@@ -24,7 +23,6 @@ export default function Demo() {
             <th className="pb-2 font-normal">chars</th>
             <th className="pb-2 font-normal">size @680</th>
             <th className="pb-2 font-normal">lines</th>
-            <th className="pb-2 font-normal">accent</th>
           </tr>
         </thead>
         <tbody>
@@ -36,12 +34,6 @@ export default function Demo() {
                 <td className="py-2">{clean.length}</td>
                 <td className="py-2">{size}px</td>
                 <td className="py-2">{lines.length}</td>
-                <td className="py-2">
-                  <span
-                    className="inline-block size-3 rounded-full align-middle"
-                    style={{ background: quoteAccent(text) }}
-                  />
-                </td>
               </tr>
             )
           })}

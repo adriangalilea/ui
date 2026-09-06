@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import {
   type Quote as QuoteData,
+  type QuoteTone,
   renderQuoteSvg,
 } from "@/registry/base-nova/lib/quote-card"
 import { Quote } from "@/registry/base-nova/ui/quote"
@@ -23,14 +24,23 @@ const LETTER: QuoteData = {
   author: { name: "Mark Twain", href: "#", avatar: TWAIN },
   source: "#",
   date: "1876",
-  seed: "quotes/mark-twain/on-brevity",
+}
+
+/** THE PICTURE'S OWN COLOUR, and the card takes it as an argument because it cannot go
+ *  and find it: `toneFrom` turns an average pixel into a ground and an ink, and getting
+ *  that average means decoding a PNG, which is the consumer's job. `mise portrait` and
+ *  `mise still` do it with `sips`; an OG route does it wherever it already holds the
+ *  bytes. Twain is a monochrome photograph, so his ground stays grey — a hue taken on
+ *  faith would have put a colour behind him that nobody chose. */
+const TWAIN_TONE: QuoteTone = {
+  ground: "hsl(0, 0%, 9%)",
+  accent: "hsl(0, 0%, 65%)",
 }
 
 const SYSTEM: QuoteData = {
   text: "The purpose of a system is what it does.",
   author: { name: "Stafford Beer", href: "#" },
   date: "2002",
-  seed: "quotes/stafford-beer/posiwid",
 }
 
 /** A still cannot fetch, so the face has to arrive as bytes. This is the whole of what
@@ -60,9 +70,9 @@ export default function Demo() {
     <div className="space-y-8">
       <div className="space-y-2">
         <div className="font-mono text-muted-foreground text-xs lowercase">
-          display · a quote the page is about
+          display · the card, in the DOM
         </div>
-        <Quote {...LETTER} display />
+        <Quote {...LETTER} tone={TWAIN_TONE} display />
       </div>
       <div className="space-y-2">
         <div className="font-mono text-muted-foreground text-xs lowercase">
@@ -72,7 +82,7 @@ export default function Demo() {
       </div>
       <div className="space-y-2">
         <div className="font-mono text-muted-foreground text-xs lowercase">
-          the social preview · what a shared link looks like
+          the same card, drawn as a still · what a shared link looks like
         </div>
         <p className="max-w-prose text-foreground/60 text-sm">
           Not a component and not on any page: this is what an OG route answers

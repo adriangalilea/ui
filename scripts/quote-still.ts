@@ -35,7 +35,7 @@ const PAD = Math.round(WIDTH / 20)
  *  librsvg, which reads fontconfig, so what a browser has is beside the point. */
 const LOOK: QuoteStillOptions = {
   systemFonts: true,
-  fontFamily: "Helvetica Neue",
+  fontFamily: "Georgia",
   nameFamily: "Helvetica Neue",
 }
 
