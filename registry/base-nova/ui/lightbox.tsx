@@ -1624,12 +1624,11 @@ function Stage(props: StageProps) {
             write()
             break
           case "scroll":
-            // A MOUSE dragging the track: no browser drag-scrolls a mouse, so this is
-            // the one gesture the engine has to carry. The magnets stand down while it
-            // does, or a mandatory container would snap out of every frame of it; the
-            // release hands them back by landing on a lock.
-            trackEl.dataset.stepping = ""
-            trackEl.scrollLeft -= f.dx
+            // A hand on the track, feeding the SAME swipe the wheel feeds: one line,
+            // one lean, one slide per gesture, whatever is pushing. The finger moves
+            // right, the pictures come from the left, so the travel is its negative.
+            if (!swipe) swipeOpen("finger")
+            swipeFeed(-f.dx, 0)
             break
           case "unpose":
             fly(f.target, MACHINE, undefined, false)
@@ -1701,6 +1700,10 @@ function Stage(props: StageProps) {
       const next = gestureMove(G, inputOf(e, { hand: handOf(e) }), gestureCtx())
       G = next.gesture
       applyGesture(next.effects)
+      // The hand relocked off the track mid-touch: it is dismissing now, so the swipe
+      // hands the pictures back to their slide instead of holding an offset the
+      // reader has stopped steering.
+      if (swipe && G.axis === "y") endSwipe()
     }
     // What a tap leaves behind. A hand on a coasting image stops it: a pan flight
     // (coast, wall bounce, key pan: the pending target keeps the scale) settles
@@ -1814,9 +1817,9 @@ function Stage(props: StageProps) {
           resume()
           return
         case "snap":
-          // The mouse dragged the scroller by hand; it glides to the nearest slide
-          // from there, the same motion a key press makes.
-          glideTo(landedSlot())
+          // The hand let the track go. A pointer SAYS when that happened, so there is
+          // nothing to infer and nothing to wait for: the swipe ends on the event.
+          endSwipe()
           resume()
           return
         default: {
@@ -2006,6 +2009,43 @@ function Stage(props: StageProps) {
       trace(`swipe → ${next}`)
       glideTo(next, vx)
     }
+    /** A gesture takes the track. The magnets go down before anything reads the
+     *  scroller, and the anchor is where the track is HEADING, so a swipe onto a step
+     *  still in flight counts from the slide it is going to, not one it is flying
+     *  over. */
+    const swipeOpen = (why: string) => {
+      // A gesture opening while the last one's glide runs: read that one out now, or
+      // its rows and this one's share a table and the totals are nonsense.
+      report("cut short by the next")
+      swipeWhy = why
+      swipe = true
+      stopGlide()
+      trackEl.dataset.stepping = ""
+      swipeDone = false
+      swipeDir = 0
+      swipeHand = 0
+      swipeAnchor = S.aimIndex ?? landedSlot()
+      rebase()
+    }
+    /** Travel, from whatever is pushing. ONE rule for the wheel and for a finger: the
+     *  device the gesture arrived on decides nothing about what it costs. */
+    const swipeFeed = (dx: number, vx: number) => {
+      swipeHand += dx
+      // SPENT. The slide is bought, the pictures are on it, and everything still
+      // arriving moves nothing. Letting it lean toward a slide it could not buy is the
+      // drift past the snap point; letting it buy one is the slot machine.
+      if (swipeDone) {
+        shoot(dx, swipeHand, base)
+        return
+      }
+      swipeTravel += dx
+      if (Math.abs(swipeTravel) >= swipeLine())
+        buySlide(Math.sign(swipeTravel), vx)
+      // 1:1 under the band. macOS has already put its own acceleration in these
+      // deltas, and a gain on top of it is a second acceleration that felt like one.
+      paintTrack()
+      shoot(dx, swipeHand, base + give())
+    }
     const endSwipe = () => {
       if (!swipe) return
       swipe = false
@@ -2126,52 +2166,19 @@ function Stage(props: StageProps) {
         const split = swipe && swipeDone && (surge || turned)
         if (split) endSwipe()
         if (!swipe) {
-          // Named in the trace, because a long swoop taking two pictures instead of
-          // one can only be this: the motion accelerated hard enough mid-tail to read
-          // as a hand coming back, and got charged twice for one intent.
-          // A gesture that opens while the last one's glide is still running: read
-          // that one out now, or its rows and this one's share a table and the totals
-          // are nonsense (one read 385x gain off two spliced streams).
-          report("cut short by the next")
-          swipeWhy = turned ? "turned" : split ? "surge" : "new stream"
-          // `swipe` first, and the magnets down before `rebase` or `landedSlot` reads
-          // the scroller: with mandatory snap live a read re-snaps it, and mid-flight
-          // that is the picture jumping backwards to the slide it just left.
-          swipe = true
-          stopGlide()
-          trackEl.dataset.stepping = ""
-          swipeDone = false
-          swipeDir = 0
-          swipeHand = 0
+          swipeOpen(turned ? "turned" : split ? "surge" : "new stream")
           swipeEnv = Math.abs(dx)
-          // From where the track is HEADING, so a swipe onto a step still in flight
-          // counts from the slide it is going to, not one it is flying over.
-          swipeAnchor = S.aimIndex ?? landedSlot()
-          rebase()
         }
+        // A wheel never says it is over, so silence has to. A pointer does say, and
+        // its release ends the swipe on the event instead.
         armSwipeEnd()
-        swipeHand += dx
-        // SPENT. The slide is bought, the pictures are on it, and the half-second of
-        // deltas the device is still sending moves nothing. Letting them lean toward
-        // a slide they could not buy is the drift past the snap point; letting them
-        // buy one is the slot machine. Both were the same line of code.
-        if (swipeDone) {
-          shoot(dx, swipeHand, base)
-          return
-        }
         // EVERY DELTA IS TRAVEL, the hand's and the device's alike, and nothing asks
-        // which is which. The web does not report a release, so the phase has to be
-        // inferred from the shape of the decay, and that inference lands wherever it
-        // lands: measured on two swipes of the same speed, one was called coasting at
-        // 142 ms while its deltas were still GROWING, the other at 674 ms in the
-        // middle of a 1 px dribble.
-        swipeTravel += dx
-        if (Math.abs(swipeTravel) >= swipeLine())
-          buySlide(Math.sign(swipeTravel), vx)
-        // 1:1 under the band. macOS has already put its own acceleration in these
-        // deltas, and a gain on top of it is a second acceleration that felt like one.
-        paintTrack()
-        shoot(dx, swipeHand, base + give())
+        // which is which. The web does not report a release, so the phase would have
+        // to be inferred from the shape of the decay, and that inference lands
+        // wherever it lands: measured on two swipes of the same speed, one was called
+        // coasting at 142 ms while its deltas were still GROWING, the other at 674 ms
+        // in the middle of a 1 px dribble.
+        swipeFeed(dx, vx)
         return
       }
       e.preventDefault()

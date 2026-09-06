@@ -157,46 +157,28 @@ const swipe = (
 }
 console.log("tap, vertical drag, dismiss commit, intent")
 
-// Horizontal is the SCROLL CONTAINER's, and WHO moves it depends on the pointer.
-//
-// A finger reaches this branch — `touch-action: pan-x` lets the browser pan, it does
-// not stop pointer events, and the axis locks at INTENT well before the compositor
-// commits — so the one thing that must not happen is the engine moving the scroller
-// too. Two movers on one scroller is what made a swipe fight back on a phone, and
-// this pair of assertions is the whole reason the bug could exist: the old version
-// asserted the opposite, and encoded it as correct.
+// Horizontal is the SCROLL CONTAINER's, and the ENGINE moves it, for every pointer
+// alike. The slot is `touch-action: none`, so the browser never claims the pan and
+// there is never a second mover — which is the only thing that makes this safe, and
+// the reason the same code under `pan-x` made a swipe fight back on a phone.
 const PATH: [number, number][] = [
   [500, 350],
   [460, 350],
   [380, 350],
   [260, 350],
 ]
-{
-  const r = swipe(PATH, ctx(), { type: "touch" })
-  assert(r.gesture.axis === "x", "x locked for a finger too")
-  assert(
-    r.effects.every((e) => e.kind !== "scroll"),
-    "a FINGER never moves the scroller: the browser is already panning it",
-  )
-  assert(
-    r.release.kind === "resume",
-    `and nothing lands it but the platform's own snap, got ${r.release.kind}`,
-  )
-}
-// A MOUSE is the one pointer the engine has to carry: no browser drag-scrolls a
-// mouse, so it drags the scroller 1:1 and the release lands it on a snap point.
-{
-  const r = swipe(PATH, ctx(), { type: "mouse" })
-  assert(r.gesture.axis === "x", "x locked")
+for (const type of ["touch", "mouse", "pen"]) {
+  const r = swipe(PATH, ctx(), { type })
+  assert(r.gesture.axis === "x", `x locked for ${type}`)
   const dragged = r.effects
     .filter((e) => e.kind === "scroll")
     .reduce((sum, e) => sum + (e as { dx: number }).dx, 0)
-  assert(dragged === -240, `the scroller is dragged 1:1: ${dragged}`)
+  assert(dragged === -240, `${type} drags the scroller 1:1: ${dragged}`)
   assert(
     r.effects.every((e) => e.kind !== "pose"),
-    "and the image itself never moves",
+    `and the image itself never moves for ${type}`,
   )
-  assert(r.release.kind === "snap", `snap, got ${r.release.kind}`)
+  assert(r.release.kind === "snap", `${type} lands it, got ${r.release.kind}`)
 }
 // An x drag that turns sharply vertical relocks to y and unposes the image back to
 // the grab; the reverse relock syncs the flight first.

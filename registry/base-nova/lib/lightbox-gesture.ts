@@ -250,9 +250,12 @@ export function gestureMove(
     next = { ...next, axis }
     if (axis === "y") effects.push({ kind: "trace", text: "axis y" })
   } else if (
+    // Twice, not three times. Nobody draws a straight line, and this relock is what
+    // turns a swipe through the pictures into a dismiss without lifting a finger; at
+    // 3x it demanded a cleaner vertical than a hand already moving sideways can give.
     next.axis === "x" &&
     Math.abs(my) > RELOCK &&
-    Math.abs(my) > 3 * Math.abs(mx)
+    Math.abs(my) > 2 * Math.abs(mx)
   ) {
     next = { ...next, axis: "y" }
     effects.push({ kind: "trace", text: "axis y" }, { kind: "sync" })
@@ -278,19 +281,21 @@ export function gestureMove(
         p: next.grab.p * dragProgress(dy, ctx.vh),
       },
     })
-  } else if (next.type === "mouse") {
-    // Sideways is the track's, and the track is a scroll container. A MOUSE is the
-    // one pointer the engine has to carry, because no browser drag-scrolls a mouse.
+  } else {
+    // Sideways is the track's, and the ENGINE carries it, for every pointer. The
+    // slot is `touch-action: none`, so the browser never claims the pan and there is
+    // never a second mover — which is the only reason this is safe. It was a bug
+    // once under `pan-x`: the axis locks at INTENT (6px) several moves before the
+    // compositor commits, so those moves wrote `scrollLeft` on a scroller the
+    // compositor was also moving, then the platform took the pan and the magnets
+    // came back on between two slides.
     //
-    // A FINGER gets here too, which the comment here used to deny, and that was the
-    // bug: `touch-action: pan-x` lets the browser pan, it does not stop pointer
-    // events being dispatched, and the axis locks at INTENT (6px) several moves
-    // before the compositor commits. Every one of those moves wrote `scrollLeft` on
-    // a scroller the compositor was also moving, and set `data-stepping`, which
-    // turns the snap magnets OFF mid-gesture. Then the platform claimed the pan,
-    // `pointercancel` arrived, the magnets came back on between two slides and the
-    // release path glided to the slide being LEFT. A swipe that fought back.
-    // Only a mouse, so the two never share the axis. Pen pans like a finger.
+    // Handing the pan to the browser fixed that and cost something worse. Once it
+    // claims the touch, `pointercancel` ends OUR gesture with the finger still down,
+    // so the rest of that touch can never become anything else: a reader swiping
+    // through pictures who then swipes UP to dismiss is refused, with no way to know
+    // why, until they lift and start again. A dismiss that clear is not an accident,
+    // and nobody moves in a perfectly straight line.
     effects.push({ kind: "scroll", dx: mx })
   }
   return { gesture: next, effects }
@@ -380,10 +385,10 @@ export function gestureUp(
       ? { kind: "exit", vel: vy }
       : { kind: "cancel", vel: vy, zoomed: false }
   }
-  // The mouse dragged the scroller by hand and something has to land it. A finger
-  // never moved it: the browser did, and `mandatory` with `scroll-snap-stop: always`
-  // is already landing it. Gliding on top of that is a second mover arriving late.
-  return g.type === "mouse" ? { kind: "snap" } : { kind: "resume" }
+  // The hand dragged the scroller and the engine has to land it, whatever the hand
+  // was. A pointer SAYS when it let go, which is the one thing a wheel never does,
+  // so this needs no threshold, no silence and no guessing.
+  return { kind: "snap" }
 }
 
 export type TapIntent =
