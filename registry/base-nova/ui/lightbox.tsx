@@ -66,6 +66,7 @@ import {
   COAST,
   clamp,
   clampPan,
+  EXIT_HANDOFF,
   FIT,
   fit,
   GLIDE,
@@ -2153,6 +2154,13 @@ function Stage(props: StageProps) {
       // and the scroll under it are one motion instead of two.
       if (S.ph === "exit") {
         e.preventDefault()
+        // Not yet: the exit is DECIDED but the room is still up. Scrolling here moves
+        // the page behind a curtain, which is the loss of control this was meant to
+        // cure, not a cure for it.
+        const live = S.flight
+          ? (readFlight(S.flight).frame.value as Pose)
+          : pose.value
+        if (live.p > EXIT_HANDOFF) return
         window.scrollBy(
           wheelPx(e.deltaX, e.deltaMode, window.innerHeight),
           wheelPx(e.deltaY, e.deltaMode, window.innerHeight),

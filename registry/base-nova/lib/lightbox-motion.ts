@@ -50,6 +50,16 @@ export const RELOCK = 12
 export const OVERSHOOT = 0.35
 export const TAP_TRAVEL = 4
 export const DISMISS_COMMIT = 0.4
+/** How far the room must have gone before the page takes the rest of the momentum:
+ *  `p` is how lit the room still is, so this is the page being half revealed.
+ *
+ *  BOTH OR NEITHER. Deciding to leave is not the same instant as being able to see
+ *  where you are going, and the decision comes early — a dismiss commits from a
+ *  projection, with the picture barely moved and the backdrop still up. Scrolling
+ *  there means the page moves behind a curtain, which is exactly the loss of control
+ *  the handoff was meant to fix. Waiting for the whole flight to land is the other
+ *  failure and reads as a delay. This is the moment they become one motion. */
+export const EXIT_HANDOFF = 0.5
 export const PINCH_CLOSE = 0.75
 export const PINCH_PASSED = 1.067
 /** How long a slide takes to arrive, for one slide's worth of distance, scaled by the
