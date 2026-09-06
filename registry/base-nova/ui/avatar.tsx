@@ -102,6 +102,7 @@ export function Avatar({
       entry={entry}
       label="portrait"
       render={
+        // biome-ignore lint/a11y/useAnchorContent: the trigger clones the picture into this element, and it carries the name
         <a href={full.src} className={classes} style={style} aria-label={alt} />
       }
     >
