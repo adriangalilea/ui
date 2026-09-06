@@ -156,31 +156,42 @@ const loadCorpus = async (
     } catch {
       continue
     }
-    const quotes = files.filter((f) => f.endsWith(".md") && f !== "index.md")
-    const first = quotes[0]
-    if (!first) continue
-    const raw = await readFile(join(CORPUS, slug, first), "utf8")
-    // Take everything after the SECOND `---`, matched as a whole line. The body between
-    // the fences is OPTIONAL: two files in this corpus are `---\n---\n` with nothing at
-    // all in between, so a pattern that demands a newline before the closing fence never
-    // matches and the card renders "--- --- A determined person…" as the quote.
-    const fence = raw.match(/^---\r?\n(?:[\s\S]*?\r?\n)?---\r?\n/)
-    const body = (fence ? raw.slice(fence[0].length) : raw).trim()
-    if (!body) continue
     let picture: QuoteStillOptions = {}
     try {
       picture = await look(join(CORPUS, slug, "avatar.png"))
     } catch {}
-    // A date nobody wrote down is stored as year one, and "0001" under a name reads as
-    // a bug rather than as an unknown. The site's own rule is the same: below the year
-    // 1000 there is no date to show.
-    const year = frontmatter(raw).publishedAt?.slice(0, 4)
-    const shown = year && Number(year) >= 1000 ? year : null
-    out.push([
-      slug,
-      { text: body, author: { name: title }, date: shown },
-      picture,
-    ])
+    // EVERY quote, not one per author. An author's quotes are not the same length, and
+    // length is the only thing the layout has to absorb — taking the first of each threw
+    // away half the corpus and most of the range in it.
+    //
+    // Naming the authors is the exception: a sweep names four faces because it wants
+    // four cards that differ in ONE thing, and the same face three times over is noise
+    // in the middle of it.
+    let taken = 0
+    for (const file of files
+      .filter((f) => f.endsWith(".md") && f !== "index.md")
+      .sort()) {
+      if (out.length >= limit || (only && taken > 0)) break
+      taken++
+      const raw = await readFile(join(CORPUS, slug, file), "utf8")
+      // Take everything after the SECOND `---`, matched as a whole line. The body between
+      // the fences is OPTIONAL: two files in this corpus are `---\n---\n` with nothing at
+      // all in between, so a pattern that demands a newline before the closing fence
+      // never matches and the card renders "--- --- A determined person…" as the quote.
+      const fence = raw.match(/^---\r?\n(?:[\s\S]*?\r?\n)?---\r?\n/)
+      const body = (fence ? raw.slice(fence[0].length) : raw).trim()
+      if (!body) continue
+      // A date nobody wrote down is stored as year one, and "0001" under a name reads as
+      // a bug rather than as an unknown. The site's own rule is the same: below the year
+      // 1000 there is no date to show.
+      const year = frontmatter(raw).publishedAt?.slice(0, 4)
+      const shown = year && Number(year) >= 1000 ? year : null
+      out.push([
+        `${slug}-${file.replace(/\.md$/, "")}`,
+        { text: body, author: { name: title }, date: shown },
+        picture,
+      ])
+    }
   }
   return out
 }
@@ -250,6 +261,17 @@ const GROUNDS: readonly [string, number][] = [
   ["c-22", 0.22],
   ["d-32", 0.32],
 ]
+
+/** Where the block of words sits in the band, as the share of the slack above it, and
+ *  three quotes long enough apart that a placement which flatters one has nowhere to
+ *  hide on the others. Whether the words may climb into the mark is exactly what this
+ *  decides: high, and they do; low, and they start where it ends. */
+const BLOCKS: readonly [string, number][] = [
+  ["a-high", 0.382],
+  ["b-centre", 0.5],
+  ["c-low", 0.618],
+]
+const BLOCK_FACES = ["albert-einstein", "alan-watts", "confucius"]
 
 /** How much frame the picture takes. THE REAL FRAMING CONTROL, and the reason a sweep
  *  of anchors would have shown four identical cards: these portraits are square and the
@@ -330,6 +352,15 @@ const shots: [string, string][] = await (async () => {
 `,
       ],
     ]
+  }
+  if (mode === "block") {
+    const faces = await loadCorpus(BLOCK_FACES.length, BLOCK_FACES)
+    return BLOCKS.flatMap(([variant, blockAt]) =>
+      faces.map(([slug, q, x]): [string, string] => [
+        `block-${variant}-${slug}`,
+        renderQuoteSvg(q, { ...LOOK, ...x, blockAt }),
+      ]),
+    )
   }
   if (mode === "share") {
     const faces = await loadCorpus(GROUND_FACES.length, GROUND_FACES)

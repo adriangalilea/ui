@@ -86,19 +86,26 @@ export function quoteFontSize(length: number, width: number): number {
  *  is the honest tool and the wrap is allowed to be approximate. */
 export const QUOTE_CH = 0.52
 
-/** How much of the frame the face takes, and how far the dissolve runs INTO it.
+/** The golden minor divides the frame SIDE TO SIDE: the picture takes this much and the
+ *  words the rest, and the column of words ends exactly where the picture begins, so one
+ *  ratio settles both of those questions instead of two numbers arguing.
+ *
+ *  It does NOT divide the vertical. Tried against three lengths at once it puts a long
+ *  quote's first line straight through the middle of the mark, which is an overlap that
+ *  reads as an accident. See BLOCK_AT. */
+export const GOLDEN_MINOR = 0.382
+
+/** Past about half the frame the picture's slot turns wider than a square source, the
+ *  scaling flips to the width, and the crop starts eating the top and the bottom — which
+ *  is where heads go. */
+export const FACE_SHARE = GOLDEN_MINOR
+/** How far the dissolve runs INTO the picture, as a share of it.
  *
  *  Into it, not beside it: a feather laid in the empty band to the LEFT of the picture
- *  fades a region that has no picture in it, so the photograph still ends on a straight
- *  vertical cut and the fade only produces a second edge of its own. The dissolve has
- *  to eat into the image, and what it reveals underneath is the same image blurred,
- *  which is why no seam is possible. */
-/** The golden minor, so the picture and the words divide the frame the way a ratio
- *  divides it rather than the way an eye guessed it. Past about half the frame the slot
- *  turns wider than a square source, the scaling flips to the width, and the crop starts
- *  eating the top and the bottom — which is where heads go. */
-export const FACE_SHARE = 0.382
-/** A share of the PICTURE, never of the frame. Measured against the frame it is a fixed
+ *  fades a region with no picture in it, so the photograph still ends on a straight
+ *  vertical cut and the fade only adds a second edge of its own.
+ *
+ *  A share of the PICTURE, never of the frame. Measured against the frame it is a fixed
  *  number of pixels eating an arbitrary fraction of whatever the picture turns out to
  *  be: at a third of the frame the same feather dissolved two thirds of the portrait. */
 export const FACE_FEATHER = 0.52
@@ -170,12 +177,26 @@ export const unitOf = (width: number): number => width / 150
  *  EDGE is how far the mark is from the ceiling and the attribution from the floor —
  *  the same rung on purpose, so the two of them read as a matched pair holding the
  *  frame. INDENT sets the words in from the margin, which is what makes them the thing
- *  inside the frame rather than a third item in a list. AFTER_MARK is the mark's foot
- *  to the words' cap. */
+ *  inside the frame rather than a third item in a list.
+ *
+ *  There is no rung between the mark's foot and the words' cap, because the words do not
+ *  hang off the mark. They are COMPOSED in the space the mark and the attribution leave,
+ *  and they are allowed to climb into the mark — that overlap is what gives the card its
+ *  depth, and the mark is at a tenth of an opacity precisely so it can be climbed on.
+ *  Hanging them off the mark is what put 223px of air above a long quote and 79 below. */
 export const MARGIN = 8
 export const EDGE = 4
 export const INDENT = 4
-export const AFTER_MARK = 4
+
+/** Where the words sit in the band between the ceiling and the attribution, as the share
+ *  of the slack that goes above them: CENTRED. The band is the same for every quote, so
+ *  what varies between cards is the type, never the composition.
+ *
+ *  Centred and not on a ratio, judged across a long quote, a medium and a short one at
+ *  the same time. Higher and a long quote cuts the mark in half; lower and a short quote
+ *  drifts down to the attribution. Centred, both extremes land somewhere a person would
+ *  have put them. */
+export const BLOCK_AT = 0.5
 
 /** STACKING THE WORDS OVER THE MARK IS THE POINT — it is what gives the card depth,
  *  and holding them apart is what made every earlier version read as two pictures side
@@ -485,6 +506,9 @@ export interface QuoteStillOptions {
    *  are the cases worth overriding for. */
   faceShare?: number
   faceFeather?: number
+  /** Where the block of words sits in the band between the ceiling and the attribution,
+   *  as the share of the slack that goes ABOVE it. Defaults to BLOCK_AT. */
+  blockAt?: number
 }
 
 const esc = (s: string) =>
@@ -518,6 +542,7 @@ export function renderQuoteSvg(
     systemFonts = false,
     faceShare = FACE_SHARE,
     faceFeather = FACE_FEATHER,
+    blockAt = BLOCK_AT,
   }: QuoteStillOptions = {},
 ): string {
   const text = quoteClean(quote.text)
@@ -563,23 +588,26 @@ export function renderQuoteSvg(
     )
   const attrTop =
     quote.author || quote.date ? attrBase - CAP * nameSize : height - pad
-  // The words start at a fixed inset and GROW DOWNWARD into the room between the two
-  // anchors. Nothing else on the card moves for them, which is the whole rule: a name
-  // and a date that shift from card to card make a set of them read as unrelated
-  // pictures, and the amount of text is the one thing that legitimately varies.
-  // The ghost is anchored to the frame's top-left, EDGE from the ceiling against
-  // MARGIN from the wall: a clean two-to-one, and the same rung the attribution keeps
-  // off the floor. It takes no space — at this opacity the words pass over it.
+  // The ghost is anchored to the frame's top-left, EDGE from the ceiling against MARGIN
+  // from the wall: a clean two-to-one, and the same rung the attribution keeps off the
+  // floor. It takes no space — at this opacity the words pass over it.
   const markH = Math.round(height * MARK_EM)
   const markK = markH / MARK_BOX.h
   const markY = Math.round(unit * EDGE)
 
+  // THE WORDS ARE COMPOSED IN THE BAND, not hung off the mark. The band runs from the
+  // composition's ceiling — the rung the mark starts at — to the attribution, and the
+  // block is centred in it.
+  //
+  // Hanging them off the mark instead made the air depend on the LENGTH of the quote:
+  // measured on Einstein, 223px above the words and 79 below.
   const textH = (lines.length - 1) * step + (CAP + DESC) * size
-  const top = Math.round(markY + markH + unit * AFTER_MARK)
-  if (top + textH > attrTop)
+  const slack = attrTop - markY - textH
+  if (slack < 0)
     throw new Error(
-      `quote overflows its frame (${Math.round(textH)}px of words from ${top}px, against an attribution at ${Math.round(attrTop)}px): shorten it or widen the frame`,
+      `quote overflows its frame (${Math.round(textH)}px of words in a ${Math.round(attrTop - markY)}px band): shorten it or widen the frame`,
     )
+  const top = Math.round(markY + slack * blockAt)
   const mark = `<path d="${MARK_PATH}" transform="translate(${pad} ${markY}) scale(${markK.toFixed(4)})" fill="${ink}" opacity="${MARK_OPACITY}" filter="url(#soften)"/>`
 
   const y = top + CAP * size
