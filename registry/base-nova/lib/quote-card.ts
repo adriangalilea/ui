@@ -79,11 +79,32 @@ export const QUOTE_CH = 0.52
 export const FACE_SHARE = 0.5
 export const FACE_FEATHER = 0.12
 
-/** The opening mark, as a share of the frame. It is a watermark, drawn behind the
- *  words: big enough to read as one, small enough that the glyph's own ascender is
- *  not cut off by the top edge, which reads as a mistake rather than as a crop. */
-export const MARK_EM = 0.22
-export const MARK_Y = 0.4
+/** The opening mark is DRAWN, not set. A glyph brought three problems at once: its
+ *  shape is whatever face happens to be installed where the still is rasterized, and
+ *  a still cannot assume a font is there at all; Geist's is cut on hard diagonals, so
+ *  at watermark size it reads as jagged rather than as punctuation; and a glyph's left
+ *  side bearing is invisible, so aligning it to the text below is guesswork that looks
+ *  like a mistake.
+ *
+ *  Two slanted strokes with round caps: the studio's own mark is stroke-drawn, it has
+ *  no corners to be harsh, and its left edge is a number rather than a bearing. */
+export const MARK_EM = 1.5
+/** The mark's own drawing, in a 100x140 box: a ball at the foot and a tail sweeping up
+ *  and to the right, which is the shape an opening quote actually is — a rotated
+ *  comma, a six. Two straight strokes read as parallel bars however they are slanted,
+ *  and a glyph reads as whatever face the rasterizer happens to find. */
+export const MARK_PATH =
+  "M100 0C55 10 15 45 5 85C-5 120 20 140 48 140C75 140 95 120 95 95C95 72 78 58 58 58C62 35 78 14 100 0Z"
+export const MARK_BOX = { w: 100, h: 140 }
+export const MARK_GAP = 0.62
+export const MARK_OPACITY = 0.4
+
+/** Cap height and descender as shares of the em, for Geist and near enough for any
+ *  humanist sans. The still has no way to measure text, so a block is composed from
+ *  these: without them "centred" means centred on the BASELINES, which sits the words
+ *  visibly high — measured on a 630px frame, 49px of air above and 81px below. */
+export const CAP = 0.72
+export const DESC = 0.22
 
 export function quoteWrap(
   text: string,
@@ -169,37 +190,56 @@ export function renderQuoteSvg(
   const step = Math.round(size * 1.35)
   // The words run to where the veil is still SOLID, which is the picture's own left
   // edge: past that the backdrop starts giving way and a line ending there would sit
-  // on the photograph. Not to where the veil begins, which is a column so narrow the
-  // ladder cannot save it.
+  // on the photograph.
   const textW = avatar ? faceX - pad : width - 2 * pad
   const lines = quoteWrap(text, size, textW)
-  const foot = quote.author || quote.date ? Math.round(size * 2.6) : 0
-  const block = lines.length * step
-  const top = Math.round((height - block - foot) / 2) + size
-  if (top < pad + size)
+
+  // ONE optical block: mark, words, attribution, centred on what the eye sees rather
+  // than on baselines. Every height below is a visual extent.
+  const markH = Math.round(size * MARK_EM)
+  const markGap = Math.round(size * 0.6)
+  const textH = (lines.length - 1) * step + (CAP + DESC) * size
+  const nameSize = Math.round(size * 0.62)
+  const dateSize = Math.round(size * 0.5)
+  const nameH = quote.author ? (CAP + DESC) * nameSize : 0
+  const dateH = quote.date ? (CAP + DESC) * dateSize : 0
+  const footGap = nameH || dateH ? Math.round(size * 1.1) : 0
+  const nameGap = nameH && dateH ? Math.round(nameSize * 0.55) : 0
+  const total = markH + markGap + textH + footGap + nameH + nameGap + dateH
+  const top = Math.round((height - total) / 2)
+  if (top < pad)
     throw new Error(
-      `quote overflows its frame (${lines.length} lines at ${size}px in ${height}px): shorten it or widen the frame`,
+      `quote overflows its frame (${Math.round(total)}px of block in ${height}px): shorten it or widen the frame`,
     )
 
+  // Drawn at the text's own left margin, so its edge is a number rather than a font's
+  // invisible side bearing — which is what made it look misaligned.
+  const k = markH / MARK_BOX.h
+  const glyph = (dx: number) =>
+    `<path d="${MARK_PATH}" transform="translate(${pad + dx} ${top}) scale(${k.toFixed(4)})" fill="${ink}" opacity="${MARK_OPACITY}"/>`
+  const mark = `${glyph(0)}\n  ${glyph(Math.round(MARK_BOX.w * k * MARK_GAP + MARK_BOX.w * k))}`
+
+  let y = top + markH + markGap + CAP * size
   const rows = lines
-    .map(
-      (l, i) =>
-        `<text x="${pad}" y="${top + i * step}" fill="${foreground}">${esc(l)}</text>`,
-    )
+    .map((l, i) => {
+      const at = Math.round(y + i * step)
+      return `<text x="${pad}" y="${at}" fill="${foreground}">${esc(l)}</text>`
+    })
     .join("\n    ")
-  const by = top + block + Math.round(size * 1.4)
+  y += (lines.length - 1) * step + DESC * size + footGap
   const attribution = quote.author
-    ? `<text x="${pad}" y="${by}" font-size="${Math.round(size * 0.62)}" fill="${ink}">${esc(quote.author.name)}</text>`
+    ? `<text x="${pad}" y="${Math.round(y + CAP * nameSize)}" font-size="${nameSize}" fill="${ink}">${esc(quote.author.name)}</text>`
     : ""
+  y += nameH + nameGap
   const when = quote.date
-    ? `<text x="${pad}" y="${by + Math.round(size * 0.9)}" font-size="${Math.round(size * 0.5)}" fill="${muted}">${esc(quote.date)}</text>`
+    ? `<text x="${pad}" y="${Math.round(y + CAP * dateSize)}" font-size="${dateSize}" fill="${muted}">${esc(quote.date)}</text>`
     : ""
-  // The veil starts BEFORE the picture and is still fully opaque where the picture
-  // begins, so its left edge is feathered away. A veil that has already started fading
-  // there leaves a hard vertical cut down the middle of the frame, which is the one
-  // thing that makes a preview look assembled rather than composed.
+
+  // The picture is at FULL strength and the veil does all of the fading. Dimming the
+  // whole image instead leaves even the part nobody is fading washed out, so a face
+  // reads as a ghost rather than as a person.
   const face = avatar
-    ? `<image href="${esc(avatar)}" x="${faceX}" y="0" width="${Math.round(width * FACE_SHARE)}" height="${height}" preserveAspectRatio="xMidYMin slice" opacity="0.55"/>
+    ? `<image href="${esc(avatar)}" x="${faceX}" y="0" width="${Math.round(width * FACE_SHARE)}" height="${height}" preserveAspectRatio="xMidYMin slice"/>
   <rect x="${veilX}" y="0" width="${width - veilX}" height="${height}" fill="url(#veil)"/>`
     : ""
 
@@ -208,13 +248,13 @@ export function renderQuoteSvg(
     <linearGradient id="veil" x1="0" x2="1">
       <stop offset="0" stop-color="${background}"/>
       <stop offset="${FACE_FEATHER / (FACE_SHARE + FACE_FEATHER)}" stop-color="${background}"/>
-      <stop offset="0.62" stop-color="${background}" stop-opacity="0.5"/>
-      <stop offset="1" stop-color="${background}" stop-opacity="0.15"/>
+      <stop offset="0.62" stop-color="${background}" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="${background}" stop-opacity="0.05"/>
     </linearGradient>
   </defs>
   <rect width="${width}" height="${height}" fill="${background}"/>
   ${face}
-  <text x="${pad - Math.round(size * 0.5)}" y="${Math.round(height * MARK_Y)}" font-size="${Math.round(width * MARK_EM)}" fill="${ink}" opacity="0.2" font-family="${esc(fontFamily)}">&#8220;</text>
+  ${mark}
   <g font-family="${esc(fontFamily)}" font-size="${size}" xml:space="preserve">
     ${rows}
     ${attribution}
