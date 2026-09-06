@@ -33,10 +33,15 @@
    the first line runs OVER it rather than starting after it. Set beside the words at a
    third of an opacity it was a drop-cap glyph — a fourth voice on a card that has three
    — and the overlap that makes the card and the feature read as one object was gone. */
+/* SIZED TO THE FIRST LINE, not to a block. At two and a half lines tall it was right
+   behind a paragraph and enormous behind a single sentence, where it ran past the words
+   into the attribution and broke the scale. A prose quote is often one line; the mark
+   is one line too, and behind a longer one it is a ghost under the opening words rather
+   than a shape the whole block sits on. */
 .ag-quote-prose .ag-quote-mark {
   left: 0.75rem;
-  top: 0.55rem;
-  height: 2.4em;
+  top: 0.9rem;
+  height: 1.6em;
   opacity: 0.14;
   filter: blur(0.6px);
 }
