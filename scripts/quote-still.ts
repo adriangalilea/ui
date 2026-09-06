@@ -9,18 +9,16 @@
 // and it says so, because a missing tool is not a broken card.
 
 import { spawn } from "node:child_process"
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises"
-import { tmpdir } from "node:os"
+import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { inflateSync } from "node:zlib"
 import {
-  assert,
   type Quote,
   type QuoteStillOptions,
   renderQuoteSvg,
   toneFrom,
 } from "../registry/base-nova/lib/quote-card"
+import { averageColor, focusOf, readSidecar, type Sidecar } from "./pixels"
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const OUT = join(HERE, "..", ".renders")
@@ -36,119 +34,56 @@ const LOOK: QuoteStillOptions = {
   nameFamily: "Helvetica Neue",
 }
 
-/** THE GROUND'S COLOUR COMES FROM THE PICTURE, and this is where that happens: the card
- *  itself has no runtime and cannot open a PNG, so the side that already holds the
- *  bytes averages them and passes a colour in.
+/** A picture and what the card needs to know about it — its tone and where its subject
+ *  sits — read from the SIDECAR `mise portrait` wrote beside it. That is the contract a
+ *  consumer lives by: two numbers in a JSON file, no pixels touched at build.
  *
- *  `sips` does the averaging by resampling the whole image down to ONE pixel, which is
- *  the average by definition and costs no decoder here. What comes back is a 1x1 PNG,
- *  and a 1x1 PNG is small enough to read by hand: inflate the one IDAT and the pixel is
- *  the bytes after the filter byte. Every PNG filter reduces to the identity on a
- *  single pixel with nothing above it and nothing to its left, so the filter can be
- *  ignored rather than implemented. */
-const averageColor = async (
-  path: string,
-): Promise<[number, number, number]> => {
-  const out = join(
-    tmpdir(),
-    `quote-avg-${Math.random().toString(36).slice(2)}.png`,
-  )
-  assert(
-    (await run("sips", ["-Z", "1", path, "--out", out])) === 0,
-    `sips could not read ${path}`,
-  )
-  const png = await readFile(out)
-  await unlink(out).catch(() => {})
-  let at = 8
-  const idat: Buffer[] = []
-  let colorType = -1
-  let depth = -1
-  while (at < png.length) {
-    const len = png.readUInt32BE(at)
-    const type = png.toString("ascii", at + 4, at + 8)
-    const body = png.subarray(at + 8, at + 8 + len)
-    if (type === "IHDR") {
-      depth = body[8] as number
-      colorType = body[9] as number
-    }
-    if (type === "IDAT") idat.push(body)
-    at += len + 12
-  }
-  assert(
-    depth === 8 && [0, 2, 4, 6].includes(colorType),
-    `sips wrote a ${depth}-bit type-${colorType} PNG, which this reader does not decode`,
-  )
-  const raw = inflateSync(Buffer.concat(idat))
-  const [r, g, b] =
-    colorType === 0 || colorType === 4
-      ? [raw[1] as number, raw[1] as number, raw[1] as number]
-      : [raw[1] as number, raw[2] as number, raw[3] as number]
-  return [r, g, b]
-}
-
-/** WHERE THE SUBJECT IS, for every picture at once. The card slides a portrait so its
- *  subject clears the dissolve, and it cannot know where that is — the fact lives in the
- *  pixels, so this side finds it and says.
- *
- *  One call for the whole corpus, not one per card. Vision costs about seven
- *  milliseconds an image once the model is warm and roughly a second to launch, so
- *  eighty-four spawns is a minute and a half of nothing but process startup. */
-const focusOf = async (
-  paths: readonly string[],
-): Promise<Map<string, number>> => {
-  if (paths.length === 0) return new Map()
-  const [code, json] = await capture("swift", [
-    join(HERE, "portrait.swift"),
-    ...paths,
-  ])
-  assert(code === 0, "portrait.swift could not read the corpus")
-  const found = JSON.parse(json) as {
-    path: string
-    face?: { x: number; w: number }
-    salient?: { x: number; w: number }
-  }[]
-  // A face when there is one, what the attention model calls the subject when there is
-  // not, and the middle when there is neither — the same ladder the crop uses.
-  return new Map(
-    found.map((f) => {
-      const box = f.face ?? f.salient
-      return [f.path, box ? box.x + box.w / 2 : 0.5]
-    }),
-  )
-}
-
-/** A picture, the ground it bleeds into, the ink its mark is drawn in, and where its
- *  subject sits. The first three are the same colour at different lightnesses; the
- *  fourth is why a portrait drawn to one side of its own frame survives. */
+ *  This is a dev tool on the machine that has the tools, so a portrait WITHOUT a sidecar
+ *  is not fatal here: the numbers are computed in memory and the gap is said out loud,
+ *  because the fix is one command and the corpus should not render differently on a
+ *  machine that has run it and one that has not. */
 const look = async (
   path: string,
-  focus?: number,
+  fallback?: Sidecar,
 ): Promise<QuoteStillOptions> => {
   const bytes = await readFile(path)
-  const { ground, accent } = toneFrom(...(await averageColor(path)))
+  const side = (await readSidecar(path)) ?? fallback
   return {
     avatar: `data:image/png;base64,${bytes.toString("base64")}`,
-    background: ground,
-    accent,
-    ...(focus === undefined ? {} : { focus }),
+    ...(side
+      ? {
+          background: side.tone.ground,
+          accent: side.tone.accent,
+          focus: side.focus,
+        }
+      : {}),
   }
+}
+
+/** Sidecars computed in memory for the portraits that lack one on disk. */
+const unwritten = async (
+  pngs: readonly string[],
+): Promise<Map<string, Sidecar>> => {
+  const missing: string[] = []
+  for (const png of pngs)
+    if ((await readSidecar(png)) === null) missing.push(png)
+  if (missing.length === 0) return new Map()
+  console.error(
+    `${missing.length} portraits have no sidecar; computing in memory. Persist with \`mise portraits <dir>\`.`,
+  )
+  const focus = await focusOf(missing)
+  const out = new Map<string, Sidecar>()
+  for (const png of missing)
+    out.set(png, {
+      focus: focus.get(png) ?? 0.5,
+      tone: toneFrom(...(await averageColor(png))),
+    })
+  return out
 }
 
 const run = (cmd: string, args: string[]): Promise<number> =>
   new Promise((ok) => {
     spawn(cmd, args, { stdio: "ignore" }).on("close", (code) => ok(code ?? 1))
-  })
-
-/** The same, when the answer is on stdout rather than in the exit code. */
-const capture = (cmd: string, args: string[]): Promise<[number, string]> =>
-  new Promise((ok) => {
-    const p = spawn(cmd, args)
-    let out = ""
-    p.stdout.on("data", (d) => {
-      out += d
-    })
-    p.stderr.on("data", (d) => process.stderr.write(d))
-    p.on("close", (code) => ok([code ?? 1, out]))
   })
 
 /** `mise still corpus` draws REAL quotes with REAL portraits, read out of
@@ -197,7 +132,7 @@ const loadCorpus = async (
       avatars.push(at)
     } catch {}
   }
-  const focus = await focusOf(avatars)
+  const side = await unwritten(avatars)
   // `only` keeps the order it was written in, so a sweep's frames come out in the order
   // they are meant to be flicked through.
   for (const slug of slugs) {
@@ -214,7 +149,7 @@ const loadCorpus = async (
     const at = join(CORPUS, slug, "avatar.png")
     let picture: QuoteStillOptions = {}
     try {
-      picture = await look(at, focus.get(at))
+      picture = await look(at, side.get(at))
     } catch {}
     // EVERY quote, not one per author. An author's quotes are not the same length, and
     // length is the only thing the layout has to absorb — taking the first of each threw
@@ -256,7 +191,8 @@ const loadCorpus = async (
  *  Twain portrait, and most modes never look at them — a corpus render paying a sips
  *  call for cards it will not draw is work done to be thrown away. */
 const builtin = async (): Promise<[string, Quote, QuoteStillOptions][]> => {
-  const face = await look(join(PUBLIC, "mark-twain.png"))
+  const twain = join(PUBLIC, "mark-twain.png")
+  const face = await look(twain, (await unwritten([twain])).get(twain))
   return [
     [
       "medium",

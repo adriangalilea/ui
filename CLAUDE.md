@@ -252,14 +252,16 @@ already diagnosed in `~/Developer/_smarthome/network/`). Retry, extract the glyp
 same way, and put them in the comparison sheet against the current one before
 swapping.
 
-**Pending: a hand-set focus, per picture.** `focus` slides a portrait so its subject
-clears the dissolve, and `scripts/portrait.swift` fills it in from Vision — a face, else
-the attention model's subject, else the middle. That is right often, not always: two
-people in a frame, a face in profile at the edge, a bust whose plinth outweighs its
-head. The card already takes the number by hand, so the missing half is on the CONTENT
-side — somewhere to pin one per picture, the way `portraits.json` pins a slug to an
-article, and the still reading it in preference to the detector. Build it the first time
-a card needs it, not before; auto is the default and the override is the exception.
+**Portraits carry a SIDECAR, and that is where the pixels end.** `avatar.png` has an
+`avatar.json` beside it — `{ focus, tone }` — written by `mise portrait` when it crops
+and by `mise portraits <dir>` for any portrait missing one (`scripts/pixels.ts`). Focus
+comes from Vision (a face, else the attention model's subject, else the middle), tone from
+the average colour via `toneFrom`. Both are ASSET PREPARATION, done once on the Mac with
+the tools the Mac has; a consumer reads two numbers and never runs sips, sharp or Vision
+in its build. A detected focus is a guess that is right often, not always — two people in
+a frame, a face in profile at the edge — and the sidecar is the override: edit the number,
+and nothing ever overwrites it. `mise still` reads sidecars too and computes in memory
+only for portraits that lack one, saying so.
 
 **Next, by leverage: adopt the pair in adriangalilea.com.** Its `components/quote.tsx`
 and the quote half of its `lib/og.tsx` are hand-rolled and share nothing with the module

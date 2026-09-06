@@ -25,6 +25,7 @@ import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { assert, IMAGE_MAGIC } from "../registry/base-nova/lib/quote-card"
+import { annotate } from "./pixels"
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const SIZE = 256
@@ -200,6 +201,10 @@ const portrait = async (
   // A corpus run otherwise leaves one download and one crop svg in tmpdir per author.
   await unlink(svg).catch(() => {})
   if (source !== src) await unlink(source).catch(() => {})
+  // THE SIDECAR IS PART OF THE PORTRAIT. Tone and focus are computed here, once, from the
+  // finished crop, and written beside it; the card's consumer reads two numbers and
+  // never touches a pixel. A portrait without its sidecar is an asset half-prepared.
+  await annotate([out])
   return `${found.width}x${found.height} at ${box.x},${box.y} +${box.side} (${box.why})`
 }
 
@@ -229,6 +234,7 @@ const fill = async (dir: string, size: number) => {
     map = JSON.parse(await readFile(join(dir, "portraits.json"), "utf8"))
   } catch {}
   const ok: string[] = []
+  const have: string[] = []
   const asks: string[] = []
   const broke: [string, string][] = []
   for (const slug of (await readdir(dir)).sort()) {
@@ -236,6 +242,7 @@ const fill = async (dir: string, size: number) => {
     const out = join(dir, slug, "avatar.png")
     try {
       await stat(out)
+      have.push(out)
       continue
     } catch {}
     const title = slug in map ? map[slug] : titleOf(slug)
@@ -252,8 +259,12 @@ const fill = async (dir: string, size: number) => {
       broke.push([slug, e instanceof Error ? e.message : String(e)])
     }
   }
+  // Portraits that were already there get their sidecar too, if they lack one: the
+  // corpus was cropped before tone and focus were written down, and a consumer reading
+  // sidecars must find one beside every picture.
+  const annotated = await annotate(have)
   console.log(
-    `\nfetched ${ok.length}, ${asks.length} need a person, ${broke.length} failed`,
+    `\nfetched ${ok.length}, annotated ${annotated.length}, ${asks.length} need a person, ${broke.length} failed`,
   )
   for (const [slug, why] of broke) console.log(`  FAILED  ${slug}: ${why}`)
   // NEVER pick for these. A generic engraving of the wrong century is worse than a card

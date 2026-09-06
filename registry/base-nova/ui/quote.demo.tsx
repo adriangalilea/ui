@@ -19,32 +19,23 @@ const TWAIN = "/mark-twain.png"
  *  demo exists to not repeat: it does not fail, it substitutes. */
 const FACE = "Geist"
 
-/** THE PICTURE'S OWN COLOUR, and the card takes it as an argument because it cannot go
- *  and find it: `toneFrom` turns an average pixel into a ground and an ink, and getting
- *  that average means decoding a PNG, which is the consumer's job. `mise portrait` and
- *  `mise still` do it with `sips`; an OG route does it wherever it already holds the
- *  bytes. Twain is a monochrome photograph, so his ground stays grey — a hue taken on
- *  faith would have put a colour behind him that nobody chose. */
-const TWAIN_TONE: QuoteTone = {
-  ground: "hsl(0, 0%, 9%)",
-  accent: "hsl(0, 0%, 65%)",
-}
-
-/** Two portraits WITH colour in them, because a monochrome one proves the tone rule does
- *  nothing and a rule that does nothing cannot be judged. Franklin is the Duplessis oil,
- *  warm; Confucius is the Wu Daozi rubbing, rosy. Both public domain, both cropped on the
- *  person by `mise portrait`, and their tones and focus computed by the same tooling the
- *  corpus uses — these numbers are what `mise still` would pass. */
-const FRANKLIN_TONE: QuoteTone = {
-  ground: "hsl(34, 16%, 9%)",
-  accent: "hsl(34, 23%, 65%)",
-}
-const CONFUCIUS_TONE: QuoteTone = {
-  ground: "hsl(4, 28%, 9%)",
-  accent: "hsl(4, 42%, 65%)",
-}
-
+/** WHAT THE CARD NEEDS FROM A PORTRAIT'S PIXELS ARRIVES AS A SIDECAR, and this page
+ *  consumes it exactly the way a site would: `public/<name>.json` beside
+ *  `public/<name>.png`, two numbers — where the subject sits and the picture's tone —
+ *  written once by `mise portrait` on the machine that has Vision and sips. Nothing here
+ *  decodes a pixel. Twain is a monochrome photograph, so his ground stays grey; Franklin
+ *  (the Duplessis oil) comes out warm and Confucius (the Wu Daozi rubbing) rosy, because
+ *  a monochrome portrait proves the tone rule does nothing and a rule that does nothing
+ *  cannot be judged. */
 type Look = { tone?: QuoteTone; focus?: number }
+function sidecar(publicPng: string): Look {
+  const json = join(
+    process.cwd(),
+    "public",
+    publicPng.replace(/\.[^.]+$/, ".json"),
+  )
+  return JSON.parse(readFileSync(json, "utf8")) as Look
+}
 
 /** EVERY CASE A CONSUMER WILL HIT, not the three that flatter the layout. Short and long,
  *  a face and no face, colour and monochrome, a date, a source, an author with neither,
@@ -62,7 +53,7 @@ const CASES: readonly [string, QuoteData, Look][] = [
       },
       date: "1755",
     },
-    { tone: FRANKLIN_TONE, focus: 0.515 },
+    sidecar("/benjamin-franklin.png"),
   ],
   [
     "short · rosy drawing · no date",
@@ -70,7 +61,7 @@ const CASES: readonly [string, QuoteData, Look][] = [
       text: "The man who chases two rabbits, catches neither.",
       author: { name: "Confucius", href: "#", avatar: "/confucius.png" },
     },
-    { tone: CONFUCIUS_TONE, focus: 0.502 },
+    sidecar("/confucius.png"),
   ],
   [
     "medium · monochrome · date · source",
@@ -80,7 +71,7 @@ const CASES: readonly [string, QuoteData, Look][] = [
       source: "#",
       date: "1876",
     },
-    { tone: TWAIN_TONE, focus: 0.481 },
+    sidecar(TWAIN),
   ],
   [
     "short · no face · date",

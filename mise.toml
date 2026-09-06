@@ -41,7 +41,7 @@ arg "[n]" help="how many, for corpus" default="12"
 run = 'bun scripts/quote-still.ts {{arg(name="mode")}} {{arg(name="n")}}'
 
 [tasks.portrait]
-description = "crop any picture into the square portrait the quote card wants, on the face rather than on the middle"
+description = "crop any picture into the square portrait the quote card wants, on the face rather than on the middle, and write its avatar.json sidecar (focus + tone)"
 usage = '''
 arg "<src>" help="an image path, or wikipedia:Article_Title"
 arg "<out>" help="where the png goes"
@@ -50,7 +50,7 @@ arg "[size]" help="square side in px" default="256"
 run = 'bun scripts/portrait.ts {{arg(name="src")}} {{arg(name="out")}} {{arg(name="size")}}'
 
 [tasks.portraits]
-description = "fill every author folder under <dir> that has no avatar.png, from wikipedia"
+description = "fill every author folder under <dir> that has no avatar.png, from wikipedia, and write the avatar.json sidecar (focus + tone) for any portrait missing one"
 usage = '''
 arg "<dir>" help="a directory of author folders"
 arg "[size]" help="square side in px" default="256"
