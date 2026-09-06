@@ -34,6 +34,7 @@ import {
   GLOW,
   GROUND,
   glowOf,
+  grainLayer,
   INDENT,
   LINE,
   MARGIN,
@@ -200,7 +201,9 @@ export function Quote({
       className={classes}
       style={
         {
-          "--ag-quote-ground": `radial-gradient(${GLOW.r * 100}% ${GLOW.r * 100}% at ${GLOW.cx * 100}% ${GLOW.cy * 100}%, ${glowOf(tone?.ground ?? GROUND).join(", ")})`,
+          // Two layers, grain over glow: the same filter the still runs, tiled, so the
+          // glow does not band into rings in eight bits here any more than there.
+          "--ag-quote-ground": `${grainLayer()}, radial-gradient(${GLOW.r * 100}% ${GLOW.r * 100}% at ${GLOW.cx * 100}% ${GLOW.cy * 100}%, ${glowOf(tone?.ground ?? GROUND).join(", ")})`,
           "--ag-quote-ink": ink,
           "--ag-quote-aspect": `${CARD_W} / ${CARD_H}`,
           "--ag-quote-margin": pct(unit * MARGIN),

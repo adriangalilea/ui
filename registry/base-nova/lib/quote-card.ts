@@ -562,6 +562,29 @@ export const GROUND = quoteGround(0, 0)
 export const GLOW = { cx: 0.15, cy: 0.2, r: 0.8 }
 export const GLOW_LIFT = 4
 
+/** GRAIN, because a four-point glow across six hundred pixels is ten RGB levels in eight
+ *  bits, and neither a rasterizer nor a browser dithers: the glow came out as concentric
+ *  rings. A monochrome noise a few percent strong breaks the rings the way film grain
+ *  always has, and reads as texture rather than as a defect. Same numbers on both
+ *  emitters — the still as an feTurbulence filter, the web as the same filter in a tiled
+ *  data-URI layer over the gradient. */
+/** High frequency and ONE octave: film grain is a fine speckle, and fractal noise at a low
+ *  frequency with octaves stacked is weather — soft blotches the size of a thumb that read
+ *  as a dirty lens, not as texture. */
+export const GRAIN = { frequency: 2.4, octaves: 1, alpha: 0.05, tile: 256 }
+
+/** The grain as SVG filter markup, for a `<filter id="grain">` in either emitter. */
+export function grainFilter(): string {
+  return `<feTurbulence type="fractalNoise" baseFrequency="${GRAIN.frequency}" numOctaves="${GRAIN.octaves}" stitchTiles="stitch" result="noise"/><feColorMatrix in="noise" type="saturate" values="0" result="grey"/><feComponentTransfer in="grey"><feFuncA type="table" tableValues="0 ${GRAIN.alpha}"/></feComponentTransfer>`
+}
+
+/** The grain as a CSS background layer: one tile of noise, to be repeated over the
+ *  ground. A data URI, so a page needs no asset for it. */
+export function grainLayer(): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${GRAIN.tile}" height="${GRAIN.tile}"><filter id="g" x="0" y="0" width="100%" height="100%">${grainFilter()}</filter><rect width="100%" height="100%" fill="#fff" filter="url(#g)"/></svg>`
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 0 0 / ${GRAIN.tile}px ${GRAIN.tile}px repeat`
+}
+
 /** The glow's two stops for a ground colour: the centre, lifted, and the ground itself.
  *  Grounds are always `quoteGround` output, so the format is asserted rather than parsed
  *  defensively — a hex or a named colour arriving here is a caller bypassing the rule. */
@@ -808,6 +831,7 @@ export function renderQuoteSvg(
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
   <defs>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">${grainFilter()}</filter>
     <radialGradient id="glow" cx="${GLOW.cx}" cy="${GLOW.cy}" r="${GLOW.r}">
       <stop offset="0" stop-color="${glowCentre}"/>
       <stop offset="1" stop-color="${glowEdge}"/>
@@ -823,6 +847,7 @@ export function renderQuoteSvg(
     </mask>
   </defs>
   <rect width="${width}" height="${height}" fill="url(#glow)"/>
+  <rect width="${width}" height="${height}" fill="#fff" filter="url(#grain)"/>
   ${face}
   ${mark}
   <g font-family="${esc(fontFamily)}" font-size="${size}" xml:space="preserve">
