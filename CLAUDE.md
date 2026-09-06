@@ -13,6 +13,29 @@ A public shadcn registry (`registry.json` at the root, items under `registry/bas
 - Brand rules from `untitled/CLAUDE.md` bind: lowercase names, three type voices, 8px doubling rhythm, monochrome alpha ladder, no em dashes, nothing animates forever.
 - No Radix. Base UI has no `asChild`; use `render={<a />}`.
 
+## Who judges
+
+**Adrian judges feel. Nothing else does, and no test may stand in for him.** This is a
+standing rule, not a phase, and it holds until the tooling and an agent's ability to
+SEE a moving interface are both better than they are.
+
+- **Automated checks catch REGRESSIONS, they do not grant sign-off.** `mise check`,
+  the runnable examples, and a CDP rig driving a real browser are all worth having and
+  worth writing: they prove structural facts a hand cannot measure — a scroller moved,
+  a slide landed on a snap point, a dismiss engaged, a curve never reverses. Treat
+  every one of them as necessary and never as sufficient. Green means nothing broke
+  that was already understood. It never means it feels right.
+- **Say which kind of claim is being made**, every time. "Verified structurally,
+  unverified by hand" is a complete and honest status; "verified" alone, off a passing
+  script, is a lie that has been told here before and cost rounds.
+- **Ask him.** Starting a dev server and asking how something feels is welcome, not an
+  imposition — he has said so explicitly. A question costs one message; guessing at
+  feel and shipping it costs a round, and shipping it silently costs trust.
+- The failure mode this exists to stop: a script passes, the agent writes "confirmed",
+  and the thing is atrocious in the hand. Instrumentation has also been WRONG here —
+  reporting a stale build, blaming the wrong gesture, printing 1000 Hz over a stream
+  running at thirty. An instrument is a witness, not a judge.
+
 ## Distribution
 
 The site deploys on every push to main (Vercel project `ui`, team adriangalileas-projects, git-connected, deployment protection OFF so the registry is public) at `https://ui.adriangalilea.com` (DNS-only CNAME `ui` → cname.vercel-dns.com in the adriangalilea.com Cloudflare zone; `ui-adriangalileas-projects.vercel.app` is the same deployment), and consumers map `@ag` to `https://ui.adriangalilea.com/r/{name}.json`. `public/r/*.json` is COMMITTED as well (`shadcn build` runs inside `mise check` and inside the Vercel build), so `https://raw.githubusercontent.com/adriangalilea/ui/main/public/r/{name}.json` is the same registry before a deploy finishes. A stale build shows up as a diff. Vercel needs `ENABLE_EXPERIMENTAL_COREPACK=1` (set) to honour `packageManager` pnpm 11; without it the build ignores `allowBuilds` and `overrides`.
@@ -165,7 +188,7 @@ it lands on a slide (462 px, exactly one slot), the sideways half of a gesture i
 felt, and turning UP mid-touch dismisses without lifting (`--lb-p` 0.226, where 1
 would mean it never engaged). That last one passing is itself proof the build under
 test has the new path, since under `pan-x` it could not. None of it says how any of it
-FEELS, which is the only sign-off that counts.
+FEELS, which is the only sign-off that counts (see **Who judges**).
 
 Left on the item: a hand on iphone safari, android chrome and macos safari (the whole
 `DEVICES` list is back to unverified but the one Adrian judged, by that list's own
