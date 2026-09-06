@@ -34,16 +34,21 @@ export function assert(cond: unknown, msg: string): asserts cond {
   if (!cond) throw new Error(`quote: ${msg}`)
 }
 
-/** How far a character advances, as a share of the em — the `ch` unit, estimated. Every
- *  humanist sans and every mono face here average near this.
+/** How far a character advances, as a share of the em, averaged over English text with
+ *  its spaces — the number that turns a measure in characters into a width in pixels.
  *
- *  ESTIMATED, and only ever by the still, which has no way to measure text. A browser
- *  does: the web card states the same rule in real `ch` and gets the measure exactly
- *  right for whatever face the page is actually using. So the rule is shared and only
- *  the still approximates it, which is the honest split — a card and its preview agree
- *  on how many characters a line carries, and disagree only about where a particular
- *  word lands. */
-export const QUOTE_CH = 0.52
+ *  IT IS A PROPERTY OF THE FACE, and whoever names the face passes it. Measured with
+ *  fontTools over letter frequencies: Instrument Serif 0.333, Georgia 0.434, Geist 0.459,
+ *  Geist Mono 0.600. The one constant here is the default for a caller who names no face,
+ *  and it sits where a generic serif or sans lands. It was 0.52 for every face once, and
+ *  that overestimate set the type a third too small under a condensed serif — the words
+ *  came out as a haiku in a corner of the frame — and a sixth too small under Georgia.
+ *
+ *  The still has no way to measure text, so it needs the number; a browser measures for
+ *  itself, so the web card states the measure in real `ch` and only uses this to choose
+ *  the size. A card and its preview agree on how many characters a line carries either
+ *  way, and disagree only about where a particular word lands. */
+export const QUOTE_CH = 0.45
 
 /** The mark's ink: the picture's hue, light, and capped at one and a half times the
  *  ground's cap so the two stay coupled — a ground that loses colour takes its mark's
@@ -105,19 +110,35 @@ export interface QuoteSet {
  *  a quote must not do: an author made to trail off mid-sentence, and a reader told the
  *  card ran out of room rather than the thinking. A quote too long for a preview is a
  *  decision for whoever wrote it, taken with the whole sentence in front of them. */
+export interface QuoteFit {
+  /** The room the block must fit in. Unbounded on a page, the band on a card. */
+  bandH?: number
+  /** Scales the whole measure ladder; for trying a different measure, not tuning a card. */
+  measure?: number
+  /** The face's average character advance — see QUOTE_CH. */
+  ch?: number
+}
+
 export function quoteSet(
   text: string,
   colW: number,
-  bandH = Number.POSITIVE_INFINITY,
-  measure = 1,
+  {
+    bandH = Number.POSITIVE_INFINITY,
+    measure = 1,
+    ch = QUOTE_CH,
+  }: QuoteFit = {},
 ): QuoteSet {
   assert(colW > 0, `a column ${colW} wide`)
   assert(
     Number.isFinite(measure) && measure > 0,
     `a measure scale of ${measure} — zero divides the size into Infinity and the fit loop never ends`,
   )
-  const floor = colW / (MEASURE_MAX * QUOTE_CH)
-  let size = Math.round(colW / (quoteMeasure(text.length) * measure * QUOTE_CH))
+  assert(
+    ch > 0.2 && ch < 0.8,
+    `a character advance of ${ch} em is no face anyone sets`,
+  )
+  const floor = colW / (MEASURE_MAX * ch)
+  let size = Math.round(colW / (quoteMeasure(text.length) * measure * ch))
   // The floor holds at the DOOR too, not only on the way down: a scale wide enough to
   // ask for more than MEASURE_MAX characters a line is already a paragraph in a
   // thumbnail, whether or not the block happens to fit.
@@ -126,7 +147,7 @@ export function quoteSet(
     `a measure of ${quoteMeasure(text.length) * measure} characters a line is past ${MEASURE_MAX}, which stops being a card`,
   )
   for (;;) {
-    const lines = quoteWrap(text, size, colW)
+    const lines = quoteWrap(text, size, colW, ch)
     const high =
       (lines.length - 1) * Math.round(size * LINE) + (CAP + DESC) * size
     if (high <= bandH) return { size, lines }
@@ -310,9 +331,10 @@ export function quoteWrap(
   text: string,
   fontSize: number,
   width: number,
+  ch = QUOTE_CH,
 ): string[] {
   assert(fontSize > 0, `a font size of ${fontSize}`)
-  const per = Math.max(8, Math.floor(width / (fontSize * QUOTE_CH)))
+  const per = Math.max(8, Math.floor(width / (fontSize * ch)))
   const words = text.split(/\s+/).filter(Boolean)
   if (!words.length) return []
 
@@ -629,6 +651,10 @@ export interface QuoteStillOptions {
    *  type is smaller, below 1 the reverse. For trying a different measure, not for
    *  tuning one card. */
   measure?: number
+  /** The named face's average character advance, as a share of the em — see QUOTE_CH.
+   *  A still cannot measure text, so naming a face without saying how wide it runs sets
+   *  the type for some other face. */
+  ch?: number
 }
 
 const esc = (s: string) =>
@@ -665,6 +691,7 @@ export function renderQuoteSvg(
     focus = FOCUS,
     blockAt = BLOCK_AT,
     measure = 1,
+    ch = QUOTE_CH,
   }: QuoteStillOptions = {},
 ): string {
   const text = quoteClean(quote.text)
@@ -750,7 +777,11 @@ export function renderQuoteSvg(
   // The band is also what the size is settled against, which is why it is known before
   // the type is: `quoteSet` starts from the measure and steps down until the block fits
   // exactly this much room.
-  const { size, lines } = quoteSet(text, textW, attrTop - markY, measure)
+  const { size, lines } = quoteSet(text, textW, {
+    bandH: attrTop - markY,
+    measure,
+    ch,
+  })
   const step = Math.round(size * LINE)
   const textH = (lines.length - 1) * step + (CAP + DESC) * size
   const top = Math.round(markY + (attrTop - markY - textH) * blockAt)

@@ -83,7 +83,7 @@ import {
   // A band it cannot fit is a THROW, never a cut.
   let screamed = false
   try {
-    quoteSet("word ".repeat(400), 646, 100)
+    quoteSet("word ".repeat(400), 646, { bandH: 100 })
   } catch {
     screamed = true
   }

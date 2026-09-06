@@ -31,6 +31,9 @@ const PAD = Math.round(WIDTH / 20)
 const LOOK: QuoteStillOptions = {
   systemFonts: true,
   fontFamily: "Georgia",
+  // Georgia's average advance, measured with fontTools — see QUOTE_CH. Naming a face
+  // without saying how wide it runs sets the type for some other face.
+  ch: 0.434,
   nameFamily: "Helvetica Neue",
 }
 

@@ -43,6 +43,7 @@ import {
   MARK_OPACITY,
   MARK_PATH,
   NAME_EM,
+  QUOTE_CH,
   type Quote as QuoteData,
   type QuoteTone,
   quoteClean,
@@ -71,6 +72,11 @@ export interface QuoteProps extends QuoteData {
    *  nowhere to put a link, and the card matching its own preview outranks carrying one
    *  more affordance. */
   width?: number
+  /** The page's serif's average character advance, as a share of the em — see QUOTE_CH.
+   *  The browser wraps in real `ch`, so this only decides the SIZE; leave it and a
+   *  condensed face is set a third too small for its measure. Pass the same number the
+   *  still gets, so the page and the preview set the same type. */
+  ch?: number
   className?: string
   children?: React.ReactNode
 }
@@ -97,6 +103,7 @@ export function Quote({
   tone,
   focus = FOCUS,
   width = QUOTE_WIDTH,
+  ch = QUOTE_CH,
   className,
   children,
 }: QuoteProps) {
@@ -123,7 +130,7 @@ export function Quote({
     // the overlap is the depth. No band to centre in: the block flows, and it starts
     // half way down the mark so the words climb into it rather than hang below it.
     const column = 1 - unit * INDENT
-    const { size } = quoteSet(words, width * column)
+    const { size } = quoteSet(words, width * column, { ch })
     return (
       <figure
         className={classes}
@@ -171,7 +178,7 @@ export function Quote({
   // mid-sentence, silently — the one thing the module promises never happens.
   const nameSize = NAME_EM * width
   const band = height - 2 * unit * EDGE * width - (CAP + DESC) * nameSize
-  const { size } = quoteSet(words, width * column, band)
+  const { size } = quoteSet(words, width * column, { bandH: band, ch })
 
   // The picture is a square as tall as the frame, slid so the subject clears the
   // dissolve, and bounded so it neither leaves ground at the right edge nor empties the

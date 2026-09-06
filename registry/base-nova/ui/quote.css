@@ -113,9 +113,17 @@
    it is actually in. */
 .ag-quote-feature {
   container-type: inline-size;
-  padding: 1.5rem 2rem 1.5rem calc(var(--ag-quote-indent) + 2rem);
+  padding: 1.5rem 2rem;
   border-radius: 0.75rem;
   background: color-mix(in oklch, var(--foreground) 4%, transparent);
+}
+/* THE WORDS ARE THE INDENTED THING. The mark and the attribution hang from the margin,
+   exactly as on the card, and only the quotation steps in from it: that step is what makes
+   the words the object inside the frame rather than a third item in a list. Indenting the
+   attribution along with them put the avatar under the first letter instead of under the
+   mark, and the composition lost its left edge. */
+.ag-quote-feature .ag-quote-body {
+  margin-inline-start: var(--ag-quote-indent);
 }
 /* THE MARK SCALES WITH THE WEIGHT. At the card's size it is a ghost in the picture's
    colour and belongs to the picture; here there is no picture, so at that size and blur
