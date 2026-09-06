@@ -63,9 +63,9 @@ arg "[size]" help="square side in px" default="256"
 run = 'bun scripts/portrait.ts --fill {{arg(name="dir")}} {{arg(name="size")}}'
 
 [tasks.add]
-description = "build, then copy one item into a consumer (default: the garden)"
+description = "build, then copy one item AND every item it depends on into a consumer, all from this checkout (default: the garden). shadcn resolves @ag deps against the deployed registry, which lags; re-adding them locally afterwards is what keeps a consumer from holding a stale file"
 usage = '''
 arg "<item>" help="registry item name"
 arg "[dir]" help="consumer directory" default="/Users/adrian/Developer/untitled/apps/garden"
 '''
-run = 'pnpm shadcn build && pnpm shadcn add "$PWD/public/r/{{arg(name="item")}}.json" --cwd "{{arg(name="dir")}}" --overwrite --yes'
+run = 'pnpm shadcn build && bun scripts/add.ts {{arg(name="item")}} "{{arg(name="dir")}}"'
