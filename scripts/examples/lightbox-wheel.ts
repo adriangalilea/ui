@@ -6,6 +6,7 @@ import {
   FIT,
   MOMENTUM,
   PAN_INSET,
+  PINCH_CLOSE,
 } from "../../registry/base-nova/lib/lightbox-motion"
 import {
   type WheelCtx,
@@ -174,18 +175,44 @@ console.log("the track's when trackable, and only once the travel has said so")
     over.ctx.pose.s > 3 && over.ctx.pose.s < 3.5,
     `stiff past the ceiling: ${over.ctx.pose.s}`,
   )
+  // Pinching IN from fit is the dismiss on a trackpad exactly as it is under two
+  // fingers on glass. A reader who learns the gesture on a phone is owed it on a Mac,
+  // and this used to rubber against a floor and spring back instead, which is an
+  // inconsistency between two devices running the same component.
   const out = run(
     Array.from({ length: 30 }, (_, i) => tick(0, 5, i * 8, true)),
     ctx(),
   )
   assert(
-    out.ctx.pose.s < 1 && out.ctx.pose.s > 0.8,
-    `rubbered ${out.ctx.pose.s}`,
+    out.ctx.pose.s < PINCH_CLOSE,
+    `it follows the pinch in: ${out.ctx.pose.s}`,
   )
-  assert(out.ctx.pose.p === 1, "zoom never dims the room")
+  assert(out.ctx.pose.p < 1, "and the room lights on the way out")
   assert(
-    wheelRelease(out.session as WheelSession, out.ctx).kind === "fit",
-    "under fit: back to fit, never a dismiss",
+    wheelRelease(out.session as WheelSession, out.ctx).kind === "exit",
+    "under the close line: leave",
+  )
+  // Not far enough is still a cancel, and a pinch that opened past the ceiling first
+  // is a zoom being undone, never a dismiss however small it ends.
+  const shy = run(
+    Array.from({ length: 5 }, (_, i) => tick(0, 5, i * 8, true)),
+    ctx(),
+  )
+  assert(
+    shy.ctx.pose.s > PINCH_CLOSE &&
+      wheelRelease(shy.session as WheelSession, shy.ctx).kind === "fit",
+    `a shy pinch springs back: ${shy.ctx.pose.s}`,
+  )
+  const undone = run(
+    [
+      ...Array.from({ length: 12 }, (_, i) => tick(0, -10, i * 8, true)),
+      ...Array.from({ length: 40 }, (_, i) => tick(0, 10, 96 + i * 8, true)),
+    ],
+    ctx(),
+  )
+  assert(
+    wheelRelease(undone.session as WheelSession, undone.ctx).kind !== "exit",
+    "a pinch that opened first is a zoom being undone, not a dismiss",
   )
   const frame = wheelTick(null, tick(0, -30, 0, true), ctx({ frame: true }))
   assert(
@@ -226,5 +253,5 @@ console.log("the track's when trackable, and only once the travel has said so")
   )
 }
 console.log(
-  `zoom rubbers and never dismisses, pan clamps · MOMENTUM ${MOMENTUM}`,
+  `zoom follows and dismisses like two fingers, pan clamps · MOMENTUM ${MOMENTUM}`,
 )

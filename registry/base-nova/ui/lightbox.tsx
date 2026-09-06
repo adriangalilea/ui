@@ -2089,6 +2089,9 @@ function Stage(props: StageProps) {
         case "cancel":
           animate(FIT, 1, HAND, r.vel)
           return
+        case "exit":
+          beginExit()
+          return
         default: {
           const never: never = r
           throw new Error(`lightbox: wheel release ${String(never)}`)
@@ -2102,6 +2105,13 @@ function Stage(props: StageProps) {
       // the chrome scrolls the chrome (rail, sheet). The returns below skip the
       // motion, never the ownership.
       if (e.ctrlKey) e.preventDefault()
+      // LEAVING: the momentum still arriving is the reader's, and it belongs to the
+      // page they are going back to. Holding it until the picture had finished flying
+      // home and only then starting to scroll reads as a delay the reader did not ask
+      // for and cannot steer — the room re-lights, then a beat, then the page moves on
+      // its own. Handing it over the instant the exit is DECIDED, rather than when it
+      // lands, is what makes a dismiss and the scroll under it one motion.
+      if (S.ph === "exit") return
       if (chromeTarget(e.target)) return
       const ctx = wheelCtx()
       const input = {

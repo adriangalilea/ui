@@ -50,6 +50,14 @@ export type Gesture = {
   pinched: boolean
   pinchMax: number
   anchor: Point
+  /** One run per axis, each restarting when ITS OWN axis turns and counting the other
+   *  from that instant. A relock is a RUN of consistent motion, never one event: at
+   *  120 Hz a finger sends 2-4 px per move, so a threshold tested per event can only
+   *  be crossed by a jump no hand makes. And the window has to restart on the turn,
+   *  or the ratio is measured against a whole swipe's worth of the other axis and can
+   *  never be beaten either. `runY.x` is unsigned travel, `runY.y` is signed. */
+  runY: Point
+  runX: Point
   onMedia: boolean
   type: string
 }
@@ -139,6 +147,8 @@ export function gestureDown(
       pinched: false,
       pinchMax: ctx.pose.s,
       anchor: input.at,
+      runY: { x: 0, y: 0 },
+      runX: { x: 0, y: 0 },
       onMedia: input.onMedia,
       type: input.type,
     }
@@ -230,7 +240,20 @@ export function gestureMove(
   const dy = input.y - next.start.y
   const mx = input.x - next.prev.x
   const my = input.y - next.prev.y
-  next = { ...next, prev: { x: input.x, y: input.y } }
+  // Each run restarts when its own axis turns, so a wobble cannot accumulate into an
+  // intent and a steady push is never diluted by the travel that came before it.
+  const turnedY = my !== 0 && Math.sign(my) !== Math.sign(next.runY.y)
+  const turnedX = mx !== 0 && Math.sign(mx) !== Math.sign(next.runX.x)
+  next = {
+    ...next,
+    prev: { x: input.x, y: input.y },
+    runY: turnedY
+      ? { x: Math.abs(mx), y: my }
+      : { x: next.runY.x + Math.abs(mx), y: next.runY.y + my },
+    runX: turnedX
+      ? { x: mx, y: Math.abs(my) }
+      : { x: next.runX.x + mx, y: next.runX.y + Math.abs(my) },
+  }
   if (next.mode === "pan") {
     const b = panBounds(next.grab, ctx.fitted, ctx.band)
     effects.push({
@@ -250,20 +273,23 @@ export function gestureMove(
     next = { ...next, axis }
     if (axis === "y") effects.push({ kind: "trace", text: "axis y" })
   } else if (
-    // Twice, not three times. Nobody draws a straight line, and this relock is what
-    // turns a swipe through the pictures into a dismiss without lifting a finger; at
-    // 3x it demanded a cleaner vertical than a hand already moving sideways can give.
+    // A RUN, not an event. Measured on a phone: this is what turns a swipe through
+    // the pictures into a dismiss without lifting, and it never fired, because at
+    // 120 Hz a finger sends 2-4 px per move and `|my| > 12` in ONE of them is a jump
+    // no hand makes. A headless rig stepping 30 px at a time passed it happily, which
+    // is the whole reason a rig does not grant sign-off.
     next.axis === "x" &&
-    Math.abs(my) > RELOCK &&
-    Math.abs(my) > 2 * Math.abs(mx)
+    Math.abs(next.runY.y) > RELOCK &&
+    Math.abs(next.runY.y) > 2 * next.runY.x
   ) {
     next = { ...next, axis: "y" }
     effects.push({ kind: "trace", text: "axis y" }, { kind: "sync" })
   } else if (
+    // The mirror, on its own run for the same reason.
     next.axis === "y" &&
     !next.pinched &&
-    Math.abs(mx) > RELOCK &&
-    Math.abs(mx) > 3 * Math.abs(my)
+    Math.abs(next.runX.x) > RELOCK &&
+    Math.abs(next.runX.x) > 2 * next.runX.y
   ) {
     next = { ...next, axis: "x" }
     effects.push(
@@ -343,6 +369,8 @@ export function gestureUp(
         raw0: rawPan(ctx.pose, ctx.fitted, ctx.band),
         start: { x: p.x, y: p.y, t: input.t },
         prev: p,
+        runY: { x: 0, y: 0 },
+        runX: { x: 0, y: 0 },
         axis: null,
         mode: ctx.pose.s > 1.01 ? "pan" : "fit",
       },

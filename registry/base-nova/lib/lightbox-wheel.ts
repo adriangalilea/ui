@@ -22,9 +22,12 @@ import {
   dragProgress,
   dragScale,
   INTENT,
+  PINCH_CLOSE,
+  PINCH_PASSED,
   type Point,
   type Pose,
   panBounds,
+  pinchProgress,
   rawPan,
   rubber,
   type Sample,
@@ -58,6 +61,9 @@ export type WheelSession = {
   raw0: Point
   /** The raw scale the ticks accumulated; the pose wears it rubbered. */
   zoom: number
+  /** The highest scale this pinch reached: a pinch that went past the ceiling first
+   *  is a zoom being undone, not a dismiss. */
+  pinchMax: number
   samples: readonly Sample[]
   last: number
   at: Point
@@ -127,6 +133,7 @@ const begin = (input: WheelInput, ctx: WheelCtx, phase: Phase) => {
     grab: ctx.pose,
     raw0: rawPan(ctx.pose, ctx.fitted, ctx.band),
     zoom: ctx.pose.s,
+    pinchMax: ctx.pose.s,
     samples: [],
     last: 0,
     at: input.at,
@@ -170,9 +177,24 @@ export function wheelTick(
     case "zoom": {
       // The raw accumulator rubbers (soft floor under fit, stiff over the ceiling),
       // the way a drag offsets from its grab.
-      w = { ...w, zoom: w.zoom * Math.exp(-dy * WHEEL_ZOOM) }
-      const v = zoomAt(ctx.pose, rubber(w.zoom, 1, ctx.zoomMax), w.at)
-      effects.push({ kind: "pose", pose: { ...v, p: ctx.pose.p } })
+      const raw = w.zoom * Math.exp(-dy * WHEEL_ZOOM)
+      w = { ...w, zoom: raw, pinchMax: Math.max(w.pinchMax, raw) }
+      // Pinching IN from fit is the dismiss, exactly as it is under two fingers on
+      // glass: it follows and lights the room instead of rubbering against a floor.
+      // A trackpad pinch is the same gesture as a phone pinch and a reader who has
+      // learnt one on one device is owed it on the other. A pinch that went past the
+      // ceiling first, or one from a zoom, still springs back untouched.
+      const dismissing =
+        w.grab.s <= 1.01 && raw < 1 && w.pinchMax < PINCH_PASSED
+      const s = dismissing ? raw : rubber(raw, 1, ctx.zoomMax)
+      const v = zoomAt(ctx.pose, s, w.at)
+      effects.push({
+        kind: "pose",
+        pose: {
+          ...v,
+          p: dismissing ? Math.min(ctx.pose.p, pinchProgress(s)) : ctx.pose.p,
+        },
+      })
       return { session: w, effects }
     }
     case "pan": {
@@ -231,8 +253,10 @@ export function wheelTick(
 
 export type WheelRelease =
   | { kind: "none" }
-  /** Zoom let go under fit: spring back to fit. A wheel never dismisses. */
+  /** Zoom let go under fit but not far enough to close: spring back to fit. */
   | { kind: "fit" }
+  /** Pinched in past the close line: leave, the way two fingers do. */
+  | { kind: "exit" }
   /** Zoom let go: undo the rubber at the cursor, then momentum and clamp. */
   | { kind: "zoom"; at: Point }
   /** Pan let go: back inside the bounds. */
@@ -251,6 +275,9 @@ export function wheelRelease(
     case "dead":
       return { kind: "none" }
     case "zoom":
+      // The same close rule the fingers use, so the two devices agree.
+      if (ctx.pose.s < PINCH_CLOSE && w.pinchMax < PINCH_PASSED)
+        return { kind: "exit" }
       return ctx.pose.s < 1 ? { kind: "fit" } : { kind: "zoom", at: w.at }
     case "pan":
       return { kind: "pan", target: clampPan(ctx.pose, ctx.fitted, ctx.band) }
