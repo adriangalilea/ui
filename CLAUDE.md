@@ -119,6 +119,20 @@ interleaved with a `scrollLeft` write is a forced synchronous layout per event, 
 measured as the page falling to 30 fps and the browser coalescing four frames of input
 into single 189 px deltas.
 
+### The reel is the PROVIDER, and that is the whole grouping model
+
+`<Lightbox>` is a provider and the reel is every `<LightboxTrigger>` under it, in
+document order, or the explicit `entries` array. So grouping is neither global nor
+per-image: a page chooses it by where it puts the provider. One around a gallery is a
+navigable set; one around each standalone figure is a picture that opens alone, and
+arrows, swipe, strip and counter all stand down on their own because `count` is 1.
+Nothing has to be turned off, and there is no prop for it — which is the point.
+
+In prose, that means a `<Figure>` of one's own that renders a provider and a trigger,
+used per image, and a separate provider around anything meant to be browsed. The one
+thing that IS page-wide: entry `id`s, because `history` writes `#lb=<id>`. Two
+providers with the same id on one page fight over the hash.
+
 ### Leaving
 
 **A relock is a RUN of motion, never one event.** Both axis relocks read consecutive

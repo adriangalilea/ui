@@ -1275,7 +1275,8 @@ function Stage(props: StageProps) {
     const say = (text: string) => setAnnounce((a) => ({ text, n: a.n + 1 }))
     const announceSlide = () => {
       const { index, ids, entry } = L.current
-      say(`${index + 1} of ${ids.length} · ${altOf(entry.media)}`)
+      const alt = altOf(entry.media)
+      say(ids.length > 1 ? `${index + 1} of ${ids.length} · ${alt}` : alt)
     }
     const settleEnter = () => {
       S.ph = "idle"
@@ -2661,7 +2662,10 @@ function Stage(props: StageProps) {
       data-chrome={chrome ? "on" : "off"}
       data-zoomed={zoomed ? "" : undefined}
       data-kind={media.kind}
-      aria-label={`${index + 1} of ${count} · ${label}`}
+      // A position is only worth announcing when there is more than one place
+      // to be; "1 of 1" is noise in a screen reader for the same reason it is on
+      // screen.
+      aria-label={count > 1 ? `${index + 1} of ${count} · ${label}` : label}
       initialFocus={stage}
       finalFocus={() => triggers.current.get(ids[index] as string)?.el ?? true}
       style={
@@ -2716,9 +2720,15 @@ function Stage(props: StageProps) {
         }}
       >
         <div className="ag-lb-bar">
-          <span className="ag-lb-counter">
-            {shown + 1} / {count}
-          </span>
+          {/* A reel of ONE has no position to report, and "1 / 1" is the decorative
+              text the brand rules forbid. A lightbox around a single prose figure is
+              a normal, deliberate use: the provider is the reel, so a post puts one
+              around a gallery and one around each standalone image. */}
+          {count > 1 && (
+            <span className="ag-lb-counter">
+              {shown + 1} / {count}
+            </span>
+          )}
           {status && <span className="ag-lb-status">{status}</span>}
           {stripOn ? (
             <Strip
