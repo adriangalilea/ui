@@ -169,12 +169,22 @@ export function Quote({
   // it does what an opening quotation mark does in a book: it sits in the gutter to the
   // left of the first line, cap-high, sharp, and the words start after it. Not fainter —
   // faint at this size is dirt; small and clean is a mark.
+  //
+  // ONE STEP UP IN SIZE from the page's type. A serif set at the body size reads smaller
+  // than the sans around it (a lower x-height, finer strokes), and a display serif on a
+  // dark ground reads smaller still; the step the words get is what the old markdown
+  // blockquote had, and what made the quote legible in an article. The mark, sized in
+  // em, scales with it; the attribution is metadata and keeps the metadata size.
   if (variant === "prose")
     return (
       <figure
         data-slot="quote"
         data-variant="prose"
-        className={cn("relative m-0 py-4 pr-5 pl-[0.9rem]", STEP, className)}
+        className={cn(
+          "relative m-0 py-4 pr-5 pl-[0.9rem] text-lg",
+          STEP,
+          className,
+        )}
         style={{ "--ag-quote-ink": ink } as React.CSSProperties}
       >
         <Mark className="left-[0.9rem] top-[calc(1rem+0.2em)] h-[0.95em] opacity-30" />
