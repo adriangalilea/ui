@@ -514,9 +514,12 @@ export function toneFrom(r: number, g: number, b: number): QuoteTone {
   }
 }
 
-/** Lifted off pure black, and NEUTRAL. What a card gets when nobody passed a colour and
- *  there is no picture to take one from. */
-export const GROUND = "#0d0d0f"
+/** What a card stands on when nobody passed a colour and there is no picture to take one
+ *  from: EXACTLY the ground a grey picture gives. One rule for the ground, not two — a
+ *  card without a portrait and a card with a monochrome one are indistinguishable
+ *  underneath, and near-white type on it sits at roughly 16:1. It was a hand-typed
+ *  near-black with a hint of blue in it, which came from nowhere and matched nothing. */
+export const GROUND = quoteGround(0, 0)
 
 /** The first bytes of a format, as base64 sees them. A data URI can declare any mime
  *  it likes; these are what the payload actually IS. */
