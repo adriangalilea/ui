@@ -35,36 +35,109 @@ The site deploys on every push to main (Vercel project `ui`, team adriangalileas
 
 ### The slide track
 
-The track is a real scroll container. **Touch is the browser's** (`touch-action: pan-x`, with `scroll-snap-type: x mandatory` + `scroll-snap-align: center` + `scroll-snap-stop: always` landing it): the platform knows when fingers leave the glass and both engines enforce snap-stop on momentum, on the compositor. **The wheel is the engine's**, because the platform's own settle is ~950 ms across a slide in Chromium (deltas decaying 0.92 a frame until the last is sub-pixel) and no faster on macOS WebKit, which reads as a different, slower app than the arrow keys and parks a slide visibly off centre on the way. `data-stepping` stands the CSS magnets down wherever the engine is driving.
+The track is a real scroll container, and **the ENGINE drives it, for every input**.
+The slot is `touch-action: none` so the browser never claims a pan; the CSS snap
+properties (`x mandatory` + `align: center` + `stop: always`) exist to land what the
+engine leaves, and `data-stepping` stands them down while it is driving.
 
-**The rule for a wheel gesture, and the reason it survives where two rewrites did not:** the slide is a FUNCTION of total travel, decided with the hand still on the glass. `swipeSlides` gives one slide as soon as the fingers are `SWIPE_COMMIT` (0.18) of the way, and one more for every whole slide after that, so travel and slides stay one for one at any length. Then `glideTo` at 220 ms nominal (130–300 bounded), leaving at the speed the track already had.
+**The track has ONE writer and two terms**: `scrollLeft = base + swipeGive(travel)`.
+`base` is where the machine has it (a resting slide, or a glide in flight); `travel`
+is the hand's live offset from the slide it is anchored to. Splitting them is what
+makes a commit seamless: the anchor moves, the glide is aimed from exactly where the
+pictures stand, the offset resets, and their sum does not move a pixel.
 
-Two failure modes, both from a counter that resets on each commit, both live in the git history and neither is allowed back. Let a reset counter pay repeatedly and every 0.18 of finger buys a whole slide: a **5.5× gain wearing a threshold's clothes**, one motion jumping five. Cap it at one commit instead and a long deliberate drag is worth exactly what a flick is worth.
+**One gesture buys ONE slide.** It costs `swipeCommitPx` — Embla's `clamp(18% of the
+slide, 50, 225)` px — and once bought the gesture is SPENT: `swipeDone`, and
+everything the device is still sending moves nothing at all. Multi-slide skipping was
+tried flat-priced and on a doubling ladder and both are a slot machine, because the
+boundary between one and two is a number of pixels of finger and no hand can feel
+pixels of finger (measured: 0.46 slides of travel took one picture, 0.63 took two).
+Every native pager decided it the same way — `isPagingEnabled`, `PagerSnapHelper`,
+Embla with `skipSnaps` off. Three pictures is three flicks.
 
-**Nothing detects a release**, which is the question that made every earlier version a lottery: the web exposes no gesture phase to page JS (macOS reports one to the engine — Chromium reads `is_in_inertial_phase` — but not to us). The phase detector is asked one question, "is this a coast", and the answer only decides when the hand stops paying. Being wrong costs a slide of travel, never a wrong destination. A throw whose hand never travelled far enough is still worth one, by projecting where the momentum was heading (UIKit's rule); the coast itself is never counted, because it carries several slides of deltas and the reader can no longer steer.
+**The pictures LEAN, they do not follow**: `swipeGive` is quadratic in the progress to
+the line, reaching `SWIPE_LEAN` (0.85) of it. Squaring is what separates a deliberate
+drag from a trackpad's dying TAIL, which emits 1-3 px for half a second after a
+gesture is over and is otherwise indistinguishable from a slow hand — same magnitude,
+same cadence. They differ only in DISTANCE, so the fraction squares with the lean: a
+56 px tail leans 6 px, which is nothing to see and nothing to wind back.
 
-**One gesture is one slide unless the hand asks for more.** Every reference implementation caps a *flick* at one, and none uses the magnitude of the throw to decide how far to go:
+**Nothing detects a release and nothing is projected.** The web exposes no gesture
+phase to page JS (macOS reports one to the engine, not to us), so the phase would have
+to be inferred from the decay, and that inference lands wherever it lands: measured on
+two swipes of the same speed, one was called coasting at 142 ms while its deltas were
+still GROWING, the other at 674 ms in a 1 px dribble. Every rule built on it inherited
+that jitter and the same motion took one picture or two by luck. So every delta is
+travel, the hand's and the device's alike, at full weight. A trackpad's momentum
+ARRIVES as deltas; spending it as it comes is exact where projecting it was a guess
+with a constant in it, and it pays for itself, since a flick delivers about as much
+again as the hand did.
+
+**Two signals about a wheel stream can be read without guessing, and only two.** A
+tail only DECAYS, so a delta over `SWIPE_SURGE` (2) times the decaying envelope is a
+hand back on the glass; and momentum never REVERSES, so any delta against the
+direction just bought is a hand, with certainty. Either opens a new gesture. Silence
+(`SWIPE_END`, 110 ms) ends one. A POINTER needs none of this: it says when it let go,
+so its release ends the swipe on the event.
+
+A move is `glideTo`: a cubic Hermite, `GLIDE` 165 ms nominal (100-225 bounded, scaled
+by the square root of the distance), whose entry tangent is held between
+`GLIDE_ENTRY_MIN` (2, quadratic ease-out) and `GLIDE_ENTRY` (3, cubic ease-out and
+exactly the monotonicity bound). The floor is why it goes at once: handed a slow
+hand's speed the same cubic is a smoothstep, which starts at a standstill.
+
+**Reading `scrollLeft` with the magnets up MOVES the scroller.** `scroll-snap-type:
+mandatory` re-snaps at the next layout and a read forces that layout, so any read
+taken between `stopGlide` handing the magnets back and the next move setting them down
+does not observe the position, it snaps it — mid-flight, half a picture, backwards.
+Magnets down before anything reads. For the same family of reasons `slotW()` is
+cached: `clientWidth` is a layout read, and asking for it four times per event
+interleaved with a `scrollLeft` write is a forced synchronous layout per event, which
+measured as the page falling to 30 fps and the browser coalescing four frames of input
+into single 189 px deltas.
+
+**A wheel pan STOPS at its bound; only a pointer drag rubber-bands.** A band is for
+direct manipulation, where the image is under a finger and the give is what says "this
+is the end". On a trackpad nothing is under the finger, so all it buys is a picture
+frozen at the cap while the reader keeps pushing. The bound is the overflow plus
+`PAN_INSET` (64) so an edge can be brought INSIDE the viewport: stopping exactly where
+the picture ends gives no sign that it ended, only a picture that will not move.
+
+What else the engine owns: which slide is current (`scrollsnapchange`, Chrome
+129+/Safari 18.2+, with `scrollend` and a `scroll` timer as fallbacks), which slides
+carry pixels (two either side of where the reader actually is, not of the committed
+index, or a fast gesture crosses a slide that is still a grey hole), and the discrete
+moves (arrows, thumbnails, steps), which count from where the track is HEADING rather
+than from the committed index, or a fast run of presses all asks for the same slide.
+
+Reference implementations, for grounding rather than for copying — note that none of
+them uses the magnitude of a throw to decide how far to go, and all of them track the
+finger 1:1, the OS having already applied its own acceleration curve:
 
 | | commits when | how far | landing |
 |---|---|---|---|
-| iOS `UIScrollView` paging | projected destination past the midpoint; project with `v · d/(1−d)`, `d = 0.998` → **`v[px/ms] × 499`** | one page | spring from the release velocity (WWDC18 803: project, snap to nearest, hand velocity to the spring) |
-| Android `PagerSnapHelper` | any fling over `minFlingVelocity`; **velocity's sign only, magnitude unused** | first page past the centre, so exactly one | `MAX_SCROLL_ON_FLING_DURATION` = **100 ms** |
-| Swiper | ≤ `longSwipesMs` **300 ms** → one slide, distance ignored; longer → past `longSwipesRatio` **0.5** | one slide | fixed `speed` **300 ms** |
-| Embla | `|force × 400|` (touch) over `clamp(20% of viewport, 50, 225)` px | `byIndex(current ∓ 1)`, exactly one | friction integrator, `duration` 25, `friction` 0.68 |
-| WebKit snap | destination predicted by the platform momentum calculator (fallback: **`16.7 × first momentum delta`**) | `scroll-snap-stop` decides | cubic Bézier whose initial tangent is the reader's own direction, over an exponential progress curve fitted so the first frame matches their last delta, clamped to 10–50% of the remaining distance |
-| Chromium snap fling | projects `delta / (1 − decay)` once decay < **0.96**; legacy fallback `delta × 25` | `scroll-snap-stop` decides | per-frame deltas decaying **0.92** each 16 ms frame |
+| iOS `UIScrollView` paging | projected destination past the midpoint | one page | spring from the release velocity |
+| Android `PagerSnapHelper` | any fling over `minFlingVelocity`; velocity's SIGN only | first page past the centre, so exactly one | `MAX_SCROLL_ON_FLING_DURATION` 100 ms |
+| Swiper | ≤ `longSwipesMs` 300 ms → one slide, distance ignored; longer → past `longSwipesRatio` 0.5 | one slide | fixed `speed` 300 ms |
+| Embla | `\|force × 400\|` over `clamp(20% of viewport, 50, 225)` px | `byIndex(current ∓ 1)`, exactly one | friction integrator |
+| WebKit snap | platform momentum calculator | `scroll-snap-stop` decides | cubic Bézier fitted to the reader's last delta |
+| Chromium snap fling | projects `delta / (1 − decay)` once decay < 0.96 | `scroll-snap-stop` decides | per-frame deltas decaying 0.92 |
 
-Three things follow, and they settle the questions that used to sit here:
+Never again, each having been tried and shipped and felt: a drag gain; a slide read
+off TOTAL travel from a fixed origin (an absolute map wearing a threshold's clothes,
+asymmetric in a way a hand feels at once — continuing cost a whole slide of finger
+where reversing cost 7 px); a commit counter that resets; more than one slide per
+gesture; a `THROW` constant projecting where a release would land; a momentum detector
+deciding WHERE the track goes; a rubber band on the wheel pan; a settle watchdog.
 
-- **The drag is never amplified.** Embla and Swiper both track the finger 1:1 (`touchRatio: 1`); the trackpad's own acceleration curve is already applied by the OS. The `2.6×` gain that was here was a second acceleration on top of one that was already there.
-- **A move decays, it does not accelerate into place.** WebKit and Chromium both ease out. "It slows down then snaps" is a handoff that does not match the reader's speed, not evidence that the curve should invert; `GLIDE_ENTRY` is what fixes it, by leaving at the speed the track already had.
-- **0.96 is the right threshold for "the hand is gone".** Chromium's `kMaxDecayFactor` and the vendored wheel-gestures detector agree on it independently.
-
-**A wheel pan STOPS at its bound; only a pointer drag rubber-bands.** A band is for direct manipulation, where the image is under a finger and the give is what says "this is the end". On a trackpad nothing is under the finger, so all it buys is a picture frozen at the cap while the reader keeps pushing, and a long way home afterwards. The accumulator is clamped with the pose, or panning back has to unwind the debt before anything moves. The bound is the overflow plus `PAN_INSET` (64) so an edge can be brought INSIDE the viewport: stopping exactly where the picture ends gives no sign that it ended, only a picture that will not move.
-
-What else the engine owns: which slide is current (`scrollsnapchange`, Chrome 129+/Safari 18.2+, with `scrollend` and a `scroll` timer as fallbacks), which slides carry pixels (two either side of where the reader actually is, not of the committed index, or a fast gesture crosses a slide that is still a grey hole), and the discrete moves (arrows, thumbnails, steps), which count from where the track is HEADING rather than from the committed index, or a fast run of presses all asks for the same slide.
-
-Never again, each of these having been tried and shipped and felt: a drag gain; a commit counter that resets; a settle watchdog; a momentum detector deciding WHERE the track goes; a rubber band on the wheel pan. If the track feels wrong, the fix is in `swipeSlides`, in the CSS declarations, or in what the engine reads — reach for a constant last, not first.
+**The trace is the instrument, and it has lied more than once.** Its header carries the
+health of the input stream itself — the median gap between WHEEL arrivals (a wheel
+comes once per display frame, so the median IS the refresh rate: `@33ms 30Hz` is a
+screen or a stalling renderer, not a fault in itself), the page's own measured `fps`
+against it, and why the gesture opened. Equal-and-low means the renderer is over
+budget; frames faster than events means the device. Guessing between those two cost a
+round, as did a median that counted glide frames sharing a timestamp with the event
+that started them, and an open-reason overwritten by the NEXT gesture's.
 
 ## Verbs
 
@@ -80,16 +153,23 @@ pnpm's 7-day quarantine and no-downgrade trust policy apply. `pnpm-workspace.yam
 
 The engine is extracted: `lightbox.tsx` is the binder (DOM listeners in, effects out, React state at checkpoints), and every rule lives in a lib that runs in bun.
 
-**Signed off on macOS Chrome, and wants soak time before it is adopted anywhere.** The gestures were settled by feel, in the browser, over many rounds; live with it for a while before trusting it in a site.
+**Signed off on macOS Chrome by feel, and wants soak time before it is adopted
+anywhere.** The gestures were settled in the browser over many rounds; live with it
+for a while before trusting it in a site.
 
-Left on the item: the demo streams a 17.8 MB trailer from blender.org on every open (host a short clip on the site); Safari frame pacing is unmeasured (needs Develop → Allow Remote Automation, then WebDriver); the sign-off list is `unverified` for android chrome and macos safari.
+Left on the item: the touch path is UNVERIFIED on device (the engine took the pan from
+the browser so a swipe can become a dismiss mid-touch, which is the change that needs
+a phone); the demo streams a 17.8 MB trailer from blender.org on every open (host a
+short clip on the site); Safari frame pacing is unmeasured (needs Develop → Allow
+Remote Automation, then WebDriver); the sign-off list is `unverified` for android
+chrome and macos safari.
 
 ### then: adopt, wave 2, wave 3
 
 1. adriangalilea.com prose figures (retire its `components/lightbox.tsx`), the garden's feature stills, videoclub.
 2. `scrollspy` (scroll-intent stand-down), `page-exit` / `page-enter` (the faked cross-origin morph: exit animation, Speculation Rules prerender with `Supports-Loading-Mode: credentialed-prerender` on the subdomain, entrance), `keymap` + `cursor-list` / `cursor-grid` (swift-utils Keymap; the lightbox's action table is the first client).
 3. `charts` + `chart-frame` (adriangalilea.com's wrappers are the taste anchor), `particle-charts` as the opt-in playful voice, `narrated` (Sonoscript: real times only, click to seek, opt-in follow).
-4. `theme` (dark mode is DEAD today, see below), a frameless `telegram`, `checklist`, `kanban`, `code-scrolly`.
+4. A frameless `telegram`, `checklist`, `kanban`, `code-scrolly`.
 5. The garden landing (a static grid under a fog that promises content), then later: cover-image with blur and grain, `magic-input`, the media-library kit for videoclub and lore.
 
 ### telegram: the phone is in the way of the words
@@ -102,16 +182,16 @@ Left on the item: the demo streams a 17.8 MB trailer from blender.org on every o
 
 The phone is not a wrapper to delete: the status bar and composer are what make a screenshot read as a real chat rather than a mockup. So this is a mode, chosen per use, not a replacement.
 
-### theme, and the fact that dark mode is currently DEAD
+### theme
 
-`app/globals.css` carries a full `.dark` palette and `@custom-variant dark (&:is(.dark *))`, and **nothing anywhere adds the `.dark` class**. No provider, no toggle, not even a `prefers-color-scheme` fallback. So every dark rule in this repo has never rendered: `code.css`'s `.dark .ag-code span` means the code block's dark half, one of the two themes shiki bakes into every token, has never been seen. Treat all dark styling as unverified until there is a way to turn it on.
+Light, dark and follow-the-system are live: `next-themes` on the site (a blocking
+script resolves the class before first paint, so nothing flashes), the `.dark` palette
+in the `tokens` item rather than in this site's globals, and `theme-toggle` as an item
+that takes a value and a setter so it works under any provider.
 
-Wanted: dark and light everywhere in the site and the lab, with a toggle, and the toggle offered as an item if nothing off the shelf fits.
-
-- **The flash is the whole problem.** A theme read in an effect paints light first and then corrects, which is the flicker every naive implementation has. It has to be resolved before first paint, from a tiny blocking script in `<head>`, and the server must not render a guess.
-- Three states, not two: light, dark, and FOLLOW THE SYSTEM, which is the default and the one most toggles get wrong by collapsing to a boolean. It also has to keep following when the system changes while the page is open.
-- `next-themes` is the obvious answer for the site and is worth taking; the question is only whether the toggle itself should be an item. If it is, it cannot depend on next-themes, since a consumer may have any provider: it takes the current theme and a setter.
-- The tokens item ships light only today. If a consumer is meant to get dark, the palette belongs in `theme/tokens.css` rather than living in this site's `globals.css`, which is a fork waiting to drift.
+Left: the dark half of every item is now visible but only lightly walked. `code` ships
+two shiki themes per token and both render; the rest wants a pass with the toggle in
+hand.
 
 ### code-scrolly
 
