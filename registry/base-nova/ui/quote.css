@@ -25,25 +25,22 @@
    is a mix off the foreground rather than a theme token, so it is one step up on any
    ground — light, dark, tinted — without a variable to wire. */
 .ag-quote-prose {
-  padding: 1rem 1.25rem 1rem 1.75rem;
+  padding: 1rem 1.25rem 1rem 2.25rem;
   border-radius: 0.75rem;
   background: color-mix(in oklch, var(--foreground) 4%, transparent);
 }
-/* THE SAME GHOST AS THE OTHER TWO WEIGHTS, at this scale: faint, barely softened, and
-   the first line runs OVER it rather than starting after it. Set beside the words at a
-   third of an opacity it was a drop-cap glyph — a fourth voice on a card that has three
-   — and the overlap that makes the card and the feature read as one object was gone. */
-/* SIZED TO THE FIRST LINE, not to a block. At two and a half lines tall it was right
-   behind a paragraph and enormous behind a single sentence, where it ran past the words
-   into the attribution and broke the scale. A prose quote is often one line; the mark
-   is one line too, and behind a longer one it is a ghost under the opening words rather
-   than a shape the whole block sits on. */
+/* AT THIS SCALE THE MARK IS A GLYPH, NOT A GHOST. The card's mark is a big soft shape
+   the words climb over, and that only works with a block of words to climb; behind a
+   single line it read as a smudge under the first word at any size that was tried —
+   two and a half lines, one and a half. So it does what an opening quotation mark does
+   in a book: it sits in the gutter to the left of the first line, cap-high, sharp, and
+   the words start after it. Not fainter — faint at this size is dirt; small and clean
+   is a mark. */
 .ag-quote-prose .ag-quote-mark {
-  left: 0.75rem;
-  top: 0.9rem;
-  height: 1.6em;
-  opacity: 0.14;
-  filter: blur(0.6px);
+  left: 0.9rem;
+  top: calc(1rem + 0.2em);
+  height: 0.95em;
+  opacity: 0.3;
 }
 /* The words are a QUOTATION and take a serif, the same slot the still fills with its
    `fontFamily`. Set --font-serif on the page to name the face; the fallback is what
