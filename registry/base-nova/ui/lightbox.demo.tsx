@@ -104,14 +104,15 @@ const GIF: Entry = {
   },
 }
 
-// The 33 s trailer, served by Blender itself (cc-by). The poster is a frame of it,
-// grabbed with ffmpeg into public/, so the page paints the film and the film's own
-// first frame flies.
+// Eight seconds of the Big Buck Bunny trailer (cc-by, Blender Foundation), cut and
+// encoded into public/ at 720p — 0.8 MB against the 17.8 MB the full trailer was
+// streaming from blender.org on EVERY open of a demo page. The poster is a frame of
+// this clip, so the page paints the film and the film's own frame flies.
 const VIDEO: Entry = {
   id: "bunny",
   media: {
     kind: "video",
-    src: "https://download.blender.org/peach/trailer/trailer_720p.mov",
+    src: "/bunny.mp4",
     poster: {
       src: "/bunny-poster.jpg",
       full: "/bunny-poster.jpg",
@@ -227,11 +228,13 @@ function Rail({ entry, facts }: { entry: Entry; facts: Facts }) {
 // Each surface is signed off by a hand on the device, never by a build: a round of
 // fixes on the gestures puts the lines it could touch back to unverified.
 const DEVICES: readonly [string, boolean][] = [
-  ["iphone safari", true],
+  // The track's gesture rules were rewritten whole, and the ENGINE took the pan from
+  // the browser, so every pointer surface goes back to unverified by that rule.
+  ["iphone safari", false],
   ["android chrome", false],
   ["macos safari", false],
   ["macos chrome, trackpad + mouse", true],
-  ["firefox", true],
+  ["firefox", false],
 ]
 
 export default function Demo() {

@@ -89,13 +89,12 @@ import {
   type SourceView,
   STILL,
   SWIPE_END,
-  SWIPE_SURGE,
-  SWIPE_SURGE_DECAY,
-  SWIPE_SURGE_MIN,
   sharpScale,
   sourceView,
   stageBand,
+  swipeBreak,
   swipeCommitPx,
+  swipeEnvelope,
   swipeGive,
   type Tunings,
   type View,
@@ -1763,22 +1762,13 @@ function Stage(props: StageProps) {
         }
       }
     }
-    /** `pointercancel` is the PLATFORM taking the gesture, which is not the reader
-     *  ending it. It arrives mid-swipe, the instant the scroller claims the pan, with
-     *  the finger still on the glass. Running the release there re-armed the magnets
-     *  between two slides and glided to `landedSlot()` — which under half a slide of
-     *  travel IS the slide being left, so a swipe visibly went and came back.
-     *
-     *  A sideways gesture the browser has taken is simply dropped: it is carrying it
-     *  now, and it lands it. Everything else is a real interruption and still ends. */
+    /** `pointercancel` is a real interruption now, and always ends the gesture — a
+     *  system edge swipe, a call, a palm. It used to also mean the SCROLLER claiming
+     *  the pan, which is not the reader ending anything, and a sideways gesture had to
+     *  be dropped on the floor instead. With `touch-action: none` the browser never
+     *  claims it, so there is nothing left here to special-case. */
     const onCancel = (e: PointerEvent) => {
       trace(`cancel ${e.pointerType} #${e.pointerId}`)
-      if (G?.pts.has(e.pointerId) && G.axis === "x" && G.mode === "fit") {
-        G = null
-        endGesture()
-        resume()
-        return
-      }
       onUp(e)
     }
     const onUp = (e: PointerEvent) => {
@@ -2151,22 +2141,13 @@ function Stage(props: StageProps) {
         const dx = wheelPx(e.deltaX, e.deltaMode, ctx.band.h)
         // Only ever a hint, to hand the glide a speed. It decides nothing.
         const vx = fed.read.velocity.x
-        // A tail only ever decays, so a delta twice the envelope of the ones before it
-        // is a hand back on the glass. It is the one thing a wheel stream says
-        // plainly, unlike the release, which it never says at all.
-        const surge =
-          Math.abs(dx) > Math.max(SWIPE_SURGE_MIN, SWIPE_SURGE * swipeEnv)
-        swipeEnv = Math.max(Math.abs(dx), swipeEnv * SWIPE_SURGE_DECAY)
-        // Turning round is a hand, with CERTAINTY: momentum decays, it never reverses.
-        // A magnitude test cannot see it — measured, a reader swiped forward and then
-        // straight back 170% of a slide, every delta of it smaller than the envelope
-        // of the flick before it, and the whole reversal was swallowed as tail.
-        const turned =
-          swipeDone && swipeDir !== 0 && Math.sign(dx) === -swipeDir
-        const split = swipe && swipeDone && (surge || turned)
-        if (split) endSwipe()
+        // Only a SPENT gesture can be interrupted: one still choosing owns every
+        // delta, and the two signals are about telling a new hand from a dying tail.
+        const broke = swipeDone ? swipeBreak(dx, swipeEnv, swipeDir) : null
+        swipeEnv = swipeEnvelope(dx, swipeEnv)
+        if (swipe && broke) endSwipe()
         if (!swipe) {
-          swipeOpen(turned ? "turned" : split ? "surge" : "new stream")
+          swipeOpen(broke ?? "new stream")
           swipeEnv = Math.abs(dx)
         }
         // A wheel never says it is over, so silence has to. A pointer does say, and

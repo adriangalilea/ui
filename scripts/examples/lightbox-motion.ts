@@ -24,11 +24,14 @@ import {
   SWIPE_COMMIT,
   SWIPE_COMMIT_MAX,
   SWIPE_COMMIT_MIN,
+  SWIPE_LEAN,
   sampleFlight,
-  slideCommit,
   sourceView,
   stageBand,
+  swipeBreak,
   swipeCommitPx,
+  swipeEnvelope,
+  swipeGive,
   unovershoot,
   velocity,
   WHEEL_TICK_MAX,
@@ -265,55 +268,89 @@ for (const v of [-79, -50, 0, 37, 50, 120]) {
   assert(backs(1.2 * cap), "past it, it retreats before it lands")
 }
 // The price of a slide. The binder holds an anchor and an offset and buys the next
-// slide every time the offset passes this line, so the line is the ONLY thing that
-// says how much finger a slide costs — first, fifth, or straight back the other way.
-// What the offset then does is the binder's, and it is not settled yet.
+// slide when the offset passes this line, so the line is the ONLY thing that says how
+// much finger a slide costs — the first, the fifth, or the one straight back.
+// A share of the slide, clamped in px at both ends: a share alone is 280px of finger
+// on a wide screen, and a few px on a phone.
+assert(
+  swipeCommitPx(1472) === SWIPE_COMMIT_MAX,
+  "on a wide slide the share is capped, or a deliberate swipe never gets there",
+)
+assert(
+  swipeCommitPx(200) === SWIPE_COMMIT_MIN,
+  "on a narrow one it is floored, or a tap with a tremor pages",
+)
+assert(
+  swipeCommitPx(600) === SWIPE_COMMIT * 600,
+  "between them it is the share",
+)
+for (const w of [200, 600, 1472])
+  assert(
+    swipeCommitPx(w) < w / 2,
+    `a slide always costs less than half of ${w}`,
+  )
+// A trackpad's TAIL and a slow deliberate drag are the same signal — same magnitude,
+// same cadence — and the lean is what separates them, because they differ only in
+// DISTANCE. Squaring the progress squares the difference.
 {
-  // A share of the slide, clamped in px at both ends: a share alone is 280px of
-  // finger on a wide screen, and a few px on a phone.
+  const line = swipeCommitPx(1500)
+  const lean = (travel: number) => Math.abs(swipeGive(travel, line))
   assert(
-    swipeCommitPx(1472) === SWIPE_COMMIT_MAX,
-    "on a wide slide the share is capped, or a deliberate swipe never gets there",
+    lean(line) === SWIPE_LEAN * line,
+    "at the line the neighbour is showing a real sliver",
+  )
+  assert(lean(line * 4) === lean(line), "and it never shows more than that")
+  // The measured failure: a swipe had arrived, its tail then crept 56 px past the
+  // slide over half a second and yanked back. Against a line it cannot reach, that
+  // same travel has to be worth almost nothing.
+  assert(
+    lean(56) < line / 15,
+    `a tail leans nothing: ${lean(56).toFixed(0)} px`,
   )
   assert(
-    swipeCommitPx(200) === SWIPE_COMMIT_MIN,
-    "on a narrow one it is floored, or a tap with a tremor pages",
+    lean(line) / lean(line / 2) > 3.5,
+    "the neighbour ACCELERATES in as the line comes up, or the snap is a surprise",
   )
   assert(
-    swipeCommitPx(600) === SWIPE_COMMIT * 600,
-    "between them it is the share",
+    swipeGive(-line, line) === -swipeGive(line, line),
+    "and it is symmetric",
   )
-  for (const w of [200, 600, 1472])
-    assert(
-      swipeCommitPx(w) < w / 2,
-      `a slide always costs less than half of ${w}`,
-    )
+  for (const t of [0, 30, 120, 300, 900])
+    assert(lean(t) <= Math.abs(t), `the pictures never outrun the hand at ${t}`)
 }
-assert(
-  slideCommit(-10, -0.8, 800, { prev: true, next: true }) === 1,
-  "fast flick commits",
-)
-assert(
-  slideCommit(-500, 0, 800, { prev: true, next: true }) === 1 &&
-    slideCommit(-500, -0.3, 800, { prev: true, next: true }) === 1,
-  "half width commits at any slow speed",
-)
-assert(
-  slideCommit(-560, 0.6, 800, { prev: true, next: true }) === 0,
-  "a flick back past half width goes home",
-)
-assert(
-  slideCommit(-100, 0.6, 800, { prev: true, next: true }) === 0,
-  "a flick back short of half width goes home too",
-)
-assert(
-  slideCommit(0, 0.6, 800, { prev: true, next: true }) === -1,
-  "a flick from rest commits by direction",
-)
-assert(
-  slideCommit(-500, 0, 800, { prev: true, next: false }) === 0,
-  "no neighbour, no commit",
-)
+// The two things a wheel stream says plainly. Nothing else about it may be asked.
+{
+  // A tail only decays, and the envelope decays slower than it does, so nothing in a
+  // tail ever reads as a hand however long it runs.
+  let env = 0
+  let dx = 120
+  for (let i = 0; i < 40; i++) {
+    env = swipeEnvelope(dx, env)
+    dx *= 0.85
+    assert(
+      swipeBreak(dx, env, 1) === null,
+      `a decaying tail is not a hand, at event ${i} (${dx.toFixed(1)} px)`,
+    )
+  }
+  // A real push after that tail is, at once.
+  assert(
+    swipeBreak(60, env, 1) === "surge",
+    "a push into a dead tail is a hand",
+  )
+  assert(swipeBreak(2, env, 1) === null, "and noise under the floor is not")
+  // The one a magnitude test cannot see: a GENTLE reversal after a hard flick. Every
+  // delta of it is smaller than the envelope, and it is unmistakably a person.
+  const hard = swipeEnvelope(300, 0)
+  assert(
+    swipeBreak(-20, hard, 1) === "turned",
+    "turning round is always a hand",
+  )
+  assert(swipeBreak(20, hard, 1) === null, "carrying on is not")
+  assert(
+    swipeBreak(-20, hard, 0) === null,
+    "and a gesture that has bought nothing has nothing to interrupt",
+  )
+}
 {
   const a = neighbours(0, 3, false)
   const b = neighbours(2, 3, false)

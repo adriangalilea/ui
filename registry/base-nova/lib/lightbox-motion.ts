@@ -127,9 +127,10 @@ export const SWIPE_COMMIT = 0.18
  *  They differ in exactly one thing, DISTANCE. A deliberate drag goes the whole line;
  *  a tail goes a fraction of it. So the lean is squared, and the fraction is squared
  *  with it. Measured on a swipe that had already arrived, its tail then crept 56 px
- *  past the slide over 520 ms and yanked back: the same tail leans 5 px here, which
- *  is nothing to see and nothing to wind back. It also reads better at the other end,
- *  where the neighbour accelerates in as the line comes up. */
+ *  past the slide over 520 ms and yanked back: the same tail leans 12 px here, under
+ *  1% of a wide slide, which is nothing to see and nothing to wind back. It reads
+ *  better at the other end too, where the neighbour ACCELERATES in as the line comes
+ *  up instead of creeping the whole way. */
 export const SWIPE_LEAN = 0.85
 export function swipeGive(travel: number, line: number): number {
   assert(line > 0, `a swipe line of ${line}`)
@@ -154,6 +155,31 @@ export const SWIPE_SURGE = 2
 export const SWIPE_SURGE_MIN = 4
 /** How fast the envelope forgets, per event. */
 export const SWIPE_SURGE_DECAY = 0.9
+export const swipeEnvelope = (dx: number, env: number): number =>
+  Math.max(Math.abs(dx), env * SWIPE_SURGE_DECAY)
+
+/** THE TWO THINGS A WHEEL STREAM SAYS PLAINLY, and there are only two. It never says
+ *  when the fingers left, so nothing may ask.
+ *
+ *  A tail only DECAYS: a delta over `SWIPE_SURGE` times the envelope of the ones
+ *  before it is a hand back on the glass. And momentum never REVERSES: a delta
+ *  against the direction the gesture just bought is a hand, with certainty rather than
+ *  by inference. Either ends the spent gesture and opens the next one.
+ *
+ *  Both are needed. Magnitude alone cannot see a reversal — measured, a reader swiped
+ *  forward, the slide committed, and they swiped straight back 170% of a slide with
+ *  every delta of it smaller than the flick before, and the whole thing was swallowed
+ *  as tail. `dir` is 0 before anything is bought, when nothing needs interrupting. */
+export function swipeBreak(
+  dx: number,
+  env: number,
+  dir: number,
+): "surge" | "turned" | null {
+  if (dir !== 0 && Math.sign(dx) === -dir) return "turned"
+  if (Math.abs(dx) > Math.max(SWIPE_SURGE_MIN, SWIPE_SURGE * env))
+    return "surge"
+  return null
+}
 
 /** Embla's numbers, all three of them. A SHARE of the slide, but clamped in absolute
  *  px, because a share alone stops being a gesture on a wide screen: 18% of a 1560px
@@ -169,7 +195,6 @@ export function swipeCommitPx(slideW: number): number {
   return clamp(SWIPE_COMMIT * slideW, SWIPE_COMMIT_MIN, SWIPE_COMMIT_MAX)
 }
 
-export const SLIDE_VELOCITY = 0.5
 /** A held arrow pans at this speed (px per ms); two arrows add up to a diagonal. */
 export const KEY_PAN_SPEED = 0.9
 /** A held + or - doubles (halves) the zoom every this many ms. */
@@ -364,25 +389,6 @@ export function neighbours(
 ): { prev: boolean; next: boolean } {
   assert(index >= 0 && index < count, `index ${index} of ${count}`)
   return { prev: loop || index > 0, next: loop || index < count - 1 }
-}
-
-/** −1 (previous), 1 (next) or 0 (spring home). A fast release decides by velocity:
- *  toward the offset it commits, against it the hand is going home, whatever the
- *  distance. A slow release decides by distance alone. `can` says which
- *  neighbours exist. */
-export function slideCommit(
-  slideX: number,
-  vx: number,
-  bandW: number,
-  can: { prev: boolean; next: boolean },
-): -1 | 0 | 1 {
-  const fast = Math.abs(vx) > SLIDE_VELOCITY
-  const far = Math.abs(slideX) > 0.5 * bandW
-  if (fast) {
-    if (slideX !== 0 && Math.sign(vx) !== Math.sign(slideX)) return 0
-  } else if (!far) return 0
-  const dir: -1 | 1 = (fast ? vx : slideX) < 0 ? 1 : -1
-  return (dir === 1 ? can.next : can.prev) ? dir : 0
 }
 
 export type Sample = Point & { t: number }
