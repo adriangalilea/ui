@@ -1862,6 +1862,9 @@ function Stage(props: StageProps) {
     let swipeHand = 0
     let swipeDone = false
     let swipeEnv = 0
+    /** Which way the slide it bought went. Momentum never turns round, so a delta
+     *  against this is a hand, with certainty rather than by inference. */
+    let swipeDir = 0
     let swipeTimer = 0
 
     // ---- the trajectory recorder (debug only). What the hand asked for against what
@@ -1949,7 +1952,10 @@ function Stage(props: StageProps) {
       // A wheel arrives once per display frame, so the median gap is the REFRESH RATE
       // and 33 ms is a 30 Hz screen, not a fault. Dropped frames are IRREGULAR: it is
       // the spread that says the page stalled, never the rate.
-      const worst = (gaps[gaps.length - 1] ?? 0) as number
+      // The 90th percentile, not the worst: at 125 Hz a single 32 ms gap is one
+      // hiccup in sixty events, and calling that JANK cried wolf over a healthy
+      // stream. A stall shows up across a tenth of the gesture or it did not matter.
+      const worst = (gaps[Math.floor(gaps.length * 0.9)] ?? 0) as number
       const rate = `@${gap}ms ${Math.round(1000 / gap)}Hz${
         worst > 2.5 * gap ? ` JANK ${worst}ms` : ""
       }`
@@ -1991,6 +1997,7 @@ function Stage(props: StageProps) {
         return
       }
       swipeDone = true
+      swipeDir = dir
       swipeAnchor = next
       rebase()
       // The chrome moves with the decision, not with the arrival: the counter is the
@@ -2110,7 +2117,13 @@ function Stage(props: StageProps) {
         const surge =
           Math.abs(dx) > Math.max(SWIPE_SURGE_MIN, SWIPE_SURGE * swipeEnv)
         swipeEnv = Math.max(Math.abs(dx), swipeEnv * SWIPE_SURGE_DECAY)
-        const split = swipe && swipeDone && surge
+        // Turning round is a hand, with CERTAINTY: momentum decays, it never reverses.
+        // A magnitude test cannot see it — measured, a reader swiped forward and then
+        // straight back 170% of a slide, every delta of it smaller than the envelope
+        // of the flick before it, and the whole reversal was swallowed as tail.
+        const turned =
+          swipeDone && swipeDir !== 0 && Math.sign(dx) === -swipeDir
+        const split = swipe && swipeDone && (surge || turned)
         if (split) endSwipe()
         if (!swipe) {
           // Named in the trace, because a long swoop taking two pictures instead of
@@ -2120,7 +2133,7 @@ function Stage(props: StageProps) {
           // that one out now, or its rows and this one's share a table and the totals
           // are nonsense (one read 385x gain off two spliced streams).
           report("cut short by the next")
-          swipeWhy = split ? "SURGE SPLIT" : "new stream"
+          swipeWhy = turned ? "turned" : split ? "surge" : "new stream"
           // `swipe` first, and the magnets down before `rebase` or `landedSlot` reads
           // the scroller: with mandatory snap live a read re-snaps it, and mid-flight
           // that is the picture jumping backwards to the slide it just left.
@@ -2128,6 +2141,7 @@ function Stage(props: StageProps) {
           stopGlide()
           trackEl.dataset.stepping = ""
           swipeDone = false
+          swipeDir = 0
           swipeHand = 0
           swipeEnv = Math.abs(dx)
           // From where the track is HEADING, so a swipe onto a step still in flight
