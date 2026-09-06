@@ -5,7 +5,7 @@ import {
   type QuoteTone,
   renderQuoteSvg,
 } from "@/registry/base-nova/lib/quote-card"
-import { Quote } from "@/registry/base-nova/ui/quote"
+import { Quote, type QuoteVariant } from "@/registry/base-nova/ui/quote"
 
 /** Mark Twain, photographed before 1910 and long in the public domain. A real face,
  *  because the card slides a portrait so its subject clears the dissolve: a landscape in
@@ -19,13 +19,6 @@ const TWAIN = "/mark-twain.png"
  *  demo exists to not repeat: it does not fail, it substitutes. */
 const FACE = "Geist"
 
-const LETTER: QuoteData = {
-  text: "I didn't have time to write a short letter, so I wrote a long one instead.",
-  author: { name: "Mark Twain", href: "#", avatar: TWAIN },
-  source: "#",
-  date: "1876",
-}
-
 /** THE PICTURE'S OWN COLOUR, and the card takes it as an argument because it cannot go
  *  and find it: `toneFrom` turns an average pixel into a ground and an ink, and getting
  *  that average means decoding a PNG, which is the consumer's job. `mise portrait` and
@@ -37,11 +30,43 @@ const TWAIN_TONE: QuoteTone = {
   accent: "hsl(0, 0%, 65%)",
 }
 
-const SYSTEM: QuoteData = {
-  text: "The purpose of a system is what it does.",
-  author: { name: "Stafford Beer", href: "#" },
-  date: "2002",
-}
+const twain = { name: "Mark Twain", href: "#", avatar: TWAIN }
+
+/** EVERY CASE A CONSUMER WILL HIT, not the three that flatter the layout. Short and long,
+ *  a face and no face, a date, a source, an author with neither, and no author at all.
+ *  Each row is rendered at every weight below, so what a weight does with a missing part
+ *  is visible next to what it does with the part present. */
+const CASES: readonly [string, QuoteData, { tone?: QuoteTone }][] = [
+  [
+    "medium · face · date · source",
+    {
+      text: "I didn't have time to write a short letter, so I wrote a long one instead.",
+      author: twain,
+      source: "#",
+      date: "1876",
+    },
+    { tone: TWAIN_TONE },
+  ],
+  [
+    "short · no face · date",
+    {
+      text: "The purpose of a system is what it does.",
+      author: { name: "Stafford Beer", href: "#" },
+      date: "2002",
+    },
+    {},
+  ],
+  [
+    "long · face · no date",
+    {
+      text: "It is not the critic who counts; not the man who points out how the strong man stumbles, or where the doer of deeds could have done them better. The credit belongs to the man who is actually in the arena.",
+      author: { ...twain, name: "Theodore Roosevelt" },
+      source: "#",
+    },
+    { tone: TWAIN_TONE },
+  ],
+  ["no author at all", { text: "Less, but better." }, {}],
+]
 
 /** A still cannot fetch, so the face has to arrive as bytes. This is the whole of what
  *  an OG route does with an avatar, and the reason `renderQuoteSvg` takes a data URI
@@ -53,66 +78,74 @@ function dataUri(publicPath: string): string {
   return `data:${mime};base64,${buf.toString("base64")}`
 }
 
+const WEIGHTS: readonly [QuoteVariant, string][] = [
+  ["feature", "what a quote's own page opens with"],
+  ["card", "the link preview, drawn in the DOM"],
+  ["prose", "a quotation inside an article, one step up from the page"],
+]
+
 export default function Demo() {
-  // The SAME quotes, drawn twice: the cards below in the DOM, and the previews by the
-  // renderer in quote-card, which runs without React so a build or an OG route can
-  // draw one. The accent, the size ladder and the trim come from there, so a shared
-  // link and the page it opens cannot disagree about what somebody said.
-  // The page really loads Geist, so the still is told it can name it — and told so
-  // EXPLICITLY, because a face that is merely hoped for is substituted in silence.
-  // Only the NAME names a face. The words are left on the component's own serif slot, the
-  // same one the card's CSS fills — naming Geist here drew the still in a sans while the
-  // card above it sat in a serif, which is the drift this page exists to show is absent.
+  // The SAME quotes, drawn by both emitters: the weights below in the DOM, and the
+  // previews by the renderer in quote-card, which runs without React so a build or an
+  // OG route can draw one. Only the NAME names a face — the words stay on the serif slot
+  // both surfaces default to; naming Geist here once drew the still in a sans under a
+  // card in a serif, which is the drift this page exists to show is absent.
   const faces = { nameFamily: FACE, fonts: [FACE] }
-  const withFace = renderQuoteSvg(LETTER, {
-    ...faces,
-    avatar: dataUri(TWAIN),
-  })
-  const without = renderQuoteSvg(SYSTEM, faces)
+  const stills = CASES.map(([label, q, x]) => [
+    label,
+    renderQuoteSvg(q, {
+      ...faces,
+      ...x,
+      background: x.tone?.ground,
+      accent: x.tone?.accent,
+      avatar: q.author?.avatar ? dataUri(q.author.avatar) : undefined,
+    }),
+  ])
   return (
-    <div className="space-y-8">
-      <div className="space-y-2">
+    <div className="space-y-16">
+      {WEIGHTS.map(([variant, what]) => (
+        <section key={variant} className="space-y-6">
+          <div className="font-mono text-muted-foreground text-xs lowercase">
+            {variant} · {what}
+          </div>
+          {CASES.map(([label, q, x]) => (
+            <div key={label} className="space-y-2">
+              <div className="font-mono text-muted-foreground/60 text-xs lowercase">
+                {label}
+              </div>
+              <Quote {...q} tone={x.tone} variant={variant} />
+            </div>
+          ))}
+        </section>
+      ))}
+      <section className="space-y-6">
         <div className="font-mono text-muted-foreground text-xs lowercase">
-          feature · what a quote's own page opens with
-        </div>
-        <Quote {...LETTER} tone={TWAIN_TONE} variant="feature" />
-      </div>
-      <div className="space-y-2">
-        <div className="font-mono text-muted-foreground text-xs lowercase">
-          card · the link preview, drawn in the DOM
-        </div>
-        <Quote {...LETTER} tone={TWAIN_TONE} variant="card" />
-      </div>
-      <div className="space-y-2">
-        <div className="font-mono text-muted-foreground text-xs lowercase">
-          prose · a quotation inside an article, at the page's own size
-        </div>
-        <Quote {...SYSTEM} />
-      </div>
-      <div className="space-y-2">
-        <div className="font-mono text-muted-foreground text-xs lowercase">
-          the same card, drawn as a still · what a shared link looks like
+          the still · the same cases, drawn without React
         </div>
         <p className="max-w-prose text-foreground/60 text-sm">
           Not a component and not on any page: this is what an OG route answers
           with, at the 1200×630 every platform crops from. It is drawn by{" "}
           <code className="font-mono text-xs">renderQuoteSvg</code>, which takes
           no React, so a build script can write it to disk or a route can return
-          it. Inlined here only so it can be looked at without sharing anything.
+          it. Inlined here only so it can be looked at without sharing anything
+          — and next to the card above it, so a drift between them would be
+          visible on this page before it was visible on a shared link.
         </p>
         <div className="grid gap-4">
-          <div
-            className="overflow-hidden rounded-lg border border-border [&>svg]:h-auto [&>svg]:w-full"
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: the renderer escapes every value it interpolates
-            dangerouslySetInnerHTML={{ __html: withFace }}
-          />
-          <div
-            className="overflow-hidden rounded-lg border border-border [&>svg]:h-auto [&>svg]:w-full"
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: as above
-            dangerouslySetInnerHTML={{ __html: without }}
-          />
+          {stills.map(([label, svg]) => (
+            <div key={label} className="space-y-2">
+              <div className="font-mono text-muted-foreground/60 text-xs lowercase">
+                {label}
+              </div>
+              <div
+                className="overflow-hidden rounded-lg border border-border [&>svg]:h-auto [&>svg]:w-full"
+                // biome-ignore lint/security/noDangerouslySetInnerHtml: the renderer escapes every value it interpolates
+                dangerouslySetInnerHTML={{ __html: svg }}
+              />
+            </div>
+          ))}
         </div>
-      </div>
+      </section>
     </div>
   )
 }
