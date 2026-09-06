@@ -20,6 +20,11 @@ run = [
   "pnpm biome check .",
   "pnpm shadcn build",
   "bun scripts/validate-registry.ts",
+  # The demo site's full build, prerender included. Typecheck and lint both passed on a
+  # server component handing a client one a JSX element that arrived without its props,
+  # and on a quote that only overflowed at prerender: twice in a day the first thing to
+  # notice was Vercel. A minute here is cheaper than a broken production.
+  "pnpm next build",
   "bun scripts/examples/quote-card.ts",
   "bun scripts/examples/lightbox-motion.ts",
   "bun scripts/examples/lightbox-flight.ts",
