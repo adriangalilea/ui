@@ -243,14 +243,20 @@ export function assertSize(size: Size): void {
   )
 }
 
-/** Contain `natural` inside `band` less `inset` on every side, never upscaled. */
-export function fit(natural: Size, band: Band, inset = 0): Size {
+/** Contain `natural` inside `band` less `inset` on every side, never upscaled past its
+ *  pixels — EXCEPT to where the page already showed it. `floor` is the trigger's box: a
+ *  320 px gif that a post renders 1300 px wide has already been accepted at that scale,
+ *  and a lightbox that opened it at 320 px shrank the thing it was asked to enlarge. The
+ *  band still caps it, and a floor smaller than the pixels (a 40 px avatar of a 256 px
+ *  portrait) changes nothing. */
+export function fit(natural: Size, band: Band, inset = 0, floor?: Size): Size {
   assertSize(natural)
-  const k = Math.min(
-    1,
+  const contain = Math.min(
     (band.w - 2 * inset) / natural.w,
     (band.h - 2 * inset) / natural.h,
   )
+  const shown = floor ? Math.min(floor.w / natural.w, floor.h / natural.h) : 0
+  const k = Math.min(contain, Math.max(1, shown))
   return { w: natural.w * k, h: natural.h * k }
 }
 

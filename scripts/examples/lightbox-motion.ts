@@ -5,6 +5,7 @@ import {
   COAST,
   clampPan,
   FLIGHT_DT,
+  fit,
   frameAt,
   GLIDE_ENTRY,
   GLIDE_ENTRY_MIN,
@@ -41,6 +42,33 @@ import {
   wheelTick,
   zoomAt,
 } from "../../registry/base-nova/lib/lightbox-motion"
+
+// The fit contains, never upscales past the pixels, and never opens a picture smaller
+// than the page showed it: a 320 px gif rendered 1300 px wide opens at 1300 px, capped
+// by the band; a 40 px avatar of a 256 px portrait opens at 256 px.
+{
+  const band = { top: 0, left: 0, w: 1900, h: 1000 }
+  const gif = { w: 320, h: 220 }
+  assert(fit(gif, band).w === 320, "no floor: a small original stays its size")
+  assert(
+    fit(gif, band, 0, { w: 1300, h: 894 }).w === 1300,
+    "the floor is what the page showed",
+  )
+  const near = (a: number, b: number) => Math.abs(a - b) < 1e-6
+  assert(
+    near(fit(gif, band, 0, { w: 4000, h: 2750 }).h, 1000),
+    "the band still caps the floor",
+  )
+  assert(
+    fit({ w: 256, h: 256 }, band, 0, { w: 40, h: 40 }).w === 256,
+    "a floor under the pixels changes nothing",
+  )
+  assert(
+    near(fit({ w: 4000, h: 3000 }, band, 0, { w: 800, h: 600 }).h, 1000),
+    "a large original still contains",
+  )
+  console.log("fit      contains, floors at the page's size, caps at the band")
+}
 
 // Every tuning settles under 2 s from a 100 px step and from a flick, at 60 fps and
 // at the 30 fps a mid-range phone holds. Critical damping never reverses: |d| is

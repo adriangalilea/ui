@@ -284,8 +284,8 @@ function assertMedia(m: Media): void {
 }
 const gutterOf = (m: Media): number => (m.kind === "frame" ? FRAME_GUTTER : 0)
 
-function fitOf(m: Media, band: Band): Size {
-  return fit(boxOf(m), band, m.kind === "frame" ? FRAME_GUTTER : INSET_X)
+function fitOf(m: Media, band: Band, floor?: Size): Size {
+  return fit(boxOf(m), band, m.kind === "frame" ? FRAME_GUTTER : INSET_X, floor)
 }
 
 /** The trigger's rect, its corner resolved to px the way the browser draws it: a
@@ -714,7 +714,20 @@ function Stage(props: StageProps) {
       })
   }, [])
 
-  const fitted = fitOf(media, band)
+  // How big each picture already WAS on the page, read once at open from its trigger:
+  // the fit never opens a picture smaller than that (`fit`'s floor). A 320 px gif a post
+  // renders 1300 px wide opened at 320 px before this — a lightbox that shrank.
+  const floors = React.useMemo(() => {
+    const m = new Map<string, Size>()
+    for (const lid of ids) {
+      const el = triggers.current.get(lid)?.el
+      if (!el) continue
+      const r = el.getBoundingClientRect()
+      if (r.width > 0 && r.height > 0) m.set(lid, { w: r.width, h: r.height })
+    }
+    return m
+  }, [ids, triggers])
+  const fitted = fitOf(media, band, floors.get(id))
   const natural = React.useMemo(() => naturalOf(media), [media])
   const dpr = window.devicePixelRatio
   const zoomMax =
@@ -2734,6 +2747,7 @@ function Stage(props: StageProps) {
               <Layer
                 entry={entryOf(lid)}
                 band={band}
+                floor={floors.get(lid)}
                 active={i === index}
                 near={warm && Math.abs(i - passing) <= LOADED}
                 layers={layers}
@@ -3114,6 +3128,7 @@ function Button({
 const Layer = React.memo(function Layer({
   entry,
   band,
+  floor,
   active,
   near,
   layers,
@@ -3121,6 +3136,8 @@ const Layer = React.memo(function Layer({
 }: {
   entry: Entry
   band: Band
+  /** The trigger's box on the page: the fit never opens smaller than it. */
+  floor?: Size
   active: boolean
   /** Next to the current slide: worth decoding ahead, so a step never shows a gap. */
   near: boolean
@@ -3128,7 +3145,7 @@ const Layer = React.memo(function Layer({
   video: React.RefObject<HTMLVideoElement | null>
 }) {
   const m = entry.media
-  const fitted = fitOf(m, band)
+  const fitted = fitOf(m, band, floor)
   const gutter = gutterOf(m)
   const w = fitted.w + 2 * gutter
   const h = fitted.h + 2 * gutter
