@@ -30,22 +30,57 @@ const TWAIN_TONE: QuoteTone = {
   accent: "hsl(0, 0%, 65%)",
 }
 
-const twain = { name: "Mark Twain", href: "#", avatar: TWAIN }
+/** Two portraits WITH colour in them, because a monochrome one proves the tone rule does
+ *  nothing and a rule that does nothing cannot be judged. Franklin is the Duplessis oil,
+ *  warm; Confucius is the Wu Daozi rubbing, rosy. Both public domain, both cropped on the
+ *  person by `mise portrait`, and their tones and focus computed by the same tooling the
+ *  corpus uses — these numbers are what `mise still` would pass. */
+const FRANKLIN_TONE: QuoteTone = {
+  ground: "hsl(34, 16%, 9%)",
+  accent: "hsl(34, 23%, 65%)",
+}
+const CONFUCIUS_TONE: QuoteTone = {
+  ground: "hsl(4, 28%, 9%)",
+  accent: "hsl(4, 42%, 65%)",
+}
+
+type Look = { tone?: QuoteTone; focus?: number }
 
 /** EVERY CASE A CONSUMER WILL HIT, not the three that flatter the layout. Short and long,
- *  a face and no face, a date, a source, an author with neither, and no author at all.
- *  Each row is rendered at every weight below, so what a weight does with a missing part
- *  is visible next to what it does with the part present. */
-const CASES: readonly [string, QuoteData, { tone?: QuoteTone }][] = [
+ *  a face and no face, colour and monochrome, a date, a source, an author with neither,
+ *  and no author at all. Each row is rendered at every weight below, so what a weight
+ *  does with a missing part is visible next to what it does with the part present. */
+const CASES: readonly [string, QuoteData, Look][] = [
   [
-    "medium · face · date · source",
+    "long · warm portrait · date",
+    {
+      text: "Those who would give up essential Liberty, to purchase a little temporary Safety, deserve neither Liberty nor Safety.",
+      author: {
+        name: "Benjamin Franklin",
+        href: "#",
+        avatar: "/benjamin-franklin.png",
+      },
+      date: "1755",
+    },
+    { tone: FRANKLIN_TONE, focus: 0.515 },
+  ],
+  [
+    "short · rosy drawing · no date",
+    {
+      text: "The man who chases two rabbits, catches neither.",
+      author: { name: "Confucius", href: "#", avatar: "/confucius.png" },
+    },
+    { tone: CONFUCIUS_TONE, focus: 0.502 },
+  ],
+  [
+    "medium · monochrome · date · source",
     {
       text: "I didn't have time to write a short letter, so I wrote a long one instead.",
-      author: twain,
+      author: { name: "Mark Twain", href: "#", avatar: TWAIN },
       source: "#",
       date: "1876",
     },
-    { tone: TWAIN_TONE },
+    { tone: TWAIN_TONE, focus: 0.481 },
   ],
   [
     "short · no face · date",
@@ -55,15 +90,6 @@ const CASES: readonly [string, QuoteData, { tone?: QuoteTone }][] = [
       date: "2002",
     },
     {},
-  ],
-  [
-    "long · face · no date",
-    {
-      text: "It is not the critic who counts; not the man who points out how the strong man stumbles, or where the doer of deeds could have done them better. The credit belongs to the man who is actually in the arena.",
-      author: { ...twain, name: "Theodore Roosevelt" },
-      source: "#",
-    },
-    { tone: TWAIN_TONE },
   ],
   ["no author at all", { text: "Less, but better." }, {}],
 ]
@@ -95,9 +121,9 @@ export default function Demo() {
     label,
     renderQuoteSvg(q, {
       ...faces,
-      ...x,
       background: x.tone?.ground,
       accent: x.tone?.accent,
+      focus: x.focus,
       avatar: q.author?.avatar ? dataUri(q.author.avatar) : undefined,
     }),
   ])
@@ -113,7 +139,7 @@ export default function Demo() {
               <div className="font-mono text-muted-foreground/60 text-xs lowercase">
                 {label}
               </div>
-              <Quote {...q} tone={x.tone} variant={variant} />
+              <Quote {...q} tone={x.tone} focus={x.focus} variant={variant} />
             </div>
           ))}
         </section>
