@@ -35,7 +35,7 @@ run = "pnpm biome check --write ."
 [tasks.still]
 description = "render the quote card into .renders/ and open it. `ground` and `share` sweep the fusion with the quote body stripped"
 usage = '''
-arg "[mode]" help="corpus | faces | ground | share | block | tint | sheen" default=""
+arg "[mode]" help="corpus | faces | ground | share | block" default=""
 arg "[n]" help="how many, for corpus" default="12"
 '''
 run = 'bun scripts/quote-still.ts {{arg(name="mode")}} {{arg(name="n")}}'

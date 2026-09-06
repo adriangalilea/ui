@@ -335,77 +335,6 @@ const BLOCKS: readonly [string, number][] = [
 ]
 const BLOCK_FACES = ["albert-einstein", "alan-watts", "confucius"]
 
-/** How much colour the ground is allowed to carry, as the cap on its saturation. THE ONE
- *  variable in this sweep, on the three portraits with colour in them: a rosy drawing, a
- *  warm oil, a modern photograph. Every other number is the finished card's. */
-const TINTS: readonly [string, number][] = [
-  ["a-40", 40],
-  ["b-24", 24],
-  ["c-16", 16],
-  ["d-10", 10],
-]
-const TINT_FACES = ["confucius", "benjamin-franklin", "naval-ravikant"]
-
-/** The finished tone, re-capped. The tone arrives as two hsl strings; only the
- *  saturation moves, and the mark's ink follows the ground the way `toneFrom` couples
- *  them. */
-const recap = (x: QuoteStillOptions, cap: number): QuoteStillOptions => {
-  const hsl = (s: string) =>
-    s
-      .match(/hsl\((\d+), (\d+)%, (\d+)%\)/)
-      ?.slice(1)
-      .map(Number) as [number, number, number]
-  const [h, s, l] = hsl(x.background ?? "")
-  const [, sa, la] = hsl(x.accent ?? "")
-  return {
-    ...x,
-    background: `hsl(${h}, ${Math.min(cap, s)}%, ${l}%)`,
-    accent: `hsl(${h}, ${Math.min(Math.round(cap * 1.5), sa)}%, ${la}%)`,
-  }
-}
-
-/** A LIGHT ON THE GROUND, or none. The one variable in this sweep is the SHAPE of a
- *  gradient laid over the flat ground — same hue, same saturation, the lightness moved by
- *  a few points — judged first on cards with NO picture, where a flat slab has nothing
- *  else to give it depth, and then on one with a picture to see that it does not fight it.
- *  Contrast is untouched by construction: nothing here lifts the ground past L+4. */
-const SHEENS: readonly [string, (h: number, s: number, l: number) => string][] =
-  [
-    ["a-flat", () => ""],
-    [
-      "b-top",
-      (h, s, l) =>
-        `<linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="hsl(${h}, ${s}%, ${l + 3}%)"/><stop offset="1" stop-color="hsl(${h}, ${s}%, ${l - 1}%)"/></linearGradient>`,
-    ],
-    [
-      "c-corner",
-      (h, s, l) =>
-        `<linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${h}, ${s}%, ${l + 3}%)"/><stop offset="1" stop-color="hsl(${h}, ${s}%, ${l - 1}%)"/></linearGradient>`,
-    ],
-    [
-      "d-glow",
-      (h, s, l) =>
-        `<radialGradient id="sheen" cx="0.15" cy="0.2" r="0.8"><stop offset="0" stop-color="hsl(${h}, ${s}%, ${l + 4}%)"/><stop offset="1" stop-color="hsl(${h}, ${s}%, ${l}%)"/></radialGradient>`,
-    ],
-  ]
-const SHEEN_FACES = ["allen-steble", "kyle-clark", "confucius"]
-
-/** Swap the finished card's flat ground for a gradient of the same colour. String surgery
- *  on the output, like every sweep before a decision: the module does not grow an option
- *  for a thing that may not survive being looked at. */
-const sheen = (svg: string, make: (typeof SHEENS)[number][1]): string => {
-  const m = svg.match(
-    /<rect width="(\d+)" height="(\d+)" fill="hsl\((\d+), (\d+)%, (\d+)%\)"\/>/,
-  )
-  assert(m !== null, "the card's ground rect is not where the sweep expects it")
-  const [whole, w, hgt, h, s, l] = m
-  const def = make(Number(h), Number(s), Number(l))
-  if (!def) return svg
-  return svg
-    .replace("<defs>", `<defs>\n    ${def}`)
-    .replace(whole, `<rect width="${w}" height="${hgt}" fill="url(#sheen)"/>`)
-}
-
 /** How much frame the picture takes. THE REAL FRAMING CONTROL, and the reason a sweep
  *  of anchors would have shown four identical cards: these portraits are square and the
  *  slot is taller than it is wide, so the image scales to the height and the whole of it
@@ -501,24 +430,6 @@ const shots: [string, string][] = await (async () => {
       faces.map(([slug, q, x]): [string, string] => [
         `block-${variant}-${slug}`,
         renderQuoteSvg(q, { ...LOOK, ...x, blockAt }),
-      ]),
-    )
-  }
-  if (mode === "tint") {
-    const faces = await loadCorpus(TINT_FACES.length, TINT_FACES)
-    return TINTS.flatMap(([variant, cap]) =>
-      faces.map(([slug, q, x]): [string, string] => [
-        `tint-${variant}-${slug}`,
-        renderQuoteSvg(q, { ...LOOK, ...recap(x, cap) }),
-      ]),
-    )
-  }
-  if (mode === "sheen") {
-    const faces = await loadCorpus(SHEEN_FACES.length, SHEEN_FACES)
-    return SHEENS.flatMap(([variant, make]) =>
-      faces.map(([slug, q, x]): [string, string] => [
-        `sheen-${variant}-${slug}`,
-        sheen(renderQuoteSvg(q, { ...LOOK, ...x }), make),
       ]),
     )
   }

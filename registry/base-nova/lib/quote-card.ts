@@ -184,20 +184,20 @@ export const FOCUS = 0.5
  *  and it stops arriving on a line at the finish. Both are edges, which is the one thing
  *  a dissolve exists to avoid.
  *
- *  This is smoothstep, 3t²-2t³ — flat where it leaves the ground and flat where it
- *  reaches the photograph, steep only in the middle where nobody is looking for a
- *  boundary. The haze a linear ramp leaves over a bright wall is the failure it fixes. */
-export const DISSOLVE: readonly [number, number][] = [
-  [0, 0],
-  [0.125, 0.043],
-  [0.25, 0.156],
-  [0.375, 0.316],
-  [0.5, 0.5],
-  [0.625, 0.684],
-  [0.75, 0.844],
-  [0.875, 0.957],
-  [1, 1],
-]
+ *  This is SMOOTHERSTEP, 6t⁵-15t⁴+10t³: flat where it leaves the ground and flat where
+ *  it reaches the photograph, and flat in its CURVATURE there too, which smoothstep is
+ *  not. Smoothstep's second derivative jumps at both ends, and the eye reads that jump as
+ *  the place the fade begins — a soft vertical band standing where the picture starts.
+ *  Sampled at seventeen stops rather than nine, because a mask interpolates linearly
+ *  between stops and eight straight segments across two hundred pixels are eight faint
+ *  creases. The haze a linear ramp leaves over a bright wall is the failure it fixes. */
+export const DISSOLVE: readonly [number, number][] = Array.from(
+  { length: 17 },
+  (_, i) => {
+    const t = i / 16
+    return [t, Math.round(t * t * t * (t * (t * 6 - 15) + 10) * 1000) / 1000]
+  },
+)
 
 /** The mark is a DRAWING that ships with the component: the opening quote of
  *  Instrument Serif, outline extracted and normalised into a y-down 260x228 box with
@@ -526,6 +526,33 @@ export function toneFrom(r: number, g: number, b: number): QuoteTone {
  *  near-black with a hint of blue in it, which came from nowhere and matched nothing. */
 export const GROUND = quoteGround(0, 0)
 
+/** A LIGHT ON THE GROUND, always. The ground is never a flat slab: the same colour, four
+ *  points lighter, glows from up and to the left — from behind the mark — and falls back
+ *  to the ground itself by the far edge. Judged on cards with NO picture, where a flat
+ *  slab has nothing else to give it depth, against a cenital and a corner gradient; the
+ *  glow is the one that read as light rather than as a gradient. Not an option: a card
+ *  that is sometimes flat and sometimes lit is two cards.
+ *
+ *  Both emitters draw it from these three numbers — the still as a radialGradient in
+ *  objectBoundingBox units, the web as a CSS radial-gradient in percentages — and the
+ *  two conventions mean the same ellipse. Contrast is untouched by construction: nothing
+ *  lifts the ground past GLOW_LIFT. */
+export const GLOW = { cx: 0.15, cy: 0.2, r: 0.8 }
+export const GLOW_LIFT = 4
+
+/** The glow's two stops for a ground colour: the centre, lifted, and the ground itself.
+ *  Grounds are always `quoteGround` output, so the format is asserted rather than parsed
+ *  defensively — a hex or a named colour arriving here is a caller bypassing the rule. */
+export function glowOf(ground: string): [centre: string, edge: string] {
+  const m = ground.match(/^hsl\((\d+), (\d+)%, (\d+)%\)$/)
+  assert(
+    m !== null,
+    `a ground of "${ground}" — grounds come from quoteGround/toneFrom, as hsl(h, s%, l%)`,
+  )
+  const [, h, s, l] = m
+  return [`hsl(${h}, ${s}%, ${Number(l) + GLOW_LIFT}%)`, ground]
+}
+
 /** The first bytes of a format, as base64 sees them. A data URI can declare any mime
  *  it likes; these are what the payload actually IS. */
 export const IMAGE_MAGIC: Readonly<Record<string, string>> = {
@@ -648,7 +675,10 @@ export function renderQuoteSvg(
   // and <rect fill> attributes, they arrive from options, and the module escapes every
   // other thing it interpolates — an unescaped one is a hole one esc() away from closed.
   const ink = esc(accent ?? foreground)
-  const ground = esc(background ?? GROUND)
+  const [glowCentre, glowEdge] = glowOf(background ?? GROUND).map(esc) as [
+    string,
+    string,
+  ]
   const fg = esc(foreground)
   const mut = esc(muted)
   const unit = unitOf(width)
@@ -747,6 +777,10 @@ export function renderQuoteSvg(
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
   <defs>
+    <radialGradient id="glow" cx="${GLOW.cx}" cy="${GLOW.cy}" r="${GLOW.r}">
+      <stop offset="0" stop-color="${glowCentre}"/>
+      <stop offset="1" stop-color="${glowEdge}"/>
+    </radialGradient>
     <filter id="soften" x="-25%" y="-25%" width="150%" height="150%">
       <feGaussianBlur stdDeviation="${Math.round(markH * MARK_BLUR)}"/>
     </filter>
@@ -757,7 +791,7 @@ export function renderQuoteSvg(
       <rect x="${faceX}" y="0" width="${width - faceX}" height="${height}" fill="url(#fade)"/>
     </mask>
   </defs>
-  <rect width="${width}" height="${height}" fill="${ground}"/>
+  <rect width="${width}" height="${height}" fill="url(#glow)"/>
   ${face}
   ${mark}
   <g font-family="${esc(fontFamily)}" font-size="${size}" xml:space="preserve">

@@ -104,56 +104,6 @@ function dataUri(publicPath: string): string {
   return `data:${mime};base64,${buf.toString("base64")}`
 }
 
-/** SWEEP, NOT A FEATURE — remove on decision. The one variable is the SHAPE of a light
- *  laid over the flat ground: same hue and saturation, lightness moved three or four
- *  points, so type contrast is untouched by construction. The ground custom property
- *  takes any CSS background, so the real card renders each without a code change; the
- *  module grows no option for a thing that may not survive being looked at. Judged first
- *  where it matters most, on cards with no picture. */
-const SHEENS: readonly [string, (h: number, s: number, l: number) => string][] =
-  [
-    ["a · flat", (h, s, l) => `hsl(${h}, ${s}%, ${l}%)`],
-    [
-      "b · top",
-      (h, s, l) =>
-        `linear-gradient(to bottom, hsl(${h}, ${s}%, ${l + 3}%), hsl(${h}, ${s}%, ${l - 1}%))`,
-    ],
-    [
-      "c · corner",
-      (h, s, l) =>
-        `linear-gradient(to bottom right, hsl(${h}, ${s}%, ${l + 3}%), hsl(${h}, ${s}%, ${l - 1}%))`,
-    ],
-    [
-      "d · glow",
-      (h, s, l) =>
-        `radial-gradient(80% 80% at 15% 20%, hsl(${h}, ${s}%, ${l + 4}%), hsl(${h}, ${s}%, ${l}%))`,
-    ],
-  ]
-const quoteOf = (label: string): QuoteData => {
-  const found = CASES.find(([l]) => l.startsWith(label))
-  if (!found) throw new Error(`no demo case starts with "${label}"`)
-  return found[1]
-}
-const NEUTRAL: QuoteTone = {
-  ground: "hsl(0, 0%, 9%)",
-  accent: "hsl(0, 0%, 65%)",
-}
-const SHEEN_CASES: readonly [
-  string,
-  QuoteData,
-  QuoteTone,
-  number | undefined,
-][] = [
-  ["no picture", quoteOf("short · no face"), NEUTRAL, undefined],
-  ["no author", quoteOf("no author"), NEUTRAL, undefined],
-  ["rosy drawing", quoteOf("short · rosy"), CONFUCIUS_TONE, 0.502],
-]
-const hsl = (s: string) =>
-  (s
-    .match(/hsl\((\d+), (\d+)%, (\d+)%\)/)
-    ?.slice(1)
-    .map(Number) ?? [0, 0, 9]) as [number, number, number]
-
 const WEIGHTS: readonly [QuoteVariant, string][] = [
   ["feature", "what a quote's own page opens with"],
   ["card", "the link preview, drawn in the DOM"],
@@ -194,34 +144,6 @@ export default function Demo() {
           ))}
         </section>
       ))}
-      <section className="space-y-6">
-        <div className="font-mono text-muted-foreground text-xs lowercase">
-          sweep · a light on the ground · one variable, judged here not in a
-          viewer
-        </div>
-        {SHEEN_CASES.map(([label, q, tone, focus]) => (
-          <div key={label} className="space-y-3">
-            <div className="font-mono text-muted-foreground/60 text-xs lowercase">
-              {label}
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {SHEENS.map(([name, make]) => (
-                <div key={name} className="space-y-1">
-                  <div className="font-mono text-muted-foreground/60 text-xs lowercase">
-                    {name}
-                  </div>
-                  <Quote
-                    {...q}
-                    tone={{ ...tone, ground: make(...hsl(tone.ground)) }}
-                    focus={focus}
-                    variant="card"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </section>
       <section className="space-y-6">
         <div className="font-mono text-muted-foreground text-xs lowercase">
           the still · the same cases, drawn without React
