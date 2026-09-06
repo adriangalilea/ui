@@ -4,6 +4,12 @@ A public shadcn registry (`registry.json` at the root, items under `registry/bas
 
 ## Rules
 
+- **Edit files with the `Read`, `Write` and `Edit` tools. Never with a script.** No
+  `python3 - <<'PY'`, no `sed -i`, no `perl -pe`, no heredoc rewriting a source file.
+  `Bash` is for things that are not edits: `git`, `mise check`, `rsvg-convert`, `open`,
+  `curl`. A scripted edit is unreviewable, silently rewrites whole regions (it has
+  reformatted `registry.json` and deleted a block of constants in this repo), and its
+  diff cannot be read before it lands.
 - Every item has a `<name>.demo.tsx` beside its source and an entry in `app/demos.tsx`; `scripts/validate-registry.ts` refuses anything else. `lib/*` files are framework-free (no react, no DOM), asserted.
 - **Items meant to be used together share the head item's name**: `terminal` + `terminal-session`, `lightbox` + `lightbox-motion` + `lightbox-actions`, `telegram-chat` + `telegram-summary`. They sort together, they read as one thing, and `registry.json` keeps them adjacent. A part stays its own item only when something installs it ALONE (a build script renders a still with `terminal-session` and no React); otherwise it belongs in the head item's `files`, the way six engine files ship as `lightbox-motion`.
 - **Usage is never written by hand.** An item page renders its own `<name>.demo.tsx` verbatim, read at build time, under "the demo above, verbatim". Prose usage beside a demo drifts the first time either is touched; the same file cannot. So a demo is also the documentation: write it as the code you would want copied.
@@ -223,6 +229,20 @@ that started them, and an open-reason overwritten by the NEXT gesture's.
 pnpm's 7-day quarantine and no-downgrade trust policy apply. `pnpm-workspace.yaml` pins `fastq` to 1.20.1 because 1.20.2 shipped without provenance; drop the override once 1.20.3 clears quarantine (`deps overrides --removable`). The shadcn CLI version is whatever the quarantine admits, not `latest`. shadcn 4.19 wants the npm package `cn` (a name shadcn took over on 2026-09-01); under the quarantine that resolves to the 2013 Chuck Norris jokes CLI, so `lib/utils.ts` is the classic clsx + tailwind-merge `cn` and the package is not a dependency.
 
 ## todo
+
+### quote
+
+The mark ships as an outline (`MARK_PATH`), taken from Instrument Serif under the SIL
+OFL. Times New Roman is the shape Adrian actually picked and it CANNOT be shipped:
+Monotype's licence forbids redistributing its outlines.
+
+**Pending: Tinos and Liberation Serif.** Both are open (Apache 2.0 and OFL) and both
+are drawn to be metrically compatible with Times, so their opening quote should be the
+shape he chose, legally. Downloading them failed on the day (`curl` exit 56 on both
+GitHub and the Google Fonts mirror, which looks like the Cloudflare range blocking
+already diagnosed in `~/Developer/_smarthome/network/`). Retry, extract the glyph the
+same way, and put them in the comparison sheet against the current one before
+swapping.
 
 ### lightbox
 

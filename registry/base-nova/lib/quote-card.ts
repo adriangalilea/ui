@@ -74,33 +74,112 @@ export function quoteFontSize(length: number, width: number): number {
  *  is the honest tool and the wrap is allowed to be approximate. */
 export const QUOTE_CH = 0.52
 
-/** How much of the frame the face takes, and how far the veil reaches BEYOND it. The
- *  feather is what stops the picture having a visible left edge. */
-export const FACE_SHARE = 0.5
-export const FACE_FEATHER = 0.12
+/** How much of the frame the face takes, and how far the dissolve runs INTO it.
+ *
+ *  Into it, not beside it: a feather laid in the empty band to the LEFT of the picture
+ *  fades a region that has no picture in it, so the photograph still ends on a straight
+ *  vertical cut and the fade only produces a second edge of its own. The dissolve has
+ *  to eat into the image, and what it reveals underneath is the same image blurred,
+ *  which is why no seam is possible. */
+export const FACE_SHARE = 0.42
+export const FACE_FEATHER = 0.22
 
-/** The mark is the REAL typographic glyph, set in the quote's own face, ghosted and
- *  behind the words. Three shapes were drawn to replace it — a comma pair, a single
- *  comma, a guillemet — and every one of them was a workaround for a bug that was
- *  never about the shape: the still named a font the rasterizer did not have, so the
- *  "harsh, jagged" mark being judged was Verdana's, not the one asked for.
+/** THE DISSOLVE'S CURVE, sampled as mask stops. A straight ramp is what a first attempt
+ *  writes and it has two visible ends: the picture jumps out of nothing at the start,
+ *  and it stops arriving on a line at the finish. Both are edges, which is the one thing
+ *  a dissolve exists to avoid.
  *
- *  A drawn mark also cannot match the face it sits above, which a glyph does for free
- *  and in whatever family the consumer set.
+ *  This is smoothstep, 3t²-2t³ — flat where it leaves the ground and flat where it
+ *  reaches the photograph, steep only in the middle where nobody is looking for a
+ *  boundary. The haze a linear ramp leaves over a bright wall is the failure it fixes. */
+export const DISSOLVE: readonly [number, number][] = [
+  [0, 0],
+  [0.125, 0.043],
+  [0.25, 0.156],
+  [0.375, 0.316],
+  [0.5, 0.5],
+  [0.625, 0.684],
+  [0.75, 0.844],
+  [0.875, 0.957],
+  [1, 1],
+]
+
+/** The mark is a DRAWING that ships with the component: the opening quote of
+ *  Instrument Serif, outline extracted and normalised into a y-down 260x228 box with
+ *  its ink at the origin. No font to load, no bytes to fetch, no promise to keep — and
+ *  the shape is the same on every machine, which is what three rounds of judging the
+ *  wrong glyph were actually about.
  *
- *  It is the ONE element off the grid: the text, the name and the date all hang from
- *  one margin, and a frame where everything aligns reads as a form. Its position is
- *  deterministic — anchored to the words, so the composition balances the same way for
- *  any quote. */
-/** Sized and placed against the FRAME, not the words: it owns the top-left corner
- *  whatever the quote says, so the composition is the same every time and a long quote
- *  cannot push it around. Huge and barely there — at this size a mark stops being a
- *  glyph on the card and becomes the surface the card is printed on. Small and shy at
- *  the edge it reads as a blob somebody forgot to delete. */
-export const MARK_EM = 1.45
-export const MARK_OPACITY = 0.07
-export const MARK_X = -0.045
-export const MARK_BASELINE = 0.98
+ *  Instrument Serif is Copyright 2022 The Instrument Serif Project Authors, under the
+ *  SIL Open Font License 1.1, which permits exactly this: extract, modify, embed and
+ *  redistribute. A system face like Times New Roman looks the part and cannot be used
+ *  — Monotype's licence forbids shipping its outlines.
+ *
+ *  It is the ONE element off the grid. The text, the name and the date all hang from
+ *  one margin, and a frame where everything aligns reads as a form; its own position
+ *  is anchored to the FRAME so the composition is identical whatever the quote says. */
+export const MARK_PATH =
+  "M54.0 227.8Q29.0 227.8 14.5 209.8Q0.0 191.8 0.0 160.8Q0.0 114.8 20.5 76.8Q41.0 38.8 87.0 5.8Q99.0 -3.2 106.0 1.8Q110.0 4.8 110.0 10.3Q110.0 15.8 103.0 20.8Q69.0 49.8 59.5 65.3Q50.0 80.8 50.0 97.8Q50.0 115.8 58.0 125.3Q66.0 134.8 76.0 141.3Q86.0 147.8 94.0 156.8Q102.0 165.8 102.0 183.8Q102.0 201.8 89.5 214.8Q77.0 227.8 54.0 227.8ZM204.0 227.8Q179.0 227.8 164.5 209.8Q150.0 191.8 150.0 160.8Q150.0 114.8 170.5 76.8Q191.0 38.8 237.0 5.8Q249.0 -3.2 256.0 1.8Q260.0 4.8 260.0 10.3Q260.0 15.8 253.0 20.8Q219.0 49.8 209.5 65.3Q200.0 80.8 200.0 97.8Q200.0 115.8 208.0 125.3Q216.0 134.8 226.0 141.3Q236.0 147.8 244.0 156.8Q252.0 165.8 252.0 183.8Q252.0 201.8 239.5 214.8Q227.0 227.8 204.0 227.8Z"
+export const MARK_BOX = { w: 260, h: 228 }
+/** The ink's height as a share of the frame. It is the one measurement here that is
+ *  NOT a rung: the scale governs the gaps between things, and how big a drawing is
+ *  belongs to the drawing. Where it sits is a rung, like everything else. */
+export const MARK_EM = 0.245
+export const MARK_OPACITY = 0.1
+/** Blur, as a share of the mark. It is what makes a ghost a ghost rather than a big
+ *  faint drawing: the edges stop competing with the type, and a shape this size with
+ *  crisp edges reads as an object sitting on the card. */
+export const MARK_BLUR = 0.026
+/** The gap between the name and the date on their one line, in name-ems. */
+export const ATTRIB_GAP = 1.6
+/** The attribution's two sizes, as shares of the FRAME. Fixed for every card. */
+export const NAME_EM = 0.0233
+export const DATE_EM = 0.0183
+
+/** ONE SCALE, AND EVERY DISTANCE ON THE CARD IS A RUNG OF IT. The studio's 8·2ⁿ, as a
+ *  share of the frame so it survives any size: `unit` is 8 px on a 1200 px card, and
+ *  the rungs are 1, 2, 4, 8, 16 — 8, 16, 32, 64, 128.
+ *
+ *  This exists because the alternative was what came before it: 0.4 of a margin here,
+ *  3.5 there, 1.2 somewhere else. Every one of those was a number chosen by eye, so
+ *  every one of them had to be argued about separately and none of them could be
+ *  derived from any other. A scale means an indent is not an opinion, it is a rung,
+ *  and the only question left is which one. */
+export const unitOf = (width: number): number => width / 150
+
+/** MARGIN is the card's own edge, and the mark and the attribution hang from it.
+ *  EDGE is how far the mark is from the ceiling and the attribution from the floor —
+ *  the same rung on purpose, so the two of them read as a matched pair holding the
+ *  frame. INDENT sets the words in from the margin, which is what makes them the thing
+ *  inside the frame rather than a third item in a list. AFTER_MARK is the mark's foot
+ *  to the words' cap. */
+export const MARGIN = 8
+export const EDGE = 4
+export const INDENT = 4
+export const AFTER_MARK = 4
+
+/** STACKING THE WORDS OVER THE MARK IS THE POINT — it is what gives the card depth,
+ *  and holding them apart is what made every earlier version read as two pictures side
+ *  by side. What stacking costs is contrast: near-white type over the mark's pale grey
+ *  is the one place on this card where the ratio fails.
+ *
+ *  So the words carry a scrim, and it is a RADIAL GRADIENT rather than a blurred
+ *  shape. A blurred rectangle was tried and it still reads as a panel: 47 px of blur
+ *  on a 728 px box softens the boundary and does not remove it, so the card grows a
+ *  rounded slab behind the text. A gradient has no edge to soften — it is opaque where
+ *  the words are and transparent by the time it reaches anything, which is
+ *  edgelessness by construction and not by tuning.
+ *
+ *  The radii are multiples of the block it covers, so it grows with the words. */
+/** How far right the words may run, as a share of the width. Stopping at the
+ *  picture's own edge wastes the whole band where the veil is still nearly solid, and
+ *  a column that narrow breaks a plain sentence into six lines. Past it the scrim is
+ *  what keeps the type readable, which is why the two are tuned together. */
+export const TEXT_RIGHT = 0.64
+export const SCRIM_OPACITY = 0.8
+
+export const SCRIM_RX = 0.78
+export const SCRIM_RY = 1.15
 
 /** Cap height and descender as shares of the em, for Geist and near enough for any
  *  humanist sans. The still has no way to measure text, so a block is composed from
@@ -264,21 +343,69 @@ export function assertFonts(
   )
 }
 
-/** The card's ground is TINTED from the same seed the accent comes from, at a
- *  lightness low enough to read as black at a glance. A quote on pure #000 next to a
- *  photograph looks like two things pasted together; a ground that shares the accent's
- *  hue looks like one image, and it costs a hue rotation rather than decoding the
- *  picture. */
-export const GROUND_SAT = 26
-export const GROUND_LIGHT = 5
-export function quoteGround(hue: number): string {
-  return `hsl(${hue}, ${GROUND_SAT}%, ${GROUND_LIGHT}%)`
+/** THE BACKGROUND IS TWO THINGS AND ONLY TWO: a flat tinted ground, and the picture,
+ *  with a dissolve between them. Nothing is blurred underneath and nothing happens in
+ *  the corners.
+ *
+ *  It was a blurred copy of the portrait once, so the ground would carry the picture's
+ *  colour with no decoder involved. That is a smear, not a colour: it is lighter in one
+ *  corner than another, it darkens at every edge where the gaussian runs off the image,
+ *  and a card with weather in its corners reads as an effect rather than as a ground.
+ *
+ *  A flat ground cannot be derived here — this module has no runtime and cannot open a
+ *  PNG. It does not need to. Whoever draws the card HAS the pixels, so the colour is an
+ *  argument, and `groundFrom` is the rule for turning those pixels into one. */
+/** Dark enough that near-white type sits on it without a thought, and NOT so dark that
+ *  the colour in it is a rumour. Lightness 5 with saturation capped at a quarter was
+ *  the first attempt and it renders every picture, salmon drawing included, as black:
+ *  a tint nobody can see is not a tint. */
+export const GROUND_SAT = 40
+export const GROUND_LIGHT = 9
+export function quoteGround(hue: number, sat = GROUND_SAT): string {
+  return `hsl(${hue}, ${sat}%, ${GROUND_LIGHT}%)`
 }
-/** Lifted off pure black, and NEUTRAL. A hue seeded from a slug is a colour nobody
- *  chose, and it lands wherever the hash lands: a violet ground behind a
- *  black-and-white photograph is the case that proves it. `quoteAccent` and
- *  `quoteGround` stay exported for a consumer who knows what the picture looks like;
- *  nothing here guesses on their behalf. */
+
+/** The picture's own colour, twice: the ground it sits on and the ink the mark is drawn
+ *  in. Both are the average's HUE at the card's own lightness — the average itself is a
+ *  mid-grey mud no white type survives — so a set of cards is uniformly dark and
+ *  uniformly legible, and only the temperature moves between them.
+ *
+ *  The mark takes it too. A ghost drawn in the type's own white belongs to the text and
+ *  reads as a smudge on the card; drawn in the picture's colour it belongs to the
+ *  photograph, which is what a thing sitting BEHIND the words should belong to.
+ *
+ *  Saturation is carried, never assumed. A hue off a hash gave a violet ground behind a
+ *  black-and-white photograph; a hue off the picture cannot, but a GREY picture has no
+ *  hue at all and taking one on faith puts red behind it. So a grey average stays grey,
+ *  and only a picture with colour in it tints. */
+export interface QuoteTone {
+  ground: string
+  accent: string
+}
+export function toneFrom(r: number, g: number, b: number): QuoteTone {
+  const [rr, gg, bb] = [r / 255, g / 255, b / 255]
+  const max = Math.max(rr, gg, bb)
+  const min = Math.min(rr, gg, bb)
+  const l = (max + min) / 2
+  const d = max - min
+  if (d === 0)
+    return { ground: quoteGround(0, 0), accent: `hsl(0, 0%, ${QUOTE_LIGHT}%)` }
+  const s = (l > 0.5 ? d / (2 - max - min) : d / (max + min)) * 100
+  const h = Math.round(
+    max === rr
+      ? ((gg - bb) / d + (gg < bb ? 6 : 0)) * 60
+      : max === gg
+        ? ((bb - rr) / d + 2) * 60
+        : ((rr - gg) / d + 4) * 60,
+  )
+  return {
+    ground: quoteGround(h, Math.round(Math.min(GROUND_SAT, s))),
+    accent: `hsl(${h}, ${Math.round(Math.min(QUOTE_SAT, s * 1.5))}%, ${QUOTE_LIGHT}%)`,
+  }
+}
+
+/** Lifted off pure black, and NEUTRAL. What a card gets when nobody passed a colour and
+ *  there is no picture to take one from. */
 export const GROUND = "#0d0d0f"
 
 /** The first bytes of a format, as base64 sees them. A data URI can declare any mime
@@ -341,6 +468,15 @@ export interface QuoteStillOptions {
   fonts?: readonly string[]
   /** Accept whatever the renderer substitutes. Deliberate, and it says so. */
   systemFonts?: boolean
+  /** How far right the words may run, as a share of the width. Defaults to
+   *  TEXT_RIGHT; only worth passing to try a different one. */
+  textRight?: number
+  /** THE FUSION, and the one part of this card that legitimately depends on the
+   *  picture: how much frame the portrait takes, and how far it dissolves into the
+   *  ground. The defaults suit a portrait; a wide painting or a near-white photograph
+   *  are the cases worth overriding for. */
+  faceShare?: number
+  faceFeather?: number
 }
 
 const esc = (s: string) =>
@@ -372,6 +508,9 @@ export function renderQuoteSvg(
     dateFamily = QUOTE_MONO,
     fonts = [],
     systemFonts = false,
+    textRight,
+    faceShare = FACE_SHARE,
+    faceFeather = FACE_FEATHER,
   }: QuoteStillOptions = {},
 ): string {
   const text = quoteTrim(quote.text)
@@ -380,75 +519,111 @@ export function renderQuoteSvg(
   if (avatar) assertAvatar(avatar)
   const ink = accent ?? foreground
   const ground = background ?? GROUND
-  const pad = Math.round(width / 20)
-  const faceX = width - Math.round(width * FACE_SHARE)
-  const veilX = faceX - Math.round(width * FACE_FEATHER)
+  const unit = unitOf(width)
+  const pad = Math.round(unit * MARGIN)
+  const faceX = width - Math.round(width * faceShare)
+  const featherX = faceX + Math.round(width * faceFeather)
   const size = quoteFontSize(text.length, width)
   const step = Math.round(size * 1.35)
-  // The words run to where the veil is still SOLID, which is the picture's own left
-  // edge: past that the backdrop starts giving way and a line ending there would sit
-  // on the photograph.
-  const textW = avatar ? faceX - pad : width - 2 * pad
+  // The words stop short of where the picture has any strength left, so a line never
+  // ends on a face.
+  const textX = Math.round(unit * (MARGIN + INDENT))
+  const textW =
+    (avatar ? Math.round(width * (textRight ?? TEXT_RIGHT)) : width - pad) -
+    textX
   const lines = quoteWrap(text, size, textW)
 
-  // ONE optical block: words and attribution, centred on what the EYE sees rather than
-  // on baselines. Every height below is a visual extent. The mark is not in it — it is
-  // behind, and a decoration that shifts the words is a decoration in the way.
-  const textH = (lines.length - 1) * step + (CAP + DESC) * size
-  const nameSize = Math.round(size * 0.62)
-  const dateSize = Math.round(size * 0.5)
-  const nameH = quote.author ? (CAP + DESC) * nameSize : 0
-  const dateH = quote.date ? (CAP + DESC) * dateSize : 0
-  const footGap = nameH || dateH ? Math.round(size * 1.1) : 0
-  const nameGap = nameH && dateH ? Math.round(nameSize * 0.55) : 0
-  const total = textH + footGap + nameH + nameGap + dateH
-  const top = Math.round((height - total) / 2)
-  if (top < pad)
-    throw new Error(
-      `quote overflows its frame (${Math.round(total)}px of block in ${height}px): shorten it or widen the frame`,
+  // WHAT MOVES AND WHAT DOES NOT. The attribution is anchored to the bottom of the
+  // frame and the mark to the top of it, both at the same place for every quote; only
+  // the WORDS move, centred in the band left between them. A name and a date that
+  // shift from card to card make a set of them read as unrelated pictures, and the
+  // amount of text is the one thing that legitimately varies.
+  // FIXED, off the frame — never off the quote's own size. Derived from it, a long
+  // quote steps the ladder down and drags the name and the date down with it, so a set
+  // of cards has an attribution that changes size for a reason nobody can see. It is a
+  // caption: it is the same caption on every card.
+  const nameSize = Math.round(width * NAME_EM)
+  const dateSize = Math.round(width * DATE_EM)
+  // ONE LINE: the name, then the date after it. Stacked they read as two facts of
+  // equal weight and take twice the room at the foot of a card that has none to spare;
+  // side by side they read as one caption, which is what they are. It sits as far off
+  // the floor as the mark hangs from the ceiling — the two anchors are a pair.
+  const attrBase = Math.round(height - unit * EDGE - DESC * nameSize)
+  const dateX =
+    pad +
+    Math.round(
+      (quote.author?.name.length ?? 0) * nameSize * QUOTE_CH +
+        nameSize * ATTRIB_GAP,
     )
+  const attrTop =
+    quote.author || quote.date ? attrBase - CAP * nameSize : height - pad
+  // The words start at a fixed inset and GROW DOWNWARD into the room between the two
+  // anchors. Nothing else on the card moves for them, which is the whole rule: a name
+  // and a date that shift from card to card make a set of them read as unrelated
+  // pictures, and the amount of text is the one thing that legitimately varies.
+  // The ghost is anchored to the frame's top-left, EDGE from the ceiling against
+  // MARGIN from the wall: a clean two-to-one, and the same rung the attribution keeps
+  // off the floor. It takes no space — at this opacity the words pass over it.
+  const markH = Math.round(height * MARK_EM)
+  const markK = markH / MARK_BOX.h
+  const markY = Math.round(unit * EDGE)
 
-  // The ghost owns the corner: the real opening quote, at frame scale, bleeding off
-  // the top and the left so it reads as the surface rather than as an object on it.
-  const markSize = Math.round(height * MARK_EM)
-  const mark = `<text x="${Math.round(width * MARK_X)}" y="${Math.round(height * MARK_BASELINE)}" font-size="${markSize}" font-family="${esc(fontFamily)}" fill="${ink}" opacity="${MARK_OPACITY}">&#8220;</text>`
+  const textH = (lines.length - 1) * step + (CAP + DESC) * size
+  const top = Math.round(markY + markH + unit * AFTER_MARK)
+  if (top + textH > attrTop)
+    throw new Error(
+      `quote overflows its frame (${Math.round(textH)}px of words from ${top}px, against an attribution at ${Math.round(attrTop)}px): shorten it or widen the frame`,
+    )
+  const mark = `<path d="${MARK_PATH}" transform="translate(${pad} ${markY}) scale(${markK.toFixed(4)})" fill="${ink}" opacity="${MARK_OPACITY}" filter="url(#soften)"/>`
 
-  let y = top + CAP * size
+  // The scrim sits under the words and over the mark: darkest where the type is, gone
+  // by the time it reaches anything else.
+  const scrimCX = Math.round(textX + textW / 2)
+  const scrimCY = Math.round(top + textH / 2)
+  const scrimRX = Math.round(textW * SCRIM_RX)
+  const scrimRY = Math.round(textH * SCRIM_RY)
+  const scrim = `<ellipse cx="${scrimCX}" cy="${scrimCY}" rx="${scrimRX}" ry="${scrimRY}" fill="url(#scrim)"/>`
+
+  const y = top + CAP * size
   const rows = lines
     .map((l, i) => {
       const at = Math.round(y + i * step)
-      return `<text x="${pad}" y="${at}" fill="${foreground}">${esc(l)}</text>`
+      return `<text x="${textX}" y="${at}" fill="${foreground}">${esc(l)}</text>`
     })
     .join("\n    ")
-  y += (lines.length - 1) * step + DESC * size + footGap
   const attribution = quote.author
-    ? `<text x="${pad}" y="${Math.round(y + CAP * nameSize)}" font-size="${nameSize}" font-family="${esc(nameFamily)}" fill="${foreground}" opacity="0.75">${esc(quote.author.name)}</text>`
+    ? `<text x="${pad}" y="${Math.round(attrBase)}" font-size="${nameSize}" font-family="${esc(nameFamily)}" fill="${foreground}" opacity="0.75">${esc(quote.author.name)}</text>`
     : ""
-  y += nameH + nameGap
   const when = quote.date
-    ? `<text x="${pad}" y="${Math.round(y + CAP * dateSize)}" font-size="${dateSize}" font-family="${esc(dateFamily)}" fill="${muted}">${esc(quote.date)}</text>`
+    ? `<text x="${quote.author ? dateX : pad}" y="${Math.round(attrBase)}" font-size="${dateSize}" font-family="${esc(dateFamily)}" fill="${muted}">${esc(quote.date)}</text>`
     : ""
 
-  // The picture is at FULL strength and the veil does all of the fading. Dimming the
-  // whole image instead leaves even the part nobody is fading washed out, so a face
-  // reads as a ghost rather than as a person.
+  // The picture dissolves into the flat ground, and there is nothing between them.
   const face = avatar
-    ? `<image href="${esc(avatar)}" x="${faceX}" y="0" width="${Math.round(width * FACE_SHARE)}" height="${height}" preserveAspectRatio="xMidYMin slice"/>
-  <rect x="${veilX}" y="0" width="${width - veilX}" height="${height}" fill="url(#veil)"/>`
+    ? `<image href="${esc(avatar)}" x="${faceX}" y="0" width="${width - faceX}" height="${height}" preserveAspectRatio="xMidYMin slice" mask="url(#dissolve)"/>`
     : ""
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
   <defs>
-    <linearGradient id="veil" x1="0" x2="1">
-      <stop offset="0" stop-color="${ground}"/>
-      <stop offset="${FACE_FEATHER / (FACE_SHARE + FACE_FEATHER)}" stop-color="${ground}"/>
-      <stop offset="0.62" stop-color="${ground}" stop-opacity="0.45"/>
-      <stop offset="1" stop-color="${ground}" stop-opacity="0.05"/>
+    <filter id="soften" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur stdDeviation="${Math.round(markH * MARK_BLUR)}"/>
+    </filter>
+    <radialGradient id="scrim">
+      <stop offset="0" stop-color="${ground}" stop-opacity="${SCRIM_OPACITY}"/>
+      <stop offset="0.55" stop-color="${ground}" stop-opacity="${SCRIM_OPACITY * 0.8}"/>
+      <stop offset="1" stop-color="${ground}" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="fade" gradientUnits="userSpaceOnUse" x1="${faceX}" x2="${featherX}">
+      ${DISSOLVE.map(([at, on]) => `<stop offset="${at}" stop-color="#fff" stop-opacity="${on}"/>`).join("\n      ")}
     </linearGradient>
+    <mask id="dissolve" maskUnits="userSpaceOnUse" x="0" y="0" width="${width}" height="${height}">
+      <rect x="${faceX}" y="0" width="${width - faceX}" height="${height}" fill="url(#fade)"/>
+    </mask>
   </defs>
   <rect width="${width}" height="${height}" fill="${ground}"/>
   ${face}
   ${mark}
+  ${scrim}
   <g font-family="${esc(fontFamily)}" font-size="${size}" xml:space="preserve">
     ${rows}
     ${attribution}

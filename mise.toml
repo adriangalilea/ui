@@ -32,6 +32,14 @@ run = [
 [tasks.format]
 run = "pnpm biome check --write ."
 
+[tasks.still]
+description = "render the quote card into .renders/ and open it. `marks` and `attrib` sweep a placement with the words stripped"
+usage = '''
+arg "[mode]" help="corpus | ground | marks | attrib | text | width" default=""
+arg "[n]" help="how many, for corpus" default="12"
+'''
+run = 'bun scripts/quote-still.ts {{arg(name="mode")}} {{arg(name="n")}}'
+
 [tasks.add]
 description = "build, then copy one item into a consumer (default: the garden)"
 usage = '''
