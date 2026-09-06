@@ -170,12 +170,18 @@
    a dissolve between them. The picture is a square as tall as the frame, never cropped
    sideways — it is SLID so its subject clears the fade, and the mask is what hides the
    rest. Anchoring it instead means the fade always eats whoever stands on that side. */
+/* SIZED IN cqw ON BOTH AXES, no percentage height and no aspect-ratio. A replaced
+   element with `height: 100%` inside a box whose own height comes from `aspect-ratio`
+   is a case Safari resolves as indefinite: the image collapsed to a strip along the top
+   edge while Chrome drew it full height. A square whose side is stated outright is the
+   same number in every engine. */
 .ag-quote-bleed {
   position: absolute;
-  inset-block: 0;
+  top: 0;
   left: var(--ag-quote-slot);
-  height: 100%;
-  aspect-ratio: 1;
+  width: var(--ag-quote-square);
+  height: var(--ag-quote-square);
+  max-width: none;
   object-fit: cover;
   mask-image: var(--ag-quote-dissolve);
   -webkit-mask-image: var(--ag-quote-dissolve);

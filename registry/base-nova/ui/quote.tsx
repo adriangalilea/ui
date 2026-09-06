@@ -210,6 +210,7 @@ export function Quote({
           "--ag-quote-soften": cqw((MARK_EM / aspect) * MARK_BLUR),
           "--ag-quote-line": String(LINE),
           "--ag-quote-slot": pct(slotX),
+          "--ag-quote-square": cqw(1 / aspect),
           "--ag-quote-dissolve": dissolve,
         } as React.CSSProperties
       }
