@@ -1,14 +1,19 @@
-// Somebody else's words, on the page — and in `display`, the SAME COMPOSITION that
-// `renderQuoteSvg` draws for a link preview. Not a similar one: the ground, the mark,
-// the dissolve, the margins, the measure and the block's place in the band are all read
-// from `quote-card`, so there is nothing to keep in sync by hand and nothing that can
-// drift when either surface is touched.
+// Somebody else's words, on the page, at THREE WEIGHTS — and every one of them reads its
+// numbers from `quote-card`, the same module that draws the social preview, so there is
+// nothing to keep in sync by hand and nothing that can drift when either is touched.
 //
-// WHAT THE TWO CANNOT SHARE is measurement. A browser knows exactly how wide a
-// character is and the still has no way to find out, so the still estimates `ch` and
-// this one states the measure in real `ch` and lets the layout engine be right. They
-// agree on how many characters a line carries; they may disagree about which word ends
-// a particular line, and that is the whole of the difference.
+//   card     the poster: the portrait bleeding out of the right edge, the ghost mark, the
+//            words composed in the band. It IS the link preview, drawn in the DOM.
+//   feature  the page's own weight: no frame, no portrait — the mark, the words set at
+//            display size over it, one line of attribution. What a quote's own page opens
+//            with, and the step the other two left missing.
+//   prose    a quotation inside an article, at the page's own type, marked by a small
+//            mark rather than a rule. What an embed in a feed card is.
+//
+// WHAT THE THREE CANNOT SHARE WITH THE STILL is measurement. A browser knows exactly how
+// wide a character is and the still has no way to find out, so the still estimates `ch`
+// and these state the measure in real `ch` and let the layout engine be right. They agree
+// on how many characters a line carries; they may disagree about which word ends one.
 //
 // It renders a real `<blockquote>` with a real `<cite>`, because that is what this is,
 // and a screen reader announcing "blockquote" is information the styling cannot carry.
@@ -44,43 +49,49 @@ import {
 } from "@/registry/base-nova/lib/quote-card"
 import "./quote.css"
 
+export type QuoteVariant = "card" | "feature" | "prose"
+
 export interface QuoteProps extends QuoteData {
-  /** Display draws the CARD: the portrait bleeding out of the right edge, the ghost
-   *  mark, the words composed in the band. Inline keeps the page's own type, for a
-   *  quote inside prose that must not shout over it. */
-  display?: boolean
+  /** Which weight. Defaults to `prose`, the one that shouts least. */
+  variant?: QuoteVariant
   /** The picture's own colour, ground and ink. Derived from the pixels by whoever has
    *  them (`toneFrom`); without it the card is neutral, which is honest — a hue from a
    *  hash of the author's name is a colour nobody chose, and it lands wherever the hash
    *  lands. */
   tone?: QuoteTone
-  /** Where the subject sits across the portrait, 0 to 1, so the dissolve does not eat
-   *  it. Same number the still takes, from the same detector. */
+  /** Where the subject sits across the portrait, 0 to 1, so the card's dissolve does
+   *  not eat it. Same number the still takes, from the same detector. */
   focus?: number
-  /** The width the measure is set against, in px. Only for `display`, and only worth
-   *  passing when the card is not the usual reading column.
+  /** The width the measure is set against, in px. For `card` and `feature`, and only
+   *  worth passing when the quote is not in the usual reading column.
    *
-   *  `source` is drawn only in prose: the still has nowhere to put a link, and the card
-   *  matching its own preview outranks carrying one more affordance. */
+   *  `source` is drawn in `feature` and `prose`, never on the card: the still has
+   *  nowhere to put a link, and the card matching its own preview outranks carrying one
+   *  more affordance. */
   width?: number
   className?: string
   children?: React.ReactNode
 }
 
-/** The reading column a display quote is set for, matching the site's `max-w-3xl`. */
+/** The reading column a quote is set for, matching the site's `max-w-3xl`. */
 export const QUOTE_WIDTH = 768
 
 const pct = (n: number) => `${(n * 100).toFixed(3)}%`
-/** A hundredth of the CARD's width, whatever property it lands on. `%` means that only
- *  for horizontal offsets and widths; everywhere else it means something surprising. */
+/** A hundredth of the CONTAINER's width, whatever property it lands on. `%` means that
+ *  only for horizontal offsets and widths; everywhere else it means something surprising
+ *  — as font-size it is the parent's font-size, as an abspos height the container's
+ *  height. */
 const cqw = (n: number) => `${(n * 100).toFixed(3)}cqw`
+
+const unit = 1 / 150
+const aspect = CARD_W / CARD_H
 
 export function Quote({
   text,
   author,
   source,
   date,
-  display = false,
+  variant = "prose",
   tone,
   focus = FOCUS,
   width = QUOTE_WIDTH,
@@ -88,22 +99,55 @@ export function Quote({
   children,
 }: QuoteProps) {
   const words = quoteClean(text)
-  if (!display)
+  const body = children ?? <p>{words}</p>
+  const ink = tone?.accent ?? "currentColor"
+  const classes = `ag-quote ag-quote-${variant}${className ? ` ${className}` : ""}`
+
+  if (variant === "prose")
     return (
-      <Prose
-        words={words}
-        author={author}
-        source={source}
-        date={date}
-        tone={tone}
-        className={className}
+      <figure
+        className={classes}
+        style={{ "--ag-quote-ink": ink } as React.CSSProperties}
       >
-        {children}
-      </Prose>
+        <Mark />
+        <blockquote className="ag-quote-body">{body}</blockquote>
+        <By author={author} date={date} source={source} face />
+      </figure>
     )
 
-  // Every number below is the still's, recomputed as a share of the frame rather than
-  // in pixels, so one set of constants drives both surfaces at any size.
+  if (variant === "feature") {
+    // The words are set in from the left by the still's INDENT and the mark sits at the
+    // margin the words are indented FROM, so the two stack the way they do on the card —
+    // the overlap is the depth. No band to centre in: the block flows, and it starts
+    // half way down the mark so the words climb into it rather than hang below it.
+    const column = 1 - unit * INDENT
+    const { size } = quoteSet(words, width * column)
+    return (
+      <figure
+        className={classes}
+        style={
+          {
+            "--ag-quote-ink": ink,
+            "--ag-quote-indent": pct(unit * INDENT),
+            "--ag-quote-measure": `${quoteMeasure(words.length)}ch`,
+            "--ag-quote-size": cqw(size / width),
+            "--ag-quote-mark": cqw(MARK_EM / aspect),
+            "--ag-quote-mark-fill": String(MARK_OPACITY),
+            "--ag-quote-soften": cqw((MARK_EM / aspect) * MARK_BLUR),
+            "--ag-quote-line": String(LINE),
+            "--ag-quote-gap": cqw(unit * EDGE),
+          } as React.CSSProperties
+        }
+      >
+        <Mark />
+        <blockquote className="ag-quote-body">{body}</blockquote>
+        <By author={author} date={date} source={source} face />
+      </figure>
+    )
+  }
+
+  // THE CARD. Every number below is the still's, recomputed as a share of the frame
+  // rather than in pixels, so one set of constants drives both surfaces at any size.
   //
   // BLOCK_AT is the one that cannot cross: placing a block at an arbitrary fraction of
   // the slack means knowing how tall it turned out, and here the browser decides that
@@ -114,15 +158,6 @@ export function Quote({
     BLOCK_AT === 0.5,
     `the web card can only centre its words; BLOCK_AT is ${BLOCK_AT}`,
   )
-  // TWO KINDS OF SHARE, and confusing them is invisible until measured. A width-share
-  // written as `%` is only correct where CSS resolves that percentage against the
-  // CONTAINER'S WIDTH — abspos left/right, and the `width` property. A `%` font-size
-  // resolves against the PARENT'S FONT-SIZE (the attribution came out at 0.37px), a `%`
-  // height against the container's HEIGHT (the mark drew at half size). Anything that is
-  // not a horizontal offset or a width is therefore emitted in `cqw`, which always means
-  // one hundredth of the card.
-  const unit = 1 / 150
-  const aspect = CARD_W / CARD_H
   const height = width / aspect
   // Without a picture the words take the whole frame, exactly as the still gives it to
   // them; sizing them for the picture's column anyway set a bare quote 59% small.
@@ -153,11 +188,11 @@ export function Quote({
 
   return (
     <figure
-      className={`ag-quote ag-quote-card${className ? ` ${className}` : ""}`}
+      className={classes}
       style={
         {
           "--ag-quote-ground": tone?.ground ?? GROUND,
-          "--ag-quote-ink": tone?.accent ?? "currentColor",
+          "--ag-quote-ink": ink,
           "--ag-quote-aspect": `${CARD_W} / ${CARD_H}`,
           "--ag-quote-margin": pct(unit * MARGIN),
           "--ag-quote-indent": pct(unit * (MARGIN + INDENT)),
@@ -185,95 +220,68 @@ export function Quote({
         // biome-ignore lint/performance/noImgElement: an item cannot assume next/image
         <img className="ag-quote-bleed" src={author.avatar} alt="" />
       )}
-      <svg
-        className="ag-quote-mark"
-        viewBox={`0 0 ${MARK_BOX.w} ${MARK_BOX.h}`}
-        aria-hidden="true"
-      >
-        <path d={MARK_PATH} />
-      </svg>
-      <blockquote className="ag-quote-body">
-        {children ?? <p>{words}</p>}
-      </blockquote>
-      {(author || date) && (
-        <figcaption className="ag-quote-by">
-          {author &&
-            (author.href ? (
-              <cite>
-                <a href={author.href}>{author.name}</a>
-              </cite>
-            ) : (
-              <cite>{author.name}</cite>
-            ))}
-          {date && <span className="ag-quote-date">{date}</span>}
-        </figcaption>
-      )}
+      <Mark />
+      <blockquote className="ag-quote-body">{body}</blockquote>
+      <By author={author} date={date} />
     </figure>
   )
 }
 
-/** A quote INSIDE prose, which is a different object: no frame, no portrait, no ghost.
- *  It borrows the page's type and marks itself with a rule down the side, and it is what
- *  a `<blockquote>` in an article should look like. */
-function Prose({
-  words,
-  author,
-  source,
-  date,
-  tone,
-  className,
-  children,
-}: {
-  words: string
-  tone?: QuoteTone
-  className?: string
-  children?: React.ReactNode
-} & Pick<QuoteData, "author" | "source" | "date">) {
+/** The ghost. One drawing, shipped as an outline, the same at every weight. */
+function Mark() {
   return (
-    <figure
-      className={`ag-quote${className ? ` ${className}` : ""}`}
-      style={
-        tone
-          ? ({ "--ag-quote-ink": tone.accent } as React.CSSProperties)
-          : undefined
-      }
+    <svg
+      className="ag-quote-mark"
+      viewBox={`0 0 ${MARK_BOX.w} ${MARK_BOX.h}`}
+      aria-hidden="true"
     >
-      <blockquote className="ag-quote-body">
-        {children ?? <p>{words}</p>}
-      </blockquote>
-      {(author || date || source) && (
-        <figcaption className="ag-quote-by">
-          {author?.avatar && (
-            // biome-ignore lint/performance/noImgElement: an item cannot assume next/image
-            <img
-              className="ag-quote-face"
-              src={author.avatar}
-              alt=""
-              width={40}
-              height={40}
-            />
-          )}
-          {author &&
-            (author.href ? (
-              <cite>
-                <a href={author.href}>{author.name}</a>
-              </cite>
-            ) : (
-              <cite>{author.name}</cite>
-            ))}
-          {date && <span className="ag-quote-date">{date}</span>}
-          {source && (
-            <a
-              className="ag-quote-source"
-              href={source}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              source ↗
-            </a>
-          )}
-        </figcaption>
+      <path d={MARK_PATH} />
+    </svg>
+  )
+}
+
+/** ONE LINE: the name, then the date, then — where the weight has room for it — the
+ *  source. The name is a NAME and stays in the page's own colour: colouring it makes the
+ *  accent mean "person", which it means nowhere else, and pulls the eye off the
+ *  sentence. */
+function By({
+  author,
+  date,
+  source,
+  face = false,
+}: Pick<QuoteData, "author" | "date" | "source"> & { face?: boolean }) {
+  if (!author && !date && !source) return null
+  return (
+    <figcaption className="ag-quote-by">
+      {face && author?.avatar && (
+        // biome-ignore lint/performance/noImgElement: an item cannot assume next/image
+        <img
+          className="ag-quote-face"
+          src={author.avatar}
+          alt=""
+          width={40}
+          height={40}
+        />
       )}
-    </figure>
+      {author &&
+        (author.href ? (
+          <cite>
+            <a href={author.href}>{author.name}</a>
+          </cite>
+        ) : (
+          <cite>{author.name}</cite>
+        ))}
+      {date && <span className="ag-quote-date">{date}</span>}
+      {source && (
+        <a
+          className="ag-quote-source"
+          href={source}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          source ↗
+        </a>
+      )}
+    </figcaption>
   )
 }

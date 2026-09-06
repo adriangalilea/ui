@@ -73,13 +73,19 @@ export default function Demo() {
     <div className="space-y-8">
       <div className="space-y-2">
         <div className="font-mono text-muted-foreground text-xs lowercase">
-          display · the card, in the DOM
+          feature · what a quote's own page opens with
         </div>
-        <Quote {...LETTER} tone={TWAIN_TONE} display />
+        <Quote {...LETTER} tone={TWAIN_TONE} variant="feature" />
       </div>
       <div className="space-y-2">
         <div className="font-mono text-muted-foreground text-xs lowercase">
-          inline · a quote inside prose, at the page's own size
+          card · the link preview, drawn in the DOM
+        </div>
+        <Quote {...LETTER} tone={TWAIN_TONE} variant="card" />
+      </div>
+      <div className="space-y-2">
+        <div className="font-mono text-muted-foreground text-xs lowercase">
+          prose · a quotation inside an article, at the page's own size
         </div>
         <Quote {...SYSTEM} />
       </div>
