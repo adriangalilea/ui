@@ -157,12 +157,20 @@ The engine is extracted: `lightbox.tsx` is the binder (DOM listeners in, effects
 anywhere.** The gestures were settled in the browser over many rounds; live with it
 for a while before trusting it in a site.
 
-Left on the item: the touch path is UNVERIFIED on device (the engine took the pan from
-the browser so a swipe can become a dismiss mid-touch, which is the change that needs
-a phone); the demo streams a 17.8 MB trailer from blender.org on every open (host a
-short clip on the site); Safari frame pacing is unmeasured (needs Develop → Allow
-Remote Automation, then WebDriver); the sign-off list is `unverified` for android
-chrome and macos safari.
+The touch path is STRUCTURALLY verified and unverified BY HAND. A CDP rig
+(`/tmp/lb-*.ts` shape, emulated phone metrics + `Emulation.setTouchEmulationEnabled`
+with `maxTouchPoints`, `Input.dispatchTouchEvent`) drove the deployed site and proved
+the four things that changed when the engine took the pan: a finger moves the track,
+it lands on a slide (462 px, exactly one slot), the sideways half of a gesture is
+felt, and turning UP mid-touch dismisses without lifting (`--lb-p` 0.226, where 1
+would mean it never engaged). That last one passing is itself proof the build under
+test has the new path, since under `pan-x` it could not. None of it says how any of it
+FEELS, which is the only sign-off that counts.
+
+Left on the item: a hand on iphone safari, android chrome and macos safari (the whole
+`DEVICES` list is back to unverified but the one Adrian judged, by that list's own
+rule — the rules were rewritten whole); Safari frame pacing is unmeasured (needs
+Develop → Allow Remote Automation, then WebDriver).
 
 ### then: adopt, wave 2, wave 3
 
