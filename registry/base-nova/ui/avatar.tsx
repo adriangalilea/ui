@@ -1,3 +1,10 @@
+"use client"
+
+// A CLIENT COMPONENT, because it hands `LightboxTrigger` a `render` element. An element
+// created in a server component and passed as a prop across the boundary arrives without
+// its props during prerender — `element.props` is undefined and the trigger's own assert
+// throws — so the element has to be made on the same side as the trigger that clones it.
+//
 // A PERSON'S FACE, the same object everywhere it appears: beside a quotation, at the head
 // of their page, in a feed card, on a comment. One round crop, sized on the studio's
 // scale, positioned on the subject rather than on the middle of the file, ringed in the
