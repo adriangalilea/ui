@@ -4,6 +4,8 @@
 
 import {
   assert,
+  assertAvatar,
+  assertFonts,
   QUOTE_CH,
   QUOTE_MAX,
   QUOTE_STEPS,
@@ -146,4 +148,42 @@ import {
   }
   assert(threw, "a quote that does not fit must scream, never clip")
   console.log("still    escapes, sizes, and refuses to clip")
+}
+
+// A FACE THAT IS NOT THERE AND A PICTURE THAT DOES NOT ARRIVE ARE BOTH SILENT. Neither
+// fails: the renderer substitutes a font and draws nothing for the image, and the card
+// ships looking like something nobody chose. Three redesigns of the quote mark went
+// into a shape that was never the one being drawn, because nothing said so.
+{
+  const screams = (f: () => unknown, what: string) => {
+    let threw = false
+    try {
+      f()
+    } catch {
+      threw = true
+    }
+    assert(threw, `${what} was accepted in silence`)
+  }
+  screams(
+    () => assertFonts(["Geist"], [], false),
+    "a face that is merely hoped for",
+  )
+  assertFonts(["Geist"], ["Geist"], false)
+  assertFonts(["Geist"], [], true)
+  assertFonts(["sans-serif", "monospace"], [], false)
+  assertFonts(['"Geist", sans-serif'], ["Geist"], false)
+
+  screams(() => assertAvatar("/mark-twain.png"), "a path")
+  screams(() => assertAvatar("https://example.com/a.png"), "a url")
+  screams(() => assertAvatar("data:image/png;base64,"), "an empty payload")
+  screams(
+    () => assertAvatar("data:image/png;base64,/9j/4AAQ"),
+    "png declared over jpeg bytes",
+  )
+  screams(
+    () => assertAvatar("data:image/svg+xml;base64,PHN2Zz4="),
+    "a format no renderer must draw",
+  )
+  assertAvatar("data:image/png;base64,iVBORw0KGgoAAAA")
+  console.log("promises fonts and pictures are declared, or it screams")
 }

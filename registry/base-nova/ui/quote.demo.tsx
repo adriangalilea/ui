@@ -11,6 +11,13 @@ import { Quote } from "@/registry/base-nova/ui/quote"
  *  a landscape in that slot proves the layout runs and nothing about whether it works. */
 const TWAIN = "/mark-twain.png"
 
+/** What THIS page has: `app/layout.tsx` loads Geist through next/font, so the browser
+ *  resolves it for an inlined still too. A consumer names their own, and a still that
+ *  is rasterized offline needs the face where its rasterizer looks — fontconfig for
+ *  librsvg, a font buffer for next/og. Naming one that is not there is the bug this
+ *  demo exists to not repeat: it does not fail, it substitutes. */
+const FACE = "Geist"
+
 const LETTER: QuoteData = {
   text: "I didn't have time to write a short letter, so I wrote a long one instead.",
   author: { name: "Mark Twain", href: "#", avatar: TWAIN },
@@ -41,8 +48,14 @@ export default function Demo() {
   // renderer in quote-card, which runs without React so a build or an OG route can
   // draw one. The accent, the size ladder and the trim come from there, so a shared
   // link and the page it opens cannot disagree about what somebody said.
-  const withFace = renderQuoteSvg(LETTER, { avatar: dataUri(TWAIN) })
-  const without = renderQuoteSvg(SYSTEM)
+  // The page really loads Geist, so the still is told it can name it — and told so
+  // EXPLICITLY, because a face that is merely hoped for is substituted in silence.
+  const faces = { fontFamily: FACE, nameFamily: FACE, fonts: [FACE] }
+  const withFace = renderQuoteSvg(LETTER, {
+    ...faces,
+    avatar: dataUri(TWAIN),
+  })
+  const without = renderQuoteSvg(SYSTEM, faces)
   return (
     <div className="space-y-8">
       <div className="space-y-2">

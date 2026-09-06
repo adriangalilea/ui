@@ -79,30 +79,22 @@ export const QUOTE_CH = 0.52
 export const FACE_SHARE = 0.5
 export const FACE_FEATHER = 0.12
 
-/** The opening mark is DRAWN, not set. A glyph brought three problems at once: its
- *  shape is whatever face happens to be installed where the still is rasterized, and
- *  a still cannot assume a font is there at all; Geist's is cut on hard diagonals, so
- *  at watermark size it reads as jagged rather than as punctuation; and a glyph's left
- *  side bearing is invisible, so aligning it to the text below is guesswork that looks
- *  like a mistake.
+/** The mark is the REAL typographic glyph, set in the quote's own face, ghosted and
+ *  behind the words. Three shapes were drawn to replace it — a comma pair, a single
+ *  comma, a guillemet — and every one of them was a workaround for a bug that was
+ *  never about the shape: the still named a font the rasterizer did not have, so the
+ *  "harsh, jagged" mark being judged was Verdana's, not the one asked for.
  *
- *  Two slanted strokes with round caps: the studio's own mark is stroke-drawn, it has
- *  no corners to be harsh, and its left edge is a number rather than a bearing. */
-export const MARK_EM = 1.05
-/** The mark's own drawing, in a 100x140 box: a ball at the foot and a tail sweeping up
- *  and to the right, which is the shape an opening quote actually is — a rotated
- *  comma. Two straight strokes read as parallel bars however they are slanted, and a
- *  glyph reads as whatever face the rasterizer happens to find, which for a still is
- *  not a guess worth making.
+ *  A drawn mark also cannot match the face it sits above, which a glyph does for free
+ *  and in whatever family the consumer set.
  *
- *  ONE of them, at roughly the size of the words. Doubled and set at watermark size it
- *  stopped being punctuation and became a pair of sixes: loud, and the first thing the
- *  eye lands on in a frame whose whole job is to carry somebody else's sentence. A
- *  mark should be recognised, not read. */
-export const MARK_PATH =
-  "M100 0C55 10 15 45 5 85C-5 120 20 140 48 140C75 140 95 120 95 95C95 72 78 58 58 58C62 35 78 14 100 0Z"
-export const MARK_BOX = { w: 100, h: 140 }
-export const MARK_OPACITY = 0.55
+ *  It is the ONE element off the grid: the text, the name and the date all hang from
+ *  one margin, and a frame where everything aligns reads as a form. Its position is
+ *  deterministic — anchored to the words, so the composition balances the same way for
+ *  any quote. */
+export const MARK_EM = 4.2
+export const MARK_OPACITY = 0.1
+export const MARK_BLEED = 0.5
 
 /** Cap height and descender as shares of the em, for Geist and near enough for any
  *  humanist sans. The still has no way to measure text, so a block is composed from
@@ -111,6 +103,18 @@ export const MARK_OPACITY = 0.55
 export const CAP = 0.72
 export const DESC = 0.22
 
+/** Where the lines break, BALANCED. The web has `text-wrap: balance` and a still has
+ *  nothing, so this is that algorithm: the fewest lines the text fits in, then the
+ *  arrangement of those lines whose lengths are most even.
+ *
+ *  Greedy wrapping is what a first attempt writes, and it produces WIDOWS — "The
+ *  purpose of a system is what it / does." leaves one word alone under a full line,
+ *  which is the most visible typographic fault a card this size can have and the
+ *  reason this is a dynamic program and not a loop.
+ *
+ *  Cost is the sum of squared slack, the last line INCLUDED. Knuth-Plass leaves the
+ *  last line free because it is setting a paragraph; two or three lines is a shape,
+ *  and evening every one of them is the entire point. */
 export function quoteWrap(
   text: string,
   fontSize: number,
@@ -118,19 +122,67 @@ export function quoteWrap(
 ): string[] {
   assert(fontSize > 0, `a font size of ${fontSize}`)
   const per = Math.max(8, Math.floor(width / (fontSize * QUOTE_CH)))
-  const lines: string[] = []
-  let line = ""
-  for (const word of text.split(/\s+/).filter(Boolean)) {
-    const next = line ? `${line} ${word}` : word
-    if (next.length <= per) {
-      line = next
+  const words = text.split(/\s+/).filter(Boolean)
+  if (!words.length) return []
+
+  // The fewest lines it fits in. Any more and the type is smaller than it needed to be.
+  let count = 1
+  let run = ""
+  for (const w of words) {
+    const next = run ? `${run} ${w}` : w
+    if (next.length <= per || !run) {
+      run = next
       continue
     }
-    if (line) lines.push(line)
-    line = word
+    count++
+    run = w
   }
-  if (line) lines.push(line)
-  return lines
+  if (count === 1) return [words.join(" ")]
+
+  const n = words.length
+  const span = (i: number, j: number) =>
+    words.slice(i, j).reduce((sum, w) => sum + w.length, 0) + (j - i - 1)
+  const INF = Number.POSITIVE_INFINITY
+  // dp[k][i]: the least raggedness of setting words[i..] in exactly k lines.
+  const dp = Array.from({ length: count + 1 }, () =>
+    new Array<number>(n + 1).fill(INF),
+  )
+  const cut = Array.from({ length: count + 1 }, () =>
+    new Array<number>(n + 1).fill(-1),
+  )
+  ;(dp[0] as number[])[n] = 0
+  for (let k = 1; k <= count; k++) {
+    const row = dp[k] as number[]
+    const prev = dp[k - 1] as number[]
+    const marks = cut[k] as number[]
+    for (let i = n - 1; i >= 0; i--) {
+      for (let j = i + 1; j <= n; j++) {
+        const w = span(i, j)
+        // A word longer than the column still gets its own line: it cannot be broken,
+        // and dropping it would be worse than letting it hang.
+        if (w > per && j > i + 1) break
+        const rest = prev[j] as number
+        if (rest === INF) continue
+        const slack = per - w
+        const cost = rest + slack * slack
+        // `<=`, so an equal-cost split takes the LATER break: ties then set a longer
+        // first line and a rag that shortens, which is the one that looks composed.
+        if (cost <= (row[i] as number)) {
+          row[i] = cost
+          marks[i] = j
+        }
+      }
+    }
+  }
+  const out: string[] = []
+  let i = 0
+  for (let k = count; k > 0; k--) {
+    const j = (cut[k] as number[])[i] as number
+    assert(j > i, `the balancer lost the words at line ${count - k + 1}`)
+    out.push(words.slice(i, j).join(" "))
+    i = j
+  }
+  return out
 }
 
 /** The longest a preview carries. Past this the reader is being asked to read a page
@@ -145,14 +197,66 @@ export function quoteTrim(text: string, max = QUOTE_MAX): string {
 }
 
 /** THREE VOICES, and the distinction is the point: the words are the quote, the name
- *  is a person, the date is metadata. A serif says "this is a quotation" before a
- *  single word is read; mono says "this is a fact about it". All three stacks fall
- *  back to something every rasterizer has, because a still that needs a font shipped
- *  with it is a still that renders differently on the machine that builds it. */
-export const QUOTE_SERIF = 'Georgia, "Times New Roman", Times, serif'
-export const QUOTE_SANS = "Geist, ui-sans-serif, system-ui, sans-serif"
-export const QUOTE_MONO =
-  'ui-monospace, SFMono-Regular, Menlo, "Courier New", monospace'
+ *  is a person, the date is metadata. They are three SLOTS, not three typefaces: a
+ *  component that names Georgia and Geist forces its taste on every page that installs
+ *  it, which is not a component, and the defaults here are therefore the GENERIC
+ *  families every renderer resolves to the reader's own. Pass real stacks to get the
+ *  three voices; pass nothing and it borrows the page's. */
+export const QUOTE_SANS = "sans-serif"
+export const QUOTE_MONO = "monospace"
+
+/** The families a renderer resolves without being told anything. Naming anything else
+ *  is a promise the caller has to keep. */
+export const GENERIC_FAMILIES = [
+  "serif",
+  "sans-serif",
+  "monospace",
+  "cursive",
+  "fantasy",
+  "system-ui",
+  "ui-serif",
+  "ui-sans-serif",
+  "ui-monospace",
+  "ui-rounded",
+  "inherit",
+]
+
+/** The first family of a stack, unquoted. */
+export function firstFamily(stack: string): string {
+  return (stack.split(",")[0] ?? "").trim().replace(/^["']|["']$/g, "")
+}
+
+/** THE FONT A STILL ASKS FOR IS A PROMISE, and an unkept one is silent. A missing
+ *  family does not fail: the renderer substitutes, and the card ships looking like
+ *  something nobody chose. Measured on this machine, `sans-serif` resolves to Verdana,
+ *  and three redesigns of the quote mark were spent on a shape that was never the one
+ *  being drawn.
+ *
+ *  So naming a real face means declaring it will be there — `fonts: ["Geist"]` when
+ *  the page or the rasterizer has it — or saying `systemFonts` and accepting whatever
+ *  turns up. Silence is the one thing that is not allowed. */
+export function assertFonts(
+  used: readonly string[],
+  available: readonly string[],
+  systemFonts: boolean,
+): void {
+  if (systemFonts) return
+  const missing = used
+    .map(firstFamily)
+    .filter(
+      (f) =>
+        f.length > 0 &&
+        !GENERIC_FAMILIES.includes(f.toLowerCase()) &&
+        !available.some((a) => firstFamily(a) === f),
+    )
+  assert(
+    missing.length === 0,
+    `these faces are named but not declared available: ${[...new Set(missing)].join(", ")}. ` +
+      "List them in `fonts` when the page or the rasterizer really has them, or pass " +
+      "`systemFonts: true` to accept a substitute. A still that silently substitutes " +
+      "is a still nobody chose the look of.",
+  )
+}
 
 /** The card's ground is TINTED from the same seed the accent comes from, at a
  *  lightness low enough to read as black at a glance. A quote on pure #000 next to a
@@ -161,8 +265,54 @@ export const QUOTE_MONO =
  *  picture. */
 export const GROUND_SAT = 26
 export const GROUND_LIGHT = 5
-export function quoteGround(seed: string): string {
-  return `hsl(${quoteHue(seed)}, ${GROUND_SAT}%, ${GROUND_LIGHT}%)`
+export function quoteGround(hue: number): string {
+  return `hsl(${hue}, ${GROUND_SAT}%, ${GROUND_LIGHT}%)`
+}
+/** Lifted off pure black, and NEUTRAL. A hue seeded from a slug is a colour nobody
+ *  chose, and it lands wherever the hash lands: a violet ground behind a
+ *  black-and-white photograph is the case that proves it. `quoteAccent` and
+ *  `quoteGround` stay exported for a consumer who knows what the picture looks like;
+ *  nothing here guesses on their behalf. */
+export const GROUND = "#0d0d0f"
+
+/** The first bytes of a format, as base64 sees them. A data URI can declare any mime
+ *  it likes; these are what the payload actually IS. */
+export const IMAGE_MAGIC: Readonly<Record<string, string>> = {
+  "image/png": "iVBORw0KGgo",
+  "image/jpeg": "/9j/",
+  "image/gif": "R0lGOD",
+  "image/webp": "UklGR",
+}
+
+/** A PICTURE THAT DOES NOT ARRIVE IS SILENT, exactly like a font that does not. An
+ *  `<image>` a renderer cannot resolve is not an error: it draws nothing, the veil
+ *  covers nothing, and the card ships as a column of text against empty space, which
+ *  looks deliberate. So the avatar has to be bytes and has to be the bytes it claims.
+ *
+ *  A URL is the common mistake and it is checked first, because it works on the page —
+ *  the browser fetches it — and fails only where the preview is actually made. */
+export function assertAvatar(avatar: string): void {
+  assert(
+    avatar.startsWith("data:"),
+    `an avatar must be a data URI, got ${avatar.slice(0, 48)}… — a still has no browser, ` +
+      "no network and no origin to resolve a path against. Read the file and base64 it.",
+  )
+  const [head, payload] = avatar.slice(5).split(";base64,")
+  assert(
+    payload !== undefined && payload.length > 0,
+    "an avatar data URI with no base64 payload",
+  )
+  const mime = (head ?? "").trim()
+  const magic = IMAGE_MAGIC[mime]
+  assert(
+    magic !== undefined,
+    `an avatar of type "${mime}", which no renderer is required to draw. One of: ${Object.keys(IMAGE_MAGIC).join(", ")}`,
+  )
+  assert(
+    payload.startsWith(magic),
+    `an avatar declared "${mime}" whose bytes are not ${mime} (starts "${payload.slice(0, 12)}"). ` +
+      "A truncated read or the wrong extension both land here, and both draw nothing at all.",
+  )
 }
 
 export interface QuoteStillOptions {
@@ -176,10 +326,15 @@ export interface QuoteStillOptions {
   accent?: string
   /** A DATA URI. A still cannot fetch, so a URL renders as nothing. */
   avatar?: string | null
-  /** The three voices. Defaults are QUOTE_SERIF / QUOTE_SANS / QUOTE_MONO. */
+  /** The three voices. Defaults are the GENERIC families, which every renderer has. */
   fontFamily?: string
   nameFamily?: string
   dateFamily?: string
+  /** Faces the caller promises the renderer can resolve. Naming one anywhere above
+   *  without listing it here throws. */
+  fonts?: readonly string[]
+  /** Accept whatever the renderer substitutes. Deliberate, and it says so. */
+  systemFonts?: boolean
 }
 
 const esc = (s: string) =>
@@ -206,16 +361,19 @@ export function renderQuoteSvg(
     muted = "#8f8f8f",
     accent,
     avatar,
-    fontFamily = QUOTE_SERIF,
+    fontFamily = QUOTE_SANS,
     nameFamily = QUOTE_SANS,
     dateFamily = QUOTE_MONO,
+    fonts = [],
+    systemFonts = false,
   }: QuoteStillOptions = {},
 ): string {
   const text = quoteTrim(quote.text)
   assert(text.length > 0, "a quote with no words")
-  const seed = quote.seed ?? quote.author?.name ?? text
-  const ink = accent ?? quoteAccent(seed)
-  const ground = background ?? quoteGround(seed)
+  assertFonts([fontFamily, nameFamily, dateFamily], fonts, systemFonts)
+  if (avatar) assertAvatar(avatar)
+  const ink = accent ?? foreground
+  const ground = background ?? GROUND
   const pad = Math.round(width / 20)
   const faceX = width - Math.round(width * FACE_SHARE)
   const veilX = faceX - Math.round(width * FACE_FEATHER)
@@ -227,10 +385,9 @@ export function renderQuoteSvg(
   const textW = avatar ? faceX - pad : width - 2 * pad
   const lines = quoteWrap(text, size, textW)
 
-  // ONE optical block: mark, words, attribution, centred on what the eye sees rather
-  // than on baselines. Every height below is a visual extent.
-  const markH = Math.round(size * MARK_EM)
-  const markGap = Math.round(size * 0.6)
+  // ONE optical block: words and attribution, centred on what the EYE sees rather than
+  // on baselines. Every height below is a visual extent. The mark is not in it — it is
+  // behind, and a decoration that shifts the words is a decoration in the way.
   const textH = (lines.length - 1) * step + (CAP + DESC) * size
   const nameSize = Math.round(size * 0.62)
   const dateSize = Math.round(size * 0.5)
@@ -238,21 +395,20 @@ export function renderQuoteSvg(
   const dateH = quote.date ? (CAP + DESC) * dateSize : 0
   const footGap = nameH || dateH ? Math.round(size * 1.1) : 0
   const nameGap = nameH && dateH ? Math.round(nameSize * 0.55) : 0
-  const total = markH + markGap + textH + footGap + nameH + nameGap + dateH
+  const total = textH + footGap + nameH + nameGap + dateH
   const top = Math.round((height - total) / 2)
   if (top < pad)
     throw new Error(
       `quote overflows its frame (${Math.round(total)}px of block in ${height}px): shorten it or widen the frame`,
     )
 
-  // Drawn at the text's own left margin, so its edge is a number rather than a font's
-  // invisible side bearing — which is what made it look misaligned.
-  const k = markH / MARK_BOX.h
-  const glyph = (dx: number) =>
-    `<path d="${MARK_PATH}" transform="translate(${pad + dx} ${top}) scale(${k.toFixed(4)})" fill="${ink}" opacity="${MARK_OPACITY}"/>`
-  const mark = glyph(0)
+  // The ghost: the real opening quote, hung so it bleeds off the left margin and
+  // sitting on the first line's own middle, which is where a mark belongs and is the
+  // same place for every quote.
+  const markSize = Math.round(size * MARK_EM)
+  const mark = `<text x="${Math.round(pad - markSize * MARK_BLEED)}" y="${Math.round(top + textH / 2 + markSize * 0.32)}" font-size="${markSize}" font-family="${esc(fontFamily)}" fill="${ink}" opacity="${MARK_OPACITY}">&#8220;</text>`
 
-  let y = top + markH + markGap + CAP * size
+  let y = top + CAP * size
   const rows = lines
     .map((l, i) => {
       const at = Math.round(y + i * step)
