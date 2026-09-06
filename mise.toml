@@ -14,12 +14,13 @@ description = "registry + site"
 run = ["pnpm shadcn build", "pnpm next build"]
 
 [tasks.check]
-description = "typecheck, lint, registry build + assertions, the lightbox examples (public/r is committed: a stale build shows as a diff)"
+description = "typecheck, lint, registry build + assertions, every runnable example (public/r is committed: a stale build shows as a diff)"
 run = [
   "pnpm tsc --noEmit",
   "pnpm biome check .",
   "pnpm shadcn build",
   "bun scripts/validate-registry.ts",
+  "bun scripts/examples/quote-card.ts",
   "bun scripts/examples/lightbox-motion.ts",
   "bun scripts/examples/lightbox-flight.ts",
   "bun scripts/examples/lightbox-hold.ts",

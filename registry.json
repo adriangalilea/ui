@@ -122,6 +122,35 @@
       ]
     },
     {
+      "name": "quote",
+      "type": "registry:ui",
+      "title": "quote",
+      "description": "somebody else's words, and the social preview of them: the card and the still read one set of rules, so a shared link and the page it opens cannot drift apart",
+      "registryDependencies": ["@ag/tokens", "@ag/quote-card"],
+      "files": [
+        {
+          "path": "registry/base-nova/ui/quote.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/base-nova/ui/quote.css",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "quote-card",
+      "type": "registry:lib",
+      "title": "quote-card",
+      "description": "a quote's rules: the accent it keeps, the size ladder its text is set at, the wrap, and the SVG still. framework-free, so a build script or an og route can draw one without React",
+      "files": [
+        {
+          "path": "registry/base-nova/lib/quote-card.ts",
+          "type": "registry:lib"
+        }
+      ]
+    },
+    {
       "name": "terminal",
       "type": "registry:ui",
       "title": "terminal",

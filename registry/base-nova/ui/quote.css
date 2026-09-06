@@ -1,0 +1,75 @@
+/* The accent is set inline from the seed, so a quote keeps its colour without a
+   palette to maintain and a wall of them is varied by construction. */
+.ag-quote {
+  margin: 0;
+  padding-inline-start: 1rem;
+  border-inline-start: 2px solid
+    color-mix(in oklch, var(--ag-quote-accent) 55%, transparent);
+}
+.ag-quote[data-display] {
+  padding-inline-start: 1.5rem;
+}
+.ag-quote-body {
+  margin: 0;
+  font-style: italic;
+  color: color-mix(in oklch, var(--foreground) 90%, transparent);
+}
+.ag-quote-body > p {
+  margin: 0;
+}
+.ag-quote-body > p + p {
+  margin-block-start: 0.5rem;
+}
+/* Display sets its own size from the ladder, so the leading has to be a ratio: a
+   fixed line-height would space a poster and a paragraph identically. */
+.ag-quote[data-display] .ag-quote-body {
+  line-height: 1.35;
+  text-wrap: balance;
+}
+
+.ag-quote-by {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-block-start: 0.75rem;
+  font-size: var(--text-xs, 0.75rem);
+  font-style: normal;
+  color: var(--muted-foreground);
+}
+.ag-quote[data-display] .ag-quote-by {
+  gap: 0.75rem;
+  margin-block-start: 1.5rem;
+  font-size: var(--text-sm, 0.875rem);
+}
+.ag-quote-face {
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  object-fit: cover;
+  border-radius: 9999px;
+}
+.ag-quote[data-display] .ag-quote-face {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+.ag-quote-by cite {
+  font-style: normal;
+  color: var(--ag-quote-accent);
+}
+.ag-quote-by a {
+  color: inherit;
+  text-decoration: none;
+}
+.ag-quote-by a:hover {
+  text-decoration: underline;
+}
+/* The date and the source are metadata, so they take the metadata voice. */
+.ag-quote-date,
+.ag-quote-source {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--text-xs, 0.75rem);
+  color: color-mix(in oklch, var(--muted-foreground) 80%, transparent);
+}
+.ag-quote-source {
+  margin-inline-start: auto;
+}
