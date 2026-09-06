@@ -256,9 +256,17 @@ swapping.
 `avatar.json` beside it — `{ focus, average }` — written by `mise portrait` when it crops
 and by `mise portraits <dir>` for any portrait missing one (`scripts/pixels.ts`). Focus
 comes from Vision (a face, else the attention model's subject, else the middle); `average`
-is the picture's mean RGB. The sidecar holds FACTS, never the derived tone: `toneFrom` is
-pure arithmetic a consumer runs at build, so a change to the tone rule re-annotates
-nothing. Both are ASSET PREPARATION, done once on the Mac with
+is the picture's mean RGB; `size` its natural pixels. The sidecar holds FACTS, never the
+derived tone: `toneFrom` is pure arithmetic a consumer runs at build, so a change to the
+tone rule re-annotates nothing.
+
+**`avatar` reads the same sidecar.** A person's face is one item everywhere it appears —
+quote attribution, page header, feed card, comment: a round crop on the rungs (24/40/64),
+`object-position` from `focus` so a subject to one side of the file is not cropped to an
+ear, a hairline ring in the tone. With `full` (the portrait and its `size`) it is a
+`LightboxTrigger`, so it depends on `lightbox` and needs ONE `<Lightbox>` provider on the
+page — mount it in the layout, not per card. `quote` depends on `avatar` for its
+attribution. Both are ASSET PREPARATION, done once on the Mac with
 the tools the Mac has; a consumer reads two numbers and never runs sips, sharp or Vision
 in its build. A detected focus is a guess that is right often, not always — two people in
 a frame, a face in profile at the edge — and the sidecar is the override: edit the number,
