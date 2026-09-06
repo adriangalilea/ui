@@ -1,8 +1,8 @@
 import {
-  QUOTE_STEPS,
+  MEASURE_STEPS,
   quoteAccent,
   quoteClean,
-  quoteFontSize,
+  quoteSet,
   quoteWrap,
 } from "@/registry/base-nova/lib/quote-card"
 
@@ -22,20 +22,20 @@ export default function Demo() {
         <thead className="text-muted-foreground">
           <tr className="text-left">
             <th className="pb-2 font-normal">chars</th>
-            <th className="pb-2 font-normal">size @1200</th>
+            <th className="pb-2 font-normal">size @680</th>
             <th className="pb-2 font-normal">lines</th>
             <th className="pb-2 font-normal">accent</th>
           </tr>
         </thead>
         <tbody>
           {SAMPLES.map((text) => {
-            const trimmed = quoteClean(text)
-            const size = quoteFontSize(trimmed.length, 1200)
+            const clean = quoteClean(text)
+            const { size, lines } = quoteSet(clean, 680)
             return (
               <tr key={text} className="border-border border-t">
-                <td className="py-2">{trimmed.length}</td>
+                <td className="py-2">{clean.length}</td>
                 <td className="py-2">{size}px</td>
-                <td className="py-2">{quoteWrap(trimmed, size, 680).length}</td>
+                <td className="py-2">{lines.length}</td>
                 <td className="py-2">
                   <span
                     className="inline-block size-3 rounded-full align-middle"
@@ -48,10 +48,10 @@ export default function Demo() {
         </tbody>
       </table>
       <p className="text-muted-foreground text-sm">
-        The ladder is a share of the frame, not a pixel size, so a 1200px
-        preview and a 768px reading column step down at the same place in the
-        text rather than at the same width. {QUOTE_STEPS.length} rungs, the last
-        one open-ended.
+        The ladder is a MEASURE, not a pixel size: it says how many characters a
+        line should carry and the size follows from the column, so the same
+        quote breaks into the same shape in a 1200px preview and a 680px reading
+        column. {MEASURE_STEPS.length} rungs, the last one open-ended.
       </p>
     </div>
   )

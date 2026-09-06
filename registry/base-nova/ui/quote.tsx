@@ -10,7 +10,7 @@ import {
   type Quote as QuoteData,
   quoteAccent,
   quoteClean,
-  quoteFontSize,
+  quoteSet,
 } from "@/registry/base-nova/lib/quote-card"
 import "./quote.css"
 
@@ -42,9 +42,10 @@ export function Quote({
 }: QuoteProps) {
   const words = quoteClean(text)
   const accent = quoteAccent(seed ?? author?.name ?? text)
-  // The one place the still's arithmetic reaches the DOM: the size a preview would
-  // set these words at, in the units CSS wants.
-  const size = display ? `${quoteFontSize(words.length, width)}px` : undefined
+  // The one place the still's arithmetic reaches the DOM: the size a preview would set
+  // these words at, in the units CSS wants. It is a MEASURE, so the number is right for
+  // this column rather than for the one it was tuned against.
+  const size = display ? `${quoteSet(words, width).size}px` : undefined
   return (
     <figure
       className={`ag-quote${className ? ` ${className}` : ""}`}

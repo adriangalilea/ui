@@ -6,12 +6,13 @@ import {
   assert,
   assertAvatar,
   assertFonts,
+  MEASURE_STEPS,
   QUOTE_CH,
-  QUOTE_STEPS,
   quoteAccent,
   quoteClean,
-  quoteFontSize,
   quoteHue,
+  quoteMeasure,
+  quoteSet,
   quoteWrap,
   renderQuoteSvg,
 } from "../../registry/base-nova/lib/quote-card"
@@ -39,40 +40,51 @@ import {
   console.log(`accent   stable, ${hues.size}/8 distinct across near seeds`)
 }
 
-// The ladder is a SHARE of the frame, so a 1200px preview and a 768px column step
-// down at the same place in the text. A ladder in px would put the break somewhere
-// different on every surface, which is the drift this file exists to prevent.
+// THE LADDER IS A MEASURE, so the SAME quote breaks into the same number of lines in a
+// 646px column and a 400px one — the type shrinks, the shape holds. Stated in pixels it
+// could only ever be right for the column it was measured against, which is how a
+// seventy-six-character quote ended up in four lines of nineteen.
 {
-  // The claim is that it steps at the same PLACE IN THE TEXT, not that two rounded
-  // pixel sizes divide cleanly: every surface must break to the next size at the same
-  // character count, or a preview and its page disagree about which quote is big.
-  for (const { under } of QUOTE_STEPS.slice(0, -1))
-    for (const w of [1200, 768, 400])
-      assert(
-        quoteFontSize(under - 1, w) > quoteFontSize(under, w),
-        `no step at ${under} chars on a ${w}px frame`,
-      )
-  // And it IS a share, to within the rounding to whole pixels.
-  for (const len of [40, 80, 120, 160, 300]) {
-    const share = quoteFontSize(len, 1200) / 1200
+  for (const len of [30, 60, 120, 200, 300, 500]) {
+    const text = "word "
+      .repeat(Math.ceil(len / 5))
+      .slice(0, len)
+      .trim()
+    const wide = quoteSet(text, 646)
+    const narrow = quoteSet(text, 400)
     assert(
-      Math.abs(share - quoteFontSize(len, 768) / 768) < 1 / 768,
-      `the ladder is not a share at ${len} chars`,
+      wide.lines.length === narrow.lines.length,
+      `${len} chars broke into ${wide.lines.length} lines at 646 and ${narrow.lines.length} at 400`,
+    )
+    assert(
+      wide.size > narrow.size,
+      `a narrower column must set smaller type at ${len} chars`,
     )
   }
-  // Monotone: more words is never bigger type.
-  let prev = Number.POSITIVE_INFINITY
-  for (const len of [10, 59, 60, 99, 100, 139, 179, 500]) {
-    const size = quoteFontSize(len, 1200)
-    assert(size <= prev, `type grew at ${len} chars: ${size} > ${prev}`)
-    prev = size
+  // Monotone: more words is never a narrower measure.
+  let prev = 0
+  for (const len of [10, 39, 40, 89, 90, 159, 259, 500]) {
+    const ch = quoteMeasure(len)
+    assert(ch >= prev, `the measure narrowed at ${len} chars: ${ch} < ${prev}`)
+    prev = ch
   }
   assert(
-    QUOTE_STEPS[QUOTE_STEPS.length - 1]?.under === Number.POSITIVE_INFINITY,
-    "the last rung must be open, or a long quote has no size at all",
+    MEASURE_STEPS[MEASURE_STEPS.length - 1]?.under === Number.POSITIVE_INFINITY,
+    "the last rung must be open, or a long quote has no measure at all",
+  )
+  // A band it cannot fit is a THROW, never a cut.
+  let screamed = false
+  try {
+    quoteSet("word ".repeat(400), 646, 100)
+  } catch {
+    screamed = true
+  }
+  assert(
+    screamed,
+    "a quote that cannot fit its band must scream, not be trimmed",
   )
   console.log(
-    `ladder   ${QUOTE_STEPS.length} rungs, ${quoteFontSize(40, 1200)}px down to ${quoteFontSize(500, 1200)}px at 1200`,
+    `measure  ${MEASURE_STEPS.length} rungs, ${quoteMeasure(30)} to ${quoteMeasure(500)} chars a line`,
   )
 }
 
@@ -97,8 +109,7 @@ import {
   const text = quoteClean(
     "A designer knows he has achieved perfection not when there is nothing left to add, but when there is nothing left to take away.",
   )
-  const size = quoteFontSize(text.length, 1200)
-  const lines = quoteWrap(text, size, 1080)
+  const { size, lines } = quoteSet(text, 1080)
   assert(lines.join(" ") === text, "the wrap changed the words")
   assert(lines.length > 1, "that text fits on one line, so this proves nothing")
   const per = Math.floor(1080 / (size * QUOTE_CH))

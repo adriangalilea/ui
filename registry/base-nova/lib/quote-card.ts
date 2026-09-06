@@ -47,44 +47,86 @@ export function quoteAccent(seed: string): string {
   return `hsl(${quoteHue(seed)}, ${QUOTE_SAT}%, ${QUOTE_LIGHT}%)`
 }
 
-/** How big the words are set, by how many there are. A short line earns display size; a
- *  long one has to fit, and the step down is what keeps it inside the frame.
- *
- *  Read as a share of the frame's width, not in px, so the web card and a still of any
- *  size step at the same PLACE in the text rather than at the same pixel.
- *
- *  THE LADDER GOES ALL THE WAY DOWN, and nothing is ever cut. It used to stop at 240
- *  characters and hand whatever was left to an ellipsis, which is the one thing a quote
- *  must never do: an author is made to trail off mid-sentence, and the reader is told
- *  the card ran out of room rather than the thinking. The words are the content. They
- *  set the size; the size does not set them.
- *
- *  When even the last rung will not hold the text the card THROWS. A quote too long for
- *  a preview is a decision for whoever wrote it, made at build time with the whole
- *  sentence in front of them — never a silent amputation made here. */
-export const QUOTE_STEPS: readonly { under: number; em: number }[] = [
-  { under: 60, em: 0.0433 },
-  { under: 100, em: 0.0383 },
-  { under: 140, em: 0.0333 },
-  { under: 180, em: 0.03 },
-  { under: 240, em: 0.0283 },
-  { under: 320, em: 0.0258 },
-  { under: 420, em: 0.0233 },
-  { under: Number.POSITIVE_INFINITY, em: 0.0208 },
-]
-
-/** The type size for `length` characters across a frame `width` wide. */
-export function quoteFontSize(length: number, width: number): number {
-  assert(width > 0, `a frame ${width} wide`)
-  const step = QUOTE_STEPS.find((s) => length < s.under)
-  assert(step, "the size ladder has no last rung")
-  return Math.round(step.em * width)
-}
-
 /** Roughly how many characters fit on a line at this size. Geist and the mono faces
  *  both average near this ratio of the em; the still measures nothing, so a constant
  *  is the honest tool and the wrap is allowed to be approximate. */
 export const QUOTE_CH = 0.52
+
+/** THE LADDER IS IN CHARACTERS PER LINE, NOT IN PIXELS, and the size falls out of it.
+ *
+ *  It was pixels once — a share of the FRAME's width per bucket of quote length — and
+ *  that ladder had no idea how wide the column actually was. The words are set in 646 of
+ *  a 1200px frame, so a size chosen against 1200 came out too big for where it landed
+ *  and broke plain sentences into stubs: four lines of nineteen characters for a
+ *  seventy-six-character quote, three of twenty for a fifty-nine.
+ *
+ *  A measure is what a reader feels and it is the thing being got wrong, so it is the
+ *  thing to state. Say how many characters a line should carry, divide the column by it,
+ *  and the size is arithmetic — right at any column width, for the card and for the web
+ *  component alike, with nothing to retune when either changes.
+ *
+ *  Short quotes take a narrow measure, which is display type; long ones widen, which is
+ *  reading type. Same intent as the old buckets, in the unit that decides. */
+export const MEASURE_STEPS: readonly { under: number; ch: number }[] = [
+  { under: 40, ch: 24 },
+  { under: 90, ch: 30 },
+  { under: 160, ch: 36 },
+  { under: 260, ch: 42 },
+  { under: 400, ch: 48 },
+  { under: Number.POSITIVE_INFINITY, ch: 56 },
+]
+
+/** The widest a line may get before the card stops being one. Stepping the type down to
+ *  make something fit has to stop somewhere, and "however small it takes" is not an
+ *  answer: at eighty characters a line the words are a paragraph in a thumbnail, which
+ *  nobody reads and no shrinking rescues. This is the floor the fit throws at, and it is
+ *  a MEASURE rather than a pixel size so it means the same thing in any column. */
+export const MEASURE_MAX = 80
+
+/** How many characters a line should carry, for a quote this long. */
+export function quoteMeasure(length: number): number {
+  const step = MEASURE_STEPS.find((s) => length < s.under)
+  assert(step, "the measure ladder has no last rung")
+  return step.ch
+}
+
+/** Line to line, as a multiple of the em. */
+export const LINE = 1.35
+
+export interface QuoteSet {
+  size: number
+  lines: string[]
+}
+
+/** The size and the line breaks together, because neither is decidable alone: the size
+ *  comes from the measure, and then the block has to fit the room it is given.
+ *
+ *  NOTHING IS EVER CUT. It steps DOWN until the words fit, and throws if they never do.
+ *  The ladder used to stop and hand what was left to an ellipsis, which is the one thing
+ *  a quote must not do: an author made to trail off mid-sentence, and a reader told the
+ *  card ran out of room rather than the thinking. A quote too long for a preview is a
+ *  decision for whoever wrote it, taken with the whole sentence in front of them. */
+export function quoteSet(
+  text: string,
+  colW: number,
+  bandH = Number.POSITIVE_INFINITY,
+  measure = 1,
+): QuoteSet {
+  assert(colW > 0, `a column ${colW} wide`)
+  const floor = colW / (MEASURE_MAX * QUOTE_CH)
+  let size = Math.round(colW / (quoteMeasure(text.length) * measure * QUOTE_CH))
+  for (;;) {
+    const lines = quoteWrap(text, size, colW)
+    const high =
+      (lines.length - 1) * Math.round(size * LINE) + (CAP + DESC) * size
+    if (high <= bandH) return { size, lines }
+    assert(
+      size > floor,
+      `${text.length} characters will not fit ${Math.round(bandH)}px without running past ${MEASURE_MAX} characters a line, which is a paragraph in a thumbnail: shorten the quote or give it a taller frame`,
+    )
+    size -= 1
+  }
+}
 
 /** The golden minor divides the frame SIDE TO SIDE: the picture takes this much and the
  *  words the rest, and the column of words ends exactly where the picture begins, so one
@@ -529,6 +571,10 @@ export interface QuoteStillOptions {
   /** Where the block of words sits in the band between the ceiling and the attribution,
    *  as the share of the slack that goes ABOVE it. Defaults to BLOCK_AT. */
   blockAt?: number
+  /** Scales the whole measure ladder: above 1 the lines carry more characters and the
+   *  type is smaller, below 1 the reverse. For trying a different measure, not for
+   *  tuning one card. */
+  measure?: number
 }
 
 const esc = (s: string) =>
@@ -564,6 +610,7 @@ export function renderQuoteSvg(
     faceFeather = FACE_FEATHER,
     focus = FOCUS,
     blockAt = BLOCK_AT,
+    measure = 1,
   }: QuoteStillOptions = {},
 ): string {
   const text = quoteClean(quote.text)
@@ -594,14 +641,11 @@ export function renderQuoteSvg(
       Math.min(faceX, (featherX + width) / 2 - focus * height),
     ),
   )
-  const size = quoteFontSize(text.length, width)
-  const step = Math.round(size * 1.35)
   // The column ends exactly where the picture begins, so ONE ratio divides the card and
   // there is no second number to argue about. At that line the dissolve has not started,
   // so a line ending there sits on the ground, not on a face.
   const textX = Math.round(unit * (MARGIN + INDENT))
   const textW = (avatar ? faceX : width - pad) - textX
-  const lines = quoteWrap(text, size, textW)
 
   // WHAT MOVES AND WHAT DOES NOT. The attribution is anchored to the bottom of the
   // frame and the mark to the top of it, both at the same place for every quote; only
@@ -640,13 +684,14 @@ export function renderQuoteSvg(
   //
   // Hanging them off the mark instead made the air depend on the LENGTH of the quote:
   // measured on Einstein, 223px above the words and 79 below.
+  //
+  // The band is also what the size is settled against, which is why it is known before
+  // the type is: `quoteSet` starts from the measure and steps down until the block fits
+  // exactly this much room.
+  const { size, lines } = quoteSet(text, textW, attrTop - markY, measure)
+  const step = Math.round(size * LINE)
   const textH = (lines.length - 1) * step + (CAP + DESC) * size
-  const slack = attrTop - markY - textH
-  if (slack < 0)
-    throw new Error(
-      `quote overflows its frame (${Math.round(textH)}px of words in a ${Math.round(attrTop - markY)}px band): shorten it or widen the frame`,
-    )
-  const top = Math.round(markY + slack * blockAt)
+  const top = Math.round(markY + (attrTop - markY - textH) * blockAt)
   const mark = `<path d="${MARK_PATH}" transform="translate(${pad} ${markY}) scale(${markK.toFixed(4)})" fill="${ink}" opacity="${MARK_OPACITY}" filter="url(#soften)"/>`
 
   const y = top + CAP * size
