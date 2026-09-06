@@ -119,6 +119,44 @@ interleaved with a `scrollLeft` write is a forced synchronous layout per event, 
 measured as the page falling to 30 fps and the browser coalescing four frames of input
 into single 189 px deltas.
 
+### Leaving
+
+**A relock is a RUN of motion, never one event.** Both axis relocks read consecutive
+same-direction travel on a window that restarts when that axis turns. Per event they
+are unreachable: at 120 Hz a finger sends 2-4 px per move, so `> 12 px` in one of them
+is a jump no hand makes, and swiping sideways then up without lifting simply never
+dismissed. The restart matters as much as the accumulation, or the ratio is measured
+against a whole swipe's worth of the other axis and cannot be beaten either. A
+headless rig stepping 30 px at a time passed both tests happily.
+
+**A trackpad pinch dismisses, on the same rule and the same constants two fingers on
+glass use.** Pinching in from fit follows, lights the room and leaves past
+`PINCH_CLOSE`; one that opened past the ceiling first is a zoom being undone. It used
+to rubber against a floor and spring back, so one gesture meant two different things
+on two devices running the same component.
+
+**The exit HANDS the leftover momentum to the page, and the timing is the whole
+thing.** Three failures, in order, each fixed by the next:
+
+- Owning the wheel until the flight LANDED: the page sat still, then scrolled on its
+  own a beat later. A delay the reader cannot steer.
+- Merely releasing the events: nothing moved at all. A scroll stream LATCHES to the
+  scroller it started on, so every remaining delta keeps arriving here whatever this
+  handler does with it. The dialog has to apply them to the page itself.
+- Handing over the instant the exit is DECIDED: too early. A dismiss commits from a
+  projection, with the picture barely moved and the backdrop still up, so the page
+  scrolled behind a curtain. `EXIT_HANDOFF` on `p` waits until the room is half gone,
+  which is when deciding to leave and being able to SEE where you are going become the
+  same moment. Both or neither.
+
+**And the exit is a move through the DOCUMENT.** While the page scrolls under it, the
+picture and its target shift by the same scroll, so the remaining flight is identical
+in shape and in duration. Re-aiming the target alone leaves a critically damped spring
+chasing a fleeing point, whose standing error is `v/ω`: it trails further the longer
+the reader scrolls and takes longer the further the ground ran. Following also gives
+the honest answer when the trigger leaves the screen — the picture goes with it, out
+of view, which is where it belongs.
+
 **A wheel pan STOPS at its bound; only a pointer drag rubber-bands.** A band is for
 direct manipulation, where the image is under a finger and the give is what says "this
 is the end". On a trackpad nothing is under the finger, so all it buys is a picture
