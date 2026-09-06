@@ -5,6 +5,7 @@ import {
   type Entry,
   type Facts,
   Lightbox,
+  LightboxSolo,
   LightboxTrigger,
   type Source,
 } from "@/registry/base-nova/ui/lightbox"
@@ -164,6 +165,27 @@ const PROSE: Entry = {
     source: picsum(1044, 2400, 1600),
     alt: "a figure inside prose",
   },
+}
+
+/** A face in an attribution: the case that made `LightboxSolo` exist. This page is one
+ *  reel, and a trigger placed anywhere in it would join that reel — which is exactly
+ *  what happened to `avatar` when the quote page mounted one provider: three faces
+ *  became a three-slide reel with a strip and arrows. The caption is passed because the
+ *  trigger sits inside somebody else's `<figure>`, and the fallback would read that
+ *  figcaption whole ("Mark Twain1876"). */
+const SOLO: Entry = {
+  id: "twain",
+  media: {
+    kind: "image",
+    source: {
+      src: "/mark-twain.png",
+      full: "/mark-twain.png",
+      width: 256,
+      height: 256,
+    },
+    alt: "Mark Twain",
+  },
+  caption: "Mark Twain",
 }
 
 // The rail is the consumer's inspector beside the media (loom's rail, videoclub's
@@ -445,6 +467,52 @@ export default function Demo() {
             Every trigger is a link to the original, so the page works before
             hydration and a middle click still opens the file.
           </p>
+        </section>
+
+        <section className="mx-auto max-w-prose space-y-4">
+          <div className="font-mono text-xs text-muted-foreground">
+            08 · a picture that opens alone, inside the reel
+          </div>
+          <p className="text-[0.9375rem] leading-relaxed text-foreground/80">
+            Everything above is one reel because it sits under one provider. The
+            face below sits under the same provider and is NOT in the reel: no
+            strip, no arrows, no counter, one picture. That is{" "}
+            <code className="font-mono text-xs">LightboxSolo</code>, a provider
+            around a single trigger, and the nearest provider wins. It exists
+            because the avatar in a quote&apos;s attribution once joined the
+            page reel and three faces became a three-slide gallery. The caption
+            is passed explicitly: the trigger sits inside a figure whose
+            figcaption is the attribution, and the fallback would have read
+            &ldquo;Mark Twain1876&rdquo;.
+          </p>
+          <figure className="flex items-center gap-3">
+            <LightboxSolo
+              entry={SOLO}
+              label="portrait"
+              render={
+                <a
+                  href="/mark-twain.png"
+                  className="block size-10 shrink-0 overflow-hidden rounded-full"
+                  aria-label="Mark Twain"
+                />
+              }
+            >
+              {/* biome-ignore lint/performance/noImgElement: a 256 px portrait */}
+              <img
+                src="/mark-twain.png"
+                alt=""
+                width={256}
+                height={256}
+                className="block size-full object-cover"
+              />
+            </LightboxSolo>
+            <figcaption className="flex items-baseline gap-2 text-sm">
+              <span>Mark Twain</span>
+              <span className="font-mono text-xs text-muted-foreground">
+                1876
+              </span>
+            </figcaption>
+          </figure>
         </section>
 
         <section className="space-y-4">
