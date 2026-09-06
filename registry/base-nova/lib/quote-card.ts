@@ -92,9 +92,15 @@ export const FACE_FEATHER = 0.12
  *  one margin, and a frame where everything aligns reads as a form. Its position is
  *  deterministic — anchored to the words, so the composition balances the same way for
  *  any quote. */
-export const MARK_EM = 4.2
-export const MARK_OPACITY = 0.1
-export const MARK_BLEED = 0.5
+/** Sized and placed against the FRAME, not the words: it owns the top-left corner
+ *  whatever the quote says, so the composition is the same every time and a long quote
+ *  cannot push it around. Huge and barely there — at this size a mark stops being a
+ *  glyph on the card and becomes the surface the card is printed on. Small and shy at
+ *  the edge it reads as a blob somebody forgot to delete. */
+export const MARK_EM = 1.45
+export const MARK_OPACITY = 0.07
+export const MARK_X = -0.045
+export const MARK_BASELINE = 0.98
 
 /** Cap height and descender as shares of the em, for Geist and near enough for any
  *  humanist sans. The still has no way to measure text, so a block is composed from
@@ -402,11 +408,10 @@ export function renderQuoteSvg(
       `quote overflows its frame (${Math.round(total)}px of block in ${height}px): shorten it or widen the frame`,
     )
 
-  // The ghost: the real opening quote, hung so it bleeds off the left margin and
-  // sitting on the first line's own middle, which is where a mark belongs and is the
-  // same place for every quote.
-  const markSize = Math.round(size * MARK_EM)
-  const mark = `<text x="${Math.round(pad - markSize * MARK_BLEED)}" y="${Math.round(top + textH / 2 + markSize * 0.32)}" font-size="${markSize}" font-family="${esc(fontFamily)}" fill="${ink}" opacity="${MARK_OPACITY}">&#8220;</text>`
+  // The ghost owns the corner: the real opening quote, at frame scale, bleeding off
+  // the top and the left so it reads as the surface rather than as an object on it.
+  const markSize = Math.round(height * MARK_EM)
+  const mark = `<text x="${Math.round(width * MARK_X)}" y="${Math.round(height * MARK_BASELINE)}" font-size="${markSize}" font-family="${esc(fontFamily)}" fill="${ink}" opacity="${MARK_OPACITY}">&#8220;</text>`
 
   let y = top + CAP * size
   const rows = lines
