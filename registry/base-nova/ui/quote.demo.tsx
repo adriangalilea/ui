@@ -4,6 +4,7 @@ import {
   type Quote as QuoteData,
   type QuoteTone,
   renderQuoteSvg,
+  toneFrom,
 } from "@/registry/base-nova/lib/quote-card"
 import { Quote, type QuoteVariant } from "@/registry/base-nova/ui/quote"
 
@@ -34,7 +35,13 @@ function sidecar(publicPng: string): Look {
     "public",
     publicPng.replace(/\.[^.]+$/, ".json"),
   )
-  return JSON.parse(readFileSync(json, "utf8")) as Look
+  // The sidecar holds the FACTS - where the subject is, the average colour - and the
+  // tone is derived here by the rule, so a change to the rule needs no re-annotation.
+  const { focus, average } = JSON.parse(readFileSync(json, "utf8")) as {
+    focus: number
+    average: [number, number, number]
+  }
+  return { focus, tone: toneFrom(...average) }
 }
 
 /** EVERY CASE A CONSUMER WILL HIT, not the three that flatter the layout. Short and long,

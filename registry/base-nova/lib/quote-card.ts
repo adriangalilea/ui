@@ -53,7 +53,7 @@ export const QUOTE_CH = 0.45
 /** The mark's ink: the picture's hue, light, and capped at one and a half times the
  *  ground's cap so the two stay coupled — a ground that loses colour takes its mark's
  *  colour down with it. */
-export const QUOTE_SAT = 36
+export const QUOTE_SAT = 27
 export const QUOTE_LIGHT = 65
 
 /** THE LADDER IS IN CHARACTERS PER LINE, NOT IN PIXELS, and the size falls out of it.
@@ -500,7 +500,7 @@ export function assertFonts(
  *  a tint nobody can see is not a tint. Capped at forty it went the other way — a rosy
  *  drawing gave a maroon slab. Twenty-four, judged on a rosy drawing, a warm oil and a
  *  modern photograph at once: the ground is warm or cool, never a colour of its own. */
-export const GROUND_SAT = 24
+export const GROUND_SAT = 18
 export const GROUND_LIGHT = 9
 export function quoteGround(hue: number, sat = GROUND_SAT): string {
   return `hsl(${hue}, ${sat}%, ${GROUND_LIGHT}%)`
@@ -580,7 +580,10 @@ export const GLOW_LIFT = 4
 /** High frequency and ONE octave: film grain is a fine speckle, and fractal noise at a low
  *  frequency with octaves stacked is weather — soft blotches the size of a thumb that read
  *  as a dirty lens, not as texture. */
-export const GRAIN = { frequency: 2.4, octaves: 1, alpha: 0.05, tile: 256 }
+/** Strong enough to survive a platform's JPEG: a link preview is recompressed by whoever
+ *  unfurls it, and a grain too fine and too faint is the first thing the encoder throws
+ *  away — the rings came straight back in Telegram. */
+export const GRAIN = { frequency: 1.6, octaves: 1, alpha: 0.07, tile: 256 }
 
 /** The grain as SVG filter markup, for a `<filter id="grain">` in either emitter. */
 export function grainFilter(): string {

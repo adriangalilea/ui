@@ -253,10 +253,12 @@ same way, and put them in the comparison sheet against the current one before
 swapping.
 
 **Portraits carry a SIDECAR, and that is where the pixels end.** `avatar.png` has an
-`avatar.json` beside it — `{ focus, tone }` — written by `mise portrait` when it crops
+`avatar.json` beside it — `{ focus, average }` — written by `mise portrait` when it crops
 and by `mise portraits <dir>` for any portrait missing one (`scripts/pixels.ts`). Focus
-comes from Vision (a face, else the attention model's subject, else the middle), tone from
-the average colour via `toneFrom`. Both are ASSET PREPARATION, done once on the Mac with
+comes from Vision (a face, else the attention model's subject, else the middle); `average`
+is the picture's mean RGB. The sidecar holds FACTS, never the derived tone: `toneFrom` is
+pure arithmetic a consumer runs at build, so a change to the tone rule re-annotates
+nothing. Both are ASSET PREPARATION, done once on the Mac with
 the tools the Mac has; a consumer reads two numbers and never runs sips, sharp or Vision
 in its build. A detected focus is a guess that is right often, not always — two people in
 a frame, a face in profile at the edge — and the sidecar is the override: edit the number,

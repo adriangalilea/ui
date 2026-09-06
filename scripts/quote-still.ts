@@ -51,14 +51,11 @@ const look = async (
 ): Promise<QuoteStillOptions> => {
   const bytes = await readFile(path)
   const side = (await readSidecar(path)) ?? fallback
+  const tone = side ? toneFrom(...side.average) : null
   return {
     avatar: `data:image/png;base64,${bytes.toString("base64")}`,
-    ...(side
-      ? {
-          background: side.tone.ground,
-          accent: side.tone.accent,
-          focus: side.focus,
-        }
+    ...(side && tone
+      ? { background: tone.ground, accent: tone.accent, focus: side.focus }
       : {}),
   }
 }
@@ -79,7 +76,7 @@ const unwritten = async (
   for (const png of missing)
     out.set(png, {
       focus: focus.get(png) ?? 0.5,
-      tone: toneFrom(...(await averageColor(png))),
+      average: await averageColor(png),
     })
   return out
 }

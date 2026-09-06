@@ -5,7 +5,13 @@
 // PREPARATION, like the crop — they happen when the portrait is made, with the tools this
 // machine has, and what ships is a JSON file two numbers long.
 //
-//   avatar.png  →  avatar.json  { "focus": 0.51, "tone": { "ground": "hsl(…)", "accent": "hsl(…)" } }
+//   avatar.png  →  avatar.json  { "focus": 0.51, "average": [r, g, b] }
+//
+// THE SIDECAR HOLDS FACTS, NOT DECISIONS. The average colour is a fact about the pixels
+// and it is what needs the tools; the tone the card draws in is `toneFrom(average)`, a
+// rule, pure arithmetic a consumer runs at build with no pixel in sight. Storing the tone
+// instead would have left every sidecar stale the first time the rule moved — and the
+// rule moves whenever a card is judged.
 //
 // A consumer reads the sidecar. It never runs sips, sharp or Vision.
 
@@ -15,18 +21,15 @@ import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { inflateSync } from "node:zlib"
-import {
-  assert,
-  FOCUS,
-  type QuoteTone,
-  toneFrom,
-} from "../registry/base-nova/lib/quote-card"
+import { assert, FOCUS } from "../registry/base-nova/lib/quote-card"
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 
 export interface Sidecar {
+  /** Where the subject sits across the picture, 0 to 1. */
   focus: number
-  tone: QuoteTone
+  /** The picture's average colour, 0 to 255 each. `toneFrom(...average)` is the tone. */
+  average: [number, number, number]
 }
 
 /** The sidecar's path for a portrait: the same name, `.json`. */
@@ -145,10 +148,9 @@ export async function annotate(pngs: readonly string[]): Promise<string[]> {
   const focus = await focusOf(missing)
   const written: string[] = []
   for (const png of missing) {
-    const [r, g, b] = await averageColor(png)
     const sidecar: Sidecar = {
       focus: Math.round((focus.get(png) ?? FOCUS) * 1000) / 1000,
-      tone: toneFrom(r, g, b),
+      average: await averageColor(png),
     }
     await writeFile(sidecarOf(png), `${JSON.stringify(sidecar, null, 2)}\n`)
     written.push(sidecarOf(png))
