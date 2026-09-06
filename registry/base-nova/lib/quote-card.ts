@@ -45,7 +45,10 @@ export function assert(cond: unknown, msg: string): asserts cond {
  *  word lands. */
 export const QUOTE_CH = 0.52
 
-export const QUOTE_SAT = 70
+/** The mark's ink: the picture's hue, light, and capped at one and a half times the
+ *  ground's cap so the two stay coupled — a ground that loses colour takes its mark's
+ *  colour down with it. */
+export const QUOTE_SAT = 36
 export const QUOTE_LIGHT = 65
 
 /** THE LADDER IS IN CHARACTERS PER LINE, NOT IN PIXELS, and the size falls out of it.
@@ -462,9 +465,11 @@ export function assertFonts(
  *  argument, and `groundFrom` is the rule for turning those pixels into one. */
 /** Dark enough that near-white type sits on it without a thought, and NOT so dark that
  *  the colour in it is a rumour. Lightness 5 with saturation capped at a quarter was
- *  the first attempt and it renders every picture, salmon drawing included, as black:
- *  a tint nobody can see is not a tint. */
-export const GROUND_SAT = 40
+ *  the first attempt and it rendered every picture, salmon drawing included, as black:
+ *  a tint nobody can see is not a tint. Capped at forty it went the other way — a rosy
+ *  drawing gave a maroon slab. Twenty-four, judged on a rosy drawing, a warm oil and a
+ *  modern photograph at once: the ground is warm or cool, never a colour of its own. */
+export const GROUND_SAT = 24
 export const GROUND_LIGHT = 9
 export function quoteGround(hue: number, sat = GROUND_SAT): string {
   return `hsl(${hue}, ${sat}%, ${GROUND_LIGHT}%)`
