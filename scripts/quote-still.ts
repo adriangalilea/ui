@@ -1,8 +1,8 @@
-// Draw the quote still and LOOK at it. `mise still` renders three built-in lengths into
-// `.renders/` and opens them; `corpus` draws every real quote, `faces` sheets the source
-// portraits, `ground`/`share`/`block` sweep ONE variable each. Dev tooling, not a check —
-// the only judge of how a card reads is a person, and this is the shortest path to
-// putting one in front of them.
+// Draw the quote still to disk. `mise still` renders three built-in lengths into
+// `.renders/`; `corpus` draws every real quote, `faces` sheets the source portraits,
+// `ground`/`share`/`block` sweep ONE variable each. Dev tooling, not a check — the only
+// judge of how a card reads is a person, and a person judges it in a browser, never in
+// Preview: nothing here opens anything.
 //
 // Node APIs throughout, no Bun globals, so it typechecks with everything else.
 // Rasterizing needs `rsvg-convert` (librsvg); without it the SVGs are still written
@@ -472,5 +472,7 @@ if (pngs.length === 0) {
   )
   process.exit(0)
 }
-await run("open", pngs)
+// Written, never opened. Preview adds banding to a dark ground that is not in the file,
+// so nothing can be judged there; what is to be looked at goes on the item's demo page,
+// in a browser. This prints where the files went and stops.
 console.log(pngs.map((p) => p.slice(OUT.length + 1)).join("  "))

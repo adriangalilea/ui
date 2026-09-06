@@ -37,6 +37,14 @@ SEE a moving interface are both better than they are.
 - **Ask him.** Starting a dev server and asking how something feels is welcome, not an
   imposition — he has said so explicitly. A question costs one message; guessing at
   feel and shipping it costs a round, and shipping it silently costs trust.
+- **NEVER `open` a render for him. Not a PNG, not a sheet, not once.** Preview adds
+  banding and artifacts to a dark ground that are not in the file, so it cannot be
+  judged there — a "border" was chased for a round that a pixel count proved did not
+  exist. Anything to be looked at goes on a page in the browser: a variant sweep is a
+  section on the item's demo page (the real component, every case, one variable), a
+  still is inlined as SVG beside its card. `mise still` writes files and prints paths;
+  it does not open them. A future gallery replaces Preview (untitled TODO); until then
+  the browser is the only viewer.
 - The failure mode this exists to stop: a script passes, the agent writes "confirmed",
   and the thing is atrocious in the hand. Instrumentation has also been WRONG here —
   reporting a stale build, blaming the wrong gesture, printing 1000 Hz over a stream

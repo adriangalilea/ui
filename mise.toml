@@ -33,7 +33,7 @@ run = [
 run = "pnpm biome check --write ."
 
 [tasks.still]
-description = "render the quote card into .renders/ and open it. `ground` and `share` sweep the fusion with the quote body stripped"
+description = "render the quote card into .renders/ (never opened: judge it on the demo page). `ground` and `share` sweep the fusion with the quote body stripped"
 usage = '''
 arg "[mode]" help="corpus | faces | ground | share | block" default=""
 arg "[n]" help="how many, for corpus" default="12"
