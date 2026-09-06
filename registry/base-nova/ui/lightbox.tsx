@@ -1365,6 +1365,34 @@ function Stage(props: StageProps) {
       stopGlide()
       animate(sv ? sv.view : GONE, 0, MACHINE, vel, "exit")
     }
+    /** The picture is flying home to a trigger that the page is SCROLLING away, so it
+     *  re-aims at wherever that trigger now is. Without this the exit is pinned to the
+     *  viewport while the content moves under it, and the picture lands confidently on
+     *  a patch of page where its trigger used to be. Following also gives the honest
+     *  answer when the trigger scrolls off: the picture goes with it, out of view,
+     *  which is where it belongs.
+     *
+     *  Once a FRAME, never once an event. Re-aiming reads the trigger's rect, and a
+     *  layout read per wheel event while the page scrolls is the shape of a stall.
+     *  Velocity is not passed, so the flight keeps the speed it already had. */
+    let exitRaf = 0
+    let exitY = 0
+    const followOut = () => {
+      if (S.ph !== "exit") {
+        exitRaf = 0
+        return
+      }
+      exitRaf = requestAnimationFrame(followOut)
+      const y = window.scrollY
+      if (y === exitY) return
+      exitY = y
+      beginExit()
+    }
+    const followScroll = () => {
+      if (exitRaf) return
+      exitY = window.scrollY
+      exitRaf = requestAnimationFrame(followOut)
+    }
 
     // The chrome's index, moved the moment a step is accepted.
     const aimAt = (to: number) => {
@@ -2118,6 +2146,7 @@ function Stage(props: StageProps) {
           wheelPx(e.deltaX, e.deltaMode, window.innerHeight),
           wheelPx(e.deltaY, e.deltaMode, window.innerHeight),
         )
+        followScroll()
         return
       }
       if (chromeTarget(e.target)) return
@@ -2508,6 +2537,7 @@ function Stage(props: StageProps) {
       clearTimeout(scrollTimer)
       if (glide) cancelAnimationFrame(glide)
       if (shotRaf) cancelAnimationFrame(shotRaf)
+      if (exitRaf) cancelAnimationFrame(exitRaf)
       if (passRaf) cancelAnimationFrame(passRaf)
       if (hasSnapEvents)
         trackEl.removeEventListener("scrollsnapchange", onScrollSettled)
