@@ -184,13 +184,25 @@ export interface TelegramChatProps {
  *  `_`, as one animated WebP at 512 px. Telegram's own animated set is TGS behind its
  *  API and its own IP; this is the open equivalent every browser plays with no player. */
 export function animatedEmojiUrl(emoji: string): string {
-  const codes = [...emoji].map((c) => (c.codePointAt(0) as number).toString(16))
-  return `https://fonts.gstatic.com/s/e/notoemoji/latest/${codes.join("_")}/512.webp`
+  return `https://fonts.gstatic.com/s/e/notoemoji/latest/${emojiCodes(emoji)}/512.webp`
+}
+/** The same emoji's still, from the same set: what a pill shows between plays. */
+export function stillEmojiUrl(emoji: string): string {
+  return `https://fonts.gstatic.com/s/e/notoemoji/latest/${emojiCodes(emoji)}/emoji.svg`
+}
+function emojiCodes(emoji: string): string {
+  return [...emoji]
+    .map((c) => (c.codePointAt(0) as number).toString(16))
+    .join("_")
 }
 
 /** The frameless canvas's default viewport: a landing message slides the thread up
  *  inside it instead of growing the page under the reader. */
 export const FRAMELESS_CROP = "4 / 3"
+/** Air above and below a focused message, as a share of the viewport; and how far a
+ *  viewport may grow past its crop to hold a tall one before showing its start instead. */
+const FOCUS_PAD = 0.06
+const FOCUS_GROW = 1.5
 
 /** A CSS aspect-ratio value ("4 / 3", "1/1", "1.5") as width over height. */
 function ratioOf(crop: string): number {
@@ -478,16 +490,57 @@ function Avatar({
   )
 }
 
-/** An emoji as Telegram paints a reaction: animated when the set has it, the glyph when
- *  it does not (the request 404s and the image hands back to text). */
-function Emoji({ ch, animated }: { ch: string; animated: boolean }) {
+/** How long one play of a Noto animation is given before the still comes back. */
+const EMOJI_PLAY_MS = 2600
+
+/** An emoji as Telegram paints a reaction: it PLAYS ONCE when the pill first comes into
+ *  view, and again on a press, and rests as a still otherwise; a pill that looped
+ *  forever was a page that never stopped moving. The still and the animation are the
+ *  same set's two files; a fresh element restarts the animation from its first frame.
+ *  The glyph when the set has neither (the request 404s and the image hands back). */
+function Emoji({
+  ch,
+  animated,
+  play,
+}: {
+  ch: string
+  animated: boolean
+  /** Bump to play again. */
+  play: number
+}) {
   const [plain, setPlain] = React.useState(!animated)
+  const [playing, setPlaying] = React.useState(0)
+  const seen = React.useRef(false)
+  const ref = React.useRef<HTMLImageElement>(null)
+  const start = React.useCallback(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
+    setPlaying((n) => n + 1)
+    window.setTimeout(() => setPlaying(0), EMOJI_PLAY_MS)
+  }, [])
+  React.useEffect(() => {
+    const el = ref.current
+    if (!el || seen.current) return
+    const io = new IntersectionObserver(([e]) => {
+      if (!e?.isIntersecting || seen.current) return
+      seen.current = true
+      io.disconnect()
+      start()
+    })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [start])
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a bump of `play` is the signal
+  React.useEffect(() => {
+    if (play > 0) start()
+  }, [play])
   if (plain) return <>{ch}</>
   return (
-    // biome-ignore lint/performance/noImgElement: an animated webp from a CDN, sized by the pill
+    // biome-ignore lint/performance/noImgElement: a small emoji file from a CDN, sized by the pill
     <img
+      ref={ref}
+      key={playing}
       className="tgchat-emoji"
-      src={animatedEmojiUrl(ch)}
+      src={playing ? animatedEmojiUrl(ch) : stillEmojiUrl(ch)}
       alt={ch}
       loading="lazy"
       onError={() => setPlain(true)}
@@ -524,13 +577,17 @@ export function TelegramChat({
   // state, keyed by message and emoji, on top of whatever the script and the afterlife
   // clock give the pill.
   const [mine, setMine] = React.useState<ReadonlySet<string>>(() => new Set())
-  const toggleMine = (key: string) =>
+  // Every press also plays the emoji once, as the client does.
+  const [presses, setPresses] = React.useState<Record<string, number>>({})
+  const toggleMine = (key: string) => {
     setMine((s) => {
       const next = new Set(s)
       if (next.has(key)) next.delete(key)
       else next.add(key)
       return next
     })
+    setPresses((p) => ({ ...p, [key]: (p[key] ?? 0) + 1 }))
+  }
   const timeline = React.useMemo(() => buildTimeline(script), [script])
   const controlled = progress !== undefined
   const [auto, setAuto] = React.useState(0)
@@ -664,8 +721,16 @@ export function TelegramChat({
     const hero = target === undefined ? null : bubbles.current[target]
     if (hero) {
       // In the thread's content coordinates, so the scroll it sets is absolute.
+      // Centred when it fits; a message taller than the screen shows its START, the
+      // rest a scroll away. Centring it showed its middle with both ends cut.
       const box = placeIn(hero, el)
-      const want = Math.max(0, box.y + box.h / 2 - el.clientHeight / 2)
+      const pad = el.clientHeight * FOCUS_PAD
+      const want = Math.max(
+        0,
+        box.h + 2 * pad <= el.clientHeight
+          ? box.y + box.h / 2 - el.clientHeight / 2
+          : box.y - pad,
+      )
       if (
         threadWant.current !== null &&
         Math.abs(want - threadWant.current) < 1
@@ -708,11 +773,26 @@ export function TelegramChat({
         viewWant.current = null
         return
       }
-      const vh = port.clientWidth / ratioOf(cut)
-      setViewH(vh)
+      // THE VIEWPORT HOLDS THE FOCUSED MESSAGE. The crop is its floor; a taller message
+      // grows it, within reason (half again the crop), so the message is seen whole;
+      // past that the message's START is what shows and the rest is a scroll away.
+      // Centring a message taller than the box showed its middle with both ends cut.
+      const base = port.clientWidth / ratioOf(cut)
       const hero = target === undefined ? null : bubbles.current[target]
+      const heroH = hero ? hero.offsetHeight : 0
+      const pad = base * FOCUS_PAD
+      const vh = Math.min(
+        dh,
+        hero
+          ? Math.min(Math.max(base, heroH + 2 * pad), base * FOCUS_GROW)
+          : base,
+      )
+      setViewH(vh)
+      const heroY = hero ? placeIn(hero, dev).y : 0
       const want = hero
-        ? placeIn(hero, dev).y + hero.offsetHeight / 2 - vh / 2
+        ? heroH + 2 * pad <= vh
+          ? heroY + heroH / 2 - vh / 2
+          : heroY - pad
         : dh - vh
       const top = Math.max(0, Math.min(dh - vh, want))
       if (viewWant.current !== null && Math.abs(top - viewWant.current) < 1)
@@ -773,7 +853,11 @@ export function TelegramChat({
               aria-label={`${r.emoji} ${r.count + (own ? 1 : 0)}`}
               onClick={() => toggleMine(key)}
             >
-              <Emoji ch={r.emoji} animated={animatedEmoji} />
+              <Emoji
+                ch={r.emoji}
+                animated={animatedEmoji}
+                play={presses[key] ?? 0}
+              />
               {isGroup && <span className="n">{r.count + (own ? 1 : 0)}</span>}
             </button>
           )
