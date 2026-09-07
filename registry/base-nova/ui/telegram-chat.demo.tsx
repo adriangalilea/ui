@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { Sample } from "@/app/samples"
 import { Act, ScrollStage, useAct } from "@/registry/base-nova/ui/scroll-stage"
 import {
@@ -248,6 +249,11 @@ const ACTS: {
 function Scrolly() {
   const act = useAct()
   const now = ACTS[act] as (typeof ACTS)[number]
+  // `?debug` on the page: the chat prints what its cut decided, for sign-off by hand.
+  const [debug, setDebug] = React.useState(false)
+  React.useEffect(() => {
+    setDebug(new URLSearchParams(window.location.search).has("debug"))
+  }, [])
   return (
     <div className="grid h-svh items-center gap-10 lg:grid-cols-[1fr_minmax(0,28rem)]">
       <div className="space-y-6">
@@ -271,6 +277,7 @@ function Scrolly() {
         until={{ message: now.until }}
         focus={now.focus}
         crop={now.crop}
+        debug={debug}
         className={`mx-auto w-full ${now.wide ? "max-w-[28rem]" : "max-w-[22rem]"}`}
       />
     </div>

@@ -182,6 +182,11 @@ export interface TelegramChatProps {
    *  WebP, no player, lazy): on by default. Off, the pill shows the text glyph. Each
    *  animation is 150-300 KB, which is why only reactions get them, never body text. */
   animatedEmoji?: boolean
+  /** A mono readout under the chat of what the cut decided, as it happened: story
+   *  position, ceiling, target, whether it has landed, the viewport's height, the
+   *  scroll it asked for and got. For sign-off by hand in a browser; `?debug` on the
+   *  demo page turns it on. */
+  debug?: boolean
   className?: string
 }
 
@@ -568,6 +573,7 @@ export function TelegramChat({
   focus,
   crop,
   animatedEmoji = true,
+  debug = false,
   className,
 }: TelegramChatProps) {
   const wantsCut = crop ?? (frame === "none" ? FRAMELESS_CROP : undefined)
@@ -778,6 +784,9 @@ export function TelegramChat({
   // when where it wants to be changes (the afterlife clock re-runs this every second).
   const [viewH, setViewH] = React.useState<number | null>(null)
   const viewWant = React.useRef<number | null>(null)
+  const pendingScroll = React.useRef(false)
+  /** What the cut decided, for the `debug` readout: the numbers, as they happened. */
+  const trace = React.useRef<Record<string, unknown> | null>(null)
   // biome-ignore lint/correctness/useExhaustiveDependencies: eff and aliveSec grow the thread and move the message
   React.useLayoutEffect(() => {
     const port = view.current
@@ -788,6 +797,7 @@ export function TelegramChat({
       if (!cut) {
         setViewH(dh)
         viewWant.current = null
+        pendingScroll.current = false
         return
       }
       // THE VIEWPORT HOLDS THE FOCUSED MESSAGE. The crop is its floor; a taller message
@@ -812,13 +822,38 @@ export function TelegramChat({
           : heroY - pad
         : dh - vh
       const top = Math.max(0, Math.min(dh - vh, want))
-      if (viewWant.current !== null && Math.abs(top - viewWant.current) < 1)
-        return
+      // THE TARGET STAYS PENDING UNTIL THE BOX CAN REACH IT. The height transitions:
+      // in the frame the crop turns on the viewport is still full height, a scroll has
+      // nowhere to go and the browser clamps it to 0, and a remembered "already there"
+      // then left the thread pinned at its top under a closing curtain. While the box is
+      // still too tall for the target, every resize tick re-aims (instantly, so the
+      // viewport closes down ONTO the message); once it can reach, the target is done.
+      const reach = dh - port.clientHeight
+      const same =
+        viewWant.current !== null && Math.abs(top - viewWant.current) < 1
+      if (same && !pendingScroll.current) return
       const smooth =
+        !same &&
         viewWant.current !== null &&
         !window.matchMedia("(prefers-reduced-motion: reduce)").matches
       viewWant.current = top
+      pendingScroll.current = top > reach + 1
       port.scrollTo({ top, behavior: smooth ? "smooth" : "auto" })
+      if (debug)
+        trace.current = {
+          at: Math.round(at),
+          ceiling: Number(ceiling.toFixed(3)),
+          lift: Number(lift.toFixed(3)),
+          target,
+          landed: hero !== null,
+          cut,
+          vh: Math.round(vh),
+          dh: Math.round(dh),
+          top: Math.round(top),
+          reach: Math.round(reach),
+          pending: pendingScroll.current,
+          scrollTop: Math.round(port.scrollTop),
+        }
     }
     place()
     const ro = new ResizeObserver(place)
@@ -1394,6 +1429,13 @@ export function TelegramChat({
         </div>
         {cut && <div className="tgchat-scrim" data-edge="bottom" />}
       </div>
+      {debug && trace.current && (
+        <pre className="tgchat-debug">
+          {Object.entries(trace.current)
+            .map(([k, v]) => `${k} ${String(v)}`)
+            .join("  ")}
+        </pre>
+      )}
     </figure>
   )
 }

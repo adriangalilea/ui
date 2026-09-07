@@ -489,6 +489,17 @@ video.tgchat-mini {
   width: auto;
   height: 1.25em;
 }
+
+/* The `debug` readout: the cut's numbers, one mono line under the chat, wrapping. */
+.tgchat-debug {
+  margin: 0.5rem 0 0;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  color: var(--muted-foreground, #888);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 @keyframes tgchat-pop {
   0% {
     opacity: 0;

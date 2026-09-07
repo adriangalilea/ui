@@ -374,7 +374,14 @@ the one definition (a bot's handle is its default sub-line). A script may instea
 a `people` map and name them by key. **The cut waits for its target**: a phone cropped to
 a message that has not landed showed the bottom of a thread with nothing to show, so the
 viewport closes down only once the focused message exists; frameless is always cut
-because there the viewport is the container. In `scroll-stage`, JS and CSS now share
+because there the viewport is the container. **And the scroll target stays PENDING until
+the box can reach it**: the height transitions, so in the frame a crop turns on the
+viewport is still full height, a scroll has nowhere to go and is clamped to 0, and a
+remembered "already there" left the thread pinned at its top under a closing curtain
+(the blurred header region in a crop after scrolling up and down). Every resize tick
+re-aims while the box is too tall for the target. `debug` (`?debug` on the demo) prints
+the cut's numbers under the chat, story position through scroll asked and got, for
+sign-off by hand. In `scroll-stage`, JS and CSS now share
 ONE rule for which act is on (past i/acts of the TRAVEL, `--stage-p`'s number): counting
 paces in JS while the CSS counted travel lit an act's words before the stage switched
 whenever a tail lengthened the track; and the first act is on from the top of the
