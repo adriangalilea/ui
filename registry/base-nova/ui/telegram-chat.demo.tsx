@@ -8,83 +8,95 @@ import {
 
 /** THE STORY IS THE BOT'S OWN FLOW: a link lands, someone tags the bot, the summary
  *  streams, a follow-up is asked, the bot answers. Three voices you can tell apart: Melon
- *  (a gradient initial), you on the right, and the bot with its own initial. */
+ *  (a gradient initial), you on the right, and the bot with its own initial. The link is
+ *  a VIDEO, because what xtldr cites is a timestamp (deep-linked with &t=), never a
+ *  paragraph: a citation the real bot does not make is a lie the demo must not tell. */
+const VIDEO = "youtube.com/watch?v=ii1jcLg-eIQ"
 const SCRIPT: ChatScript = {
   kind: "group",
   chatName: "the garden",
   chatTag: "3 members",
   messages: [
-    { from: "Melon", text: "you have to read this" },
+    { from: "Melon", text: "you have to watch this" },
     {
       from: "Melon",
-      text: "paulgraham.com/ds.html",
+      text: VIDEO,
       preview: {
-        site: "paulgraham.com",
-        title: "Do Things that Don't Scale",
+        site: "YouTube",
+        title: "Lecture 3 - Before the Startup (Paul Graham)",
         description:
-          "One of the most common types of advice we give at Y Combinator is to do things that don't scale.",
+          "How to Start a Startup, Stanford CS183B. Paul Graham on the counterintuitive parts of starting a company.",
       },
       reactions: [{ emoji: "👀", when: "timeline" }],
     },
     {
       from: "me",
       text: "@xtldrbot",
-      reply: { from: "Melon", text: "paulgraham.com/ds.html" },
+      reply: { from: "Melon", text: VIDEO },
       typed: true,
     },
     {
       from: "xtldr",
-      typing: "xtldr is reading",
-      source: "paulgraham.com/ds.html",
+      typing: "xtldr is watching",
+      source: VIDEO,
       blocks: [
-        { kind: "heading", text: "Recruit users by hand", emoji: "🌱" },
-        { kind: "item", text: "Startups take off because founders make them" },
-        { kind: "item", text: "Stripe installed itself on users' laptops" },
-        { kind: "heading", text: "Delight, deliberately", emoji: "🔥" },
+        { kind: "heading", text: "Startups are counterintuitive", emoji: "🧭" },
         {
           kind: "item",
-          text: "Over-engage with early users; it compounds",
-          cite: "¶12",
+          text: "Your instincts about people are right; your instincts about startups are not",
+          cite: "2:10",
+        },
+        {
+          kind: "item",
+          text: "Expertise in startups matters less than expertise in your users",
+          cite: "9:35",
+        },
+        { kind: "heading", text: "Don't try", emoji: "🌱" },
+        {
+          kind: "item",
+          text: "The way to get startup ideas is not to try to think of startup ideas",
+          cite: "31:20",
         },
         {
           kind: "quote",
-          text: "The most common unscalable thing founders have to do at the start is to recruit users manually.",
+          text: "Startups are not a way to have fun. The way to get a startup idea is to work on your own problems.",
           by: "Paul Graham",
+          cite: "33:04",
         },
       ],
       meta: {
-        label: "🔗 paulgraham.com",
-        href: "https://paulgraham.com/ds.html",
-        time: "⏱ 14 min read",
+        label: "🔗 youtube.com",
+        href: `https://${VIDEO}`,
+        time: "⏱ 49 min",
       },
       reactions: [{ emoji: "❤️", count: 2 }],
     },
     {
       from: "me",
-      text: "does he say when to stop doing the unscalable thing?",
+      text: "does he say when to stop doing the unscalable things?",
       typed: true,
     },
     {
       from: "xtldr",
       typing: "typing",
-      source: "paulgraham.com/ds.html",
+      source: VIDEO,
       blocks: [
         { kind: "heading", text: "When to stop", emoji: "⏳" },
         {
           kind: "item",
-          text: "When the manual work stops teaching you anything new",
-          cite: "¶31",
+          text: "Not while the manual work still teaches you something about your users",
+          cite: "22:48",
         },
         {
           kind: "item",
-          text: "Never all at once: the founders who scaled well kept a hand in",
-          cite: "¶33",
+          text: "Gradually: the founders who scaled well kept a hand in the unscalable part",
+          cite: "24:15",
         },
       ],
     },
   ],
   afterlife: { from: "Melon", messages: [{ at: 8, text: "ok that was easy" }] },
-  alt: "A group chat: a friend drops an essay, the bot is tagged and summarizes it, a follow-up gets a cited answer.",
+  alt: "A group chat: a friend drops a talk, the bot is tagged and summarizes it with timestamps, a follow-up gets a cited answer.",
 }
 
 const WALL = "/tg-pattern.svg"

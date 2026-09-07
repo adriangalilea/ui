@@ -1038,23 +1038,36 @@ export function TelegramChat({
                     </React.Fragment>
                   )
                 })}
+                {/* A late message is a left bubble like any other: in a group it
+                    carries its sender's label and mini avatar (a gradient initial
+                    when there is no photo), the same row every scripted message
+                    gets. Its own photo, or video, rides on the afterlife block. */}
                 {script.afterlife?.messages
                   .filter((late) => aliveSec >= afterlifeDelay + late.at)
-                  .map((late) => (
-                    <div className="tgchat-rowline" key={late.at}>
-                      {script.afterlife?.avatar && (
-                        <Avatar
-                          className="tgchat-mini"
-                          name={script.afterlife.from ?? script.chatName}
-                          photo={script.afterlife.avatar}
-                          video={script.afterlife.avatarVideo}
-                        />
-                      )}
+                  .map((late) => {
+                    const who = script.afterlife?.from ?? script.chatName
+                    const bubble = (
                       <div className="tgchat-bubble bot">
+                        {senderLabel(who)}
                         {linkify(late.text)}
                       </div>
-                    </div>
-                  ))}
+                    )
+                    if (!isGroup && !script.afterlife?.avatar)
+                      return (
+                        <React.Fragment key={late.at}>{bubble}</React.Fragment>
+                      )
+                    return (
+                      <div className="tgchat-rowline" key={late.at}>
+                        <Avatar
+                          className="tgchat-mini"
+                          name={who}
+                          photo={script.afterlife?.avatar}
+                          video={script.afterlife?.avatarVideo}
+                        />
+                        {bubble}
+                      </div>
+                    )
+                  })}
               </div>
             </div>
             {composing?.reply && composerChars > 0 && (

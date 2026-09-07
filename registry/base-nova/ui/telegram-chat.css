@@ -672,8 +672,10 @@ video.tgchat-mini {
   opacity: 0.7;
   vertical-align: -0.15em;
 }
-/* One line, always: the source may ellipsize but the row NEVER wraps or
-   reflows - a settled summary must not shift. */
+/* One line, always: the row NEVER wraps or reflows (a settled summary must not
+   shift) and it never clips either. The bubble is fit-content, so the row's own
+   width is what asks the bubble for room: a source link allowed to shrink below its
+   text was cut to "paulgraham.cc" inside a bubble that had width to spare. */
 .tgchat-meta {
   display: flex;
   align-items: center;
@@ -684,13 +686,11 @@ video.tgchat-mini {
 }
 .tgchat-meta .src {
   display: inline-flex;
-  min-width: 0;
+  flex: none;
   color: var(--tg-link);
   align-items: center;
   gap: 1.1cqw;
-  overflow: hidden;
   text-decoration: none;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .tgchat-meta .src:hover {
