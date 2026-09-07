@@ -4,7 +4,7 @@
 // it live. Nothing in production: the route answers 404 there.
 import { appendFile } from "node:fs/promises"
 
-export const TRACE_FILE = "/tmp/ui-trace.jsonl"
+const TRACE_FILE = "/tmp/ui-trace.jsonl"
 
 export async function POST(req: Request) {
   if (process.env.NODE_ENV === "production")

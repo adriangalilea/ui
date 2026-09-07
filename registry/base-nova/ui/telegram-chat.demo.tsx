@@ -156,6 +156,41 @@ const PEER: ChatScript = {
   ],
   alt: "A private chat with Adrian.",
 }
+const MANAGED: ChatScript = {
+  ...PEER,
+  chatTag: "last seen 2 hours ago",
+  managedBy: XTLDR,
+  messages: [
+    ...PEER.messages,
+    {
+      from: ADRIAN,
+      text: "My new keyboard. The old split finally gave out.",
+      reactions: [{ emoji: "❤️", count: 1, when: "timeline" }],
+    },
+    {
+      from: "me",
+      text: "That looks so comfortable",
+      reply: { from: ADRIAN, text: "My new keyboard." },
+    },
+    {
+      from: ADRIAN,
+      text: "It took a little practice, but now I can keep my shoulders relaxed while I work.",
+      reactions: [{ emoji: "🔥", count: 2, when: "timeline" }],
+    },
+    { from: "me", text: "I need to try it sometime" },
+    {
+      from: ADRIAN,
+      text: "Come over and try it. Bring the old one too — we might be able to fix it.",
+    },
+    { from: "me", text: "Saturday?" },
+    {
+      from: ADRIAN,
+      text: "Perfect. Coffee and keyboards.",
+      reactions: [{ emoji: "❤️", count: 1, when: "timeline" }],
+    },
+  ],
+  alt: "A private chat with Adrian, with a management bar and compact message reactions.",
+}
 const RICK = "youtube.com/watch?v=dQw4w9WgXcQ"
 const GROUP: ChatScript = {
   kind: "group",
@@ -301,6 +336,27 @@ export default function Demo() {
             wallpaper={WALL}
             theme="light"
             className="max-lg:hidden"
+          />
+        </div>
+      </Sample>
+
+      <Sample
+        name="glass"
+        with="people chats"
+        label="Floating glass · title, managed chat, composer, and reactions"
+      >
+        <div className="flex flex-wrap justify-center gap-10">
+          <TelegramChat
+            script={MANAGED}
+            wallpaper={WALL}
+            theme="dark"
+            progress={1}
+          />
+          <TelegramChat
+            script={MANAGED}
+            wallpaper={WALL}
+            theme="light"
+            progress={1}
           />
         </div>
       </Sample>

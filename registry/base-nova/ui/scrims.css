@@ -1,4 +1,7 @@
-/* scrims: viewport fogs that keep the section below from competing with the one on
+@layer theme, base, components, utilities;
+
+@layer components {
+  /* scrims: viewport fogs that keep the section below from competing with the one on
    screen. Masked backdrop-blur + gradient, no layout, no pointer. Their opacity is
    scroll-LINKED, never transitioned: the top one fades in over the first 160px of
    scroll, the bottom one fades out over the last 140px, and on a page that cannot
@@ -6,81 +9,115 @@
    0→1 over 500ms) crossfades WHILE a smooth anchor scroll is flying; that was the
    "weird effects" complaint. Linked to scroll it simply is where the scroll is. */
 
-.ag-scrim {
-  position: fixed;
-  right: 0;
-  left: 0;
-  z-index: 20;
-  /* A margin on a fixed box is part of where it lands: `top + margin + height +
+  .ag-scrim {
+    position: fixed;
+    right: 0;
+    left: 0;
+    z-index: 20;
+    /* A margin on a fixed box is part of where it lands: `top + margin + height +
      margin + bottom` has to equal the viewport, so a parent's `space-y-16` (which in
      Tailwind v4 is a margin-block-end on every child but the last) pushed the bottom
      fog 64px UP off the edge, with the page showing underneath it. An overlay that
      positions itself against the viewport takes no spacing from whatever it happens
      to be nested in. */
-  margin: 0;
-  pointer-events: none;
-  opacity: 0;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-}
-.ag-scrim[data-edge="top"] {
-  top: 0;
-  height: 5rem;
-  background: linear-gradient(
-    to bottom,
-    color-mix(in oklab, var(--background) 90%, transparent),
-    color-mix(in oklab, var(--background) 35%, transparent) 50%,
-    transparent
-  );
-  mask-image: linear-gradient(to bottom, black 25%, transparent);
-}
-.ag-scrim[data-edge="bottom"] {
-  bottom: 0;
-  height: 7rem;
-  background: linear-gradient(
-    to top,
-    color-mix(in oklab, var(--background) 90%, transparent),
-    color-mix(in oklab, var(--background) 35%, transparent) 50%,
-    transparent
-  );
-  mask-image: linear-gradient(to top, black 25%, transparent);
-}
-
-@keyframes ag-scrim-top {
-  from {
+    margin: 0;
+    pointer-events: none;
     opacity: 0;
+    -webkit-backdrop-filter: blur(var(--scrim-blur, 4px));
+    backdrop-filter: blur(var(--scrim-blur, 4px));
   }
-  to {
-    opacity: 1;
-  }
-}
-@keyframes ag-scrim-bottom {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
-}
-
-@supports (animation-timeline: scroll()) {
   .ag-scrim[data-edge="top"] {
-    animation: ag-scrim-top linear both;
-    animation-timeline: scroll(nearest);
-    animation-range: 0 160px;
+    top: 0;
+    height: var(--scrim-top-height, 5rem);
+    background: linear-gradient(
+      to bottom,
+      color-mix(
+        in oklab,
+        var(--scrim-color, var(--background)) var(--scrim-strength, 90%),
+        transparent
+      ),
+      color-mix(
+          in oklab,
+          var(--scrim-color, var(--background)) var(--scrim-mid-strength, 35%),
+          transparent
+        )
+        var(--scrim-mid-stop, 50%),
+      transparent
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      black var(--scrim-solid-stop, 25%),
+      transparent
+    );
   }
   .ag-scrim[data-edge="bottom"] {
-    animation: ag-scrim-bottom linear both;
-    animation-timeline: scroll(nearest);
-    animation-range: calc(100% - 140px) 100%;
+    bottom: 0;
+    height: var(--scrim-bottom-height, 7rem);
+    background: linear-gradient(
+      to top,
+      color-mix(
+        in oklab,
+        var(--scrim-color, var(--background)) var(--scrim-strength, 90%),
+        transparent
+      ),
+      color-mix(
+          in oklab,
+          var(--scrim-color, var(--background)) var(--scrim-mid-strength, 35%),
+          transparent
+        )
+        var(--scrim-mid-stop, 50%),
+      transparent
+    );
+    mask-image: linear-gradient(
+      to top,
+      black var(--scrim-solid-stop, 25%),
+      transparent
+    );
   }
-}
 
-/* Without scroll-driven animations the component toggles these from a scroll
-   listener; still no transition, for the same reason. */
-@supports not (animation-timeline: scroll()) {
-  .ag-scrim[data-edge="top"][data-on],
-  .ag-scrim[data-edge="bottom"][data-on] {
+  .ag-scrim[data-position="absolute"] {
+    position: absolute;
+  }
+  .ag-scrim[data-mode="static"] {
     opacity: 1;
+  }
+
+  @keyframes ag-scrim-top {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes ag-scrim-bottom {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  @supports (animation-timeline: scroll()) {
+    .ag-scrim[data-mode="scroll"][data-edge="top"] {
+      animation: ag-scrim-top linear both;
+      animation-timeline: scroll(nearest);
+      animation-range: 0 160px;
+    }
+    .ag-scrim[data-mode="scroll"][data-edge="bottom"] {
+      animation: ag-scrim-bottom linear both;
+      animation-timeline: scroll(nearest);
+      animation-range: calc(100% - 140px) 100%;
+    }
+  }
+
+  /* Without scroll-driven animations the component toggles these from a scroll
+   listener; still no transition, for the same reason. */
+  @supports not (animation-timeline: scroll()) {
+    .ag-scrim[data-mode="scroll"][data-edge="top"][data-on],
+    .ag-scrim[data-mode="scroll"][data-edge="bottom"][data-on] {
+      opacity: 1;
+    }
   }
 }

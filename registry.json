@@ -122,6 +122,20 @@
       ]
     },
     {
+      "name": "liquid-glass",
+      "type": "registry:ui",
+      "title": "liquid-glass",
+      "description": "translucent glass with inset reflections and a directional rim; typed shapes and tones, Tailwind overrides, and polymorphic composition",
+      "dependencies": ["class-variance-authority"],
+      "registryDependencies": ["utils"],
+      "files": [
+        {
+          "path": "registry/base-nova/ui/liquid-glass.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
       "name": "avatar",
       "type": "registry:ui",
       "title": "avatar",
@@ -214,7 +228,13 @@
       "type": "registry:ui",
       "title": "telegram-chat",
       "description": "a Telegram chat as a pure function of {messages, progress}: peer, bot and group shapes, people defined once, streaming bodies, pressable reactions with animated emoji, afterlife. on an iPhone, or frameless at the container's width; focus lifts a message and blurs the rest; crop cuts the phone to a viewport, for a scrolly",
-      "registryDependencies": ["@ag/tokens", "@ag/web-preview"],
+      "dependencies": ["lucide-react"],
+      "registryDependencies": [
+        "@ag/tokens",
+        "@ag/web-preview",
+        "@ag/liquid-glass",
+        "@ag/scrims"
+      ],
       "files": [
         {
           "path": "registry/base-nova/ui/telegram-chat.tsx",

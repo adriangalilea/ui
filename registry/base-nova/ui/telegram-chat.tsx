@@ -36,7 +36,11 @@
 //                 measured, not guessed.
 // A scrolly telling composes them: an act index in, focus out.
 
+import { ChevronDown, SlidersHorizontal } from "lucide-react"
 import * as React from "react"
+import { cn } from "@/lib/utils"
+import { Glass } from "@/registry/base-nova/ui/liquid-glass"
+import { Scrims } from "@/registry/base-nova/ui/scrims"
 import { WebPreview } from "@/registry/base-nova/ui/web-preview"
 import "./telegram-chat.css"
 
@@ -53,7 +57,7 @@ export interface ChatPreview {
 
 export interface ChatReaction {
   emoji: string
-  /** Shown in groups only (a private chat has two people; its pill is the bare emoji). */
+  /** Shown when supplied; groups also show the default count of one. */
   count?: number
   /** "timeline": pops one beat after the message lands, scrubbable. "afterlife"
    *  (default): wall-clock, starts seconds after the story completes, dribbles in,
@@ -95,6 +99,12 @@ export interface ChatMessage {
   typed?: boolean
   /** A token of `text` spotlit after sending, until the next message lands. */
   emphasis?: string
+  /** The choices the `emphasis` token was picked from, shown while typing as Telegram's
+   *  inline-results popup over the composer: the text is typed up to the token, the
+   *  popup opens with every option, the story dwells on it, the chosen one lights and
+   *  fills the line, and the rest types on. Requires `typed` and `emphasis`; the
+   *  emphasis must be one of the options. */
+  options?: string[]
   /** "instant": blocks land whole instead of streaming. */
   pace?: "stream" | "instant"
   reactions?: ChatReaction[]
@@ -124,6 +134,8 @@ export interface ChatScript {
   /** Sub-line under the name ("online" · "bot" · "24 members"). Defaults from the
    *  header's profile: a bot's handle, else nothing. */
   chatTag?: string
+  /** Optional business bot shown in the floating management bar. */
+  managedBy?: Who
   avatar?: string
   /** Telegram's animated profile video (mp4), looping muted over `avatar` as its
    *  poster; poster only under prefers-reduced-motion. */
@@ -188,6 +200,17 @@ export interface TelegramChatProps {
    *  page that ships it somewhere a reader of logs can see (the demo posts it to a
    *  dev-only route). For sign-off by hand; `?debug` on the demo page turns it on. */
   debug?: boolean | ((trace: Record<string, unknown>) => void)
+  /** `false`: the thread never becomes a scroller, even settled. For a chat that is a
+   *  film in a card rather than a phone to poke at; reactions stay pressable. */
+  scrollable?: boolean
+  /** Bump it and the story REWINDS to its start, at rewind speed, then plays again: a
+   *  card the reader comes back to tells its story a second time instead of sitting
+   *  there finished. The value itself means nothing; only a change does. */
+  replay?: number
+  /** The page's scroll becomes the remote: scrolling UP runs the story backwards for as
+   *  long as the reader scrolls, and it plays on again when they stop; scrolling down
+   *  hurries it (that part is always on). For a chat that is the film of a scrolly. */
+  scrub?: boolean
   className?: string
 }
 
@@ -319,14 +342,31 @@ const BEAT = {
   /** typed: chars weigh double (a person types slower than a stream lands), after a
    *  digest pause to read what arrived, then a send beat, then a dwell on the sent
    *  line while its emphasis pulses. */
-  typeChar: 2,
+  typeChar: 12,
   digest: 160,
   send: 40,
-  dwell: 220,
+  dwell: 400,
   typing: 90,
   react: 60,
   meta: 70,
+  /** The inline-results popup stays open this long before the pick lights: long
+   *  enough to READ three options, which is the whole point of showing them. */
+  choose: 700,
+  /** …and this long more with the pick lit, before it fills the line. */
+  pick: 250,
 } as const
+
+/** Rewind runs this many times faster than play: a lowered ceiling (a reader scrolling
+ *  back an act) is a story reversing, not a cut, and it should not take as long as it
+ *  took to tell. */
+const REWIND = 3
+/** While the page is being scrolled the story hurries this much: a reader moving is
+ *  a reader who has seen the beat, and the next act should not have to wait for a
+ *  stream that is behind them. Measured from the last scroll event. */
+const HURRY = 2.5
+const HURRY_MS = 400
+/** The scroll speed, px/s, at which the hurry is full; slower scrolls hurry less. */
+const HURRY_SPEED = 1200
 
 interface Beat {
   /** The beat begins (typing status may show, composer may fill). */
@@ -334,6 +374,13 @@ interface Beat {
   /** Composer typing window (typed only). */
   typeStart: number
   typedEnd: number
+  /** The options popup is open (typed with `options` only): the prefix has been typed,
+   *  the story dwells, the pick lights at `pickAt`, the line fills at `chooseEnd`. */
+  chooseStart: number
+  pickAt: number
+  chooseEnd: number
+  /** How many characters the composer holds while the popup is open. */
+  prefixChars: number
   /** The bubble is on screen from here. */
   land: number
   /** Blocks complete here, cumulatively. */
@@ -357,11 +404,37 @@ function buildTimeline(script: ChatScript): Timeline {
     if (m.typing) at += BEAT.typing
     let typeStart = at
     let typedEnd = at
+    let chooseStart = at
+    let pickAt = at
+    let chooseEnd = at
+    let prefixChars = 0
     if (m.typed) {
       if (m.from !== "me")
         throw new Error('telegram-chat: only a message from "me" can be typed')
+      const text = m.text ?? ""
       typeStart = at + BEAT.digest
-      typedEnd = typeStart + (m.text ?? "").length * BEAT.typeChar
+      if (m.options) {
+        if (!m.emphasis || !m.options.includes(m.emphasis))
+          throw new Error(
+            "telegram-chat: `options` needs an `emphasis` that is one of them",
+          )
+        const idx = text.indexOf(m.emphasis)
+        if (idx < 0)
+          throw new Error(
+            `telegram-chat: emphasis "${m.emphasis}" is not in "${text}"`,
+          )
+        // Type up to the token, open the popup, dwell, light the pick, fill the token
+        // whole (a pick is a tap, not typing), type whatever follows.
+        prefixChars = idx
+        chooseStart = typeStart + idx * BEAT.typeChar
+        pickAt = chooseStart + BEAT.choose
+        chooseEnd = pickAt + BEAT.pick
+        typedEnd =
+          chooseEnd + (text.length - idx - m.emphasis.length) * BEAT.typeChar
+      } else {
+        typedEnd = typeStart + text.length * BEAT.typeChar
+        chooseStart = pickAt = chooseEnd = typedEnd
+      }
       at = typedEnd + BEAT.send
     } else {
       at += BEAT.land
@@ -383,6 +456,10 @@ function buildTimeline(script: ChatScript): Timeline {
       start,
       typeStart,
       typedEnd,
+      chooseStart,
+      pickAt,
+      chooseEnd,
+      prefixChars,
       land,
       blockEnds,
       metaAt,
@@ -568,7 +645,12 @@ function Emoji({
   React.useEffect(() => {
     if (play > 0) start()
   }, [play])
-  if (plain) return <>{ch}</>
+  if (plain)
+    return (
+      <span className="tgchat-emoji" aria-hidden="true">
+        {ch}
+      </span>
+    )
   return (
     // biome-ignore lint/performance/noImgElement: a small emoji file from a CDN, sized by the pill
     <img
@@ -579,6 +661,20 @@ function Emoji({
       alt={ch}
       loading="lazy"
       onError={() => setPlain(true)}
+    />
+  )
+}
+
+/** Shared glass material; Telegram owns its container-relative geometry and theme. */
+function TelegramGlass({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <Glass
+      shape="surface"
+      className={cn(
+        "bg-(--tg-glass) text-(--tg-text) [--glass-blur:1.35cqw] dark:bg-(--tg-glass)",
+        className,
+      )}
+      {...props}
     />
   )
 }
@@ -599,14 +695,24 @@ export function TelegramChat({
   crop,
   animatedEmoji = true,
   debug = false,
+  scrollable = true,
+  replay,
+  scrub = false,
   className,
 }: TelegramChatProps) {
-  const wantsCut = crop ?? (frame === "none" ? FRAMELESS_CROP : undefined)
+  // The frameless cut exists so a landing message slides the thread instead of growing
+  // the page; a controlled chat (a still, one bubble at `progress`) lands nothing and
+  // is simply its content's height.
+  const wantsCut =
+    crop ??
+    (frame === "none" && progress === undefined ? FRAMELESS_CROP : undefined)
   // The accounts: a `from` is the profile itself, a key into `people`, or a bare name.
   const profileOf = (who: Who): ChatProfile | undefined =>
     typeof who === "string" ? script.people?.[who] : who
   const nameOf = (who: Who) =>
     typeof who === "string" ? (profileOf(who)?.name ?? who) : who.name
+  const [showLatest, setShowLatest] = React.useState(false)
+  const manager = script.managedBy ? profileOf(script.managedBy) : undefined
   const header = profileOf(script.chatName)
   const chatTag =
     script.chatTag ?? (header?.bot ? (header.handle ?? "bot") : undefined)
@@ -631,9 +737,23 @@ export function TelegramChat({
   const [aliveSec, setAliveSec] = React.useState(0)
   const root = React.useRef<HTMLElement>(null)
   const thread = React.useRef<HTMLDivElement>(null)
+  React.useEffect(() => {
+    const el = thread.current
+    if (!el) return
+    const measure = () =>
+      setShowLatest(el.scrollHeight - el.scrollTop - el.clientHeight > 40)
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    if (el.firstElementChild) observer.observe(el.firstElementChild)
+    measure()
+    return () => observer.disconnect()
+  }, [])
   const view = React.useRef<HTMLDivElement>(null)
   const device = React.useRef<HTMLDivElement>(null)
   const bubbles = React.useRef<(HTMLElement | null)[]>([])
+  // The ghost: the same messages rendered complete and hidden, for measuring.
+  const ghosts = React.useRef<(HTMLElement | null)[]>([])
+  const ghostRoot = React.useRef<HTMLDivElement>(null)
   const focused: readonly number[] =
     focus === undefined ? [] : typeof focus === "number" ? [focus] : focus
   for (const f of focused)
@@ -645,11 +765,14 @@ export function TelegramChat({
   /** The box ALL focused messages span, in `root`'s layout coordinates, or null while
    *  none has landed. A focus is often an exchange (the question and its answer), and a
    *  viewport that fitted only the first of them cut the reader off from what was asked. */
-  const focusBox = (root: HTMLElement): { y: number; h: number } | null => {
+  const focusBox = (
+    root: HTMLElement,
+    held: React.RefObject<(HTMLElement | null)[]> = bubbles,
+  ): { y: number; h: number } | null => {
     let top = Number.POSITIVE_INFINITY
     let bottom = Number.NEGATIVE_INFINITY
     for (const i of focused) {
-      const el = bubbles.current[i]
+      const el = held.current[i]
       if (!el) continue
       const p = placeIn(el, root)
       top = Math.min(top, p.y)
@@ -670,9 +793,11 @@ export function TelegramChat({
           return beat.start / timeline.total
         })()
   // ~6ms per weighted char: a brisk stream, bounded both ways.
+  // ~6ms per weighted char, no ceiling: a cap squeezed every structural beat of a long
+  // script (the options popup lasted a second under a three-summary story). A reader
+  // in a hurry has the hurry.
   const autoDuration =
-    duration ??
-    Math.min(14000, Math.max(4000, (1 - floor) * timeline.total * 6))
+    duration ?? Math.max(4000, (1 - floor) * timeline.total * 6)
 
   // The ceiling in raw 0..1 units: the end of message k's beat, mapped through the
   // floor the way `eff` is. No `until`, and the ceiling is the end of the story. THE
@@ -700,38 +825,110 @@ export function TelegramChat({
   // position lives in a ref so a raised ceiling RESUMES from where the story waited
   // rather than starting it over.
   const played = React.useRef(0)
+  /** The story has advanced at least one frame on its own clock. */
+  const started = React.useRef(false)
+  /** The ceiling the last run of the effect saw; null before the first. */
+  const lastCeiling = React.useRef<number | null>(null)
+  /** A `replay` bump in flight: the story is running back to its start. */
+  const rewinding = React.useRef(false)
+  const lastReplay = React.useRef<number | null>(null)
   React.useEffect(() => {
     if (controlled) return
+    if (lastReplay.current !== null && (replay ?? 0) !== lastReplay.current)
+      rewinding.current = true
+    lastReplay.current = replay ?? 0
     const el = root.current
     if (!el) return
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       played.current = ceiling
+      lastCeiling.current = ceiling
       setAuto(ceiling)
       return
     }
-    // Context lands whole; only the act's own beat plays.
-    if (played.current < lift) {
-      played.current = lift
-      setAuto(lift)
+    // Context lands whole; only the act's own beat plays. ONLY for a story that has not
+    // started: a reader arriving at act three (a reload, a deep link) gets that act's
+    // beat with everything before it already there. A story already under way keeps
+    // its place when the ceiling rises, however far: a gallery that lets a card rest at
+    // the link and then frees it to the end must play the typing and the popup in
+    // between, not jump to the summary. The hurry covers the reader who skipped ahead.
+    if (lastCeiling.current === null) {
+      if (played.current < lift) played.current = lift
+    } else if (!started.current && played.current < lastCeiling.current) {
+      // Gated below the old ceiling without ever playing (off screen): what the old
+      // ceiling allowed is context and lands whole; the story plays from there.
+      played.current = lastCeiling.current
     }
+    lastCeiling.current = ceiling
+    setAuto(played.current)
     let frame = 0
     let last = 0
+    let visible = false
+    // THE PAGE'S SCROLL IS THE REMOTE. A scroll in the last HURRY_MS and the story
+    // hurries; with `scrub`, a scroll UP runs it backwards for as long as the reader
+    // keeps scrolling up, and it plays on again the moment they stop.
+    let scrolledAt = Number.NEGATIVE_INFINITY
+    let scrollDir = 1
+    /** The reader's scroll speed, px/s, from the last two scroll events. */
+    let scrollSpeed = 0
+    let lastY = window.scrollY
+    const running = () => frame !== 0
+    const start = () => {
+      if (running() || !visible) return
+      last = performance.now()
+      frame = requestAnimationFrame(tick)
+    }
+    const onScroll = () => {
+      const now = performance.now()
+      const y = window.scrollY
+      const dtMs = now - scrolledAt
+      if (y !== lastY) {
+        scrollDir = y < lastY ? -1 : 1
+        scrollSpeed =
+          dtMs > 0 && dtMs < 200 ? (Math.abs(y - lastY) / dtMs) * 1000 : 0
+      }
+      scrolledAt = now
+      lastY = y
+      if (scrub && scrollDir < 0) start()
+    }
+    window.addEventListener("scroll", onScroll, { passive: true })
+    // Forward to the ceiling at the story's pace; BACK, faster, when the ceiling has
+    // been lowered, when a replay was asked for (all the way to the start), or when
+    // the reader scrubs up: every frame of the story is a pure function of its
+    // position, so running the position backwards is the story reversing, a summary
+    // un-streaming and a typed line un-typing.
     const tick = (now: number) => {
-      played.current = Math.min(
-        ceiling,
-        played.current + (now - last) / autoDuration,
-      )
+      frame = 0
+      const dt = (now - last) / autoDuration
       last = now
+      // Hurry follows the reader's SPEED, not the fact of a scroll: a trackpad's dying
+      // inertia is a few px/s and should barely move the story; a deliberate flick is
+      // HURRY_SPEED px/s and gets the full hurry.
+      const recent = now - scrolledAt < HURRY_MS
+      const hurry = recent
+        ? 1 + (HURRY - 1) * Math.min(1, scrollSpeed / HURRY_SPEED)
+        : 1
+      const scrubbing = scrub && recent && scrollDir < 0
+      if (rewinding.current || scrubbing) {
+        const to = rewinding.current ? 0 : lift
+        played.current = Math.max(to, played.current - dt * REWIND * hurry)
+        if (played.current <= to) rewinding.current = false
+      } else if (played.current > ceiling) {
+        played.current = Math.max(ceiling, played.current - dt * REWIND * hurry)
+      } else {
+        played.current = Math.min(ceiling, played.current + dt * hurry)
+      }
+      started.current = true
       setAuto(played.current)
-      if (played.current < ceiling) frame = requestAnimationFrame(tick)
+      if (rewinding.current || scrubbing || played.current !== ceiling)
+        frame = requestAnimationFrame(tick)
     }
     const io = new IntersectionObserver(
       ([entry]) => {
+        visible = Boolean(entry?.isIntersecting)
         cancelAnimationFrame(frame)
-        if (entry?.isIntersecting && played.current < ceiling) {
-          last = performance.now()
-          frame = requestAnimationFrame(tick)
-        }
+        frame = 0
+        if (visible && (rewinding.current || played.current !== ceiling))
+          start()
       },
       { threshold: 0.35 },
     )
@@ -739,8 +936,9 @@ export function TelegramChat({
     return () => {
       io.disconnect()
       cancelAnimationFrame(frame)
+      window.removeEventListener("scroll", onScroll)
     }
-  }, [controlled, autoDuration, ceiling, lift])
+  }, [controlled, autoDuration, ceiling, lift, replay, scrub])
 
   const raw = controlled ? (progress as number) : auto
   const eff = floor + (1 - floor) * Math.min(1, Math.max(0, raw))
@@ -785,11 +983,16 @@ export function TelegramChat({
     if (box) {
       // In the thread's content coordinates, so the scroll it sets is absolute.
       // Centred when it fits; an exchange taller than the screen shows its START, the
-      // rest a scroll away. Centring it showed its middle with both ends cut.
+      // rest a scroll away. Centring it showed its middle with both ends cut. Whether
+      // it fits is judged on what it WILL be (the ghost), so the choice never flips
+      // mid-stream and yanks the thread from centre to start.
+      const ghost = ghostRoot.current
+      const grown = ghost ? focusBox(ghost, ghosts) : null
+      const finalH = grown ? grown.h : box.h
       const pad = el.clientHeight * FOCUS_PAD
       const want = Math.max(
         0,
-        box.h + 2 * pad <= el.clientHeight
+        finalH + 2 * pad <= el.clientHeight
           ? box.y + box.h / 2 - el.clientHeight / 2
           : box.y - pad,
       )
@@ -880,18 +1083,35 @@ export function TelegramChat({
       // Centring a message taller than the box showed its middle with both ends cut.
       const base = port.clientWidth / ratioOf(cut)
       const hero = focusBox(dev)
-      const heroH = hero ? hero.h : 0
+      // WHAT THE EXCHANGE WILL BE, not what it is so far: the ghost holds every message
+      // complete, so the height decided here is the same on the cut's first frame as on
+      // its last, and a summary streaming in never resizes the page under the reader.
+      // A frameless device is its content and grows with it; its final height is the
+      // ghost thread's, so the ceiling holds still too.
+      const ghost = ghostRoot.current
+      const grown = ghost ? focusBox(ghost, ghosts) : null
+      const finalH = grown ? grown.h : hero ? hero.h : 0
+      const liveThread = thread.current?.firstElementChild as HTMLElement | null
+      const ghostThread = ghost?.firstElementChild as HTMLElement | null
+      const dhFinal =
+        liveThread && ghostThread
+          ? Math.max(
+              dh,
+              dh - liveThread.offsetHeight + ghostThread.offsetHeight,
+            )
+          : dh
       const pad = base * FOCUS_PAD
       const vh = Math.min(
-        dh,
-        hero
-          ? Math.min(Math.max(base, heroH + 2 * pad), base * FOCUS_GROW)
+        dhFinal,
+        focused.length > 0
+          ? Math.min(Math.max(base, finalH + 2 * pad), base * FOCUS_GROW)
           : base,
       )
       setViewH(vh)
       const heroY = hero ? hero.y : 0
+      const heroH = hero ? hero.h : 0
       const want = hero
-        ? heroH + 2 * pad <= vh
+        ? finalH + 2 * pad <= vh
           ? heroY + heroH / 2 - vh / 2
           : heroY - pad
         : dh - vh
@@ -959,12 +1179,24 @@ export function TelegramChat({
   // pill you pressed is drawn as the client draws your own (filled in the accent) and
   // counts you; pressing again takes you off it. What the script and the afterlife clock
   // give the pill is the crowd; you are one more.
-  const reactionPills = (m: ChatMessage, beat: Beat, index: number) => {
+  // `final` is the ghost's view: every pill the message will ever carry, without
+  // consuming a slot on the afterlife clock (that order belongs to the live thread).
+  const reactionPills = (
+    m: ChatMessage,
+    beat: Beat,
+    index: number,
+    clock: number,
+    final: boolean,
+  ) => {
     const shown: { emoji: string; count: number }[] = []
     for (const r of m.reactions ?? []) {
       if (r.when === "timeline") {
-        if (at >= beat.reactAt)
+        if (clock >= beat.reactAt)
           shown.push({ emoji: r.emoji, count: r.count ?? 1 })
+        continue
+      }
+      if (final) {
+        shown.push({ emoji: r.emoji, count: r.count ?? 1 })
         continue
       }
       const i = afterlifeIndex++
@@ -998,7 +1230,11 @@ export function TelegramChat({
                 animated={animatedEmoji}
                 play={presses[key] ?? 0}
               />
-              {isGroup && <span className="n">{r.count + (own ? 1 : 0)}</span>}
+              {(isGroup ||
+                m.reactions?.some(
+                  (reaction) =>
+                    reaction.emoji === r.emoji && reaction.count !== undefined,
+                )) && <span className="n">{r.count + (own ? 1 : 0)}</span>}
             </button>
           )
         })}
@@ -1041,14 +1277,8 @@ export function TelegramChat({
   ) => {
     const text = blockText(b)
     const cite = b.kind === "item" || b.kind === "quote" ? b.cite : undefined
-    return (
-      <div
-        className={b.kind === "heading" ? "h" : b.kind === "item" ? "i" : "q"}
-        key={key}
-      >
-        {b.kind === "heading" && b.emoji && (
-          <span className="e">{b.emoji}</span>
-        )}
+    const inner = (
+      <>
         {chars === undefined ? text : text.slice(0, chars)}
         {chars === undefined && cite && (
           <a
@@ -1060,10 +1290,25 @@ export function TelegramChat({
             {cite}
           </a>
         )}
-        {chars === undefined && b.kind === "quote" && b.by && (
-          <span className="by">{b.by}</span>
-        )}
         {chars !== undefined && <span className="tgchat-caret" />}
+      </>
+    )
+    // Telegram's blockquote: a tinted box in the sender's colour with a bar on the left
+    // and a closing quote mark in its corner; the attribution is body text under it,
+    // italic, the way the bot writes it.
+    if (b.kind === "quote")
+      return (
+        <div className="q" key={key}>
+          <blockquote className="tgchat-quote">{inner}</blockquote>
+          {chars === undefined && b.by && <span className="by">{b.by}</span>}
+        </div>
+      )
+    return (
+      <div className={b.kind === "heading" ? "h" : "i"} key={key}>
+        {b.kind === "heading" && b.emoji && (
+          <span className="e">{b.emoji}</span>
+        )}
+        {inner}
       </div>
     )
   }
@@ -1095,19 +1340,147 @@ export function TelegramChat({
     typingIndex >= 0 ? (script.messages[typingIndex] as ChatMessage) : null
   const composingBeat =
     typingIndex >= 0 ? (timeline.beats[typingIndex] as Beat) : null
-  const composerChars =
-    composing && composingBeat
-      ? Math.min(
-          Math.ceil((at - composingBeat.typeStart) / BEAT.typeChar),
-          (composing.text ?? "").length,
-        )
-      : 0
+  // Characters in the composer: typed one by one, held at the prefix while the options
+  // popup is open, the token dropped in whole at the pick, typed on after.
+  const composerChars = (() => {
+    if (!composing || !composingBeat) return 0
+    const len = (composing.text ?? "").length
+    const b = composingBeat
+    if (!composing.options || at < b.chooseStart)
+      return Math.min(Math.ceil((at - b.typeStart) / BEAT.typeChar), len)
+    if (at < b.chooseEnd) return b.prefixChars
+    const token = (composing.emphasis as string).length
+    return Math.min(
+      b.prefixChars + token + Math.ceil((at - b.chooseEnd) / BEAT.typeChar),
+      len,
+    )
+  })()
+  // The popup: open from the prefix to the fill, the pick lit for its last stretch.
+  const choosing =
+    composing?.options &&
+    composingBeat &&
+    at >= composingBeat.chooseStart &&
+    at < composingBeat.chooseEnd
+      ? { options: composing.options, picked: at >= composingBeat.pickAt }
+      : null
+
+  /** One message at a moment of the story: nothing before it lands, its blocks up to
+   *  the clock, the partial one mid-stream. The live thread renders it at `at`; the
+   *  ghost renders it complete (an infinite clock) to measure what it will become. */
+  const renderMessage = (
+    m: ChatMessage,
+    i: number,
+    clock: number,
+    held: React.RefObject<(HTMLElement | null)[]>,
+  ) => {
+    const beat = timeline.beats[i] as Beat
+    if (clock < beat.land) return null
+    const final = !Number.isFinite(clock)
+    const source = m.source ?? linkIn(m.text) ?? ""
+    const next = timeline.beats[i + 1]
+    const lit = Boolean(m.emphasis) && (!next || clock < next.land)
+    const streaming = m.blocks !== undefined
+    let full = 0
+    while (
+      full < beat.blockEnds.length &&
+      (beat.blockEnds[full] as number) <= clock
+    )
+      full++
+    const prevEnd =
+      full === 0
+        ? beat.land + (m.typed && m.emphasis ? BEAT.dwell : 0)
+        : (beat.blockEnds[full - 1] as number)
+    const partial =
+      streaming && full < (m.blocks as ChatBlock[]).length && clock > prevEnd
+        ? (m.blocks as ChatBlock[])[full]
+        : undefined
+    const body = (
+      <>
+        {m.reply && (
+          <div className="tgchat-reply">
+            <strong>{nameOf(m.reply.from)}</strong>
+            <span>{m.reply.text}</span>
+          </div>
+        )}
+        {m.via && <div className="tgchat-via">{m.via}</div>}
+        {m.text && emphasized(m.text, m.emphasis, lit)}
+        {/* The webpage preview under a link: `web-preview` in its telegram style, the
+            same card every surface draws from the same five facts, coloured by the
+            bubble's `--wp-*`. */}
+        {m.preview && (
+          <WebPreview
+            style="telegram"
+            facts={{ url: hrefOf(source), ...m.preview }}
+          />
+        )}
+        {streaming &&
+          (m.blocks as ChatBlock[])
+            .slice(0, full)
+            .map((b, k) => renderBlock(b, k, source))}
+        {partial &&
+          renderBlock(partial, full, source, Math.floor(clock - prevEnd))}
+        {m.meta && clock >= beat.metaAt && (
+          <div className="tgchat-meta">
+            <a
+              className="src"
+              href={m.meta.href}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {m.meta.label}
+            </a>
+            <span className="time">{m.meta.time}</span>
+          </div>
+        )}
+        {reactionPills(m, beat, i, clock, final)}
+      </>
+    )
+    const hero = focused.includes(i) || undefined
+    const hold = (el: HTMLElement | null) => {
+      held.current[i] = el
+    }
+    if (m.from === "me")
+      return (
+        <div
+          ref={hold}
+          data-focused={hero}
+          className={`tgchat-bubble user${m.preview || linkIn(m.text) ? " link" : ""}`}
+          key={i}
+        >
+          {body}
+        </div>
+      )
+    return (
+      <React.Fragment key={i}>
+        {leftRow(
+          <div
+            ref={hold}
+            data-focused={hero}
+            className={`tgchat-bubble bot${streaming ? " tgchat-summary" : ""}${!streaming && (m.preview || linkIn(m.text)) ? " link" : ""}`}
+            // The sender's peer colour: Telegram tints a quote in an incoming message
+            // with it, the same palette that colours a group's sender labels.
+            style={
+              {
+                "--tg-quote": SENDER_COLORS[senderIndex(nameOf(m.from))],
+              } as React.CSSProperties
+            }
+          >
+            {senderLabel(m.from)}
+            {body}
+          </div>,
+          m.from,
+          m.avatar,
+        )}
+      </React.Fragment>
+    )
+  }
 
   return (
     <figure
       ref={root}
       className={`tgchat${className ? ` ${className}` : ""}`}
       data-theme={theme}
+      data-managed={script.managedBy ? "" : undefined}
       data-frame={frame}
       data-focus={
         // The blur waits for the focused message to EXIST: before it lands there is
@@ -1115,7 +1488,11 @@ export function TelegramChat({
         focused.some((f) => at >= (timeline.beats[f] as Beat).land) || undefined
       }
       data-cut={scroller ? "" : undefined}
-      data-settled={completed || undefined}
+      data-settled={(completed && scrollable) || undefined}
+      // A line is being typed / the options popup is open: a page may zoom the device
+      // onto its composer for the beat.
+      data-typing={composing && composerChars > 0 ? "" : undefined}
+      data-choosing={choosing ? "" : undefined}
       aria-label={script.alt}
     >
       {/* The viewport: what the reader sees of the device. Cut to an aspect, it is a
@@ -1143,6 +1520,13 @@ export function TelegramChat({
             </>
           )}
           <div className="tgchat-screen">
+            {frame === "phone" && (
+              <Scrims
+                position="absolute"
+                mode="static"
+                className="tgchat-chrome-scrim"
+              />
+            )}
             {wallpaper && (
               <div
                 className="tgchat-wall"
@@ -1215,8 +1599,8 @@ export function TelegramChat({
                 the mode whose point is no device. What the header carried that is
                 story, the typing status, goes into the thread instead. */}
             {frame === "phone" && (
-              <div className="tgchat-header">
-                <span className="tgchat-round">
+              <div className="tgchat-header" aria-hidden="true">
+                <TelegramGlass className="tgchat-round">
                   <svg
                     aria-hidden="true"
                     viewBox="0 0 16 16"
@@ -1227,8 +1611,8 @@ export function TelegramChat({
                   >
                     <path d="M10 3 5 8l5 5" />
                   </svg>
-                </span>
-                <div className="tgchat-card">
+                </TelegramGlass>
+                <TelegramGlass className="tgchat-card">
                   <div className="tgchat-names">
                     <strong>{nameOf(script.chatName)}</strong>
                     {typingLabel ? (
@@ -1244,122 +1628,67 @@ export function TelegramChat({
                       chatTag && <span>{chatTag}</span>
                     )}
                   </div>
-                </div>
-                <Avatar
-                  className="tgchat-avatar"
-                  name={nameOf(script.chatName)}
-                  photo={script.avatar ?? header?.avatar}
-                  video={script.avatarVideo ?? header?.avatarVideo}
-                />
+                </TelegramGlass>
+                <TelegramGlass className="tgchat-profile">
+                  <Avatar
+                    className="tgchat-avatar"
+                    name={nameOf(script.chatName)}
+                    photo={script.avatar ?? header?.avatar}
+                    video={script.avatarVideo ?? header?.avatarVideo}
+                  />
+                </TelegramGlass>
               </div>
             )}
-            <div className="tgchat-messages" ref={thread}>
+            {frame === "phone" && script.managedBy && (
+              <TelegramGlass
+                className="tgchat-manager absolute"
+                aria-hidden="true"
+              >
+                <Avatar
+                  className="tgchat-avatar"
+                  name={nameOf(script.managedBy)}
+                  photo={manager?.avatar}
+                  video={manager?.avatarVideo}
+                />
+                <div className="tgchat-manager-names">
+                  <strong>{nameOf(script.managedBy)}</strong>
+                  <span>bot manages this chat</span>
+                </div>
+                <span className="tgchat-manager-stop">STOP</span>
+                <SlidersHorizontal />
+              </TelegramGlass>
+            )}
+            <div
+              className="tgchat-messages"
+              ref={thread}
+              onScroll={(event) => {
+                const el = event.currentTarget
+                setShowLatest(
+                  el.scrollHeight - el.scrollTop - el.clientHeight > 40,
+                )
+              }}
+            >
               <div className="tgchat-thread">
                 {/* Messages are positional by design: their order IS their identity,
                   and the array never reorders. */}
-                {script.messages.map((m, i) => {
-                  const beat = timeline.beats[i] as Beat
-                  if (at < beat.land) return null
-                  const source = m.source ?? linkIn(m.text) ?? ""
-                  const next = timeline.beats[i + 1]
-                  const lit = Boolean(m.emphasis) && (!next || at < next.land)
-                  const streaming = m.blocks !== undefined
-                  let full = 0
-                  while (
-                    full < beat.blockEnds.length &&
-                    (beat.blockEnds[full] as number) <= at
-                  )
-                    full++
-                  const prevEnd =
-                    full === 0
-                      ? beat.land + (m.typed && m.emphasis ? BEAT.dwell : 0)
-                      : (beat.blockEnds[full - 1] as number)
-                  const partial =
-                    streaming &&
-                    full < (m.blocks as ChatBlock[]).length &&
-                    at > prevEnd
-                      ? (m.blocks as ChatBlock[])[full]
-                      : undefined
-                  const body = (
-                    <>
-                      {m.reply && (
-                        <div className="tgchat-reply">
-                          <strong>{nameOf(m.reply.from)}</strong>
-                          <span>{m.reply.text}</span>
-                        </div>
+                {script.messages.map((m, i) =>
+                  renderMessage(m, i, at, bubbles),
+                )}
+                {/* THE FINAL STATE, hidden, for measuring: how tall the focused messages
+                    WILL be once they have landed. The cut sizes its viewport from this
+                    instead of from the growing live bubble, so a summary streaming in
+                    never resizes the page under the reader. Only while a cut has a
+                    focus, the one consumer of the number; zero height and clipped, so it
+                    adds nothing to the thread's scroll range. */}
+                {focused.length > 0 && (
+                  <div className="tgchat-ghost" aria-hidden ref={ghostRoot}>
+                    <div className="tgchat-thread">
+                      {script.messages.map((m, i) =>
+                        renderMessage(m, i, Number.POSITIVE_INFINITY, ghosts),
                       )}
-                      {m.via && <div className="tgchat-via">{m.via}</div>}
-                      {m.text && emphasized(m.text, m.emphasis, lit)}
-                      {/* The webpage preview under a link: `web-preview` in its
-                          telegram style, the same card every surface draws from the
-                          same five facts, coloured by the bubble's `--wp-*`. */}
-                      {m.preview && (
-                        <WebPreview
-                          style="telegram"
-                          facts={{ url: hrefOf(source), ...m.preview }}
-                        />
-                      )}
-                      {streaming &&
-                        (m.blocks as ChatBlock[])
-                          .slice(0, full)
-                          .map((b, k) => renderBlock(b, k, source))}
-                      {partial &&
-                        renderBlock(
-                          partial,
-                          full,
-                          source,
-                          Math.floor(at - prevEnd),
-                        )}
-                      {m.meta && at >= beat.metaAt && (
-                        <div className="tgchat-meta">
-                          <a
-                            className="src"
-                            href={m.meta.href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            {m.meta.label}
-                          </a>
-                          <span className="time">{m.meta.time}</span>
-                        </div>
-                      )}
-                      {reactionPills(m, beat, i)}
-                    </>
-                  )
-                  const hero = focused.includes(i) || undefined
-                  const hold = (el: HTMLElement | null) => {
-                    bubbles.current[i] = el
-                  }
-                  if (m.from === "me")
-                    return (
-                      <div
-                        ref={hold}
-                        data-focused={hero}
-                        className={`tgchat-bubble user${m.preview || linkIn(m.text) ? " link" : ""}`}
-                        // biome-ignore lint/suspicious/noArrayIndexKey: positional by design
-                        key={i}
-                      >
-                        {body}
-                      </div>
-                    )
-                  return (
-                    // biome-ignore lint/suspicious/noArrayIndexKey: positional by design
-                    <React.Fragment key={i}>
-                      {leftRow(
-                        <div
-                          ref={hold}
-                          data-focused={hero}
-                          className={`tgchat-bubble bot${streaming ? " tgchat-summary" : ""}${!streaming && (m.preview || linkIn(m.text)) ? " link" : ""}`}
-                        >
-                          {senderLabel(m.from)}
-                          {body}
-                        </div>,
-                        m.from,
-                        m.avatar,
-                      )}
-                    </React.Fragment>
-                  )
-                })}
+                    </div>
+                  </div>
+                )}
                 {/* A late message is a left bubble like any other: in a group it
                     carries its sender's label and mini avatar (a gradient initial
                     when there is no photo), the same row every scripted message
@@ -1413,8 +1742,34 @@ export function TelegramChat({
                 )}
               </div>
             </div>
+            {/* Telegram's inline-results popup: what the client shows over the composer
+                once you have typed `@bot `. Here it carries the choices the emphasis
+                token was picked from; the pick lights before it fills the line. */}
+            {choosing && (
+              // Story chrome like the rest of the mockup (the figure's alt tells the
+              // story), not a control: nothing here is for choosing.
+              <TelegramGlass
+                className="tgchat-options absolute"
+                aria-hidden="true"
+              >
+                {choosing.options.map((o) => (
+                  <div
+                    key={o}
+                    data-pick={
+                      (choosing.picked && o === composing?.emphasis) ||
+                      undefined
+                    }
+                  >
+                    {o}
+                  </div>
+                ))}
+              </TelegramGlass>
+            )}
             {composing?.reply && composerChars > 0 && (
-              <div className="tgchat-replybar">
+              <TelegramGlass
+                className="tgchat-replybar absolute [.tgchat[data-frame=none]_&]:relative"
+                aria-hidden="true"
+              >
                 <svg
                   aria-hidden="true"
                   viewBox="0 0 24 24"
@@ -1431,10 +1786,25 @@ export function TelegramChat({
                   <strong>Reply to {nameOf(composing.reply.from)}</strong>
                   <span>{composing.reply.text}</span>
                 </div>
-              </div>
+              </TelegramGlass>
+            )}
+            {frame === "phone" && completed && scrollable && showLatest && (
+              <Glass
+                as="button"
+                shape="circle"
+                className="absolute right-(--tg-control-inset) bottom-[calc(var(--tg-composer-h)+var(--tg-control-inset)+2cqw)] z-3 size-[10cqw] bg-(--tg-glass) text-(--tg-text) [--glass-blur:1.35cqw] dark:bg-(--tg-glass)"
+                aria-label="Jump to latest message"
+                onClick={() => {
+                  const el = thread.current
+                  if (el) el.scrollTop = el.scrollHeight
+                }}
+              >
+                <ChevronDown className="size-[5.6cqw]" />
+              </Glass>
             )}
             <div
               className="tgchat-composer"
+              aria-hidden="true"
               data-idle={!(composing && composerChars > 0) || undefined}
             >
               {script.kind === "bot" && (
@@ -1454,7 +1824,7 @@ export function TelegramChat({
                   Menu
                 </span>
               )}
-              <span className="cbtn">
+              <TelegramGlass className="cbtn">
                 <svg
                   aria-hidden="true"
                   viewBox="0 0 24 24"
@@ -1466,11 +1836,13 @@ export function TelegramChat({
                 >
                   <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                 </svg>
-              </span>
-              <div className="box">
+              </TelegramGlass>
+              <TelegramGlass className="box">
                 {composing && composerChars > 0 ? (
                   <span className="typed">
-                    {(composing.text ?? "").slice(0, composerChars)}
+                    <span>
+                      {(composing.text ?? "").slice(0, composerChars)}
+                    </span>
                     <span className="tgchat-caret" />
                   </span>
                 ) : (
@@ -1490,8 +1862,8 @@ export function TelegramChat({
                   <line x1="9" y1="9" x2="9.01" y2="9" />
                   <line x1="15" y1="9" x2="15.01" y2="9" />
                 </svg>
-              </div>
-              <span className="cbtn">
+              </TelegramGlass>
+              <TelegramGlass className="cbtn">
                 <svg
                   aria-hidden="true"
                   viewBox="0 0 24 24"
@@ -1506,13 +1878,8 @@ export function TelegramChat({
                   <line x1="12" y1="19" x2="12" y2="23" />
                   <line x1="8" y1="23" x2="16" y2="23" />
                 </svg>
-              </span>
+              </TelegramGlass>
             </div>
-            {frame === "phone" && (
-              <div className="tgchat-gesture">
-                <span />
-              </div>
-            )}
           </div>
         </div>
         {scroller && <div className="tgchat-scrim" data-edge="bottom" />}
