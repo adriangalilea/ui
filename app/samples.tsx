@@ -61,12 +61,17 @@ export function Sample({
       `<Sample name="${name}">: no such block in the demo's source`,
     )
   const id = React.useId()
+  // THREE SURFACES, one colour at alpha tiers: the page, the frame one step up, its
+  // head one more; the switch drops back to the page's colour so it reads as a control
+  // sitting IN the head. No `overflow: hidden` on the frame: it would break `position:
+  // sticky` for anything inside, and a scrolly's stage stopped pinning in one. The clip
+  // is on the code panel only, which is the one thing with corners to clip.
   return (
     <section
       data-slot="sample"
-      className="overflow-hidden rounded-xl border border-border"
+      className="rounded-xl border border-border bg-foreground/[0.025]"
     >
-      <div className="flex items-center justify-between gap-4 border-border border-b bg-sidebar px-4 py-2">
+      <div className="flex items-center justify-between gap-4 rounded-t-xl border-border border-b bg-foreground/[0.05] px-4 py-2">
         <div className="min-w-0 truncate font-mono text-muted-foreground text-xs">
           {label}
         </div>
@@ -100,7 +105,9 @@ export function Sample({
         role="tabpanel"
         aria-labelledby={`${id}-${tab}`}
         className={
-          tab === "preview" ? "p-6" : "[&>*]:rounded-none [&>*]:border-0"
+          tab === "preview"
+            ? "p-6"
+            : "overflow-hidden rounded-b-xl [&>*]:rounded-none [&>*]:border-0"
         }
       >
         {tab === "preview" ? children : code}
