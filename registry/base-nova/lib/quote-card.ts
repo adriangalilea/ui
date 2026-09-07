@@ -173,21 +173,37 @@ export function quoteSet(
   // starting size is at or above it; the loop below only ever steps DOWN from there, and
   // throws the moment it would have to cross.
   const floor = Math.floor(colW / (MEASURE_MAX * ch))
+  const high = (lines: string[], at: number) =>
+    (lines.length - 1) * Math.round(at * LINE) + (CAP + DESC) * at
   let size = Math.min(
     Math.floor(sizeMax),
     Math.round(colW / (quoteMeasure(text.length, measure) * ch)),
   )
-  for (;;) {
-    const lines = quoteWrap(text, size, colW, ch)
-    const high =
-      (lines.length - 1) * Math.round(size * LINE) + (CAP + DESC) * size
-    if (high <= bandH) return { size, lines }
+  let lines = quoteWrap(text, size, colW, ch)
+  while (high(lines, size) > bandH) {
     assert(
       size > floor,
       `${text.length} characters will not fit ${Math.round(bandH)}px without running past ${MEASURE_MAX} characters a line, which is a paragraph in a thumbnail: shorten the quote or give it a taller frame`,
     )
     size -= 1
+    lines = quoteWrap(text, size, colW, ch)
   }
+  // THE SIZE FOLLOWS THE LINES THAT ARE ACTUALLY SET. The measure chose a size, and the
+  // wrap balanced the words into the fewest lines that fit at it — and balanced lines are
+  // SHORTER than the measure: 104 characters at 36 a line is four lines of 26, not three
+  // of 35. Type sized for 36 and set in 26 left a third of the column empty with the
+  // words smaller than the frame allowed. So the size grows until the longest line set
+  // fills the column, re-wrapping to confirm the same number of lines still holds (a
+  // smaller per-line count could force one more), and stops at the ceiling or the band.
+  const longest = Math.max(...lines.map((l) => l.length))
+  let grown = Math.min(Math.floor(sizeMax), Math.floor(colW / (longest * ch)))
+  while (grown > size) {
+    const again = quoteWrap(text, grown, colW, ch)
+    if (again.length === lines.length && high(again, grown) <= bandH)
+      return { size: grown, lines: again }
+    grown -= 1
+  }
+  return { size, lines }
 }
 
 /** The golden minor divides the frame SIDE TO SIDE: the picture takes this much and the

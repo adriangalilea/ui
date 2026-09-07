@@ -161,6 +161,23 @@ import {
       l.length <= per || !l.includes(" "),
       `a line ran past the column: ${l.length} > ${per}`,
     )
+  // THE LONGEST LINE FILLS THE COLUMN. Balanced lines are shorter than the measure that
+  // chose the size, so the size grows to the lines actually set: the Emerson card at 36
+  // a line came out as four lines of 26 at 45px with a third of the column empty.
+  {
+    const emerson =
+      "Thus compelled, the muse of history will utter oracles, as never to those who do not respect themselves."
+    const set = quoteSet(emerson, 646, { ch: 0.4, sizeMax: 69, bandH: 500 })
+    const longest = Math.max(...set.lines.map((l) => l.length))
+    const fill = (longest * 0.4 * set.size) / 646
+    assert(
+      fill > 0.9 && fill <= 1,
+      `the longest line fills ${(fill * 100).toFixed(0)}% of the column`,
+    )
+    assert(set.size > 50, `grew to ${set.size}px, not left at the measure's 45`)
+    const capped = quoteSet("Less, but better.", 1027, { ch: 0.4, sizeMax: 69 })
+    assert(capped.size === 69, `the ceiling still holds: ${capped.size}px`)
+  }
   // A word longer than the column gets its own line rather than vanishing.
   const huge = quoteWrap(
     "a Pneumonoultramicroscopicsilicovolcanoconiosis b",

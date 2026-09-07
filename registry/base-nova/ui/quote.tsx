@@ -142,8 +142,10 @@ const LINK = "text-inherit no-underline hover:underline"
  *  is which is the drift the shared module exists to prevent. */
 const META = "font-mono text-muted-foreground/80"
 /** THE MEASURE IS THE RULE, in real `ch`: the browser knows how wide a character of this
- *  face is and the still can only estimate. Both carry the same characters a line. */
-const MEASURED = "*:max-w-(--ag-quote-measure) *:text-pretty"
+ *  face is and the still can only estimate. Both carry the same characters a line, and
+ *  both BALANCE: `quoteWrap` is `text-wrap: balance` written out, so the card's lines
+ *  fall the way the still's do rather than greedy-with-a-tidy-rag (`pretty`). */
+const MEASURED = "*:max-w-(--ag-quote-measure) *:text-balance"
 
 export function Quote({
   text,
