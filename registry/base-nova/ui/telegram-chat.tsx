@@ -66,15 +66,20 @@ export type ChatBlock =
   | { kind: "item"; text: string; cite?: string }
   | { kind: "quote"; text: string; by?: string; cite?: string }
 
+/** Who a message is from or a chat is with: the profile itself (`from: ADRIAN`, the
+ *  ergonomic form: define a person once, use them anywhere, no map to remember), a key
+ *  into the script's `people`, or a bare name. */
+export type Who = string | ChatProfile
+
 export interface ChatMessage {
-  /** "me" is your bubble on the right. Any other string is a sender on the left; in a
-   *  group it is the colored label and picks the mini avatar. */
-  from: "me" | string
+  /** "me" is your bubble on the right. Anyone else is a sender on the left; in a group
+   *  it is the colored label and picks the mini avatar. */
+  from: "me" | Who
   text?: string
   /** The sender's photo (left bubbles in groups). */
   avatar?: string
   /** The quoted message this one replies to. */
-  reply?: { from: string; text: string }
+  reply?: { from: Who; text: string }
   preview?: ChatPreview
   /** Inline-bot attribution above the body ("via @xtldrbot"). */
   via?: string
@@ -115,7 +120,7 @@ export interface ChatScript {
   kind: ChatKind
   /** Header title: the person, the bot, or the group name. A key into `people` reads
    *  the profile's name, avatar and video for the header. */
-  chatName: string
+  chatName: Who
   /** Sub-line under the name ("online" · "bot" · "24 members"). Defaults from the
    *  header's profile: a bot's handle, else nothing. */
   chatTag?: string
@@ -129,7 +134,7 @@ export interface ChatScript {
   /** The easter egg for whoever stays: messages that arrive `at` seconds after the
    *  story completes, on the wall clock. */
   afterlife?: {
-    from?: string
+    from?: Who
     avatar?: string
     avatarVideo?: string
     messages: { at: number; text: string }[]
@@ -565,11 +570,12 @@ export function TelegramChat({
   animatedEmoji = true,
   className,
 }: TelegramChatProps) {
-  const cut = crop ?? (frame === "none" ? FRAMELESS_CROP : undefined)
-  // The accounts: a `from` is a key into `people` when it is one, a bare name when not.
-  const profileOf = (who: string): ChatProfile | undefined =>
-    script.people?.[who]
-  const nameOf = (who: string) => profileOf(who)?.name ?? who
+  const wantsCut = crop ?? (frame === "none" ? FRAMELESS_CROP : undefined)
+  // The accounts: a `from` is the profile itself, a key into `people`, or a bare name.
+  const profileOf = (who: Who): ChatProfile | undefined =>
+    typeof who === "string" ? script.people?.[who] : who
+  const nameOf = (who: Who) =>
+    typeof who === "string" ? (profileOf(who)?.name ?? who) : who.name
   const header = profileOf(script.chatName)
   const chatTag =
     script.chatTag ?? (header?.bot ? (header.handle ?? "bot") : undefined)
@@ -692,6 +698,17 @@ export function TelegramChat({
   const raw = controlled ? (progress as number) : auto
   const eff = floor + (1 - floor) * Math.min(1, Math.max(0, raw))
   const at = eff * timeline.total
+  // THE CUT WAITS FOR ITS TARGET. A phone cropped to a message that has not landed
+  // showed the bottom of a thread with nothing to show; the viewport closes down only
+  // once the focused message exists (the blur has the same rule). Frameless is always
+  // cut: there the viewport is the container, and the page must not reflow.
+  const cut =
+    wantsCut &&
+    (frame === "none" ||
+      target === undefined ||
+      at >= (timeline.beats[target] as Beat).land)
+      ? wantsCut
+      : undefined
   const isGroup = script.kind === "group"
   const completed = at >= timeline.total - BEAT.meta / 2 - 1e-6 || eff >= 1
 
@@ -866,7 +883,7 @@ export function TelegramChat({
     )
   }
 
-  const senderLabel = (who: string) =>
+  const senderLabel = (who: Who) =>
     isGroup ? (
       <div
         className="tgchat-from"
@@ -878,7 +895,7 @@ export function TelegramChat({
 
   // Group chats put a mini avatar beside every left bubble, like Telegram does: the
   // profile's picture when the sender has one, the message's own, else the initial.
-  const leftRow = (bubble: React.ReactNode, who: string, avatarUrl?: string) =>
+  const leftRow = (bubble: React.ReactNode, who: Who, avatarUrl?: string) =>
     isGroup ? (
       <div className="tgchat-rowline">
         <Avatar
@@ -1144,7 +1161,7 @@ export function TelegramChat({
                     <>
                       {m.reply && (
                         <div className="tgchat-reply">
-                          <strong>{m.reply.from}</strong>
+                          <strong>{nameOf(m.reply.from)}</strong>
                           <span>{m.reply.text}</span>
                         </div>
                       )}
@@ -1288,7 +1305,7 @@ export function TelegramChat({
                   <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
                 </svg>
                 <div>
-                  <strong>Reply to {composing.reply.from}</strong>
+                  <strong>Reply to {nameOf(composing.reply.from)}</strong>
                   <span>{composing.reply.text}</span>
                 </div>
               </div>

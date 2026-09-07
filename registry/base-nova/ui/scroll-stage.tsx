@@ -86,12 +86,15 @@ export function ScrollStage({
         act = acts - 1
         if (!css) el.style.removeProperty("--stage-p")
       } else {
-        act = Math.min(acts - 1, Math.max(0, Math.floor(-rect.top / pacePx)))
-        if (!css) {
-          const travel = rect.height - window.innerHeight
-          const p = travel > 0 ? -rect.top / travel : rect.top < 0 ? 1 : 0
-          el.style.setProperty("--stage-p", String(Math.min(1, Math.max(0, p))))
-        }
+        // ONE RULE for JS and CSS: act i is on stage past i/acts of the TRAVEL (the
+        // track less one viewport), the same number `--stage-p` reports. Counting
+        // paces here while the CSS counted travel lit an act's words before the stage
+        // switched to it whenever a tail lengthened the track.
+        const travel = rect.height - window.innerHeight
+        const p = travel > 0 ? -rect.top / travel : rect.top < 0 ? 1 : 0
+        const clamped = Math.min(1, Math.max(0, p))
+        act = Math.min(acts - 1, Math.max(0, Math.floor(clamped * acts)))
+        if (!css) el.style.setProperty("--stage-p", String(clamped))
       }
       if (act !== current) {
         current = act
@@ -180,10 +183,18 @@ export function Act({
   if (index < 0 || index >= ctx.acts)
     throw new Error(`<Act index={${index}}> outside 0..${ctx.acts - 1}`)
   const at = `(var(--stage-p) * var(--acts) - ${index})`
+  const first = index === 0
   const last = index === ctx.acts - 1
-  const on = last
-    ? `clamp(0, ${at} * 1000, 1)`
-    : `min(clamp(0, ${at} * 1000, 1), clamp(0, (1 - ${at}) * 1000, 1))`
+  // The first act is on from the top of the track (it has no act before it to hand
+  // over from), the last stays on through the tail; the ones between hold one window.
+  const on =
+    first && last
+      ? "1"
+      : first
+        ? `clamp(0, (1 - ${at}) * 1000, 1)`
+        : last
+          ? `clamp(0, ${at} * 1000, 1)`
+          : `min(clamp(0, ${at} * 1000, 1), clamp(0, (1 - ${at}) * 1000, 1))`
   return React.createElement(as, {
     className,
     "data-act": index,

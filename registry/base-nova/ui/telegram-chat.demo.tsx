@@ -9,23 +9,27 @@ import {
 } from "@/registry/base-nova/ui/telegram-chat"
 
 // #region people
-/** THE ACCOUNTS, ONCE. Every mock on a site keys its senders into one map like this,
- *  so the bot always has its handle and its picture, a person their photo and profile
- *  video, and a name is spelled one way. `from: "xtldr"` anywhere resolves to this. */
+/** THE ACCOUNTS, ONCE. Define a person or a bot as a profile and use it anywhere a chat
+ *  names someone: `from: ADRIAN` in a group, `chatName: ADRIAN` for a private chat with
+ *  him, the bot's DM, the afterlife. The label, the mini avatar, the header, the handle
+ *  all come from the one definition. A script can also carry a `people` map and name
+ *  them by key (`from: "melon"`), which is what the story below does. */
+const ADRIAN: ChatProfile = {
+  name: "Adrian",
+  handle: "@adriangalilea",
+  avatar: "/adriangalilea.jpg",
+  avatarVideo: "/adriangalilea.mp4",
+}
+const XTLDR: ChatProfile = {
+  name: "xtldr",
+  handle: "@xtldrbot",
+  avatar: "/xtldr-bot.jpg",
+  bot: true,
+}
 const PEOPLE: Record<string, ChatProfile> = {
-  adrian: {
-    name: "Adrian",
-    handle: "@adriangalilea",
-    avatar: "/adriangalilea.jpg",
-    avatarVideo: "/adriangalilea.mp4",
-  },
+  adrian: ADRIAN,
   melon: { name: "Melon", handle: "@melonflip" },
-  xtldr: {
-    name: "xtldr",
-    handle: "@xtldrbot",
-    avatar: "/xtldr-bot.jpg",
-    bot: true,
-  },
+  xtldr: XTLDR,
 }
 // #endregion
 
@@ -132,17 +136,17 @@ const SCRIPT: ChatScript = {
 // #endregion
 
 // #region chats
-/** The same people, two other chats. A private chat with Adrian: his photo and profile
- *  video in the header, from the profile. A DM with the bot, the way the bot actually
- *  works there: you paste a link, it reacts 👀, types, and answers; its picture and its
- *  handle in the header, from the profile. Nothing about either was written twice. */
+/** THE SAME TWO DEFINITIONS, TWO CHATS. A private chat WITH Adrian: `chatName: ADRIAN`
+ *  puts his photo and profile video in the header. A group where Adrian and the bot are
+ *  both senders: `from: ADRIAN`, `from: XTLDR` give each their label and mini avatar, the
+ *  bot answering the way it does in a group (someone drops a link, it reacts 👀, types,
+ *  summarizes). Nothing about either of them was written twice. */
 const PEER: ChatScript = {
   kind: "peer",
-  chatName: "adrian",
+  chatName: ADRIAN,
   chatTag: "online",
-  people: PEOPLE,
   messages: [
-    { from: "adrian", text: "the frameless telegram shipped" },
+    { from: ADRIAN, text: "the frameless telegram shipped" },
     {
       from: "me",
       text: "finally",
@@ -152,13 +156,13 @@ const PEER: ChatScript = {
   alt: "A private chat with Adrian.",
 }
 const RICK = "youtube.com/watch?v=dQw4w9WgXcQ"
-const BOT: ChatScript = {
-  kind: "bot",
-  chatName: "xtldr",
-  people: PEOPLE,
+const GROUP: ChatScript = {
+  kind: "group",
+  chatName: "the garden",
+  chatTag: "3 members",
   messages: [
     {
-      from: "me",
+      from: ADRIAN,
       text: RICK,
       preview: {
         site: "YouTube",
@@ -170,8 +174,8 @@ const BOT: ChatScript = {
       reactions: [{ emoji: "👀", when: "timeline" }],
     },
     {
-      from: "xtldr",
-      typing: "typing",
+      from: XTLDR,
+      typing: "xtldr is typing",
       source: RICK,
       blocks: [
         {
@@ -196,8 +200,9 @@ const BOT: ChatScript = {
       },
       reactions: [{ emoji: "😂", count: 1 }],
     },
+    { from: "Melon", text: "you got us" },
   ],
-  alt: "A direct message to the bot: paste a link, it reacts, types, and summarizes.",
+  alt: "A group: Adrian drops a link, the bot reacts, types, and summarizes it.",
 }
 // #endregion
 
@@ -358,7 +363,7 @@ export default function Demo() {
       <Sample
         name="people"
         with="people chats"
-        label="05 · people · the accounts defined once, every chat reads them: a private chat with Adrian, a DM with the bot"
+        label="05 · people · two profiles, defined once: a private chat with Adrian, and a group where Adrian and the bot are both senders"
       >
         <div className="flex flex-wrap items-start justify-center gap-10">
           <TelegramChat
@@ -368,7 +373,7 @@ export default function Demo() {
             className="max-w-[18rem]"
           />
           <TelegramChat
-            script={BOT}
+            script={GROUP}
             wallpaper={WALL}
             theme="dark"
             className="max-w-[18rem]"

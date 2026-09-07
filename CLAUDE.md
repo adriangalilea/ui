@@ -367,10 +367,18 @@ chat that played whole in act one left acts two and three pointing back at messa
 already watched. **An act's story is "message k lands now"**: everything before k is
 context and lands whole (`lift`, the start of k's beat), so a reader who skips two acts
 or reloads mid-scrolly gets the act's own beat, never a blurred replay at normal speed;
-the focus blur waits for the focused message to exist. **People** (`ChatScript.people`,
-`ChatProfile`): the accounts defined once, keyed by a message's `from`, so the bot has
-its handle and its picture and a person their photo and profile video everywhere; the
-header reads the profile too (a bot's handle is its default sub-line). **Reactions are
+the focus blur waits for the focused message to exist. **People** (`ChatProfile`, `Who`): define a person or a bot once and use the PROFILE
+ITSELF wherever a chat names someone, `from: ADRIAN` in a group, `chatName: ADRIAN` for a
+private chat with him, the afterlife; label, mini avatar, header, handle all come from
+the one definition (a bot's handle is its default sub-line). A script may instead carry
+a `people` map and name them by key. **The cut waits for its target**: a phone cropped to
+a message that has not landed showed the bottom of a thread with nothing to show, so the
+viewport closes down only once the focused message exists; frameless is always cut
+because there the viewport is the container. In `scroll-stage`, JS and CSS now share
+ONE rule for which act is on (past i/acts of the TRAVEL, `--stage-p`'s number): counting
+paces in JS while the CSS counted travel lit an act's words before the stage switched
+whenever a tail lengthened the track; and the first act is on from the top of the
+track. **Reactions are
 buttons**: press one and you count, drawn as the client draws your own; the emoji are
 Noto Animated Emoji as animated WebP (Google, Apache 2.0, no player, lazy, 150-300 KB
 each, so reactions only; Telegram's set is TGS behind its API and its own IP), text
