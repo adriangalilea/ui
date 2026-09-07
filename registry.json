@@ -185,23 +185,6 @@
       ]
     },
     {
-      "name": "telegram-chat",
-      "type": "registry:ui",
-      "title": "telegram-chat",
-      "description": "a Telegram chat as a pure function of {messages, progress}: peer, bot and group shapes, people defined once, streaming bodies, pressable reactions with animated emoji, afterlife. on an iPhone, or frameless at the container's width; focus lifts a message and blurs the rest; crop cuts the phone to a viewport, for a scrolly",
-      "registryDependencies": ["@ag/tokens", "@ag/web-preview"],
-      "files": [
-        {
-          "path": "registry/base-nova/ui/telegram-chat.tsx",
-          "type": "registry:ui"
-        },
-        {
-          "path": "registry/base-nova/ui/telegram-chat.css",
-          "type": "registry:ui"
-        }
-      ]
-    },
-    {
       "name": "web-preview-unfurl",
       "type": "registry:lib",
       "title": "web-preview-unfurl",
@@ -222,6 +205,23 @@
       "files": [
         {
           "path": "registry/base-nova/ui/web-preview.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "telegram-chat",
+      "type": "registry:ui",
+      "title": "telegram-chat",
+      "description": "a Telegram chat as a pure function of {messages, progress}: peer, bot and group shapes, people defined once, streaming bodies, pressable reactions with animated emoji, afterlife. on an iPhone, or frameless at the container's width; focus lifts a message and blurs the rest; crop cuts the phone to a viewport, for a scrolly",
+      "registryDependencies": ["@ag/tokens", "@ag/web-preview"],
+      "files": [
+        {
+          "path": "registry/base-nova/ui/telegram-chat.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/base-nova/ui/telegram-chat.css",
           "type": "registry:ui"
         }
       ]
