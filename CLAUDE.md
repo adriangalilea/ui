@@ -360,8 +360,11 @@ Left on the item:
 
 ### telegram: the phone is a mode
 
-`telegram-chat` has three orthogonal knobs on one script (`/telegram-chat`, sections
-02-05): `frame="none"` (bubbles on a bare canvas at the container's width; header a
+`telegram-chat` has four orthogonal knobs on one script (`/telegram-chat`, sections
+02-05). `until` is the autoplay's CEILING (play to the end of message k and wait; raise
+it and it resumes from where it waited): a storyboard paces the chat with it, one act
+at a time, because a chat that played whole in act one left acts two and three
+pointing back at messages already watched. Then `frame="none"` (bubbles on a bare canvas at the container's width; header a
 slim strip, composer only while typing), `focus` (indices that lift, the rest blur and
 return on hover, the code item's rule; a phone thread centres the focused message) and
 `crop` (a viewport of a given aspect: the device keeps its FULL WIDTH and is cut in

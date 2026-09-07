@@ -126,6 +126,11 @@ export interface TelegramChatProps {
   from?: number | { message: number }
   /** Autoplay ms (uncontrolled only). Defaults proportional to script length. */
   duration?: number
+  /** The autoplay's CEILING (uncontrolled only): the story plays, on its own clock and
+   *  in view, up to the end of message k and waits there; raise it and it resumes. A
+   *  storyboard paces the chat with this, one act at a time, so a later act never
+   *  points back at a message the reader has already watched land. */
+  until?: { message: number }
   /** Seconds added to the whole afterlife schedule (reactions + messages): lets a
    *  phone that completes instantly wait for its neighbours' story. */
   afterlifeDelay?: number
@@ -465,6 +470,7 @@ export function TelegramChat({
   progress,
   from = 0,
   duration,
+  until,
   afterlifeDelay = 0,
   wallpaper,
   theme = "page",
@@ -507,29 +513,48 @@ export function TelegramChat({
     duration ??
     Math.min(14000, Math.max(4000, (1 - floor) * timeline.total * 6))
 
+  // The ceiling in raw 0..1 units: the end of message k's beat, mapped through the
+  // floor the way `eff` is. No `until`, and the ceiling is the end of the story.
+  const ceiling = (() => {
+    if (!until) return 1
+    const beat = timeline.beats[until.message]
+    if (!beat)
+      throw new Error(
+        `telegram-chat: until.message ${until.message} outside 0..${timeline.beats.length - 1}`,
+      )
+    const at = beat.end / timeline.total
+    return floor >= 1 ? 1 : Math.min(1, Math.max(0, (at - floor) / (1 - floor)))
+  })()
+
   // One-shot in-view autoplay (uncontrolled only): rAF advance, paused off-screen,
-  // reduced-motion renders the completed state, never replays (anti-strobe).
+  // reduced-motion renders the completed state, never replays (anti-strobe). The
+  // position lives in a ref so a raised ceiling RESUMES from where the story waited
+  // rather than starting it over.
+  const played = React.useRef(0)
   React.useEffect(() => {
     if (controlled) return
     const el = root.current
     if (!el) return
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setAuto(1)
+      played.current = ceiling
+      setAuto(ceiling)
       return
     }
     let frame = 0
     let last = 0
-    let value = 0
     const tick = (now: number) => {
-      value = Math.min(1, value + (now - last) / autoDuration)
+      played.current = Math.min(
+        ceiling,
+        played.current + (now - last) / autoDuration,
+      )
       last = now
-      setAuto(value)
-      if (value < 1) frame = requestAnimationFrame(tick)
+      setAuto(played.current)
+      if (played.current < ceiling) frame = requestAnimationFrame(tick)
     }
     const io = new IntersectionObserver(
       ([entry]) => {
         cancelAnimationFrame(frame)
-        if (entry?.isIntersecting && value < 1) {
+        if (entry?.isIntersecting && played.current < ceiling) {
           last = performance.now()
           frame = requestAnimationFrame(tick)
         }
@@ -541,7 +566,7 @@ export function TelegramChat({
       io.disconnect()
       cancelAnimationFrame(frame)
     }
-  }, [controlled, autoDuration])
+  }, [controlled, autoDuration, ceiling])
 
   const raw = controlled ? (progress as number) : auto
   const eff = floor + (1 - floor) * Math.min(1, Math.max(0, raw))

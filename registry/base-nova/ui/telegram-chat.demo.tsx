@@ -6,51 +6,85 @@ import {
   TelegramChat,
 } from "@/registry/base-nova/ui/telegram-chat"
 
+/** THE STORY IS THE BOT'S OWN FLOW: a link lands, someone tags the bot, the summary
+ *  streams, a follow-up is asked, the bot answers. Three voices you can tell apart: Melon
+ *  (a gradient initial), you on the right, and the bot with its own initial. */
 const SCRIPT: ChatScript = {
   kind: "group",
   chatName: "the garden",
   chatTag: "3 members",
   messages: [
-    {
-      from: "Adrian",
-      text: "components as registry items, sites own the copy",
-    },
+    { from: "Melon", text: "you have to read this" },
     {
       from: "Melon",
-      text: "so what do I run?",
+      text: "paulgraham.com/ds.html",
+      preview: {
+        site: "paulgraham.com",
+        title: "Do Things that Don't Scale",
+        description:
+          "One of the most common types of advice we give at Y Combinator is to do things that don't scale.",
+      },
       reactions: [{ emoji: "👀", when: "timeline" }],
     },
     {
       from: "me",
-      text: "npx shadcn add @ag/telegram-chat",
-      reply: { from: "Melon", text: "so what do I run?" },
+      text: "@xtldrbot",
+      reply: { from: "Melon", text: "paulgraham.com/ds.html" },
+      typed: true,
     },
     {
-      from: "Adrian",
-      typing: "typing",
+      from: "xtldr",
+      typing: "xtldr is reading",
+      source: "paulgraham.com/ds.html",
       blocks: [
-        { kind: "heading", text: "what you get", emoji: "📦" },
-        { kind: "item", text: "the phone, the wallpaper, both themes" },
-        { kind: "item", text: "messages as data, played at any progress" },
+        { kind: "heading", text: "Recruit users by hand", emoji: "🌱" },
+        { kind: "item", text: "Startups take off because founders make them" },
+        { kind: "item", text: "Stripe installed itself on users' laptops" },
+        { kind: "heading", text: "Delight, deliberately", emoji: "🔥" },
+        {
+          kind: "item",
+          text: "Over-engage with early users; it compounds",
+          cite: "¶12",
+        },
         {
           kind: "quote",
-          text: "what looks clickable is clickable",
-          by: "the rule",
+          text: "The most common unscalable thing founders have to do at the start is to recruit users manually.",
+          by: "Paul Graham",
         },
       ],
       meta: {
-        label: "🔗 ui.adriangalilea.com",
-        href: "https://github.com/adriangalilea/ui",
-        time: "⏱ 4 min",
+        label: "🔗 paulgraham.com",
+        href: "https://paulgraham.com/ds.html",
+        time: "⏱ 14 min read",
       },
-      reactions: [
-        { emoji: "🔥", count: 3 },
-        { emoji: "🌱", count: 2 },
+      reactions: [{ emoji: "❤️", count: 2 }],
+    },
+    {
+      from: "me",
+      text: "does he say when to stop doing the unscalable thing?",
+      typed: true,
+    },
+    {
+      from: "xtldr",
+      typing: "typing",
+      source: "paulgraham.com/ds.html",
+      blocks: [
+        { kind: "heading", text: "When to stop", emoji: "⏳" },
+        {
+          kind: "item",
+          text: "When the manual work stops teaching you anything new",
+          cite: "¶31",
+        },
+        {
+          kind: "item",
+          text: "Never all at once: the founders who scaled well kept a hand in",
+          cite: "¶33",
+        },
       ],
     },
   ],
   afterlife: { from: "Melon", messages: [{ at: 8, text: "ok that was easy" }] },
-  alt: "A group chat where a component is installed with one command.",
+  alt: "A group chat: a friend drops an essay, the bot is tagged and summarizes it, a follow-up gets a cited answer.",
 }
 
 const WALL = "/tg-pattern.svg"
@@ -61,25 +95,36 @@ function Label({ children }: { children: React.ReactNode }) {
   )
 }
 
-/** THE SCROLLY: an act index in, focus and crop out. The effects CHAIN: the whole
- *  phone, then one message lifted with the rest blurred, then the viewport cut down
- *  onto it, the height transitioning rather than jumping. Nothing here is special to
- *  the chat; a consumer's storyboard does exactly this with its own words per act. */
-const ACTS: { focus?: number; crop?: string; head: string; body: string }[] = [
+/** THE SCROLLY: an act index in; `until`, `focus` and `crop` out. The chat is PACED by
+ *  the acts: each raises the ceiling and the story plays on to it, so an act never
+ *  points back at a message the reader already watched land. The effects chain: the
+ *  whole phone, then one message lifted with the rest blurred, then the viewport cut
+ *  down onto the answer, the height transitioning rather than jumping. Nothing here is
+ *  special to the chat; a consumer's storyboard does exactly this with its own words. */
+const ACTS: {
+  until: number
+  focus?: number
+  crop?: string
+  head: string
+  body: string
+}[] = [
   {
-    head: "a conversation",
-    body: "the whole phone, playing once on its own clock as it enters.",
+    until: 2,
+    head: "a link lands",
+    body: "someone drops an essay; you tag the bot. the phone plays to here and waits.",
   },
   {
-    focus: 2,
-    head: "then one message",
-    body: "it lifts; the rest blur and step back. hover brings them back.",
-  },
-  {
+    until: 3,
     focus: 3,
+    head: "the bot answers",
+    body: "the summary streams in and lifts; the rest blur and step back. hover brings them back.",
+  },
+  {
+    until: 5,
+    focus: 5,
     crop: "4 / 3",
-    head: "then the answer, up close",
-    body: "the viewport cuts down onto it, full width, the height gliding; the edges fade only where something is hidden. scroll it once it has settled.",
+    head: "ask it more",
+    body: "a follow-up, a cited answer, and the viewport cuts down onto it at full width, the height gliding. scroll it once it has settled.",
   },
 ]
 
@@ -105,7 +150,8 @@ function Scrolly() {
         script={SCRIPT}
         wallpaper={WALL}
         theme="dark"
-        from={{ message: 3 }}
+        from={{ message: 1 }}
+        until={{ message: now.until }}
         focus={now.focus}
         crop={now.crop}
         className="mx-auto w-full max-w-[22rem]"
@@ -172,7 +218,8 @@ export default function Demo() {
       <section className="space-y-4">
         <Label>
           04 · crop · the phone at full width, cut in height only, the edges
-          fading under a scrim; panned to a focus, or to the latest
+          fading only where something is hidden; scrolled to a focus, or to the
+          latest
         </Label>
         <div className="flex flex-wrap items-start justify-center gap-10">
           <TelegramChat
@@ -180,7 +227,7 @@ export default function Demo() {
             wallpaper={WALL}
             theme="dark"
             from={1}
-            focus={3}
+            focus={5}
             crop="4 / 3"
             className="w-full max-w-[24rem]"
           />
@@ -197,8 +244,8 @@ export default function Demo() {
 
       <section className="space-y-4">
         <Label>
-          05 · a scrolly · an act index in, focus and crop out; the effects
-          chain
+          05 · a scrolly · an act index in; until, focus and crop out. the chat
+          is paced by the acts and the effects chain
         </Label>
         <ScrollStage
           acts={ACTS.length}
@@ -212,7 +259,8 @@ export default function Demo() {
                     script={SCRIPT}
                     wallpaper={WALL}
                     theme="dark"
-                    from={{ message: 3 }}
+                    from={{ message: 1 }}
+                    until={{ message: a.until }}
                     focus={a.focus}
                     crop={a.crop}
                     className="mx-auto w-full max-w-[22rem]"
