@@ -105,6 +105,8 @@ const ACTS: {
   until: number
   focus?: number
   crop?: string
+  /** The zoom, width intact: the container grows and every size inside follows. */
+  wide?: boolean
   head: string
   body: string
 }[] = [
@@ -123,8 +125,9 @@ const ACTS: {
     until: 5,
     focus: 5,
     crop: "4 / 3",
+    wide: true,
     head: "ask it more",
-    body: "a follow-up, a cited answer, and the viewport cuts down onto it at full width, the height gliding. scroll it once it has settled.",
+    body: "a follow-up, a cited answer, and the view zooms onto it: the phone grows, the viewport closes down to the answer, the scroll glides. scroll it once it has settled.",
   },
 ]
 
@@ -132,7 +135,7 @@ function Scrolly() {
   const act = useAct()
   const now = ACTS[act] as (typeof ACTS)[number]
   return (
-    <div className="grid h-svh items-center gap-10 lg:grid-cols-[1fr_minmax(0,22rem)]">
+    <div className="grid h-svh items-center gap-10 lg:grid-cols-[1fr_minmax(0,28rem)]">
       <div className="space-y-6">
         {ACTS.map((a, i) => (
           <Act
@@ -154,7 +157,7 @@ function Scrolly() {
         until={{ message: now.until }}
         focus={now.focus}
         crop={now.crop}
-        className="mx-auto w-full max-w-[22rem]"
+        className={`mx-auto w-full ${now.wide ? "max-w-[28rem]" : "max-w-[22rem]"}`}
       />
     </div>
   )

@@ -18,6 +18,10 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   --tg-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* THE ZOOM, width intact: every size inside is a share of the container, so growing
+     the container (a consumer's `max-w-*` changing between acts) enlarges the whole
+     chat continuously. A transition here is what makes that a zoom instead of a cut. */
+  transition: max-width 800ms var(--tg-ease);
 }
 
 .tgchat[data-theme="light"],
@@ -889,6 +893,9 @@ video.tgchat-mini {
    the way a chat does, and a scrolly that moves the focus glides between messages. */
 .tgchat-view {
   position: relative;
+  /* Always carries a px height (the component measures it), so a cut CLOSES over the
+     device like a curtain rather than flashing to a new box. */
+  transition: height 800ms var(--tg-ease);
 }
 /* THE CUT IS A SCROLLER. Its height is the crop's, set in px by the component so a
    change of crop transitions; the wheel belongs to the page while the story streams
@@ -1009,15 +1016,20 @@ video.tgchat-mini {
   .tgchat-mini {
   filter: blur(2px);
   opacity: 0.45;
+  /* Slow on the way BACK to focus, quick to release: the pointer leaving lets the
+     blur creep back in, so the focus re-asserts itself like tension mounting, and
+     hovering answers at once. `blur(0)`, never `none`: `none` is not a value a filter
+     can interpolate to, and the un-blur snapped. */
   transition:
-    filter 400ms var(--tg-ease),
-    opacity 400ms var(--tg-ease),
-    transform 400ms var(--tg-ease);
+    filter 900ms var(--tg-ease),
+    opacity 900ms var(--tg-ease),
+    transform 900ms var(--tg-ease);
 }
 .tgchat[data-focus]:hover .tgchat-bubble:not([data-focused]),
 .tgchat[data-focus]:hover .tgchat-mini {
-  filter: none;
+  filter: blur(0);
   opacity: 1;
+  transition-duration: 300ms;
 }
 .tgchat-bubble[data-focused] {
   position: relative;
@@ -1026,7 +1038,18 @@ video.tgchat-mini {
   box-shadow:
     0 8px 28px rgba(0, 0, 0, 0.35),
     0 1px 3px rgba(0, 0, 0, 0.2);
-  transition: transform 400ms var(--tg-ease);
+  transition:
+    transform 900ms var(--tg-ease),
+    box-shadow 900ms var(--tg-ease);
+}
+/* Under the pointer everything stands on the same footing; the lift returns with the
+   blur when it leaves. */
+.tgchat[data-focus]:hover .tgchat-bubble[data-focused] {
+  transform: scale(1);
+  box-shadow:
+    0 0 0 rgba(0, 0, 0, 0),
+    0 0 0 rgba(0, 0, 0, 0);
+  transition-duration: 300ms;
 }
 @media (prefers-reduced-motion: reduce) {
   .tgchat[data-focus] .tgchat-bubble:not([data-focused]),

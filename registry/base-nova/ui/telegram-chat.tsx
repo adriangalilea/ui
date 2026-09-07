@@ -588,8 +588,11 @@ export function TelegramChat({
   // stays pinned to the bottom. Settled, you scroll up to what was summoned. A late
   // message pulls it down only if you were already at the bottom, exactly the
   // client's behaviour.
-  // A FOCUSED message owns the scroll instead: the thread centres it, whatever the story
-  // is doing, because the reader was pointed at it.
+  // A FOCUSED message owns the scroll instead: the thread centres it, because the reader
+  // was pointed at it — and moves ONLY when where it wants to be changes. The afterlife
+  // clock re-runs this every second; re-setting the same scrollTop each tick yanked the
+  // thread back from wherever the reader had scrolled it.
+  const threadWant = React.useRef<number | null>(null)
   // biome-ignore lint/correctness/useExhaustiveDependencies: eff/aliveSec are the beats that grow the thread
   React.useLayoutEffect(() => {
     const el = thread.current
@@ -598,9 +601,17 @@ export function TelegramChat({
     if (hero) {
       // In the thread's content coordinates, so the scroll it sets is absolute.
       const box = placeIn(hero, el)
-      el.scrollTop = Math.max(0, box.y + box.h / 2 - el.clientHeight / 2)
+      const want = Math.max(0, box.y + box.h / 2 - el.clientHeight / 2)
+      if (
+        threadWant.current !== null &&
+        Math.abs(want - threadWant.current) < 1
+      )
+        return
+      threadWant.current = want
+      el.scrollTop = want
       return
     }
+    threadWant.current = null
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40
     if (!completed || atBottom) el.scrollTop = el.scrollHeight
   }, [completed, eff, aliveSec, target])
@@ -615,31 +626,38 @@ export function TelegramChat({
   // are scroll-driven in CSS, so they appear only where something is actually hidden.
   // Smooth after the first frame, so a landing message slides the thread up the way a
   // chat does; instant under reduced motion.
+  // The viewport ALWAYS carries a measured px height, cut or not: `auto` to a px value
+  // does not transition, and the whole point of the cut is that it closes over the
+  // device like a curtain while the scroll glides, never a flash. The scroll moves only
+  // when where it wants to be changes (the afterlife clock re-runs this every second).
   const [viewH, setViewH] = React.useState<number | null>(null)
-  const settledOnce = React.useRef(false)
+  const viewWant = React.useRef<number | null>(null)
   // biome-ignore lint/correctness/useExhaustiveDependencies: eff and aliveSec grow the thread and move the message
   React.useLayoutEffect(() => {
     const port = view.current
     const dev = device.current
-    if (!cut || !port || !dev) {
-      setViewH(null)
-      settledOnce.current = false
-      return
-    }
+    if (!port || !dev) return
     const place = () => {
-      const vh = port.clientWidth / ratioOf(cut)
       const dh = dev.offsetHeight
+      if (!cut) {
+        setViewH(dh)
+        viewWant.current = null
+        return
+      }
+      const vh = port.clientWidth / ratioOf(cut)
       setViewH(vh)
       const hero = target === undefined ? null : bubbles.current[target]
       const want = hero
         ? placeIn(hero, dev).y + hero.offsetHeight / 2 - vh / 2
         : dh - vh
       const top = Math.max(0, Math.min(dh - vh, want))
+      if (viewWant.current !== null && Math.abs(top - viewWant.current) < 1)
+        return
       const smooth =
-        settledOnce.current &&
+        viewWant.current !== null &&
         !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      viewWant.current = top
       port.scrollTo({ top, behavior: smooth ? "smooth" : "auto" })
-      settledOnce.current = true
     }
     place()
     const ro = new ResizeObserver(place)
@@ -797,11 +815,11 @@ export function TelegramChat({
         ref={view}
         className="tgchat-view"
         style={
-          cut
-            ? viewH !== null
-              ? { height: `${viewH.toFixed(1)}px` }
-              : { aspectRatio: cut }
-            : undefined
+          viewH !== null
+            ? { height: `${viewH.toFixed(1)}px` }
+            : cut
+              ? { aspectRatio: cut }
+              : undefined
         }
       >
         {cut && <div className="tgchat-scrim" data-edge="top" />}
