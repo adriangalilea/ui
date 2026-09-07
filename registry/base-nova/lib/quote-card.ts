@@ -293,11 +293,18 @@ export const MARK_OPACITY = 0.1
  *  faint drawing: the edges stop competing with the type, and a shape this size with
  *  crisp edges reads as an object sitting on the card. */
 export const MARK_BLUR = 0.026
-/** The gap between the name and the date on their one line, in name-ems. */
-export const ATTRIB_GAP = 1.6
-/** The attribution's two sizes, as shares of the FRAME. Fixed for every card. */
-export const NAME_EM = 0.0233
-export const DATE_EM = 0.0183
+/** The gap between the name and the date on their one line, in name-ems: enough that
+ *  the two read as two facts, not enough that they read as two captions. It is measured
+ *  by the renderer off the name's REAL width (a `dx` on the date's tspan), never
+ *  estimated: an estimate through a serif's average advance ran 35px short on "Ralph
+ *  Waldo Emerson" in Geist and left the year touching the name. */
+export const ATTRIB_GAP = 0.75
+/** The attribution's two sizes, as shares of the FRAME. Fixed for every card, and set
+ *  for the THUMBNAIL the card is seen as: at 400px wide a 28px name was 9px and the
+ *  caption vanished. 36px on the card is 12px in the thumbnail, readable, and six tenths
+ *  of the words' size, so the eye still lands on the quote first. */
+export const NAME_EM = 0.03
+export const DATE_EM = 0.024
 
 /** ONE SCALE, AND EVERY DISTANCE ON THE CARD IS A RUNG OF IT. The studio's 8·2ⁿ, as a
  *  share of the frame so it survives any size: `unit` is 8 px on a 1200 px card, and
@@ -825,12 +832,6 @@ export function renderQuoteSvg(
   // side by side they read as one caption, which is what they are. It sits as far off
   // the floor as the mark hangs from the ceiling — the two anchors are a pair.
   const attrBase = Math.round(height - unit * EDGE - DESC * nameSize)
-  const dateX =
-    pad +
-    Math.round(
-      (quote.author?.name.length ?? 0) * nameSize * QUOTE_CH +
-        nameSize * ATTRIB_GAP,
-    )
   const attrTop =
     quote.author || quote.date ? attrBase - CAP * nameSize : height - pad
   // The ghost is anchored to the frame's top-left, EDGE from the ceiling against MARGIN
@@ -868,12 +869,20 @@ export function renderQuoteSvg(
       return `<text x="${textX}" y="${at}" fill="${fg}">${esc(l)}</text>`
     })
     .join("\n    ")
-  const attribution = quote.author
-    ? `<text x="${pad}" y="${Math.round(attrBase)}" font-size="${nameSize}" font-family="${esc(nameFamily)}" fill="${fg}" opacity="0.75">${esc(quote.author.name)}</text>`
+  // ONE <text>, two tspans: the date's `dx` is laid off the name's REAL width by the
+  // renderer, so the gap is the gap whatever the name and the face. Two <text> elements
+  // meant estimating where the name ended, and the estimate is what put the year on top
+  // of "Emerson".
+  const name = quote.author
+    ? `<tspan font-size="${nameSize}" font-family="${esc(nameFamily)}" fill="${fg}" opacity="0.75">${esc(quote.author.name)}</tspan>`
     : ""
   const when = quote.date
-    ? `<text x="${quote.author ? dateX : pad}" y="${Math.round(attrBase)}" font-size="${dateSize}" font-family="${esc(dateFamily)}" fill="${mut}">${esc(quote.date)}</text>`
+    ? `<tspan${quote.author ? ` dx="${Math.round(nameSize * ATTRIB_GAP)}"` : ""} font-size="${dateSize}" font-family="${esc(dateFamily)}" fill="${mut}">${esc(quote.date)}</tspan>`
     : ""
+  const attribution =
+    name || when
+      ? `<text x="${pad}" y="${Math.round(attrBase)}">${name}${when}</text>`
+      : ""
 
   // The picture dissolves into the flat ground, and there is nothing between them.
   const face = avatar
@@ -904,7 +913,6 @@ export function renderQuoteSvg(
   <g font-family="${esc(fontFamily)}" font-size="${size}" xml:space="preserve">
     ${rows}
     ${attribution}
-    ${when}
   </g>
 </svg>
 `

@@ -29,6 +29,7 @@
 
 import { cn } from "@/lib/utils"
 import {
+  ATTRIB_GAP,
   assert,
   BLOCK_AT,
   CAP,
@@ -343,7 +344,7 @@ export function Quote({
           "--ag-quote-measure": `${quoteMeasure(words.length)}ch`,
           "--ag-quote-size": cqw(size / width),
           "--ag-quote-name": cqw(NAME_EM),
-          "--ag-quote-by-gap": cqw(NAME_EM * 1.6),
+          "--ag-quote-by-gap": cqw(NAME_EM * ATTRIB_GAP),
           "--ag-quote-date": cqw(DATE_EM),
           "--ag-quote-mark": cqw(MARK_EM / aspect),
           "--ag-quote-mark-fill": String(MARK_OPACITY),
