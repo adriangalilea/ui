@@ -18,10 +18,15 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   --tg-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* ONE CLOCK FOR EVERY LAYOUT MOVE: the container's width, the viewport's height and
+     the scroll inside it (tweened in the component to this same curve) travel together,
+     ease-in-out. Three motions on three clocks, one of them a browser clamp applied
+     frame by frame, read as a coil spring when the crop opened back up. */
+  --tg-glide: 800ms cubic-bezier(0.65, 0, 0.35, 1);
   /* THE ZOOM, width intact: every size inside is a share of the container, so growing
      the container (a consumer's `max-w-*` changing between acts) enlarges the whole
      chat continuously. A transition here is what makes that a zoom instead of a cut. */
-  transition: max-width 800ms var(--tg-ease);
+  transition: max-width var(--tg-glide);
 }
 
 .tgchat[data-theme="light"],
@@ -895,7 +900,7 @@ video.tgchat-mini {
   position: relative;
   /* Always carries a px height (the component measures it), so a cut CLOSES over the
      device like a curtain rather than flashing to a new box. */
-  transition: height 800ms var(--tg-ease);
+  transition: height var(--tg-glide);
 }
 /* THE CUT IS A SCROLLER. Its height is the crop's, set in px by the component so a
    change of crop transitions; the wheel belongs to the page while the story streams
@@ -933,7 +938,7 @@ video.tgchat-mini {
   animation-range:
     0 6%,
     94% 100%;
-  transition: height 800ms var(--tg-ease);
+  transition: height var(--tg-glide);
 }
 .tgchat[data-settled][data-cut] .tgchat-view {
   overflow-y: auto;

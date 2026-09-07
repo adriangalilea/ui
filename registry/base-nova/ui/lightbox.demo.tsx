@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useDebug } from "@/app/debug"
 import {
   type Entry,
   type Facts,
@@ -263,19 +264,10 @@ export default function Demo() {
   // reported after several attempts, and re-typing a query string every time is how a
   // stale trace gets copied. `debug` carries the build id, so a report says which code
   // produced it. NEXT_PUBLIC_BUILD is a commit SHA on the deployed site.
-  const [debug, setDebug] = React.useState<boolean | string>(false)
-  React.useEffect(() => {
-    const on =
-      new URLSearchParams(window.location.search).has("debug") ||
-      localStorage.getItem("ag-debug") === "1"
-    setDebug(on ? (process.env.NEXT_PUBLIC_BUILD ?? true) : false)
-    const sync = () => {
-      const now = localStorage.getItem("ag-debug") === "1"
-      setDebug(now ? (process.env.NEXT_PUBLIC_BUILD ?? true) : false)
-    }
-    window.addEventListener("ag-debug", sync)
-    return () => window.removeEventListener("ag-debug", sync)
-  }, [])
+  const [debugOn] = useDebug()
+  const debug: boolean | string = debugOn
+    ? (process.env.NEXT_PUBLIC_BUILD ?? true)
+    : false
   return (
     <Lightbox
       history

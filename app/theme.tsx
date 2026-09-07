@@ -2,8 +2,9 @@
 
 import { Bug, BugOff } from "lucide-react"
 import { ThemeProvider, useTheme } from "next-themes"
-import * as React from "react"
+import type * as React from "react"
 import { type Theme, ThemeToggle } from "@/registry/base-nova/ui/theme-toggle"
+import { useDebug } from "./debug"
 
 /** next-themes writes the class onto <html> from a blocking script it injects, so the
  *  first paint is already the right theme. Resolving it in an effect instead paints
@@ -29,18 +30,10 @@ export function ThemeRoot({ children }: { children: React.ReactNode }) {
  *  re-typing `?debug` each time is how a stale trace ends up being copied. */
 export function SiteTheme() {
   const { theme, setTheme } = useTheme()
-  const [debug, setDebug] = React.useState(false)
-  React.useEffect(() => {
-    setDebug(localStorage.getItem("ag-debug") === "1")
-  }, [])
-  const toggleDebug = () => {
-    const next = !debug
-    setDebug(next)
-    localStorage.setItem("ag-debug", next ? "1" : "0")
-    // Components read the flag on this event rather than being wired through props:
-    // a debug switch that needs plumbing to every consumer never gets turned on.
-    window.dispatchEvent(new Event("ag-debug"))
-  }
+  // The flag lives in the URL (`?debug`), one hook for the toggle and every demo: a link
+  // carries it, a reload keeps it, nothing is plumbed through props.
+  const [debug, setDebug] = useDebug()
+  const toggleDebug = () => setDebug(!debug)
   return (
     <div className="fixed right-4 bottom-4 z-40 flex items-center gap-2">
       {/* The theme toggle's own track and option, not a lookalike. Two controls

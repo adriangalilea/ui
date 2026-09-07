@@ -182,11 +182,12 @@ export interface TelegramChatProps {
    *  WebP, no player, lazy): on by default. Off, the pill shows the text glyph. Each
    *  animation is 150-300 KB, which is why only reactions get them, never body text. */
   animatedEmoji?: boolean
-  /** A mono readout under the chat of what the cut decided, as it happened: story
-   *  position, ceiling, target, whether it has landed, the viewport's height, the
-   *  scroll it asked for and got. For sign-off by hand in a browser; `?debug` on the
-   *  demo page turns it on. */
-  debug?: boolean
+  /** What the cut decided, as it happened: story position, ceiling, target, whether it
+   *  has landed, the viewport's height, the scroll it asked for and got. `true` prints
+   *  it as a mono readout under the chat; a function receives every decision, for a
+   *  page that ships it somewhere a reader of logs can see (the demo posts it to a
+   *  dev-only route). For sign-off by hand; `?debug` on the demo page turns it on. */
+  debug?: boolean | ((trace: Record<string, unknown>) => void)
   className?: string
 }
 
@@ -213,6 +214,30 @@ export const FRAMELESS_CROP = "4 / 3"
  *  viewport may grow past its crop to hold a tall one before showing its start instead. */
 const FOCUS_PAD = 0.06
 const FOCUS_GROW = 1.5
+
+/** The viewport's scroll travels on the SAME clock and curve as the CSS layout moves
+ *  (`--tg-glide`: 800 ms, ease-in-out cubic), so width, height and scroll arrive
+ *  together. `scrollTo({behavior: "smooth"})` has its own duration and no curve to
+ *  share, and three motions on three clocks read as a spring. Returns a cancel. */
+const GLIDE_MS = 800
+const glideEase = (t: number) =>
+  t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2
+function glide(el: HTMLElement, to: number): () => void {
+  const from = el.scrollTop
+  if (Math.abs(to - from) < 1) {
+    el.scrollTop = to
+    return () => {}
+  }
+  const start = performance.now()
+  let frame = 0
+  const step = (now: number) => {
+    const t = Math.min(1, (now - start) / GLIDE_MS)
+    el.scrollTop = from + (to - from) * glideEase(t)
+    if (t < 1) frame = requestAnimationFrame(step)
+  }
+  frame = requestAnimationFrame(step)
+  return () => cancelAnimationFrame(frame)
+}
 
 /** A CSS aspect-ratio value ("4 / 3", "1/1", "1.5") as width over height. */
 function ratioOf(crop: string): number {
@@ -617,6 +642,22 @@ export function TelegramChat({
         `telegram-chat: focus ${f} outside 0..${script.messages.length - 1}`,
       )
   const target = focused[0]
+  /** The box ALL focused messages span, in `root`'s layout coordinates, or null while
+   *  none has landed. A focus is often an exchange (the question and its answer), and a
+   *  viewport that fitted only the first of them cut the reader off from what was asked. */
+  const focusBox = (root: HTMLElement): { y: number; h: number } | null => {
+    let top = Number.POSITIVE_INFINITY
+    let bottom = Number.NEGATIVE_INFINITY
+    for (const i of focused) {
+      const el = bubbles.current[i]
+      if (!el) continue
+      const p = placeIn(el, root)
+      top = Math.min(top, p.y)
+      bottom = Math.max(bottom, p.y + p.h)
+    }
+    return top === Number.POSITIVE_INFINITY ? null : { y: top, h: bottom - top }
+  }
+  const focusKey = focused.join(",")
   const floor =
     typeof from === "number"
       ? from
@@ -711,8 +752,7 @@ export function TelegramChat({
   const cut =
     wantsCut &&
     (frame === "none" ||
-      target === undefined ||
-      at >= (timeline.beats[target] as Beat).land)
+      focused.every((f) => at >= (timeline.beats[f] as Beat).land))
       ? wantsCut
       : undefined
   const isGroup = script.kind === "group"
@@ -741,12 +781,11 @@ export function TelegramChat({
   React.useLayoutEffect(() => {
     const el = thread.current
     if (!el) return
-    const hero = target === undefined ? null : bubbles.current[target]
-    if (hero) {
+    const box = focusBox(el)
+    if (box) {
       // In the thread's content coordinates, so the scroll it sets is absolute.
-      // Centred when it fits; a message taller than the screen shows its START, the
+      // Centred when it fits; an exchange taller than the screen shows its START, the
       // rest a scroll away. Centring it showed its middle with both ends cut.
-      const box = placeIn(hero, el)
       const pad = el.clientHeight * FOCUS_PAD
       const want = Math.max(
         0,
@@ -766,7 +805,7 @@ export function TelegramChat({
     threadWant.current = null
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40
     if (!completed || atBottom) el.scrollTop = el.scrollHeight
-  }, [completed, eff, aliveSec, target])
+  }, [completed, eff, aliveSec, focusKey])
 
   // THE CUT is a real scroller. The viewport takes the crop's height (a measured px
   // value, so a change of crop TRANSITIONS instead of jumping: a phone with a focused
@@ -785,6 +824,25 @@ export function TelegramChat({
   const [viewH, setViewH] = React.useState<number | null>(null)
   const viewWant = React.useRef<number | null>(null)
   const pendingScroll = React.useRef(false)
+  const glideStop = React.useRef<() => void>(() => {})
+  // THE VIEWPORT STAYS A SCROLLER WHILE IT OPENS. Dropping the cut removed `overflow`
+  // in the same frame the height began to grow, and a box that is no longer a scroll
+  // container has a scrollTop of 0 at once: the thread snapped to the phone's top while
+  // the box eased open, a jump under a glide. The scroller role outlives the cut by one
+  // glide, so the scroll can travel home on the same clock as the height.
+  const [opening, setOpening] = React.useState(false)
+  const hadCut = React.useRef(cut)
+  React.useEffect(() => {
+    const was = hadCut.current
+    hadCut.current = cut
+    if (was && !cut) {
+      setOpening(true)
+      const id = window.setTimeout(() => setOpening(false), GLIDE_MS)
+      return () => window.clearTimeout(id)
+    }
+    setOpening(false)
+  }, [cut])
+  const scroller = cut !== undefined || opening
   /** What the cut decided, for the `debug` readout: the numbers, as they happened. */
   const trace = React.useRef<Record<string, unknown> | null>(null)
   // biome-ignore lint/correctness/useExhaustiveDependencies: eff and aliveSec grow the thread and move the message
@@ -798,6 +856,22 @@ export function TelegramChat({
         setViewH(dh)
         viewWant.current = null
         pendingScroll.current = false
+        // Leaving the cut: the scroll travels home on the same clock the box opens on.
+        // Left where it was, the browser clamped it frame by frame as the range shrank.
+        glideStop.current()
+        if (port.scrollTop > 0) {
+          if (window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+            port.scrollTop = 0
+          else glideStop.current = glide(port, 0)
+        }
+        if (typeof debug === "function")
+          debug({
+            at: Math.round(at),
+            cut: "none",
+            dh: Math.round(dh),
+            scrollTop: Math.round(port.scrollTop),
+            opening: scroller,
+          })
         return
       }
       // THE VIEWPORT HOLDS THE FOCUSED MESSAGE. The crop is its floor; a taller message
@@ -805,8 +879,8 @@ export function TelegramChat({
       // past that the message's START is what shows and the rest is a scroll away.
       // Centring a message taller than the box showed its middle with both ends cut.
       const base = port.clientWidth / ratioOf(cut)
-      const hero = target === undefined ? null : bubbles.current[target]
-      const heroH = hero ? hero.offsetHeight : 0
+      const hero = focusBox(dev)
+      const heroH = hero ? hero.h : 0
       const pad = base * FOCUS_PAD
       const vh = Math.min(
         dh,
@@ -815,7 +889,7 @@ export function TelegramChat({
           : base,
       )
       setViewH(vh)
-      const heroY = hero ? placeIn(hero, dev).y : 0
+      const heroY = hero ? hero.y : 0
       const want = hero
         ? heroH + 2 * pad <= vh
           ? heroY + heroH / 2 - vh / 2
@@ -838,7 +912,9 @@ export function TelegramChat({
         !window.matchMedia("(prefers-reduced-motion: reduce)").matches
       viewWant.current = top
       pendingScroll.current = top > reach + 1
-      port.scrollTo({ top, behavior: smooth ? "smooth" : "auto" })
+      glideStop.current()
+      if (smooth && !pendingScroll.current) glideStop.current = glide(port, top)
+      else port.scrollTop = top
       if (debug)
         trace.current = {
           at: Math.round(at),
@@ -854,13 +930,25 @@ export function TelegramChat({
           pending: pendingScroll.current,
           scrollTop: Math.round(port.scrollTop),
         }
+      if (typeof debug === "function" && trace.current) debug(trace.current)
     }
     place()
     const ro = new ResizeObserver(place)
     ro.observe(port)
     ro.observe(dev)
-    return () => ro.disconnect()
-  }, [cut, target, eff, aliveSec, frame])
+    // A hand on the wheel wins: a glide in flight yields to the reader's own scroll.
+    const yieldGlide = () => glideStop.current()
+    port.addEventListener("wheel", yieldGlide, { passive: true })
+    port.addEventListener("touchstart", yieldGlide, { passive: true })
+    // The glide is NOT stopped here: this effect re-runs on every beat of the story, and
+    // a glide cancelled on each re-run never arrived. It stops when a new target
+    // replaces it, when the reader takes the wheel, or when it lands.
+    return () => {
+      ro.disconnect()
+      port.removeEventListener("wheel", yieldGlide)
+      port.removeEventListener("touchstart", yieldGlide)
+    }
+  }, [cut, focusKey, eff, aliveSec, frame])
 
   // Afterlife reactions across every message, in script order: staggered arrivals
   // with deterministic jitter, each pill lands at 1, climbs to its scripted count one
@@ -1026,7 +1114,7 @@ export function TelegramChat({
         // nothing to focus on, and blurring everything pointed at nothing.
         focused.some((f) => at >= (timeline.beats[f] as Beat).land) || undefined
       }
-      data-cut={cut ? "" : undefined}
+      data-cut={scroller ? "" : undefined}
       data-settled={completed || undefined}
       aria-label={script.alt}
     >
@@ -1044,7 +1132,7 @@ export function TelegramChat({
               : undefined
         }
       >
-        {cut && <div className="tgchat-scrim" data-edge="top" />}
+        {scroller && <div className="tgchat-scrim" data-edge="top" />}
         <div ref={device} className="tgchat-phone">
           {frame === "phone" && (
             <>
@@ -1427,7 +1515,7 @@ export function TelegramChat({
             )}
           </div>
         </div>
-        {cut && <div className="tgchat-scrim" data-edge="bottom" />}
+        {scroller && <div className="tgchat-scrim" data-edge="bottom" />}
       </div>
       {debug && trace.current && (
         <pre className="tgchat-debug">

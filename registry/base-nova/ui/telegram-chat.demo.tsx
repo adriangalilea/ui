@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { trace, useDebug } from "@/app/debug"
 import { Sample } from "@/app/samples"
 import { Act, ScrollStage, useAct } from "@/registry/base-nova/ui/scroll-stage"
 import {
@@ -131,7 +132,6 @@ const SCRIPT: ChatScript = {
       ],
     },
   ],
-  afterlife: { from: "melon", messages: [{ at: 8, text: "ok that was easy" }] },
   alt: "A group chat: a friend drops a talk, the bot is tagged and summarizes it with timestamps, a follow-up gets a cited answer.",
 }
 // #endregion
@@ -201,7 +201,6 @@ const GROUP: ChatScript = {
       },
       reactions: [{ emoji: "😂", count: 1 }],
     },
-    { from: "Melon", text: "you got us" },
   ],
   alt: "A group: Adrian drops a link, the bot reacts, types, and summarizes it.",
 }
@@ -219,7 +218,8 @@ const WALL = "/tg-pattern.svg"
  *  the viewport closing down onto it. */
 const ACTS: {
   until: number
-  focus?: number
+  /** One message, or an exchange: the question and its answer focus together. */
+  focus?: number | number[]
   crop?: string
   wide?: boolean
   head: string
@@ -238,7 +238,7 @@ const ACTS: {
   },
   {
     until: 5,
-    focus: 5,
+    focus: [4, 5],
     crop: "4 / 3",
     wide: true,
     head: "ask it more",
@@ -249,11 +249,12 @@ const ACTS: {
 function Scrolly() {
   const act = useAct()
   const now = ACTS[act] as (typeof ACTS)[number]
-  // `?debug` on the page: the chat prints what its cut decided, for sign-off by hand.
-  const [debug, setDebug] = React.useState(false)
+  // `?debug` (the corner toggle): the chat prints what its cut decided under itself, and
+  // in development every decision, and every act change, is posted to the terminal.
+  const [debug] = useDebug()
   React.useEffect(() => {
-    setDebug(new URLSearchParams(window.location.search).has("debug"))
-  }, [])
+    if (debug) trace("act", { act, head: now.head })
+  }, [debug, act, now.head])
   return (
     <div className="grid h-svh items-center gap-10 lg:grid-cols-[1fr_minmax(0,28rem)]">
       <div className="space-y-6">
@@ -277,7 +278,7 @@ function Scrolly() {
         until={{ message: now.until }}
         focus={now.focus}
         crop={now.crop}
-        debug={debug}
+        debug={debug ? (t) => trace("cut", t) : false}
         className={`mx-auto w-full ${now.wide ? "max-w-[28rem]" : "max-w-[22rem]"}`}
       />
     </div>
