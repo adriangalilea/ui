@@ -878,3 +878,169 @@ video.tgchat-mini {
   background: var(--tg-gesture-pill);
   border-radius: 2px;
 }
+
+/* ── the viewport ──────────────────────────────────────────────────────────────
+   What the reader sees of the device. Plain, it is the device's own box. Zooming
+   transforms the device inside it and `crop` gives it a box of its own; either way
+   it clips, and its corner is the page's, not the phone's: a crop is a picture OF a
+   phone. The pose travels: a scrolly that moves the focus from one message to the
+   next glides there instead of cutting. */
+.tgchat-view {
+  position: relative;
+  overflow: visible;
+}
+.tgchat[data-zoom] .tgchat-view,
+.tgchat-view[style*="aspect-ratio"] {
+  overflow: hidden;
+  border-radius: 1rem;
+}
+.tgchat-view[style*="aspect-ratio"] .tgchat-phone {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.tgchat-phone {
+  transform-origin: 0 0;
+  transition: transform 800ms var(--tg-ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tgchat-phone {
+    transition: none;
+  }
+}
+/* Zoomed in, the chrome is context, not content: it steps back with the other
+   bubbles so the framing still says "a phone" without competing. */
+.tgchat[data-zoom] :is(.tgchat-status, .tgchat-header, .tgchat-composer) {
+  filter: blur(1.5px);
+  opacity: 0.55;
+  transition:
+    filter 400ms var(--tg-ease),
+    opacity 400ms var(--tg-ease);
+}
+
+/* ── focus ─────────────────────────────────────────────────────────────────────
+   The code item's rule, on bubbles: everything else steps back and comes back on
+   hover, because a reader who wants the surrounding messages should not have to
+   leave the page to see them. The focused bubble LIFTS a touch, so the eye lands on
+   it without a colour that would mean something else in Telegram. */
+.tgchat[data-focus] .tgchat-bubble:not([data-focused]),
+.tgchat[data-focus]
+  .tgchat-rowline:has(.tgchat-bubble:not([data-focused]))
+  .tgchat-mini {
+  filter: blur(2px);
+  opacity: 0.45;
+  transition:
+    filter 400ms var(--tg-ease),
+    opacity 400ms var(--tg-ease),
+    transform 400ms var(--tg-ease);
+}
+.tgchat[data-focus]:hover .tgchat-bubble:not([data-focused]),
+.tgchat[data-focus]:hover .tgchat-mini {
+  filter: none;
+  opacity: 1;
+}
+.tgchat-bubble[data-focused] {
+  position: relative;
+  z-index: 2;
+  transform: scale(1.03);
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.35),
+    0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 400ms var(--tg-ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tgchat[data-focus] .tgchat-bubble:not([data-focused]),
+  .tgchat-bubble[data-focused] {
+    transition: none;
+  }
+}
+
+/* ── frame="none" ───────────────────────────────────────────────────────────────
+   The messages on a bare canvas, at the container's width. Every size below is a
+   share of the container already, so the words simply take the room the phone was
+   taking: 3.8cqw is 24px at 640. The shell is not rendered; what remains flows in
+   normal layout - a slim header strip, the thread at its content height, the composer
+   only while a message is being typed (a story beat, not furniture). The wallpaper
+   still draws if given, as the doodles under the bubbles; the screen colour goes,
+   so the canvas is the page's. */
+.tgchat[data-frame="none"] {
+  max-width: 640px;
+}
+.tgchat[data-frame="none"] .tgchat-phone {
+  aspect-ratio: auto;
+  padding: 0;
+  background: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+.tgchat[data-frame="none"] .tgchat-phone::after {
+  content: none;
+}
+.tgchat[data-frame="none"] .tgchat-screen {
+  height: auto;
+  overflow: visible;
+  background: transparent;
+  border-radius: 0;
+  --tg-header-top: 0px;
+  --tg-composer-h: 0px;
+}
+.tgchat[data-frame="none"] .tgchat-screen::before,
+.tgchat[data-frame="none"] .tgchat-screen::after {
+  content: none;
+}
+.tgchat[data-frame="none"] .tgchat-wall {
+  border-radius: 1rem;
+}
+.tgchat[data-frame="none"] .tgchat-header {
+  position: relative;
+  padding: 0 0 3cqw;
+}
+.tgchat[data-frame="none"] .tgchat-round {
+  display: none;
+}
+.tgchat[data-frame="none"] .tgchat-card {
+  margin: 0;
+  min-inline-size: 0;
+  max-inline-size: none;
+  padding-left: 3cqw;
+  background: none;
+  border: none;
+}
+.tgchat[data-frame="none"] .tgchat-names {
+  align-items: flex-start;
+  text-align: left;
+}
+.tgchat[data-frame="none"] .tgchat-avatar {
+  order: -1;
+}
+.tgchat[data-frame="none"] .tgchat-messages {
+  flex: none;
+  overflow: visible;
+}
+.tgchat[data-settled][data-frame="none"] .tgchat-messages {
+  overflow: visible;
+}
+.tgchat[data-frame="none"] .tgchat-thread {
+  min-height: 0;
+  padding: 2cqw 2cqw 3cqw;
+}
+/* A wider canvas wants a shorter measure: a bubble at 94% of 640 is a paragraph. */
+.tgchat[data-frame="none"] .tgchat-bubble,
+.tgchat[data-frame="none"] .tgchat-rowline {
+  max-inline-size: 80%;
+}
+.tgchat[data-frame="none"] .tgchat-composer {
+  position: relative;
+  bottom: auto;
+  padding: 2cqw 0 0;
+}
+.tgchat[data-frame="none"] .tgchat-composer[data-idle] {
+  display: none;
+}
+.tgchat[data-frame="none"] .tgchat-replybar {
+  position: relative;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  margin-top: 2cqw;
+}

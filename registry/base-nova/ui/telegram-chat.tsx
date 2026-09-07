@@ -14,6 +14,24 @@
 // plays ONCE when it enters the viewport, pauses off-screen, and renders the
 // completed state under prefers-reduced-motion. `from` shifts the start so the first
 // frame already shows a conversation, never an empty screen.
+//
+// THE PHONE IS A MODE, NOT THE COMPONENT. At the width a feature card gives it the
+// device ate most of the space and the words landed too small to read, so a component
+// whose whole job is to show what a bot SAID could not carry its own copy. Three
+// orthogonal knobs, all on the same script and the same bubbles:
+//   frame="none"  the messages on a bare canvas (the wallpaper, or nothing), the header a
+//                 slim strip, the composer only while a message is being typed. Every
+//                 size is a share of the container, so the text takes the width the phone
+//                 was taking.
+//   focus         message indices that stay sharp and lift; everything else blurs and
+//                 steps back, and comes back on hover (the code item's rule). A phone
+//                 thread scrolls the focused message into view.
+//   zoom          the device scales around the focused message inside a `crop` viewport,
+//                 so the client's own framing stays at a readable size: a zoomed CROP of
+//                 the phone, its chrome blurred, the edge of the bezel still saying
+//                 "Telegram". The one knob that reads the DOM: the message's place on the
+//                 device is measured, not guessed.
+// A scrolly telling composes them: an act index in, focus and zoom out.
 
 import * as React from "react"
 import "./telegram-chat.css"
@@ -114,7 +132,53 @@ export interface TelegramChatProps {
   /** `page` follows the page's own light/dark; `dark` or `light` pins it, for a chat
    *  that must look like Telegram's own theme whatever the page is doing. */
   theme?: "dark" | "light" | "page"
+  /** `phone` (default) draws the device. `none` draws the messages on a bare canvas at
+   *  the container's width: the header a slim strip, the composer only while typing. */
+  frame?: "phone" | "none"
+  /** Message indices that stay sharp and lift; the rest blur and step back (hover brings
+   *  them back). In a phone the thread scrolls the first focused message into view. */
+  focus?: number | readonly number[]
+  /** Scale the device around the first focused message. `true` picks a scale that sets
+   *  the message across most of the viewport; a number is the scale. Needs `focus`. */
+  zoom?: boolean | number
+  /** The viewport's aspect ratio (a CSS `aspect-ratio` value, "4 / 3") when zooming: the
+   *  device is cropped to it. Without it the viewport keeps the device's own box. */
+  crop?: string
   className?: string
+}
+
+/** How much of the viewport a zoomed message spans, and the scale's bounds. */
+const ZOOM_SPAN = 0.78
+const ZOOM_MIN = 1.2
+const ZOOM_MAX = 3
+
+type Placement = { x: number; y: number; w: number; h: number }
+
+/** An element's box in its ancestor's layout coordinates, transforms ignored: the offset
+ *  chain, less any scroll between them. Rects would report the zoomed position. */
+function placeIn(el: HTMLElement, ancestor: HTMLElement): Placement {
+  let x = 0
+  let y = 0
+  let node: HTMLElement | null = el
+  while (node && node !== ancestor) {
+    x += node.offsetLeft
+    y += node.offsetTop
+    const parent = node.offsetParent as HTMLElement | null
+    // Every scrolling box between the node and its offsetParent, the offsetParent
+    // included, shifts where the node is seen. The ancestor's own scroll is not the
+    // question: the answer is in ITS content coordinates.
+    for (
+      let s: HTMLElement | null = node.parentElement;
+      s && s !== ancestor;
+      s = s.parentElement
+    ) {
+      x -= s.scrollLeft
+      y -= s.scrollTop
+      if (s === parent) break
+    }
+    node = parent
+  }
+  return { x, y, w: el.offsetWidth, h: el.offsetHeight }
 }
 
 // Telegram's sender palette: label colors and the matching avatar gradients. A name
@@ -393,6 +457,10 @@ export function TelegramChat({
   afterlifeDelay = 0,
   wallpaper,
   theme = "page",
+  frame = "phone",
+  focus,
+  zoom = false,
+  crop,
   className,
 }: TelegramChatProps) {
   const timeline = React.useMemo(() => buildTimeline(script), [script])
@@ -401,6 +469,19 @@ export function TelegramChat({
   const [aliveSec, setAliveSec] = React.useState(0)
   const root = React.useRef<HTMLElement>(null)
   const thread = React.useRef<HTMLDivElement>(null)
+  const view = React.useRef<HTMLDivElement>(null)
+  const device = React.useRef<HTMLDivElement>(null)
+  const bubbles = React.useRef<(HTMLElement | null)[]>([])
+  const focused: readonly number[] =
+    focus === undefined ? [] : typeof focus === "number" ? [focus] : focus
+  for (const f of focused)
+    if (!Number.isInteger(f) || f < 0 || f >= script.messages.length)
+      throw new Error(
+        `telegram-chat: focus ${f} outside 0..${script.messages.length - 1}`,
+      )
+  if (zoom && focused.length === 0)
+    throw new Error("telegram-chat: zoom needs a focus to zoom into")
+  const target = focused[0]
   const floor =
     typeof from === "number"
       ? from
@@ -473,13 +554,63 @@ export function TelegramChat({
   // stays pinned to the bottom. Settled, you scroll up to what was summoned. A late
   // message pulls it down only if you were already at the bottom, exactly the
   // client's behaviour.
+  // A FOCUSED message owns the scroll instead: the thread centres it, whatever the story
+  // is doing, because the reader was pointed at it.
   // biome-ignore lint/correctness/useExhaustiveDependencies: eff/aliveSec are the beats that grow the thread
   React.useLayoutEffect(() => {
     const el = thread.current
     if (!el) return
+    const hero = target === undefined ? null : bubbles.current[target]
+    if (hero) {
+      // In the thread's content coordinates, so the scroll it sets is absolute.
+      const box = placeIn(hero, el)
+      el.scrollTop = Math.max(0, box.y + box.h / 2 - el.clientHeight / 2)
+      return
+    }
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40
     if (!completed || atBottom) el.scrollTop = el.scrollHeight
-  }, [completed, eff, aliveSec])
+  }, [completed, eff, aliveSec, target])
+
+  // ZOOM: the device scales around the focused message, measured where it actually sits
+  // (layout coordinates, the thread's scroll subtracted), and is translated so that
+  // point lands at the viewport's centre, clamped so the device keeps covering the
+  // viewport where it can. Re-measured whenever the story or the box changes; the CSS
+  // transition carries it between poses.
+  const [pose, setPose] = React.useState<string | null>(null)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: eff grows the thread and moves the message
+  React.useLayoutEffect(() => {
+    const port = view.current
+    const dev = device.current
+    const hero = target === undefined ? null : bubbles.current[target]
+    if (!zoom || !port || !dev || !hero) {
+      setPose(null)
+      return
+    }
+    const place = () => {
+      const box = placeIn(hero, dev)
+      const vw = port.clientWidth
+      const vh = port.clientHeight
+      const s =
+        typeof zoom === "number"
+          ? zoom
+          : Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, (ZOOM_SPAN * vw) / box.w))
+      const cx = box.x + box.w / 2
+      const cy = box.y + box.h / 2
+      const dw = dev.offsetWidth * s
+      const dh = dev.offsetHeight * s
+      const clampTo = (v: number, size: number, span: number) =>
+        size >= span ? Math.min(0, Math.max(span - size, v)) : (span - size) / 2
+      const tx = clampTo(vw / 2 - s * cx, dw, vw)
+      const ty = clampTo(vh / 2 - s * cy, dh, vh)
+      setPose(
+        `translate(${tx.toFixed(1)}px, ${ty.toFixed(1)}px) scale(${s.toFixed(3)})`,
+      )
+    }
+    place()
+    const ro = new ResizeObserver(place)
+    ro.observe(port)
+    return () => ro.disconnect()
+  }, [zoom, target, eff, frame, crop])
 
   // Afterlife reactions across every message, in script order: staggered arrivals
   // with deterministic jitter, each pill lands at 1, climbs to its scripted count one
@@ -617,321 +748,357 @@ export function TelegramChat({
       ref={root}
       className={`tgchat${className ? ` ${className}` : ""}`}
       data-theme={theme}
+      data-frame={frame}
+      data-focus={focused.length > 0 || undefined}
+      data-zoom={pose ? "" : undefined}
       data-settled={completed || undefined}
       aria-label={script.alt}
     >
-      <div className="tgchat-phone">
-        <span className="tgchat-btn action" />
-        <span className="tgchat-btn vol-up" />
-        <span className="tgchat-btn vol-down" />
-        <span className="tgchat-btn power" />
-        <div className="tgchat-screen">
-          {wallpaper && (
-            <div
-              className="tgchat-wall"
-              style={{
-                WebkitMaskImage: `url(${wallpaper})`,
-                maskImage: `url(${wallpaper})`,
-              }}
-            />
+      {/* The viewport: what the reader sees of the device. Zoom transforms the device
+          inside it; `crop` gives it a box of its own to be cropped to. */}
+      <div
+        ref={view}
+        className="tgchat-view"
+        style={crop ? { aspectRatio: crop } : undefined}
+      >
+        <div
+          ref={device}
+          className="tgchat-phone"
+          style={pose ? { transform: pose } : undefined}
+        >
+          {frame === "phone" && (
+            <>
+              <span className="tgchat-btn action" />
+              <span className="tgchat-btn vol-up" />
+              <span className="tgchat-btn vol-down" />
+              <span className="tgchat-btn power" />
+            </>
           )}
-          <div className="tgchat-island" />
-          <div className="tgchat-status">
-            <span>9:41</span>
-            <span className="radios">
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 17 11"
-                width="17"
-                height="11"
-              >
-                <g fill="currentColor">
-                  <rect x="0" y="7" width="3" height="4" rx="1" />
-                  <rect x="4.5" y="5" width="3" height="6" rx="1" />
-                  <rect x="9" y="2.5" width="3" height="8.5" rx="1" />
-                  <rect x="13.5" y="0" width="3" height="11" rx="1" />
-                </g>
-              </svg>
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 26 11"
-                width="26"
-                height="11"
-              >
-                <rect
-                  x="0.6"
-                  y="0.6"
-                  width="21"
-                  height="9.8"
-                  rx="2.8"
+          <div className="tgchat-screen">
+            {wallpaper && (
+              <div
+                className="tgchat-wall"
+                style={{
+                  WebkitMaskImage: `url(${wallpaper})`,
+                  maskImage: `url(${wallpaper})`,
+                }}
+              />
+            )}
+            {frame === "phone" && (
+              <>
+                <div className="tgchat-island" />
+                <div className="tgchat-status">
+                  <span>9:41</span>
+                  <span className="radios">
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 17 11"
+                      width="17"
+                      height="11"
+                    >
+                      <g fill="currentColor">
+                        <rect x="0" y="7" width="3" height="4" rx="1" />
+                        <rect x="4.5" y="5" width="3" height="6" rx="1" />
+                        <rect x="9" y="2.5" width="3" height="8.5" rx="1" />
+                        <rect x="13.5" y="0" width="3" height="11" rx="1" />
+                      </g>
+                    </svg>
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 26 11"
+                      width="26"
+                      height="11"
+                    >
+                      <rect
+                        x="0.6"
+                        y="0.6"
+                        width="21"
+                        height="9.8"
+                        rx="2.8"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.2"
+                        opacity="0.5"
+                      />
+                      <rect
+                        x="23.4"
+                        y="3.6"
+                        width="2"
+                        height="3.8"
+                        rx="1"
+                        fill="currentColor"
+                        opacity="0.5"
+                      />
+                      <rect
+                        x="2.2"
+                        y="2.2"
+                        width="14"
+                        height="6.6"
+                        rx="1.6"
+                        fill="currentColor"
+                      />
+                    </svg>
+                  </span>
+                </div>
+              </>
+            )}
+            <div className="tgchat-header">
+              <span className="tgchat-round">
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 16 16"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="1.2"
-                  opacity="0.5"
-                />
-                <rect
-                  x="23.4"
-                  y="3.6"
-                  width="2"
-                  height="3.8"
-                  rx="1"
-                  fill="currentColor"
-                  opacity="0.5"
-                />
-                <rect
-                  x="2.2"
-                  y="2.2"
-                  width="14"
-                  height="6.6"
-                  rx="1.6"
-                  fill="currentColor"
-                />
-              </svg>
-            </span>
-          </div>
-          <div className="tgchat-header">
-            <span className="tgchat-round">
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-              >
-                <path d="M10 3 5 8l5 5" />
-              </svg>
-            </span>
-            <div className="tgchat-card">
-              <div className="tgchat-names">
-                <strong>{script.chatName}</strong>
-                {typingLabel ? (
-                  <span className="typing">
-                    <span className="tgchat-tdots">
-                      <i />
-                      <i />
-                      <i />
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                >
+                  <path d="M10 3 5 8l5 5" />
+                </svg>
+              </span>
+              <div className="tgchat-card">
+                <div className="tgchat-names">
+                  <strong>{script.chatName}</strong>
+                  {typingLabel ? (
+                    <span className="typing">
+                      <span className="tgchat-tdots">
+                        <i />
+                        <i />
+                        <i />
+                      </span>
+                      {typingLabel}
                     </span>
-                    {typingLabel}
-                  </span>
-                ) : (
-                  <span>{script.chatTag}</span>
-                )}
+                  ) : (
+                    <span>{script.chatTag}</span>
+                  )}
+                </div>
               </div>
+              <Avatar
+                className="tgchat-avatar"
+                name={script.chatName}
+                photo={script.avatar}
+                video={script.avatarVideo}
+              />
             </div>
-            <Avatar
-              className="tgchat-avatar"
-              name={script.chatName}
-              photo={script.avatar}
-              video={script.avatarVideo}
-            />
-          </div>
-          <div className="tgchat-messages" ref={thread}>
-            <div className="tgchat-thread">
-              {/* Messages are positional by design: their order IS their identity,
+            <div className="tgchat-messages" ref={thread}>
+              <div className="tgchat-thread">
+                {/* Messages are positional by design: their order IS their identity,
                   and the array never reorders. */}
-              {script.messages.map((m, i) => {
-                const beat = timeline.beats[i] as Beat
-                if (at < beat.land) return null
-                const source = m.source ?? linkIn(m.text) ?? ""
-                const next = timeline.beats[i + 1]
-                const lit = Boolean(m.emphasis) && (!next || at < next.land)
-                const streaming = m.blocks !== undefined
-                let full = 0
-                while (
-                  full < beat.blockEnds.length &&
-                  (beat.blockEnds[full] as number) <= at
-                )
-                  full++
-                const prevEnd =
-                  full === 0
-                    ? beat.land + (m.typed && m.emphasis ? BEAT.dwell : 0)
-                    : (beat.blockEnds[full - 1] as number)
-                const partial =
-                  streaming &&
-                  full < (m.blocks as ChatBlock[]).length &&
-                  at > prevEnd
-                    ? (m.blocks as ChatBlock[])[full]
-                    : undefined
-                const body = (
-                  <>
-                    {m.reply && (
-                      <div className="tgchat-reply">
-                        <strong>{m.reply.from}</strong>
-                        <span>{m.reply.text}</span>
-                      </div>
-                    )}
-                    {m.via && <div className="tgchat-via">{m.via}</div>}
-                    {m.text && emphasized(m.text, m.emphasis, lit)}
-                    {m.preview && (
-                      <PreviewCard preview={m.preview} url={source} />
-                    )}
-                    {streaming &&
-                      (m.blocks as ChatBlock[])
-                        .slice(0, full)
-                        .map((b, k) => renderBlock(b, k, source))}
-                    {partial &&
-                      renderBlock(
-                        partial,
-                        full,
-                        source,
-                        Math.floor(at - prevEnd),
-                      )}
-                    {m.meta && at >= beat.metaAt && (
-                      <div className="tgchat-meta">
-                        <a
-                          className="src"
-                          href={m.meta.href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          {m.meta.label}
-                        </a>
-                        <span className="time">{m.meta.time}</span>
-                      </div>
-                    )}
-                    {reactionPills(m, beat)}
-                  </>
-                )
-                if (m.from === "me")
-                  return (
-                    <div
-                      className={`tgchat-bubble user${m.preview || linkIn(m.text) ? " link" : ""}`}
-                      // biome-ignore lint/suspicious/noArrayIndexKey: positional by design
-                      key={i}
-                    >
-                      {body}
-                    </div>
+                {script.messages.map((m, i) => {
+                  const beat = timeline.beats[i] as Beat
+                  if (at < beat.land) return null
+                  const source = m.source ?? linkIn(m.text) ?? ""
+                  const next = timeline.beats[i + 1]
+                  const lit = Boolean(m.emphasis) && (!next || at < next.land)
+                  const streaming = m.blocks !== undefined
+                  let full = 0
+                  while (
+                    full < beat.blockEnds.length &&
+                    (beat.blockEnds[full] as number) <= at
                   )
-                return (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: positional by design
-                  <React.Fragment key={i}>
-                    {leftRow(
+                    full++
+                  const prevEnd =
+                    full === 0
+                      ? beat.land + (m.typed && m.emphasis ? BEAT.dwell : 0)
+                      : (beat.blockEnds[full - 1] as number)
+                  const partial =
+                    streaming &&
+                    full < (m.blocks as ChatBlock[]).length &&
+                    at > prevEnd
+                      ? (m.blocks as ChatBlock[])[full]
+                      : undefined
+                  const body = (
+                    <>
+                      {m.reply && (
+                        <div className="tgchat-reply">
+                          <strong>{m.reply.from}</strong>
+                          <span>{m.reply.text}</span>
+                        </div>
+                      )}
+                      {m.via && <div className="tgchat-via">{m.via}</div>}
+                      {m.text && emphasized(m.text, m.emphasis, lit)}
+                      {m.preview && (
+                        <PreviewCard preview={m.preview} url={source} />
+                      )}
+                      {streaming &&
+                        (m.blocks as ChatBlock[])
+                          .slice(0, full)
+                          .map((b, k) => renderBlock(b, k, source))}
+                      {partial &&
+                        renderBlock(
+                          partial,
+                          full,
+                          source,
+                          Math.floor(at - prevEnd),
+                        )}
+                      {m.meta && at >= beat.metaAt && (
+                        <div className="tgchat-meta">
+                          <a
+                            className="src"
+                            href={m.meta.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {m.meta.label}
+                          </a>
+                          <span className="time">{m.meta.time}</span>
+                        </div>
+                      )}
+                      {reactionPills(m, beat)}
+                    </>
+                  )
+                  const hero = focused.includes(i) || undefined
+                  const hold = (el: HTMLElement | null) => {
+                    bubbles.current[i] = el
+                  }
+                  if (m.from === "me")
+                    return (
                       <div
-                        className={`tgchat-bubble bot${streaming ? " tgchat-summary" : ""}${!streaming && (m.preview || linkIn(m.text)) ? " link" : ""}`}
+                        ref={hold}
+                        data-focused={hero}
+                        className={`tgchat-bubble user${m.preview || linkIn(m.text) ? " link" : ""}`}
+                        // biome-ignore lint/suspicious/noArrayIndexKey: positional by design
+                        key={i}
                       >
-                        {senderLabel(m.from)}
                         {body}
-                      </div>,
-                      m.from,
-                      m.avatar,
-                    )}
-                  </React.Fragment>
-                )
-              })}
-              {script.afterlife?.messages
-                .filter((late) => aliveSec >= afterlifeDelay + late.at)
-                .map((late) => (
-                  <div className="tgchat-rowline" key={late.at}>
-                    {script.afterlife?.avatar && (
-                      <Avatar
-                        className="tgchat-mini"
-                        name={script.afterlife.from ?? script.chatName}
-                        photo={script.afterlife.avatar}
-                        video={script.afterlife.avatarVideo}
-                      />
-                    )}
-                    <div className="tgchat-bubble bot">
-                      {linkify(late.text)}
+                      </div>
+                    )
+                  return (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: positional by design
+                    <React.Fragment key={i}>
+                      {leftRow(
+                        <div
+                          ref={hold}
+                          data-focused={hero}
+                          className={`tgchat-bubble bot${streaming ? " tgchat-summary" : ""}${!streaming && (m.preview || linkIn(m.text)) ? " link" : ""}`}
+                        >
+                          {senderLabel(m.from)}
+                          {body}
+                        </div>,
+                        m.from,
+                        m.avatar,
+                      )}
+                    </React.Fragment>
+                  )
+                })}
+                {script.afterlife?.messages
+                  .filter((late) => aliveSec >= afterlifeDelay + late.at)
+                  .map((late) => (
+                    <div className="tgchat-rowline" key={late.at}>
+                      {script.afterlife?.avatar && (
+                        <Avatar
+                          className="tgchat-mini"
+                          name={script.afterlife.from ?? script.chatName}
+                          photo={script.afterlife.avatar}
+                          video={script.afterlife.avatarVideo}
+                        />
+                      )}
+                      <div className="tgchat-bubble bot">
+                        {linkify(late.text)}
+                      </div>
                     </div>
-                  </div>
-                ))}
-            </div>
-          </div>
-          {composing?.reply && composerChars > 0 && (
-            <div className="tgchat-replybar">
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M9 17l-5-5 5-5" />
-                <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
-              </svg>
-              <div>
-                <strong>Reply to {composing.reply.from}</strong>
-                <span>{composing.reply.text}</span>
+                  ))}
               </div>
             </div>
-          )}
-          <div className="tgchat-composer">
-            {script.kind === "bot" && (
-              <span className="pill">
+            {composing?.reply && composerChars > 0 && (
+              <div className="tgchat-replybar">
                 <svg
                   aria-hidden="true"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="2.2"
+                  strokeWidth="2"
                   strokeLinecap="round"
+                  strokeLinejoin="round"
                 >
-                  <line x1="4" y1="7" x2="20" y2="7" />
-                  <line x1="4" y1="12" x2="20" y2="12" />
-                  <line x1="4" y1="17" x2="20" y2="17" />
+                  <path d="M9 17l-5-5 5-5" />
+                  <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
                 </svg>
-                Menu
-              </span>
+                <div>
+                  <strong>Reply to {composing.reply.from}</strong>
+                  <span>{composing.reply.text}</span>
+                </div>
+              </div>
             )}
-            <span className="cbtn">
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-              </svg>
-            </span>
-            <div className="box">
-              {composing && composerChars > 0 ? (
-                <span className="typed">
-                  {(composing.text ?? "").slice(0, composerChars)}
-                  <span className="tgchat-caret" />
+            <div
+              className="tgchat-composer"
+              data-idle={!(composing && composerChars > 0) || undefined}
+            >
+              {script.kind === "bot" && (
+                <span className="pill">
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                  >
+                    <line x1="4" y1="7" x2="20" y2="7" />
+                    <line x1="4" y1="12" x2="20" y2="12" />
+                    <line x1="4" y1="17" x2="20" y2="17" />
+                  </svg>
+                  Menu
                 </span>
-              ) : (
-                <span className="hint">Message</span>
               )}
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-                <line x1="9" y1="9" x2="9.01" y2="9" />
-                <line x1="15" y1="9" x2="15.01" y2="9" />
-              </svg>
+              <span className="cbtn">
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                </svg>
+              </span>
+              <div className="box">
+                {composing && composerChars > 0 ? (
+                  <span className="typed">
+                    {(composing.text ?? "").slice(0, composerChars)}
+                    <span className="tgchat-caret" />
+                  </span>
+                ) : (
+                  <span className="hint">Message</span>
+                )}
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                  <line x1="9" y1="9" x2="9.01" y2="9" />
+                  <line x1="15" y1="9" x2="15.01" y2="9" />
+                </svg>
+              </div>
+              <span className="cbtn">
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                  <line x1="12" y1="19" x2="12" y2="23" />
+                  <line x1="8" y1="23" x2="16" y2="23" />
+                </svg>
+              </span>
             </div>
-            <span className="cbtn">
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                <line x1="12" y1="19" x2="12" y2="23" />
-                <line x1="8" y1="23" x2="16" y2="23" />
-              </svg>
-            </span>
-          </div>
-          <div className="tgchat-gesture">
-            <span />
+            {frame === "phone" && (
+              <div className="tgchat-gesture">
+                <span />
+              </div>
+            )}
           </div>
         </div>
       </div>

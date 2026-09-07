@@ -358,15 +358,45 @@ Left on the item:
 4. A frameless `telegram`, `checklist`, `kanban`, `code-scrolly`.
 5. The garden landing (a static grid under a fog that promises content), then later: cover-image with blur and grain, `magic-input`, the media-library kit for videoclub and lore.
 
-### telegram: the phone is in the way of the words
+### telegram: the phone is a mode
 
-`telegram-chat` always draws the whole iPhone (notch, status bar, header, composer, home indicator) and there is no way to ask it not to. At the width a feature card gives it, the device eats most of the space and the message text lands too small to read, so a component whose entire job is to show what a bot SAID cannot carry its own copy. Fix in this order:
+`telegram-chat` has three orthogonal knobs on one script (`/telegram-chat`, sections
+02-05): `frame="none"` (bubbles on a bare canvas at the container's width; header a
+slim strip, composer only while typing), `focus` (indices that lift, the rest blur and
+return on hover, the code item's rule; a phone thread centres the focused message) and
+`zoom` + `crop` (the device scales around the focused message inside a cropped
+viewport, its chrome blurred, the bezel still saying Telegram; the message's place is
+MEASURED in layout coordinates with the thread's scroll subtracted, and the pose
+transitions, so a scrolly glides between messages). Both frameless candidates shipped
+as modes rather than one being chosen: bare canvas for copy that must be read,
+zoomed crop for copy that must still look like a phone. Adrian judges on the demo
+which the garden's feature media takes.
 
-1. **A frameless mode: the messages, big enough to read.** Same script, same bubbles, no device chrome, so the text can take the width the phone was taking. This is the one that unblocks xtldr's feature media.
-2. **Decide what the frameless mode sits on**, which is undecided: bubbles floating on a bare canvas (the wallpaper, or nothing), or a zoomed CROP of the phone with a border, which keeps the client's own framing at a readable size. The first is cleaner, the second is more obviously Telegram. Try both before choosing, because the answer is which one still reads as Telegram once the device is gone.
-3. **Telegram Desktop's layout** (wider column, different bubble geometry, a sidebar). Deferred until 1 and 2 land.
+Left: **Telegram Desktop's layout** (wider column, different bubble geometry, a
+sidebar), deferred. **The styling pattern**: this item's 880-line `.css` predates the
+utilities rule; the modes were added in it rather than half-converting mid-feature.
+The conversion is the next touch on the item, on its own.
 
-The phone is not a wrapper to delete: the status bar and composer are what make a screenshot read as a real chat rather than a mockup. So this is a mode, chosen per use, not a replacement.
+### twitter / x
+
+A post as a component, the way `telegram-chat` is a chat: author, handle, verified
+mark, body with entities (mentions, links, hashtags), media, quote-post, the metrics
+row, the relative time; light and dark, the client's exact geometry. Same doctrine:
+data in, what looks clickable is clickable, decorative chrome aria-hidden. Consumers:
+the garden's project pages quoting reactions, adriangalilea.com notes embedding a
+post without the widget script.
+
+### web preview: the link card, three ways
+
+A URL's unfurl as a component, fed by `{url, site, title, description, image}`: the
+same facts the OG item will produce, drawn as a consumer of them. Three styles side by
+side on one demo page so a page picks by feel: **telegram's** (the tinted card with the
+rule on the left, already drawn inside `telegram-chat`'s bubbles, to be extracted as
+the item and re-imported there), **x/twitter's** (the bordered card, image on top, domain
+in the corner), and **ours**, the one meant to be state of the art: the OG still at its
+real aspect, the title at reading size, the domain as mono metadata, a hover that
+lifts, and the card that is also the thing that fetches nothing (a static site knows its
+links' facts at build). Pairs with the `og` item: one produces the facts, this draws them.
 
 ### theme
 

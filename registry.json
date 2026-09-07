@@ -188,7 +188,7 @@
       "name": "telegram-chat",
       "type": "registry:ui",
       "title": "telegram-chat",
-      "description": "a Telegram chat on an iPhone as a pure function of {messages, progress}: peer, bot and group shapes, streaming bodies, reactions, afterlife",
+      "description": "a Telegram chat as a pure function of {messages, progress}: peer, bot and group shapes, streaming bodies, reactions, afterlife. on an iPhone, or frameless at the container's width; focus lifts a message and blurs the rest; zoom crops the phone around it, for a scrolly",
       "registryDependencies": ["@ag/tokens"],
       "files": [
         {
