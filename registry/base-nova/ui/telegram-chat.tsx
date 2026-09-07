@@ -19,10 +19,10 @@
 // device ate most of the space and the words landed too small to read, so a component
 // whose whole job is to show what a bot SAID could not carry its own copy. Three
 // orthogonal knobs, all on the same script and the same bubbles:
-//   frame="none"  the messages on a bare canvas (the wallpaper, or nothing), the header a
-//                 slim strip, the composer only while a message is being typed. Every
-//                 size is a share of the container, so the text takes the width the phone
-//                 was taking.
+//   frame="none"  the messages on a bare canvas (the wallpaper, or nothing): no header,
+//                 the typing status a line in the thread, the composer only while a
+//                 message is being typed. Every size is a share of the container, so the
+//                 text takes the width the phone was taking.
 //   focus         message indices that stay sharp and lift; everything else blurs and
 //                 steps back, and comes back on hover (the code item's rule). A phone
 //                 thread scrolls the focused message into view.
@@ -37,6 +37,7 @@
 // A scrolly telling composes them: an act index in, focus out.
 
 import * as React from "react"
+import { WebPreview } from "@/registry/base-nova/ui/web-preview"
 import "./telegram-chat.css"
 
 export type ChatKind = "peer" | "bot" | "group"
@@ -161,7 +162,8 @@ export interface TelegramChatProps {
    *  that must look like Telegram's own theme whatever the page is doing. */
   theme?: "dark" | "light" | "page"
   /** `phone` (default) draws the device. `none` draws the messages on a bare canvas at
-   *  the container's width: the header a slim strip, the composer only while typing. */
+   *  the container's width: no header (the typing status is a line in the thread), the
+   *  composer only while typing. */
   frame?: "phone" | "none"
   /** Message indices that stay sharp and lift; the rest blur and step back (hover brings
    *  them back). In a phone the thread scrolls the first focused message into view. */
@@ -420,25 +422,6 @@ function emphasized(
       </mark>
       {linkify(text.slice(end))}
     </>
-  )
-}
-
-function PreviewCard({ preview, url }: { preview: ChatPreview; url: string }) {
-  return (
-    <a
-      className="tgchat-preview"
-      href={hrefOf(url)}
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      {preview.image && (
-        // biome-ignore lint/performance/noImgElement: any origin, sized by the card
-        <img src={preview.image} alt="" />
-      )}
-      <div className="site">{preview.site}</div>
-      <div className="title">{preview.title}</div>
-      {preview.description && <div className="desc">{preview.description}</div>}
-    </a>
   )
 }
 
@@ -1003,43 +986,49 @@ export function TelegramChat({
                 </div>
               </>
             )}
-            <div className="tgchat-header">
-              <span className="tgchat-round">
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                >
-                  <path d="M10 3 5 8l5 5" />
-                </svg>
-              </span>
-              <div className="tgchat-card">
-                <div className="tgchat-names">
-                  <strong>{nameOf(script.chatName)}</strong>
-                  {typingLabel ? (
-                    <span className="typing">
-                      <span className="tgchat-tdots">
-                        <i />
-                        <i />
-                        <i />
+            {/* The header is the PHONE's chrome. A bare canvas has none: a chat title
+                pinned over floating bubbles was the device's composition forced onto
+                the mode whose point is no device. What the header carried that is
+                story, the typing status, goes into the thread instead. */}
+            {frame === "phone" && (
+              <div className="tgchat-header">
+                <span className="tgchat-round">
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                  >
+                    <path d="M10 3 5 8l5 5" />
+                  </svg>
+                </span>
+                <div className="tgchat-card">
+                  <div className="tgchat-names">
+                    <strong>{nameOf(script.chatName)}</strong>
+                    {typingLabel ? (
+                      <span className="typing">
+                        <span className="tgchat-tdots">
+                          <i />
+                          <i />
+                          <i />
+                        </span>
+                        {typingLabel}
                       </span>
-                      {typingLabel}
-                    </span>
-                  ) : (
-                    chatTag && <span>{chatTag}</span>
-                  )}
+                    ) : (
+                      chatTag && <span>{chatTag}</span>
+                    )}
+                  </div>
                 </div>
+                <Avatar
+                  className="tgchat-avatar"
+                  name={nameOf(script.chatName)}
+                  photo={script.avatar ?? header?.avatar}
+                  video={script.avatarVideo ?? header?.avatarVideo}
+                />
               </div>
-              <Avatar
-                className="tgchat-avatar"
-                name={nameOf(script.chatName)}
-                photo={script.avatar ?? header?.avatar}
-                video={script.avatarVideo ?? header?.avatarVideo}
-              />
-            </div>
+            )}
             <div className="tgchat-messages" ref={thread}>
               <div className="tgchat-thread">
                 {/* Messages are positional by design: their order IS their identity,
@@ -1077,8 +1066,14 @@ export function TelegramChat({
                       )}
                       {m.via && <div className="tgchat-via">{m.via}</div>}
                       {m.text && emphasized(m.text, m.emphasis, lit)}
+                      {/* The webpage preview under a link: `web-preview` in its
+                          telegram style, the same card every surface draws from the
+                          same five facts, coloured by the bubble's `--wp-*`. */}
                       {m.preview && (
-                        <PreviewCard preview={m.preview} url={source} />
+                        <WebPreview
+                          style="telegram"
+                          facts={{ url: hrefOf(source), ...m.preview }}
+                        />
                       )}
                       {streaming &&
                         (m.blocks as ChatBlock[])
@@ -1180,6 +1175,18 @@ export function TelegramChat({
                       </div>
                     )
                   })}
+                {/* Frameless: the typing status the header would have carried, under
+                    the last message, the way a bare thread shows it. */}
+                {frame === "none" && typingLabel && (
+                  <div className="tgchat-typing-line">
+                    <span className="tgchat-tdots">
+                      <i />
+                      <i />
+                      <i />
+                    </span>
+                    {typingLabel}
+                  </div>
+                )}
               </div>
             </div>
             {composing?.reply && composerChars > 0 && (

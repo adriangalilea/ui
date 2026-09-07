@@ -534,65 +534,22 @@ video.tgchat-mini {
   color: var(--tg-on-accent);
 }
 
-/* The webpage preview under a link: a tinted card with a rule on the left,
-   site name in link-blue, bold title, muted text, cover image on top.
-   One color (the link) at alpha tiers, like the client. */
-.tgchat-preview {
-  display: block;
-  margin-top: 1.7cqw;
-  color: inherit;
-  text-decoration: none;
-  transition: background 150ms var(--tg-ease);
-  padding: 1.6cqw 2.2cqw 1.8cqw 2.6cqw;
-  overflow: hidden;
-  border-left: 3px solid var(--tg-link);
-  border-radius: 1.4cqw;
-  background: color-mix(in srgb, var(--tg-link) 10%, transparent);
-  --tg-preview-ink: var(--tg-link);
-  --tg-preview-text: var(--tg-text);
-  --tg-preview-muted: var(--tg-muted);
+/* The webpage preview under a link is `web-preview` in its telegram style; the bubble
+   only hands it the client's colours. One color (the link) at alpha tiers in a received
+   bubble, white tiers in yours, like the client. */
+.tgchat-bubble {
+  --wp-ink: var(--tg-link);
+  --wp-text: var(--tg-text);
+  --wp-muted: var(--tg-muted);
+  --wp-wash: color-mix(in srgb, var(--tg-link) 10%, transparent);
+  --wp-wash-hover: color-mix(in srgb, var(--tg-link) 18%, transparent);
 }
-.tgchat-preview:hover {
-  background: color-mix(in srgb, var(--tg-link) 18%, transparent);
-}
-.tgchat-bubble.user .tgchat-preview:hover {
-  background: rgba(255, 255, 255, 0.22);
-}
-.tgchat-bubble.user .tgchat-preview {
-  border-left-color: var(--tg-on-accent);
-  background: rgba(255, 255, 255, 0.14);
-  --tg-preview-ink: var(--tg-on-accent);
-  --tg-preview-text: var(--tg-on-accent);
-  --tg-preview-muted: rgba(255, 255, 255, 0.78);
-}
-.tgchat-preview img {
-  display: block;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  margin-bottom: 1.6cqw;
-  border-radius: 1.2cqw;
-  object-fit: cover;
-}
-.tgchat-preview .site {
-  color: var(--tg-preview-ink);
-  font-size: 3.4cqw;
-  font-weight: 600;
-}
-.tgchat-preview .title {
-  margin-top: 0.4cqw;
-  color: var(--tg-preview-text);
-  font-weight: 600;
-  line-height: 1.2;
-}
-.tgchat-preview .desc {
-  display: -webkit-box;
-  margin-top: 0.6cqw;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  color: var(--tg-preview-muted);
-  font-size: 3.4cqw;
-  line-height: 1.25;
+.tgchat-bubble.user {
+  --wp-ink: var(--tg-on-accent);
+  --wp-text: var(--tg-on-accent);
+  --wp-muted: rgba(255, 255, 255, 0.78);
+  --wp-wash: rgba(255, 255, 255, 0.14);
+  --wp-wash-hover: rgba(255, 255, 255, 0.22);
 }
 
 /* The quoted message inside a reply bubble, as Telegram draws it: a rule, the quoted
@@ -1110,41 +1067,18 @@ video.tgchat-mini {
 .tgchat[data-frame="none"] .tgchat-wall {
   border-radius: 1rem;
 }
-/* THE SAME HEADER, PLACED FOR THIS FRAME. In the phone it floats over the thread; here
-   it is sticky at the top of the cut viewport, so the messages scroll UNDER it the way
-   they do under the phone's, blurred as they pass. One header, two placements; a
-   header that scrolled away with the thread was cut in half at the top edge. */
-.tgchat[data-frame="none"] .tgchat-header {
-  position: sticky;
-  top: 0;
-  z-index: 7;
-  padding: 1cqw 0 4cqw;
-  /* The ground the chrome sits on. The phone's header sits on a scrim of the screen
-     colour; the canvas is transparent, so its scrim is the PAGE's colour, the thing
-     the canvas is drawn on. Glass alone (blur, no ground) left the bubbles fully
-     visible under the title. The mask fades the ground's foot, blur included. */
-  background: var(--background, #000);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  mask-image: linear-gradient(to bottom, #000 60%, transparent);
-}
-.tgchat[data-frame="none"] .tgchat-round {
-  display: none;
-}
-.tgchat[data-frame="none"] .tgchat-card {
-  margin: 0;
-  min-inline-size: 0;
-  max-inline-size: none;
-  padding-left: 3cqw;
-  background: none;
-  border: none;
-}
-.tgchat[data-frame="none"] .tgchat-names {
-  align-items: flex-start;
-  text-align: left;
-}
-.tgchat[data-frame="none"] .tgchat-avatar {
-  order: -1;
+/* NO HEADER. The header is the phone's chrome; a bare canvas has none, and a chat
+   title pinned over floating bubbles (tried, sticky, on the page's colour) was the
+   device's composition forced onto the mode whose point is no device. The typing
+   status, the one thing the header carried that is story, is a line in the thread. */
+.tgchat-typing-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.4cqw;
+  padding: 0.4cqw 1cqw;
+  color: var(--tg-link);
+  font-size: 3.4cqw;
+  animation: tgchat-bubble-in 250ms var(--tg-ease) both;
 }
 .tgchat[data-frame="none"] .tgchat-messages {
   flex: none;

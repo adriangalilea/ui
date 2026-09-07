@@ -188,8 +188,8 @@
       "name": "telegram-chat",
       "type": "registry:ui",
       "title": "telegram-chat",
-      "description": "a Telegram chat as a pure function of {messages, progress}: peer, bot and group shapes, streaming bodies, reactions, afterlife. on an iPhone, or frameless at the container's width; focus lifts a message and blurs the rest; zoom crops the phone around it, for a scrolly",
-      "registryDependencies": ["@ag/tokens"],
+      "description": "a Telegram chat as a pure function of {messages, progress}: peer, bot and group shapes, people defined once, streaming bodies, pressable reactions with animated emoji, afterlife. on an iPhone, or frameless at the container's width; focus lifts a message and blurs the rest; crop cuts the phone to a viewport, for a scrolly",
+      "registryDependencies": ["@ag/tokens", "@ag/web-preview"],
       "files": [
         {
           "path": "registry/base-nova/ui/telegram-chat.tsx",
@@ -197,6 +197,31 @@
         },
         {
           "path": "registry/base-nova/ui/telegram-chat.css",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "web-preview-unfurl",
+      "type": "registry:lib",
+      "title": "web-preview-unfurl",
+      "description": "the five facts of a link (site, title, description, image, icon) and the one fetch that reads them from a page; framework-free, run once at authoring time and shipped as data",
+      "files": [
+        {
+          "path": "registry/base-nova/lib/web-preview-unfurl.ts",
+          "type": "registry:lib"
+        }
+      ]
+    },
+    {
+      "name": "web-preview",
+      "type": "registry:ui",
+      "title": "web-preview",
+      "description": "a link's unfurl as a card, a pure function of its five facts, in three styles: ours (image at its aspect, title at reading size, domain as metadata), telegram's tinted card with the rule, x's large-image card",
+      "registryDependencies": ["@ag/tokens", "@ag/web-preview-unfurl"],
+      "files": [
+        {
+          "path": "registry/base-nova/ui/web-preview.tsx",
           "type": "registry:ui"
         }
       ]

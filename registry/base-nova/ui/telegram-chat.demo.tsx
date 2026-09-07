@@ -8,8 +8,9 @@ import {
   TelegramChat,
 } from "@/registry/base-nova/ui/telegram-chat"
 
-/** THE ACCOUNTS, ONCE. Every mock on a site keys its senders into one map like this, so
- *  the bot always has its handle and its picture, a person their photo and profile
+// #region people
+/** THE ACCOUNTS, ONCE. Every mock on a site keys its senders into one map like this,
+ *  so the bot always has its handle and its picture, a person their photo and profile
  *  video, and a name is spelled one way. `from: "xtldr"` anywhere resolves to this. */
 const PEOPLE: Record<string, ChatProfile> = {
   adrian: {
@@ -26,12 +27,14 @@ const PEOPLE: Record<string, ChatProfile> = {
     bot: true,
   },
 }
+// #endregion
 
-/** THE STORY IS THE BOT'S OWN FLOW: a link lands, someone tags the bot, the summary
- *  streams, a follow-up is asked, the bot answers. The link is a VIDEO, because what
- *  xtldr cites is a timestamp (deep-linked with &t=), never a paragraph: a citation the
- *  real bot does not make is a lie the demo must not tell. */
-const VIDEO = "youtube.com/watch?v=ii1jcLg-eIQ"
+// #region story
+/** THE BOT'S OWN FLOW, with the bot's own output: a link lands, someone tags the bot,
+ *  it reacts 👀 and types, the summary streams with cited timestamps, a follow-up gets
+ *  an answer. The summary is @xtldrbot's real transcript for this talk; the citations
+ *  are its timestamps, deep-linked. */
+const TALK = "youtube.com/watch?v=zjkBMFhNj_g"
 const SCRIPT: ChatScript = {
   kind: "group",
   chatName: "the garden",
@@ -41,54 +44,58 @@ const SCRIPT: ChatScript = {
     { from: "melon", text: "you have to watch this" },
     {
       from: "melon",
-      text: VIDEO,
+      text: TALK,
       preview: {
         site: "YouTube",
-        title: "Lecture 3 - Before the Startup (Paul Graham)",
-        description:
-          "How to Start a Startup, Stanford CS183B. Paul Graham on the counterintuitive parts of starting a company.",
+        title: "[1hr Talk] Intro to Large Language Models",
+        description: "Andrej Karpathy",
+        image: "/xtldr-preview-karpathy.jpg",
       },
       reactions: [{ emoji: "👀", when: "timeline" }],
     },
     {
       from: "me",
-      text: PEOPLE.xtldr?.handle ?? "@xtldrbot",
-      reply: { from: PEOPLE.melon?.name ?? "Melon", text: VIDEO },
+      text: "@xtldrbot",
+      reply: { from: "Melon", text: TALK },
       typed: true,
     },
     {
       from: "xtldr",
-      typing: "xtldr is watching",
-      source: VIDEO,
+      typing: "xtldr is typing",
+      source: TALK,
       blocks: [
-        { kind: "heading", text: "Startups are counterintuitive", emoji: "🧭" },
         {
-          kind: "item",
-          text: "Your instincts about people are right; your instincts about startups are not",
-          cite: "2:10",
+          kind: "heading",
+          text: 'LLMs: The 140GB "Zip File" of the Internet',
+          emoji: "🤖",
         },
         {
           kind: "item",
-          text: "Expertise in startups matters less than expertise in your users",
-          cite: "9:35",
+          text: "An LLM is just 2 files: a 140GB parameters file (70B numbers) and ~500 lines of C code to run it.",
+          cite: "0:29",
         },
-        { kind: "heading", text: "Don't try", emoji: "🌱" },
         {
           kind: "item",
-          text: "The way to get startup ideas is not to try to think of startup ideas",
-          cite: "31:20",
+          text: "Training is lossy compression of ~10TB of internet text into those weights: a ~100x compression ratio.",
+          cite: "4:34",
+        },
+        { kind: "heading", text: 'The Future: An "LLM OS"', emoji: "🛠️" },
+        {
+          kind: "item",
+          text: "Think of an LLM as the kernel of an emerging operating system, coordinating tools and memory (context window = RAM).",
+          cite: "42:33",
         },
         {
           kind: "quote",
-          text: "Startups are not a way to have fun. The way to get a startup idea is to work on your own problems.",
-          by: "Paul Graham",
-          cite: "33:04",
+          text: "It's kind of like a lossy compression of the internet.",
+          by: "Andrej Karpathy",
+          cite: "6:02",
         },
       ],
       meta: {
-        label: "🔗 youtube.com",
-        href: `https://${VIDEO}`,
-        time: "⏱ 49 min",
+        label: "🔗 YouTube",
+        href: `https://${TALK}`,
+        time: "⏱️ 59m 48s saved",
       },
       reactions: [
         { emoji: "❤️", count: 2 },
@@ -97,24 +104,24 @@ const SCRIPT: ChatScript = {
     },
     {
       from: "me",
-      text: "does he say when to stop doing the unscalable things?",
+      text: "what does he say about hallucinations?",
       typed: true,
     },
     {
       from: "xtldr",
-      typing: "typing",
-      source: VIDEO,
+      typing: "xtldr is typing",
+      source: TALK,
       blocks: [
-        { kind: "heading", text: "When to stop", emoji: "⏳" },
+        { kind: "heading", text: "Hallucinations", emoji: "💭" },
         {
           kind: "item",
-          text: "Not while the manual work still teaches you something about your users",
-          cite: "22:48",
+          text: "The model dreams internet documents: a made-up ISBN looks exactly like a real one to it.",
+          cite: "17:35",
         },
         {
           kind: "item",
-          text: "Gradually: the founders who scaled well kept a hand in the unscalable part",
-          cite: "24:15",
+          text: "Tool use is the fix: browse, run code, look it up, rather than recall from weights.",
+          cite: "32:03",
         },
       ],
     },
@@ -122,10 +129,13 @@ const SCRIPT: ChatScript = {
   afterlife: { from: "melon", messages: [{ at: 8, text: "ok that was easy" }] },
   alt: "A group chat: a friend drops a talk, the bot is tagged and summarizes it with timestamps, a follow-up gets a cited answer.",
 }
+// #endregion
 
-/** The same people, two other chats: a private chat with Adrian (his photo and profile
- *  video in the header, from the profile) and a DM with the bot (its picture, its handle
- *  as the sub-line). Nothing about either was written twice. */
+// #region chats
+/** The same people, two other chats. A private chat with Adrian: his photo and profile
+ *  video in the header, from the profile. A DM with the bot, the way the bot actually
+ *  works there: you paste a link, it reacts 👀, types, and answers; its picture and its
+ *  handle in the header, from the profile. Nothing about either was written twice. */
 const PEER: ChatScript = {
   kind: "peer",
   chatName: "adrian",
@@ -141,40 +151,66 @@ const PEER: ChatScript = {
   ],
   alt: "A private chat with Adrian.",
 }
+const RICK = "youtube.com/watch?v=dQw4w9WgXcQ"
 const BOT: ChatScript = {
   kind: "bot",
   chatName: "xtldr",
   people: PEOPLE,
   messages: [
-    { from: "me", text: VIDEO, typed: true },
+    {
+      from: "me",
+      text: RICK,
+      preview: {
+        site: "YouTube",
+        title:
+          "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        description: "Rick Astley",
+        image: "/xtldr-preview-rick.jpg",
+      },
+      reactions: [{ emoji: "👀", when: "timeline" }],
+    },
     {
       from: "xtldr",
-      typing: "xtldr is watching",
-      source: VIDEO,
+      typing: "typing",
+      source: RICK,
       blocks: [
-        { kind: "heading", text: "In one line", emoji: "🧭" },
+        {
+          kind: "heading",
+          text: "Never Gonna Give You Up: The Eternal Rickroll",
+          emoji: "🎵",
+        },
         {
           kind: "item",
-          text: "Work on your own problems; ideas follow",
-          cite: "31:20",
+          text: "Rick Astley's 1987 debut single, a synth-pop classic that became the internet's most famous prank.",
+        },
+        {
+          kind: "item",
+          text: "The chorus is a list of promises: never give up, never let down, never run around and desert you.",
+          cite: "0:43",
         },
       ],
-      pace: "instant",
+      meta: {
+        label: "🔗 YouTube",
+        href: `https://${RICK}`,
+        time: "⏱️ 3m 33s saved",
+      },
+      reactions: [{ emoji: "😂", count: 1 }],
     },
   ],
-  alt: "A direct message to the bot.",
+  alt: "A direct message to the bot: paste a link, it reacts, types, and summarizes.",
 }
+// #endregion
 
 const WALL = "/tg-pattern.svg"
 
+// #region acts
 /** THE SCROLLY: an act index in; `until`, `focus` and `crop` out. The chat is PACED by
  *  the acts: each raises the ceiling and the story plays on to it, so an act never
  *  points back at a message the reader already watched land, and a reader who arrives
  *  at act three (two acts at once, or a reload) gets the act's own beat with everything
  *  before it already there. The effects chain: the whole phone, then one message lifted
  *  with the rest blurred, then the view zooms onto the answer, the phone growing and
- *  the viewport closing down onto it. Nothing here is special to the chat; a
- *  consumer's storyboard does exactly this with its own words per act. */
+ *  the viewport closing down onto it. */
 const ACTS: {
   until: number
   focus?: number
@@ -235,11 +271,16 @@ function Scrolly() {
     </div>
   )
 }
+// #endregion
 
 export default function Demo() {
   return (
-    <div className="space-y-20">
-      <Sample name="phone" label="01 · the phone · both themes">
+    <div className="space-y-16">
+      <Sample
+        name="phone"
+        with="people story"
+        label="01 · the phone · both themes"
+      >
         <div className="flex justify-center gap-10">
           <TelegramChat script={SCRIPT} wallpaper={WALL} theme="dark" />
           <TelegramChat
@@ -316,6 +357,7 @@ export default function Demo() {
 
       <Sample
         name="people"
+        with="people chats"
         label="05 · people · the accounts defined once, every chat reads them: a private chat with Adrian, a DM with the bot"
       >
         <div className="flex flex-wrap items-start justify-center gap-10">
@@ -336,6 +378,7 @@ export default function Demo() {
 
       <Sample
         name="scrolly"
+        with="acts"
         label="06 · a scrolly · an act index in; until, focus and crop out. the chat is paced by the acts and the effects chain"
       >
         <ScrollStage
@@ -370,7 +413,9 @@ export default function Demo() {
         Reactions are buttons: press one and you count, press again and you
         leave. The emoji are Noto Animated Emoji (Google, Apache 2.0), animated
         WebP, no player; Telegram&apos;s own set lives behind its API and is its
-        own. Each is 150-300 KB, lazy, which is why only reactions get them.
+        own. Each is 150-300 KB, lazy, which is why only reactions get them. The
+        summaries are @xtldrbot&apos;s real output for these links; the
+        follow-up answer is illustrative.
       </p>
     </div>
   )

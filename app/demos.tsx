@@ -6,6 +6,7 @@ import LightboxActions from "@/registry/base-nova/lib/lightbox-actions.demo"
 import LightboxMotion from "@/registry/base-nova/lib/lightbox-motion.demo"
 import QuoteCard from "@/registry/base-nova/lib/quote-card.demo"
 import TerminalSession from "@/registry/base-nova/lib/terminal-session.demo"
+import WebPreviewUnfurl from "@/registry/base-nova/lib/web-preview-unfurl.demo"
 import Tokens from "@/registry/base-nova/theme/tokens.demo"
 import Avatar from "@/registry/base-nova/ui/avatar.demo"
 import Code from "@/registry/base-nova/ui/code.demo"
@@ -18,11 +19,14 @@ import ScrollStage from "@/registry/base-nova/ui/scroll-stage.demo"
 import TelegramChat from "@/registry/base-nova/ui/telegram-chat.demo"
 import Terminal from "@/registry/base-nova/ui/terminal.demo"
 import ThemeToggle from "@/registry/base-nova/ui/theme-toggle.demo"
+import WebPreview from "@/registry/base-nova/ui/web-preview.demo"
 
 export const DEMOS: Record<string, ComponentType> = {
   tokens: Tokens,
   "quote-card": QuoteCard,
   "terminal-session": TerminalSession,
+  "web-preview-unfurl": WebPreviewUnfurl,
+  "web-preview": WebPreview,
   "scroll-stage": ScrollStage,
   avatar: Avatar,
   code: Code,

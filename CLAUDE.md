@@ -12,7 +12,7 @@ A public shadcn registry (`registry.json` at the root, items under `registry/bas
   diff cannot be read before it lands.
 - Every item has a `<name>.demo.tsx` beside its source and an entry in `app/demos.tsx`; `scripts/validate-registry.ts` refuses anything else. `lib/*` files are framework-free (no react, no DOM), asserted.
 - **Items meant to be used together share the head item's name**: `terminal` + `terminal-session`, `lightbox` + `lightbox-motion` + `lightbox-actions`, `telegram-chat` + `telegram-summary`. They sort together, they read as one thing, and `registry.json` keeps them adjacent. A part stays its own item only when something installs it ALONE (a build script renders a still with `terminal-session` and no React); otherwise it belongs in the head item's `files`, the way six engine files ship as `lightbox-motion`.
-- **Usage is never written by hand.** An item page renders its own `<name>.demo.tsx` verbatim, read at build time, under "the demo above, verbatim". Prose usage beside a demo drifts the first time either is touched; the same file cannot. So a demo is also the documentation: write it as the code you would want copied. **Every example carries its own code**: a demo wraps each example in `<Sample name="…" label="…">` (`app/samples.tsx`); the item page cuts the JSX inside each block out of the demo's source (`app/samples-extract.ts`), renders it through `<Code>` on the server and the Sample shows it under a `code` toggle, the way shadcn's pages do. The snippet IS the code that drew the example, so it cannot drift, and a Sample whose block the page did not find throws. New demos use it; the older ones move to it when touched.
+- **Usage is never written by hand.** An item page renders its own `<name>.demo.tsx` verbatim, read at build time, under "the demo above, verbatim". Prose usage beside a demo drifts the first time either is touched; the same file cannot. So a demo is also the documentation: write it as the code you would want copied. **Every example carries its own code**: a demo wraps each example in `<Sample name="…" label="…">` (`app/samples.tsx`); the item page cuts the JSX inside each block out of the demo's source (`app/samples-extract.ts`), renders it through `<Code>` on the server and the Sample shows it under a `code` toggle, the way shadcn's pages do. The snippet IS the code that drew the example, so it cannot drift, and a Sample whose block the page did not find throws. **The data is part of the sample**: `with="people story"` prepends the demo's `// #region people` … `// #endregion` blocks (VS Code's folding markers) to the JSX, because a people section whose code showed two tags and no people was not a code sample. The control is a preview | code segmented switch on the example's frame, the convention every component site trained its readers on. New demos use it; the older ones move to it when touched.
 - **The index is derived, never hand-kept**: `app/registry.ts` reads `registryDependencies` and tells two relations apart. A PART shares the head's name (`quote-card`, `lightbox-motion`) and nests under it ("comes with"); everything else an item depends on is a standalone item it USES (`quote` uses `avatar`, `avatar` uses `lightbox`), which keeps its own row. **Every relation is shown from both ends** on the item pages: "comes with" / "part of", "uses" / "used by", derived from the same list so the two ends cannot disagree. Reading every dependency as a part once nested `avatar` under `quote` and dropped `lightbox` off the index; the validator refuses a name-part its head does not pull in. A demo shows the whole family working together where that is the point (the terminal page draws one script live AND as a still, which is the claim the pair exists to make).
 - Imports inside items use `@/registry/base-nova/{ui,lib,hooks,blocks}/...`; the CLI rewrites them to the consumer's aliases.
 - **How an item is styled (the pattern; `quote` and `avatar` are the reference).** Three tiers, and which one a value belongs to is decided by one question: is it a fixed value, a computed one, or something CSS alone can express?
@@ -375,8 +375,10 @@ buttons**: press one and you count, drawn as the client draws your own; the emoj
 Noto Animated Emoji as animated WebP (Google, Apache 2.0, no player, lazy, 150-300 KB
 each, so reactions only; Telegram's set is TGS behind its API and its own IP), text
 glyph when the set lacks one. **Nothing happens on hover**: Telegram messages do not,
-and a bubble that moved under the pointer read as a control. Then `frame="none"` (bubbles on a bare canvas at the container's width; header a
-slim strip, composer only while typing), `focus` (indices that lift, the rest blur and
+and a bubble that moved under the pointer read as a control. Then `frame="none"` (bubbles on a bare canvas at the container's width; NO header, a
+bare canvas has no chrome and a title pinned over floating bubbles, tried sticky on the
+page's colour, was the phone's composition forced onto it; the typing status is a line
+in the thread; the composer shows only while typing), `focus` (indices that lift, the rest blur and
 return on hover, the code item's rule; a phone thread centres the focused message) and
 `crop` (a viewport of a given aspect: the device keeps its FULL WIDTH and is cut in
 height only, scrolled to the focused message or to the latest; the message's place is
@@ -409,17 +411,20 @@ data in, what looks clickable is clickable, decorative chrome aria-hidden. Consu
 the garden's project pages quoting reactions, adriangalilea.com notes embedding a
 post without the widget script.
 
-### web preview: the link card, three ways
+### web-preview: shipped; what is left
 
-A URL's unfurl as a component, fed by `{url, site, title, description, image}`: the
-same facts the OG item will produce, drawn as a consumer of them. Three styles side by
-side on one demo page so a page picks by feel: **telegram's** (the tinted card with the
-rule on the left, already drawn inside `telegram-chat`'s bubbles, to be extracted as
-the item and re-imported there), **x/twitter's** (the bordered card, image on top, domain
-in the corner), and **ours**, the one meant to be state of the art: the OG still at its
-real aspect, the title at reading size, the domain as mono metadata, a hover that
-lifts, and the card that is also the thing that fetches nothing (a static site knows its
-links' facts at build). Pairs with the `og` item: one produces the facts, this draws them.
+`web-preview` draws a link's unfurl from five facts (`Unfurl` in `web-preview-unfurl`:
+url, site, title, description, image, icon) in three styles, `card` (ours, default),
+`telegram` (the client's tinted card with the rule; `telegram-chat` draws its previews
+with it, colouring it through `--wp-ink/text/muted/wash` set on the bubble) and `x`
+(the large-image card with the title in a chip). **Where the fetch runs is decided**: at
+authoring time, `mise unfurl <url>` prints the facts and they ship as data beside the
+link, the sidecar model. A browser cannot unfurl a foreign page (CORS) and a build that
+fetches on every deploy makes the site depend on the other site being up. `unfurl()` is
+plain fetch and string work, so a server that wants it live imports the same function.
+Left: the `og` item pairs with it (one produces facts, this draws them); a `favicon`
+for pages that do not name one (Google's s2 service, or none); the x style's small-card
+variant (image left, text right) for links whose picture is not 16:9.
 
 ### theme
 

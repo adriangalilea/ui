@@ -62,6 +62,13 @@ arg "[size]" help="square side in px" default="256"
 '''
 run = 'bun scripts/portrait.ts --fill {{arg(name="dir")}} {{arg(name="size")}}'
 
+[tasks.unfurl]
+description = "the five facts of a link (site, title, description, image, icon) as JSON, to paste beside the link as data. the one place a preview touches the network: here, once"
+usage = '''
+arg "<url>" help="the link"
+'''
+run = 'bun scripts/unfurl.ts {{arg(name="url")}}'
+
 [tasks.add]
 description = "build, then copy one item AND every item it depends on into a consumer, all from this checkout (default: the garden). shadcn resolves @ag deps against the deployed registry, which lags; re-adding them locally afterwards is what keeps a consumer from holding a stale file"
 usage = '''
