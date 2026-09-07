@@ -323,6 +323,7 @@ function Scrolly() {
 // #endregion
 
 export default function Demo() {
+  const [framelessReplay, setFramelessReplay] = React.useState(0)
   return (
     <div className="space-y-16">
       <Sample
@@ -366,13 +367,22 @@ export default function Demo() {
         name="frameless"
         label='02 · frame="none" · the same script at the width the phone was taking, in a viewport that never reflows the page'
       >
-        <div className="flex justify-center">
+        <div className="flex flex-col items-center gap-4">
           <TelegramChat
+            key={framelessReplay}
             script={SCRIPT}
             wallpaper={WALL}
             frame="none"
-            from={{ message: 3 }}
+            from={{ message: 4 }}
+            duration={8000}
           />
+          <button
+            type="button"
+            onClick={() => setFramelessReplay((value) => value + 1)}
+            className="rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+          >
+            Replay typing and reply
+          </button>
         </div>
       </Sample>
 

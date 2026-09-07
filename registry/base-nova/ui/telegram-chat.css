@@ -814,11 +814,12 @@
   }
   .tgchat-caret {
     display: inline-block;
-    width: 0.55em;
+    width: max(1px, 0.055em);
+    flex: none;
     height: 1em;
     margin-left: 0.1em;
-    background: currentColor;
-    opacity: 0.7;
+    background: var(--tg-link);
+    border-radius: 1px;
     vertical-align: -0.15em;
   }
   /* One line, always: the row NEVER wraps or reflows (a settled summary must not
@@ -1199,23 +1200,17 @@
   }
 
   /* ── focus ─────────────────────────────────────────────────────────────────────
-   The code item's rule, on bubbles: everything else steps back and comes back on
-   hover, because a reader who wants the surrounding messages should not have to
-   leave the page to see them. The focused bubble LIFTS a touch, so the eye lands on
-   it without a colour that would mean something else in Telegram. */
+   Defocus the rendered bubble itself, retaining its opaque surface so the
+   wallpaper cannot show through it. The selected message lifts slightly. */
   .tgchat[data-focus] .tgchat-bubble:not([data-focused]),
   .tgchat[data-focus]
     .tgchat-rowline:has(.tgchat-bubble:not([data-focused]))
     .tgchat-mini {
     filter: blur(2px);
-    opacity: 0.45;
     /* Slow, so a change of focus in a scrolly reads as the blur creeping from one message
      to the next rather than switching. Nothing happens on hover: Telegram messages do
      nothing on hover, and a bubble that moved under the pointer read as a control. */
-    transition:
-      filter 900ms var(--tg-ease),
-      opacity 900ms var(--tg-ease),
-      transform 900ms var(--tg-ease);
+    transition: filter 900ms var(--tg-ease);
   }
   /* The focused message lifts on a shadow that stays the same for as long as it is
    focused, and brightens a touch; a message that loses the focus settles back to the
@@ -1243,8 +1238,8 @@
    The messages on a bare canvas, at the container's width. Every size below is a
    share of the container already, so the words simply take the room the phone was
    taking: 3.8cqw is 24px at 640. The shell is not rendered; what remains flows in
-   normal layout - a slim header strip, the thread at its content height, the composer
-   only while a message is being typed (a story beat, not furniture). The wallpaper
+   normal layout - the thread at its content height and a persistent composer
+   that reserves its space before, during, and after typing. The wallpaper
    still draws if given, as the doodles under the bubbles; the screen colour goes,
    so the canvas is the page's. */
   .tgchat[data-frame="none"] {
@@ -1275,19 +1270,7 @@
   .tgchat[data-frame="none"] .tgchat-wall {
     border-radius: 1rem;
   }
-  /* NO HEADER. The header is the phone's chrome; a bare canvas has none, and a chat
-   title pinned over floating bubbles (tried, sticky, on the page's colour) was the
-   device's composition forced onto the mode whose point is no device. The typing
-   status, the one thing the header carried that is story, is a line in the thread. */
-  .tgchat-typing-line {
-    display: inline-flex;
-    align-items: center;
-    gap: 1.4cqw;
-    padding: 0.4cqw 1cqw;
-    color: var(--tg-link);
-    font-size: 3.4cqw;
-    animation: tgchat-bubble-in 250ms var(--tg-ease) both;
-  }
+  /* Header typing status is omitted with the phone chrome. */
   .tgchat[data-frame="none"] .tgchat-messages {
     flex: none;
     overflow: visible;
@@ -1305,14 +1288,14 @@
     max-inline-size: 80%;
   }
   .tgchat[data-frame="none"] .tgchat-composer {
+    /* The thread has no phone inset; its typing controls still need a real height. */
+    --tg-composer-h: 10.4cqw;
+    flex-shrink: 0;
     position: sticky;
     bottom: 0;
     z-index: 7;
     padding: 4cqw 0 1cqw;
     background: transparent;
-  }
-  .tgchat[data-frame="none"] .tgchat-composer[data-idle] {
-    display: none;
   }
   .tgchat[data-frame="none"] .tgchat-replybar {
     position: relative;

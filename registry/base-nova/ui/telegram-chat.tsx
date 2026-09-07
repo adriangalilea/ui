@@ -20,8 +20,7 @@
 // whose whole job is to show what a bot SAID could not carry its own copy. Three
 // orthogonal knobs, all on the same script and the same bubbles:
 //   frame="none"  the messages on a bare canvas (the wallpaper, or nothing): no header,
-//                 the typing status a line in the thread, the composer only while a
-//                 message is being typed. Every size is a share of the container, so the
+//                 a persistent composer. Every size is a share of the container, so the
 //                 text takes the width the phone was taking.
 //   focus         message indices that stay sharp and lift; everything else blurs and
 //                 steps back, and comes back on hover (the code item's rule). A phone
@@ -179,8 +178,8 @@ export interface TelegramChatProps {
    *  that must look like Telegram's own theme whatever the page is doing. */
   theme?: "dark" | "light" | "page"
   /** `phone` (default) draws the device. `none` draws the messages on a bare canvas at
-   *  the container's width: no header (the typing status is a line in the thread), the
-   *  composer only while typing. */
+   *  the container's width: no header or typing status, the
+   *  composer stays visible to keep typing transitions stable. */
   frame?: "phone" | "none"
   /** Message indices that stay sharp and lift; the rest blur and step back (hover brings
    *  them back). In a phone the thread scrolls the first focused message into view. */
@@ -875,7 +874,13 @@ export function TelegramChat({
     // between, not jump to the summary. The hurry covers the reader who skipped ahead.
     if (lastCeiling.current === null) {
       if (played.current < lift) played.current = lift
-    } else if (!started.current && played.current < lastCeiling.current) {
+    } else if (
+      lastCeiling.current !== ceiling &&
+      !started.current &&
+      played.current < lastCeiling.current
+    ) {
+      // Only a changed ceiling advances unseen context. Effect replay (Strict Mode)
+      // or a duration change must not complete a story that has not started.
       // Gated below the old ceiling without ever playing (off screen): what the old
       // ceiling allowed is context and lands whole; the story plays from there.
       played.current = lastCeiling.current
@@ -1312,7 +1317,6 @@ export function TelegramChat({
             {cite}
           </a>
         )}
-        {chars !== undefined && <span className="tgchat-caret" />}
       </>
     )
     // Telegram's blockquote: a tinted box in the sender's colour with a bar on the left
@@ -1772,18 +1776,6 @@ export function TelegramChat({
                       </div>
                     )
                   })}
-                {/* Frameless: the typing status the header would have carried, under
-                    the last message, the way a bare thread shows it. */}
-                {frame === "none" && typingLabel && (
-                  <div className="tgchat-typing-line">
-                    <span className="tgchat-tdots">
-                      <i />
-                      <i />
-                      <i />
-                    </span>
-                    {typingLabel}
-                  </div>
-                )}
               </div>
             </div>
             {/* Telegram's inline-results popup: what the client shows over the composer
@@ -1890,7 +1882,7 @@ export function TelegramChat({
                     <span>
                       {(composing.text ?? "").slice(0, composerChars)}
                     </span>
-                    <span className="tgchat-caret" />
+                    <span className="tgchat-caret" aria-hidden="true" />
                   </span>
                 ) : (
                   <span className="hint">Message</span>
