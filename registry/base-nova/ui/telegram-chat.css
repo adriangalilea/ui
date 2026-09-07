@@ -1118,10 +1118,15 @@ video.tgchat-mini {
   position: sticky;
   top: 0;
   z-index: 7;
-  padding: 0 0 3cqw;
+  padding: 1cqw 0 4cqw;
+  /* The ground the chrome sits on. The phone's header sits on a scrim of the screen
+     colour; the canvas is transparent, so its scrim is the PAGE's colour, the thing
+     the canvas is drawn on. Glass alone (blur, no ground) left the bubbles fully
+     visible under the title. The mask fades the ground's foot, blur included. */
+  background: var(--background, #000);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  mask-image: linear-gradient(to bottom, #000 70%, transparent);
+  mask-image: linear-gradient(to bottom, #000 60%, transparent);
 }
 .tgchat[data-frame="none"] .tgchat-round {
   display: none;
@@ -1161,10 +1166,11 @@ video.tgchat-mini {
   position: sticky;
   bottom: 0;
   z-index: 7;
-  padding: 2cqw 0 0;
+  padding: 4cqw 0 1cqw;
+  background: var(--background, #000);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  mask-image: linear-gradient(to top, #000 70%, transparent);
+  mask-image: linear-gradient(to top, #000 60%, transparent);
 }
 .tgchat[data-frame="none"] .tgchat-composer[data-idle] {
   display: none;
