@@ -880,42 +880,58 @@ video.tgchat-mini {
 }
 
 /* ── the viewport ──────────────────────────────────────────────────────────────
-   What the reader sees of the device. Plain, it is the device's own box. Zooming
-   transforms the device inside it and `crop` gives it a box of its own; either way
-   it clips, and its corner is the page's, not the phone's: a crop is a picture OF a
-   phone. The pose travels: a scrolly that moves the focus from one message to the
-   next glides there instead of cutting. */
+   What the reader sees of the device. Plain, it is the device's own box. CUT to an
+   aspect, the device keeps its full width and is panned vertically inside it: a cut
+   is a picture OF a phone, never a piece of one, so the width is never touched. The
+   cut edges are not hard: a mask fades them out, and a band of backdrop blur under
+   each fade turns the edge into a scrim, so a message half out of the viewport reads
+   as leaving, not as clipped. The pan travels: a landing message slides the thread up
+   the way a chat does, and a scrolly that moves the focus glides between messages. */
 .tgchat-view {
   position: relative;
-  overflow: visible;
 }
-.tgchat[data-zoom] .tgchat-view,
-.tgchat-view[style*="aspect-ratio"] {
+.tgchat[data-cut] .tgchat-view {
   overflow: hidden;
-  border-radius: 1rem;
+  --tg-fade: 14%;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    #000 var(--tg-fade),
+    #000 calc(100% - var(--tg-fade)),
+    transparent
+  );
 }
-.tgchat-view[style*="aspect-ratio"] .tgchat-phone {
+.tgchat[data-cut] .tgchat-phone {
   position: absolute;
   top: 0;
   left: 0;
-}
-.tgchat-phone {
-  transform-origin: 0 0;
+  width: 100%;
   transition: transform 800ms var(--tg-ease);
 }
+.tgchat[data-cut] .tgchat-view::before,
+.tgchat[data-cut] .tgchat-view::after {
+  position: absolute;
+  z-index: 6;
+  right: 0;
+  left: 0;
+  height: var(--tg-fade);
+  content: "";
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.tgchat[data-cut] .tgchat-view::before {
+  top: 0;
+  mask-image: linear-gradient(to bottom, #000, transparent);
+}
+.tgchat[data-cut] .tgchat-view::after {
+  bottom: 0;
+  mask-image: linear-gradient(to top, #000, transparent);
+}
 @media (prefers-reduced-motion: reduce) {
-  .tgchat-phone {
+  .tgchat[data-cut] .tgchat-phone {
     transition: none;
   }
-}
-/* Zoomed in, the chrome is context, not content: it steps back with the other
-   bubbles so the framing still says "a phone" without competing. */
-.tgchat[data-zoom] :is(.tgchat-status, .tgchat-header, .tgchat-composer) {
-  filter: blur(1.5px);
-  opacity: 0.55;
-  transition:
-    filter 400ms var(--tg-ease),
-    opacity 400ms var(--tg-ease);
 }
 
 /* ── focus ─────────────────────────────────────────────────────────────────────

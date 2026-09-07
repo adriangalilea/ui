@@ -61,24 +61,22 @@ function Label({ children }: { children: React.ReactNode }) {
   )
 }
 
-/** THE SCROLLY: an act index in, focus and zoom out. Nothing here is special to the
- *  chat; a consumer's storyboard does exactly this with its own words per act. */
-const ACTS: { focus?: number; zoom?: boolean; head: string; body: string }[] = [
+/** THE SCROLLY: an act index in, focus out. Nothing here is special to the chat; a
+ *  consumer's storyboard does exactly this with its own words per act. */
+const ACTS: { focus?: number; head: string; body: string }[] = [
   {
     head: "a conversation",
-    body: "the whole phone, playing once on its own clock as it enters.",
+    body: "the phone cut to the card, panned to the latest, playing once on its own clock as it enters.",
   },
   {
     focus: 1,
-    zoom: true,
     head: "then a question",
-    body: "the device scales around the message that matters; the rest steps back.",
+    body: "the cut pans to the message that matters; the rest steps back.",
   },
   {
     focus: 3,
-    zoom: true,
     head: "then the answer",
-    body: "the pose glides from one message to the next. scroll back and it returns.",
+    body: "the pan glides from one message to the next. scroll back and it returns.",
   },
 ]
 
@@ -106,7 +104,6 @@ function Scrolly() {
         theme="dark"
         from={{ message: 3 }}
         focus={now.focus}
-        zoom={now.zoom}
         crop="4 / 3"
         className="mx-auto w-full max-w-[28rem]"
       />
@@ -132,8 +129,8 @@ export default function Demo() {
 
       <section className="space-y-4">
         <Label>
-          02 · frame=&quot;none&quot; · the same script, the words at the width
-          the phone was taking
+          02 · frame=&quot;none&quot; · the same script at the width the phone
+          was taking, in a viewport that never reflows the page
         </Label>
         <div className="flex justify-center">
           <TelegramChat
@@ -171,8 +168,8 @@ export default function Demo() {
 
       <section className="space-y-4">
         <Label>
-          04 · zoom · a crop of the phone around the message, the chrome still
-          saying telegram
+          04 · crop · the phone at full width, cut in height only, the edges
+          fading under a scrim; panned to a focus, or to the latest
         </Label>
         <div className="flex flex-wrap items-start justify-center gap-10">
           <TelegramChat
@@ -181,17 +178,14 @@ export default function Demo() {
             theme="dark"
             from={1}
             focus={3}
-            zoom
             crop="4 / 3"
-            className="w-full max-w-[28rem]"
+            className="w-full max-w-[24rem]"
           />
           <TelegramChat
             script={SCRIPT}
             wallpaper={WALL}
             theme="light"
             from={1}
-            focus={2}
-            zoom={2.2}
             crop="1 / 1"
             className="w-full max-w-[20rem]"
           />
@@ -199,7 +193,7 @@ export default function Demo() {
       </section>
 
       <section className="space-y-4">
-        <Label>05 · a scrolly · an act index in, focus and zoom out</Label>
+        <Label>05 · a scrolly · an act index in, focus out</Label>
         <ScrollStage
           acts={ACTS.length}
           pace="80svh"
@@ -214,7 +208,6 @@ export default function Demo() {
                     theme="dark"
                     from={{ message: 3 }}
                     focus={a.focus}
-                    zoom={a.zoom}
                     crop="4 / 3"
                     className="mx-auto w-full max-w-[24rem]"
                   />

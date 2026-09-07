@@ -26,12 +26,15 @@
 //   focus         message indices that stay sharp and lift; everything else blurs and
 //                 steps back, and comes back on hover (the code item's rule). A phone
 //                 thread scrolls the focused message into view.
-//   zoom          the device scales around the focused message inside a `crop` viewport,
-//                 so the client's own framing stays at a readable size: a zoomed CROP of
-//                 the phone, its chrome blurred, the edge of the bezel still saying
-//                 "Telegram". The one knob that reads the DOM: the message's place on the
-//                 device is measured, not guessed.
-// A scrolly telling composes them: an act index in, focus and zoom out.
+//   crop          a viewport of a given aspect: the device keeps its FULL WIDTH and is cut
+//                 in height only, panned to the focused message (else to the latest), the
+//                 cut edges fading under a blurred scrim. Scaling into a bubble was tried
+//                 and lost the width, and with it the phone; an unscaled phone panned to
+//                 the message is what still reads as Telegram. Frameless crops by default,
+//                 so a landing message slides the thread up instead of growing the page.
+//                 The one knob that reads the DOM: the message's place on the device is
+//                 measured, not guessed.
+// A scrolly telling composes them: an act index in, focus out.
 
 import * as React from "react"
 import "./telegram-chat.css"
@@ -138,19 +141,17 @@ export interface TelegramChatProps {
   /** Message indices that stay sharp and lift; the rest blur and step back (hover brings
    *  them back). In a phone the thread scrolls the first focused message into view. */
   focus?: number | readonly number[]
-  /** Scale the device around the first focused message. `true` picks a scale that sets
-   *  the message across most of the viewport; a number is the scale. Needs `focus`. */
-  zoom?: boolean | number
-  /** The viewport's aspect ratio (a CSS `aspect-ratio` value, "4 / 3") when zooming: the
-   *  device is cropped to it. Without it the viewport keeps the device's own box. */
+  /** The viewport's aspect ratio (a CSS `aspect-ratio` value, "4 / 3"). The device keeps
+   *  its full width and is cut in height, panned to the first focused message, else to
+   *  the latest; the cut edges fade under a blurred scrim. A phone defaults to its own
+   *  box; frameless defaults to `FRAMELESS_CROP` so the page never reflows as it plays. */
   crop?: string
   className?: string
 }
 
-/** How much of the viewport a zoomed message spans, and the scale's bounds. */
-const ZOOM_SPAN = 0.78
-const ZOOM_MIN = 1.2
-const ZOOM_MAX = 3
+/** The frameless canvas's default viewport: a landing message slides the thread up
+ *  inside it instead of growing the page under the reader. */
+export const FRAMELESS_CROP = "4 / 3"
 
 type Placement = { x: number; y: number; w: number; h: number }
 
@@ -459,10 +460,10 @@ export function TelegramChat({
   theme = "page",
   frame = "phone",
   focus,
-  zoom = false,
   crop,
   className,
 }: TelegramChatProps) {
+  const cut = crop ?? (frame === "none" ? FRAMELESS_CROP : undefined)
   const timeline = React.useMemo(() => buildTimeline(script), [script])
   const controlled = progress !== undefined
   const [auto, setAuto] = React.useState(0)
@@ -479,8 +480,6 @@ export function TelegramChat({
       throw new Error(
         `telegram-chat: focus ${f} outside 0..${script.messages.length - 1}`,
       )
-  if (zoom && focused.length === 0)
-    throw new Error("telegram-chat: zoom needs a focus to zoom into")
   const target = focused[0]
   const floor =
     typeof from === "number"
@@ -571,46 +570,36 @@ export function TelegramChat({
     if (!completed || atBottom) el.scrollTop = el.scrollHeight
   }, [completed, eff, aliveSec, target])
 
-  // ZOOM: the device scales around the focused message, measured where it actually sits
-  // (layout coordinates, the thread's scroll subtracted), and is translated so that
-  // point lands at the viewport's centre, clamped so the device keeps covering the
-  // viewport where it can. Re-measured whenever the story or the box changes; the CSS
-  // transition carries it between poses.
-  const [pose, setPose] = React.useState<string | null>(null)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: eff grows the thread and moves the message
+  // THE CUT: inside a cropped viewport the device keeps its width and is panned
+  // vertically, so the focused message's centre (measured in layout coordinates, the
+  // thread's scroll subtracted) sits at the viewport's centre, or, with nothing focused,
+  // so the latest messages show. Clamped to the device's own edges. Re-measured whenever
+  // the story grows the thread or the box changes; the CSS transition carries it, so a
+  // landing message slides the thread up the way a chat does.
+  const [pan, setPan] = React.useState<number | null>(null)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: eff and aliveSec grow the thread and move the message
   React.useLayoutEffect(() => {
     const port = view.current
     const dev = device.current
-    const hero = target === undefined ? null : bubbles.current[target]
-    if (!zoom || !port || !dev || !hero) {
-      setPose(null)
+    if (!cut || !port || !dev) {
+      setPan(null)
       return
     }
     const place = () => {
-      const box = placeIn(hero, dev)
-      const vw = port.clientWidth
       const vh = port.clientHeight
-      const s =
-        typeof zoom === "number"
-          ? zoom
-          : Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, (ZOOM_SPAN * vw) / box.w))
-      const cx = box.x + box.w / 2
-      const cy = box.y + box.h / 2
-      const dw = dev.offsetWidth * s
-      const dh = dev.offsetHeight * s
-      const clampTo = (v: number, size: number, span: number) =>
-        size >= span ? Math.min(0, Math.max(span - size, v)) : (span - size) / 2
-      const tx = clampTo(vw / 2 - s * cx, dw, vw)
-      const ty = clampTo(vh / 2 - s * cy, dh, vh)
-      setPose(
-        `translate(${tx.toFixed(1)}px, ${ty.toFixed(1)}px) scale(${s.toFixed(3)})`,
-      )
+      const dh = dev.offsetHeight
+      const hero = target === undefined ? null : bubbles.current[target]
+      const want = hero
+        ? vh / 2 - (placeIn(hero, dev).y + hero.offsetHeight / 2)
+        : vh - dh
+      setPan(dh <= vh ? 0 : Math.min(0, Math.max(vh - dh, want)))
     }
     place()
     const ro = new ResizeObserver(place)
     ro.observe(port)
+    ro.observe(dev)
     return () => ro.disconnect()
-  }, [zoom, target, eff, frame, crop])
+  }, [cut, target, eff, aliveSec, frame])
 
   // Afterlife reactions across every message, in script order: staggered arrivals
   // with deterministic jitter, each pill lands at 1, climbs to its scripted count one
@@ -750,21 +739,25 @@ export function TelegramChat({
       data-theme={theme}
       data-frame={frame}
       data-focus={focused.length > 0 || undefined}
-      data-zoom={pose ? "" : undefined}
+      data-cut={cut ? "" : undefined}
       data-settled={completed || undefined}
       aria-label={script.alt}
     >
-      {/* The viewport: what the reader sees of the device. Zoom transforms the device
-          inside it; `crop` gives it a box of its own to be cropped to. */}
+      {/* The viewport: what the reader sees of the device. Cut to an aspect, it pans the
+          device vertically inside it; otherwise it is the device's own box. */}
       <div
         ref={view}
         className="tgchat-view"
-        style={crop ? { aspectRatio: crop } : undefined}
+        style={cut ? { aspectRatio: cut } : undefined}
       >
         <div
           ref={device}
           className="tgchat-phone"
-          style={pose ? { transform: pose } : undefined}
+          style={
+            pan !== null
+              ? { transform: `translateY(${pan.toFixed(1)}px)` }
+              : undefined
+          }
         >
           {frame === "phone" && (
             <>

@@ -364,13 +364,16 @@ Left on the item:
 02-05): `frame="none"` (bubbles on a bare canvas at the container's width; header a
 slim strip, composer only while typing), `focus` (indices that lift, the rest blur and
 return on hover, the code item's rule; a phone thread centres the focused message) and
-`zoom` + `crop` (the device scales around the focused message inside a cropped
-viewport, its chrome blurred, the bezel still saying Telegram; the message's place is
-MEASURED in layout coordinates with the thread's scroll subtracted, and the pose
-transitions, so a scrolly glides between messages). Both frameless candidates shipped
-as modes rather than one being chosen: bare canvas for copy that must be read,
-zoomed crop for copy that must still look like a phone. Adrian judges on the demo
-which the garden's feature media takes.
+`crop` (a viewport of a given aspect: the device keeps its FULL WIDTH and is cut in
+height only, panned to the focused message or to the latest, the cut edges fading
+under a backdrop-blur scrim; the message's place is MEASURED in layout coordinates
+with the thread's scroll subtracted, and the pan transitions, so a landing message
+slides the thread up and a scrolly glides between messages). Frameless crops to
+`FRAMELESS_CROP` by default, because a canvas that grew as messages landed reflowed
+the page under the reader. **Judged on the demo:** scaling the device into a bubble
+cut the width and lost the phone; an unscaled phone panned vertically is what still
+reads as Telegram, so there is no scale knob. Bare canvas for copy that must be read,
+the cut phone for copy that must still look like a phone.
 
 Left: **Telegram Desktop's layout** (wider column, different bubble geometry, a
 sidebar), deferred. **The styling pattern**: this item's 880-line `.css` predates the
