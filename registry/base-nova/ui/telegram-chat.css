@@ -435,27 +435,59 @@ video.tgchat-mini {
   gap: 1.4cqw;
   margin-top: 1.7cqw;
 }
+/* A pill is a BUTTON, as the client's are: press it and you count, press again and you
+   leave. Yours is drawn the way Telegram draws your own reaction, filled in the accent
+   with the count on it. */
 .tgchat-react {
   display: inline-flex;
   align-items: center;
   gap: 1.1cqw;
   padding: 0.7cqw 2.2cqw;
+  border: 0;
   border-radius: 4cqw;
   background: color-mix(in srgb, var(--tg-accent) 24%, transparent);
+  color: inherit;
+  font: inherit;
   font-size: 3.4cqw;
   line-height: 1.4;
+  cursor: pointer;
+  transition:
+    background 160ms var(--tg-ease),
+    color 160ms var(--tg-ease);
   /* Telegram Web's bouncy scale-in: overshoot past 1, settle. */
   animation: tgchat-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.tgchat-react:focus-visible {
+  outline: 2px solid var(--tg-link);
+  outline-offset: 1px;
 }
 .tgchat-react .n {
   color: var(--tg-link);
   font-weight: 600;
+}
+.tgchat-react[data-mine] {
+  background: var(--tg-accent);
+}
+.tgchat-react[data-mine] .n {
+  color: var(--tg-on-accent);
 }
 .tgchat-bubble.user .tgchat-react {
   background: rgba(255, 255, 255, 0.24);
 }
 .tgchat-bubble.user .tgchat-react .n {
   color: var(--tg-on-accent);
+}
+.tgchat-bubble.user .tgchat-react[data-mine] {
+  background: var(--tg-on-accent);
+}
+.tgchat-bubble.user .tgchat-react[data-mine] .n {
+  color: var(--tg-user-bubble);
+}
+/* The animated glyph sits where the text glyph sat: one line high, no reflow. */
+.tgchat-emoji {
+  display: block;
+  width: auto;
+  height: 1.25em;
 }
 @keyframes tgchat-pop {
   0% {
@@ -1016,20 +1048,13 @@ video.tgchat-mini {
   .tgchat-mini {
   filter: blur(2px);
   opacity: 0.45;
-  /* Slow on the way BACK to focus, quick to release: the pointer leaving lets the
-     blur creep back in, so the focus re-asserts itself like tension mounting, and
-     hovering answers at once. `blur(0)`, never `none`: `none` is not a value a filter
-     can interpolate to, and the un-blur snapped. */
+  /* Slow, so a change of focus in a scrolly reads as the blur creeping from one message
+     to the next rather than switching. Nothing happens on hover: Telegram messages do
+     nothing on hover, and a bubble that moved under the pointer read as a control. */
   transition:
     filter 900ms var(--tg-ease),
     opacity 900ms var(--tg-ease),
     transform 900ms var(--tg-ease);
-}
-.tgchat[data-focus]:hover .tgchat-bubble:not([data-focused]),
-.tgchat[data-focus]:hover .tgchat-mini {
-  filter: blur(0);
-  opacity: 1;
-  transition-duration: 300ms;
 }
 .tgchat-bubble[data-focused] {
   position: relative;
@@ -1041,15 +1066,6 @@ video.tgchat-mini {
   transition:
     transform 900ms var(--tg-ease),
     box-shadow 900ms var(--tg-ease);
-}
-/* Under the pointer everything stands on the same footing; the lift returns with the
-   blur when it leaves. */
-.tgchat[data-focus]:hover .tgchat-bubble[data-focused] {
-  transform: scale(1);
-  box-shadow:
-    0 0 0 rgba(0, 0, 0, 0),
-    0 0 0 rgba(0, 0, 0, 0);
-  transition-duration: 300ms;
 }
 @media (prefers-reduced-motion: reduce) {
   .tgchat[data-focus] .tgchat-bubble:not([data-focused]),
@@ -1094,9 +1110,18 @@ video.tgchat-mini {
 .tgchat[data-frame="none"] .tgchat-wall {
   border-radius: 1rem;
 }
+/* THE SAME HEADER, PLACED FOR THIS FRAME. In the phone it floats over the thread; here
+   it is sticky at the top of the cut viewport, so the messages scroll UNDER it the way
+   they do under the phone's, blurred as they pass. One header, two placements; a
+   header that scrolled away with the thread was cut in half at the top edge. */
 .tgchat[data-frame="none"] .tgchat-header {
-  position: relative;
+  position: sticky;
+  top: 0;
+  z-index: 7;
   padding: 0 0 3cqw;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  mask-image: linear-gradient(to bottom, #000 70%, transparent);
 }
 .tgchat[data-frame="none"] .tgchat-round {
   display: none;
@@ -1133,9 +1158,13 @@ video.tgchat-mini {
   max-inline-size: 80%;
 }
 .tgchat[data-frame="none"] .tgchat-composer {
-  position: relative;
-  bottom: auto;
+  position: sticky;
+  bottom: 0;
+  z-index: 7;
   padding: 2cqw 0 0;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  mask-image: linear-gradient(to top, #000 70%, transparent);
 }
 .tgchat[data-frame="none"] .tgchat-composer[data-idle] {
   display: none;

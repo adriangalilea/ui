@@ -94,16 +94,36 @@ export interface ChatMessage {
   reactions?: ChatReaction[]
 }
 
+/** A Telegram account, defined ONCE and reused by every mock on a site: the bot with its
+ *  handle and its picture, a person with their photo and profile video. A message's
+ *  `from` is the key into `people`; the label, the mini avatar and the chat header read
+ *  the profile. A mock that spelled the bot's name three ways with three different
+ *  gradient initials is what this exists to prevent. */
+export interface ChatProfile {
+  /** The display name, as Telegram shows it. */
+  name: string
+  /** "@xtldrbot": what a mention types and what a bot's sub-line shows. */
+  handle?: string
+  avatar?: string
+  /** Telegram's animated profile video (mp4), looping muted over `avatar`. */
+  avatarVideo?: string
+  bot?: boolean
+}
+
 export interface ChatScript {
   kind: ChatKind
-  /** Header title: the person, the bot, or the group name. */
+  /** Header title: the person, the bot, or the group name. A key into `people` reads
+   *  the profile's name, avatar and video for the header. */
   chatName: string
-  /** Sub-line under the name ("online" · "bot" · "24 members"). */
-  chatTag: string
+  /** Sub-line under the name ("online" · "bot" · "24 members"). Defaults from the
+   *  header's profile: a bot's handle, else nothing. */
+  chatTag?: string
   avatar?: string
   /** Telegram's animated profile video (mp4), looping muted over `avatar` as its
    *  poster; poster only under prefers-reduced-motion. */
   avatarVideo?: string
+  /** The accounts in this chat, keyed by the `from` a message uses. */
+  people?: Record<string, ChatProfile>
   messages: ChatMessage[]
   /** The easter egg for whoever stays: messages that arrive `at` seconds after the
    *  story completes, on the wall clock. */
@@ -151,7 +171,19 @@ export interface TelegramChatProps {
    *  the latest; the cut edges fade under a blurred scrim. A phone defaults to its own
    *  box; frameless defaults to `FRAMELESS_CROP` so the page never reflows as it plays. */
   crop?: string
+  /** Reaction emoji as Telegram draws them, ANIMATED (Noto Animated Emoji, animated
+   *  WebP, no player, lazy): on by default. Off, the pill shows the text glyph. Each
+   *  animation is 150-300 KB, which is why only reactions get them, never body text. */
+  animatedEmoji?: boolean
   className?: string
+}
+
+/** Noto Animated Emoji (Google, Apache 2.0): the emoji's codepoints, hex, joined by
+ *  `_`, as one animated WebP at 512 px. Telegram's own animated set is TGS behind its
+ *  API and its own IP; this is the open equivalent every browser plays with no player. */
+export function animatedEmojiUrl(emoji: string): string {
+  const codes = [...emoji].map((c) => (c.codePointAt(0) as number).toString(16))
+  return `https://fonts.gstatic.com/s/e/notoemoji/latest/${codes.join("_")}/512.webp`
 }
 
 /** The frameless canvas's default viewport: a landing message slides the thread up
@@ -463,6 +495,23 @@ function Avatar({
   )
 }
 
+/** An emoji as Telegram paints a reaction: animated when the set has it, the glyph when
+ *  it does not (the request 404s and the image hands back to text). */
+function Emoji({ ch, animated }: { ch: string; animated: boolean }) {
+  const [plain, setPlain] = React.useState(!animated)
+  if (plain) return <>{ch}</>
+  return (
+    // biome-ignore lint/performance/noImgElement: an animated webp from a CDN, sized by the pill
+    <img
+      className="tgchat-emoji"
+      src={animatedEmojiUrl(ch)}
+      alt={ch}
+      loading="lazy"
+      onError={() => setPlain(true)}
+    />
+  )
+}
+
 // ── the component ──
 
 export function TelegramChat({
@@ -477,9 +526,28 @@ export function TelegramChat({
   frame = "phone",
   focus,
   crop,
+  animatedEmoji = true,
   className,
 }: TelegramChatProps) {
   const cut = crop ?? (frame === "none" ? FRAMELESS_CROP : undefined)
+  // The accounts: a `from` is a key into `people` when it is one, a bare name when not.
+  const profileOf = (who: string): ChatProfile | undefined =>
+    script.people?.[who]
+  const nameOf = (who: string) => profileOf(who)?.name ?? who
+  const header = profileOf(script.chatName)
+  const chatTag =
+    script.chatTag ?? (header?.bot ? (header.handle ?? "bot") : undefined)
+  // YOUR reactions: press a pill and you count; press again and you leave. Session
+  // state, keyed by message and emoji, on top of whatever the script and the afterlife
+  // clock give the pill.
+  const [mine, setMine] = React.useState<ReadonlySet<string>>(() => new Set())
+  const toggleMine = (key: string) =>
+    setMine((s) => {
+      const next = new Set(s)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
   const timeline = React.useMemo(() => buildTimeline(script), [script])
   const controlled = progress !== undefined
   const [auto, setAuto] = React.useState(0)
@@ -514,17 +582,25 @@ export function TelegramChat({
     Math.min(14000, Math.max(4000, (1 - floor) * timeline.total * 6))
 
   // The ceiling in raw 0..1 units: the end of message k's beat, mapped through the
-  // floor the way `eff` is. No `until`, and the ceiling is the end of the story.
-  const ceiling = (() => {
-    if (!until) return 1
-    const beat = timeline.beats[until.message]
-    if (!beat)
-      throw new Error(
-        `telegram-chat: until.message ${until.message} outside 0..${timeline.beats.length - 1}`,
-      )
-    const at = beat.end / timeline.total
-    return floor >= 1 ? 1 : Math.min(1, Math.max(0, (at - floor) / (1 - floor)))
-  })()
+  // floor the way `eff` is. No `until`, and the ceiling is the end of the story. THE
+  // ACT'S STORY IS "MESSAGE k LANDS NOW": everything before it is context and is already
+  // there, so `lift` is where the play starts when the ceiling is raised past it — a
+  // reader who scrolls two acts at once, or reloads mid-scrolly, gets the act's own
+  // beat and not a blurred replay of the whole conversation at normal speed.
+  const rawAt = (weight: number) =>
+    floor >= 1
+      ? 1
+      : Math.min(
+          1,
+          Math.max(0, (weight / timeline.total - floor) / (1 - floor)),
+        )
+  const untilBeat = until ? timeline.beats[until.message] : undefined
+  if (until && !untilBeat)
+    throw new Error(
+      `telegram-chat: until.message ${until.message} outside 0..${timeline.beats.length - 1}`,
+    )
+  const ceiling = untilBeat ? rawAt(untilBeat.end) : 1
+  const lift = untilBeat ? rawAt(untilBeat.start) : 0
 
   // One-shot in-view autoplay (uncontrolled only): rAF advance, paused off-screen,
   // reduced-motion renders the completed state, never replays (anti-strobe). The
@@ -539,6 +615,11 @@ export function TelegramChat({
       played.current = ceiling
       setAuto(ceiling)
       return
+    }
+    // Context lands whole; only the act's own beat plays.
+    if (played.current < lift) {
+      played.current = lift
+      setAuto(lift)
     }
     let frame = 0
     let last = 0
@@ -566,7 +647,7 @@ export function TelegramChat({
       io.disconnect()
       cancelAnimationFrame(frame)
     }
-  }, [controlled, autoDuration, ceiling])
+  }, [controlled, autoDuration, ceiling, lift])
 
   const raw = controlled ? (progress as number) : auto
   const eff = floor + (1 - floor) * Math.min(1, Math.max(0, raw))
@@ -671,7 +752,11 @@ export function TelegramChat({
   // press at a time, then (groups only) keeps creeping up forever.
   let afterlifeIndex = 0
   const arriveAt = (i: number) => afterlifeDelay + 3 + i * 6 + ((i * 7) % 7)
-  const reactionPills = (m: ChatMessage, beat: Beat) => {
+  // Pills are BUTTONS: Telegram's reactions are pressable, and the demo's are too. A
+  // pill you pressed is drawn as the client draws your own (filled in the accent) and
+  // counts you; pressing again takes you off it. What the script and the afterlife clock
+  // give the pill is the crowd; you are one more.
+  const reactionPills = (m: ChatMessage, beat: Beat, index: number) => {
     const shown: { emoji: string; count: number }[] = []
     for (const r of m.reactions ?? []) {
       if (r.when === "timeline") {
@@ -692,35 +777,49 @@ export function TelegramChat({
     if (shown.length === 0) return null
     return (
       <div className="tgchat-reacts">
-        {shown.map((r) => (
-          <span className="tgchat-react" key={r.emoji}>
-            {r.emoji}
-            {isGroup && <span className="n">{r.count}</span>}
-          </span>
-        ))}
+        {shown.map((r) => {
+          const key = `${index}:${r.emoji}`
+          const own = mine.has(key)
+          return (
+            <button
+              type="button"
+              className="tgchat-react"
+              key={r.emoji}
+              data-mine={own || undefined}
+              aria-pressed={own}
+              aria-label={`${r.emoji} ${r.count + (own ? 1 : 0)}`}
+              onClick={() => toggleMine(key)}
+            >
+              <Emoji ch={r.emoji} animated={animatedEmoji} />
+              {isGroup && <span className="n">{r.count + (own ? 1 : 0)}</span>}
+            </button>
+          )
+        })}
       </div>
     )
   }
 
-  const senderLabel = (name: string) =>
+  const senderLabel = (who: string) =>
     isGroup ? (
       <div
         className="tgchat-from"
-        style={{ color: SENDER_COLORS[senderIndex(name)] }}
+        style={{ color: SENDER_COLORS[senderIndex(nameOf(who))] }}
       >
-        {name}
+        {nameOf(who)}
       </div>
     ) : null
 
-  // Group chats put a mini avatar beside every left bubble, like Telegram does.
-  const leftRow = (
-    bubble: React.ReactNode,
-    name: string,
-    avatarUrl?: string,
-  ) =>
+  // Group chats put a mini avatar beside every left bubble, like Telegram does: the
+  // profile's picture when the sender has one, the message's own, else the initial.
+  const leftRow = (bubble: React.ReactNode, who: string, avatarUrl?: string) =>
     isGroup ? (
       <div className="tgchat-rowline">
-        <Avatar className="tgchat-mini" name={name} photo={avatarUrl} />
+        <Avatar
+          className="tgchat-mini"
+          name={nameOf(who)}
+          photo={avatarUrl ?? profileOf(who)?.avatar}
+          video={profileOf(who)?.avatarVideo}
+        />
         {bubble}
       </div>
     ) : (
@@ -803,7 +902,11 @@ export function TelegramChat({
       className={`tgchat${className ? ` ${className}` : ""}`}
       data-theme={theme}
       data-frame={frame}
-      data-focus={focused.length > 0 || undefined}
+      data-focus={
+        // The blur waits for the focused message to EXIST: before it lands there is
+        // nothing to focus on, and blurring everything pointed at nothing.
+        focused.some((f) => at >= (timeline.beats[f] as Beat).land) || undefined
+      }
       data-cut={cut ? "" : undefined}
       data-settled={completed || undefined}
       aria-label={script.alt}
@@ -915,7 +1018,7 @@ export function TelegramChat({
               </span>
               <div className="tgchat-card">
                 <div className="tgchat-names">
-                  <strong>{script.chatName}</strong>
+                  <strong>{nameOf(script.chatName)}</strong>
                   {typingLabel ? (
                     <span className="typing">
                       <span className="tgchat-tdots">
@@ -926,15 +1029,15 @@ export function TelegramChat({
                       {typingLabel}
                     </span>
                   ) : (
-                    <span>{script.chatTag}</span>
+                    chatTag && <span>{chatTag}</span>
                   )}
                 </div>
               </div>
               <Avatar
                 className="tgchat-avatar"
-                name={script.chatName}
-                photo={script.avatar}
-                video={script.avatarVideo}
+                name={nameOf(script.chatName)}
+                photo={script.avatar ?? header?.avatar}
+                video={script.avatarVideo ?? header?.avatarVideo}
               />
             </div>
             <div className="tgchat-messages" ref={thread}>
@@ -1001,7 +1104,7 @@ export function TelegramChat({
                           <span className="time">{m.meta.time}</span>
                         </div>
                       )}
-                      {reactionPills(m, beat)}
+                      {reactionPills(m, beat, i)}
                     </>
                   )
                   const hero = focused.includes(i) || undefined
@@ -1052,7 +1155,11 @@ export function TelegramChat({
                         {linkify(late.text)}
                       </div>
                     )
-                    if (!isGroup && !script.afterlife?.avatar)
+                    if (
+                      !isGroup &&
+                      !script.afterlife?.avatar &&
+                      !profileOf(who)?.avatar
+                    )
                       return (
                         <React.Fragment key={late.at}>{bubble}</React.Fragment>
                       )
@@ -1060,9 +1167,14 @@ export function TelegramChat({
                       <div className="tgchat-rowline" key={late.at}>
                         <Avatar
                           className="tgchat-mini"
-                          name={who}
-                          photo={script.afterlife?.avatar}
-                          video={script.afterlife?.avatarVideo}
+                          name={nameOf(who)}
+                          photo={
+                            script.afterlife?.avatar ?? profileOf(who)?.avatar
+                          }
+                          video={
+                            script.afterlife?.avatarVideo ??
+                            profileOf(who)?.avatarVideo
+                          }
                         />
                         {bubble}
                       </div>

@@ -15,6 +15,8 @@ import {
   usedBy,
   usesOf,
 } from "../registry"
+import { SamplesProvider } from "../samples"
+import { extractSamples } from "../samples-extract"
 
 export function generateStaticParams() {
   return ITEMS.map((i) => ({ item: i.name }))
@@ -102,8 +104,23 @@ export default async function ItemPage({ params }: PageProps<"/[item]">) {
           </p>
         ))}
 
+      {/* Each example's own code, cut from the demo source it was drawn by and
+          rendered here on the server; the demo's <Sample> blocks pick theirs up. */}
       <div className="mt-16">
-        <Demo />
+        <SamplesProvider
+          samples={Object.fromEntries(
+            Object.entries(src ? extractSamples(src.code) : {}).map(
+              ([name, code]) => [
+                name,
+                <Code key={name} lang="tsx" notations={false}>
+                  {code}
+                </Code>,
+              ],
+            ),
+          )}
+        >
+          <Demo />
+        </SamplesProvider>
       </div>
 
       {src && (

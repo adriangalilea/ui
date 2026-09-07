@@ -1,25 +1,46 @@
 "use client"
 
+import { Sample } from "@/app/samples"
 import { Act, ScrollStage, useAct } from "@/registry/base-nova/ui/scroll-stage"
 import {
+  type ChatProfile,
   type ChatScript,
   TelegramChat,
 } from "@/registry/base-nova/ui/telegram-chat"
 
+/** THE ACCOUNTS, ONCE. Every mock on a site keys its senders into one map like this, so
+ *  the bot always has its handle and its picture, a person their photo and profile
+ *  video, and a name is spelled one way. `from: "xtldr"` anywhere resolves to this. */
+const PEOPLE: Record<string, ChatProfile> = {
+  adrian: {
+    name: "Adrian",
+    handle: "@adriangalilea",
+    avatar: "/adriangalilea.jpg",
+    avatarVideo: "/adriangalilea.mp4",
+  },
+  melon: { name: "Melon", handle: "@melonflip" },
+  xtldr: {
+    name: "xtldr",
+    handle: "@xtldrbot",
+    avatar: "/xtldr-bot.jpg",
+    bot: true,
+  },
+}
+
 /** THE STORY IS THE BOT'S OWN FLOW: a link lands, someone tags the bot, the summary
- *  streams, a follow-up is asked, the bot answers. Three voices you can tell apart: Melon
- *  (a gradient initial), you on the right, and the bot with its own initial. The link is
- *  a VIDEO, because what xtldr cites is a timestamp (deep-linked with &t=), never a
- *  paragraph: a citation the real bot does not make is a lie the demo must not tell. */
+ *  streams, a follow-up is asked, the bot answers. The link is a VIDEO, because what
+ *  xtldr cites is a timestamp (deep-linked with &t=), never a paragraph: a citation the
+ *  real bot does not make is a lie the demo must not tell. */
 const VIDEO = "youtube.com/watch?v=ii1jcLg-eIQ"
 const SCRIPT: ChatScript = {
   kind: "group",
   chatName: "the garden",
   chatTag: "3 members",
+  people: PEOPLE,
   messages: [
-    { from: "Melon", text: "you have to watch this" },
+    { from: "melon", text: "you have to watch this" },
     {
-      from: "Melon",
+      from: "melon",
       text: VIDEO,
       preview: {
         site: "YouTube",
@@ -31,8 +52,8 @@ const SCRIPT: ChatScript = {
     },
     {
       from: "me",
-      text: "@xtldrbot",
-      reply: { from: "Melon", text: VIDEO },
+      text: PEOPLE.xtldr?.handle ?? "@xtldrbot",
+      reply: { from: PEOPLE.melon?.name ?? "Melon", text: VIDEO },
       typed: true,
     },
     {
@@ -69,7 +90,10 @@ const SCRIPT: ChatScript = {
         href: `https://${VIDEO}`,
         time: "⏱ 49 min",
       },
-      reactions: [{ emoji: "❤️", count: 2 }],
+      reactions: [
+        { emoji: "❤️", count: 2 },
+        { emoji: "🔥", count: 1 },
+      ],
     },
     {
       from: "me",
@@ -95,29 +119,66 @@ const SCRIPT: ChatScript = {
       ],
     },
   ],
-  afterlife: { from: "Melon", messages: [{ at: 8, text: "ok that was easy" }] },
+  afterlife: { from: "melon", messages: [{ at: 8, text: "ok that was easy" }] },
   alt: "A group chat: a friend drops a talk, the bot is tagged and summarizes it with timestamps, a follow-up gets a cited answer.",
+}
+
+/** The same people, two other chats: a private chat with Adrian (his photo and profile
+ *  video in the header, from the profile) and a DM with the bot (its picture, its handle
+ *  as the sub-line). Nothing about either was written twice. */
+const PEER: ChatScript = {
+  kind: "peer",
+  chatName: "adrian",
+  chatTag: "online",
+  people: PEOPLE,
+  messages: [
+    { from: "adrian", text: "the frameless telegram shipped" },
+    {
+      from: "me",
+      text: "finally",
+      reactions: [{ emoji: "🔥", when: "timeline" }],
+    },
+  ],
+  alt: "A private chat with Adrian.",
+}
+const BOT: ChatScript = {
+  kind: "bot",
+  chatName: "xtldr",
+  people: PEOPLE,
+  messages: [
+    { from: "me", text: VIDEO, typed: true },
+    {
+      from: "xtldr",
+      typing: "xtldr is watching",
+      source: VIDEO,
+      blocks: [
+        { kind: "heading", text: "In one line", emoji: "🧭" },
+        {
+          kind: "item",
+          text: "Work on your own problems; ideas follow",
+          cite: "31:20",
+        },
+      ],
+      pace: "instant",
+    },
+  ],
+  alt: "A direct message to the bot.",
 }
 
 const WALL = "/tg-pattern.svg"
 
-function Label({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="font-mono text-xs text-muted-foreground">{children}</div>
-  )
-}
-
 /** THE SCROLLY: an act index in; `until`, `focus` and `crop` out. The chat is PACED by
  *  the acts: each raises the ceiling and the story plays on to it, so an act never
- *  points back at a message the reader already watched land. The effects chain: the
- *  whole phone, then one message lifted with the rest blurred, then the viewport cut
- *  down onto the answer, the height transitioning rather than jumping. Nothing here is
- *  special to the chat; a consumer's storyboard does exactly this with its own words. */
+ *  points back at a message the reader already watched land, and a reader who arrives
+ *  at act three (two acts at once, or a reload) gets the act's own beat with everything
+ *  before it already there. The effects chain: the whole phone, then one message lifted
+ *  with the rest blurred, then the view zooms onto the answer, the phone growing and
+ *  the viewport closing down onto it. Nothing here is special to the chat; a
+ *  consumer's storyboard does exactly this with its own words per act. */
 const ACTS: {
   until: number
   focus?: number
   crop?: string
-  /** The zoom, width intact: the container grows and every size inside follows. */
   wide?: boolean
   head: string
   body: string
@@ -125,13 +186,13 @@ const ACTS: {
   {
     until: 2,
     head: "a link lands",
-    body: "someone drops an essay; you tag the bot. the phone plays to here and waits.",
+    body: "someone drops a talk; you tag the bot. the phone plays to here and waits.",
   },
   {
     until: 3,
     focus: 3,
     head: "the bot answers",
-    body: "the summary streams in and lifts; the rest blur and step back. hover brings them back.",
+    body: "the summary streams in and lifts; the rest blur and step back.",
   },
   {
     until: 5,
@@ -178,8 +239,7 @@ function Scrolly() {
 export default function Demo() {
   return (
     <div className="space-y-20">
-      <section className="space-y-4">
-        <Label>01 · the phone · both themes</Label>
+      <Sample name="phone" label="01 · the phone · both themes">
         <div className="flex justify-center gap-10">
           <TelegramChat script={SCRIPT} wallpaper={WALL} theme="dark" />
           <TelegramChat
@@ -189,13 +249,12 @@ export default function Demo() {
             className="max-lg:hidden"
           />
         </div>
-      </section>
+      </Sample>
 
-      <section className="space-y-4">
-        <Label>
-          02 · frame=&quot;none&quot; · the same script at the width the phone
-          was taking, in a viewport that never reflows the page
-        </Label>
+      <Sample
+        name="frameless"
+        label='02 · frame="none" · the same script at the width the phone was taking, in a viewport that never reflows the page'
+      >
         <div className="flex justify-center">
           <TelegramChat
             script={SCRIPT}
@@ -204,12 +263,12 @@ export default function Demo() {
             from={{ message: 3 }}
           />
         </div>
-      </section>
+      </Sample>
 
-      <section className="space-y-4">
-        <Label>
-          03 · focus · one message lifts, the rest blur and come back on hover
-        </Label>
+      <Sample
+        name="focus"
+        label="03 · focus · one message lifts, the rest blur and step back"
+      >
         <div className="flex flex-wrap items-start justify-center gap-10">
           <TelegramChat
             script={SCRIPT}
@@ -228,14 +287,12 @@ export default function Demo() {
             className="max-w-[18rem]"
           />
         </div>
-      </section>
+      </Sample>
 
-      <section className="space-y-4">
-        <Label>
-          04 · crop · the phone at full width, cut in height only, the edges
-          fading only where something is hidden; scrolled to a focus, or to the
-          latest
-        </Label>
+      <Sample
+        name="crop"
+        label="04 · crop · the phone at full width, cut in height only, the edges fading only where something is hidden; scrolled to a focus, or to the latest"
+      >
         <div className="flex flex-wrap items-start justify-center gap-10">
           <TelegramChat
             script={SCRIPT}
@@ -255,13 +312,32 @@ export default function Demo() {
             className="w-full max-w-[20rem]"
           />
         </div>
-      </section>
+      </Sample>
 
-      <section className="space-y-4">
-        <Label>
-          05 · a scrolly · an act index in; until, focus and crop out. the chat
-          is paced by the acts and the effects chain
-        </Label>
+      <Sample
+        name="people"
+        label="05 · people · the accounts defined once, every chat reads them: a private chat with Adrian, a DM with the bot"
+      >
+        <div className="flex flex-wrap items-start justify-center gap-10">
+          <TelegramChat
+            script={PEER}
+            wallpaper={WALL}
+            theme="dark"
+            className="max-w-[18rem]"
+          />
+          <TelegramChat
+            script={BOT}
+            wallpaper={WALL}
+            theme="dark"
+            className="max-w-[18rem]"
+          />
+        </div>
+      </Sample>
+
+      <Sample
+        name="scrolly"
+        label="06 · a scrolly · an act index in; until, focus and crop out. the chat is paced by the acts and the effects chain"
+      >
         <ScrollStage
           acts={ACTS.length}
           pace="80svh"
@@ -288,7 +364,14 @@ export default function Demo() {
         >
           <Scrolly />
         </ScrollStage>
-      </section>
+      </Sample>
+
+      <p className="max-w-prose text-foreground/60 text-sm">
+        Reactions are buttons: press one and you count, press again and you
+        leave. The emoji are Noto Animated Emoji (Google, Apache 2.0), animated
+        WebP, no player; Telegram&apos;s own set lives behind its API and is its
+        own. Each is 150-300 KB, lazy, which is why only reactions get them.
+      </p>
     </div>
   )
 }

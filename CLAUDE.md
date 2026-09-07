@@ -12,7 +12,7 @@ A public shadcn registry (`registry.json` at the root, items under `registry/bas
   diff cannot be read before it lands.
 - Every item has a `<name>.demo.tsx` beside its source and an entry in `app/demos.tsx`; `scripts/validate-registry.ts` refuses anything else. `lib/*` files are framework-free (no react, no DOM), asserted.
 - **Items meant to be used together share the head item's name**: `terminal` + `terminal-session`, `lightbox` + `lightbox-motion` + `lightbox-actions`, `telegram-chat` + `telegram-summary`. They sort together, they read as one thing, and `registry.json` keeps them adjacent. A part stays its own item only when something installs it ALONE (a build script renders a still with `terminal-session` and no React); otherwise it belongs in the head item's `files`, the way six engine files ship as `lightbox-motion`.
-- **Usage is never written by hand.** An item page renders its own `<name>.demo.tsx` verbatim, read at build time, under "the demo above, verbatim". Prose usage beside a demo drifts the first time either is touched; the same file cannot. So a demo is also the documentation: write it as the code you would want copied.
+- **Usage is never written by hand.** An item page renders its own `<name>.demo.tsx` verbatim, read at build time, under "the demo above, verbatim". Prose usage beside a demo drifts the first time either is touched; the same file cannot. So a demo is also the documentation: write it as the code you would want copied. **Every example carries its own code**: a demo wraps each example in `<Sample name="…" label="…">` (`app/samples.tsx`); the item page cuts the JSX inside each block out of the demo's source (`app/samples-extract.ts`), renders it through `<Code>` on the server and the Sample shows it under a `code` toggle, the way shadcn's pages do. The snippet IS the code that drew the example, so it cannot drift, and a Sample whose block the page did not find throws. New demos use it; the older ones move to it when touched.
 - **The index is derived, never hand-kept**: `app/registry.ts` reads `registryDependencies` and tells two relations apart. A PART shares the head's name (`quote-card`, `lightbox-motion`) and nests under it ("comes with"); everything else an item depends on is a standalone item it USES (`quote` uses `avatar`, `avatar` uses `lightbox`), which keeps its own row. **Every relation is shown from both ends** on the item pages: "comes with" / "part of", "uses" / "used by", derived from the same list so the two ends cannot disagree. Reading every dependency as a part once nested `avatar` under `quote` and dropped `lightbox` off the index; the validator refuses a name-part its head does not pull in. A demo shows the whole family working together where that is the point (the terminal page draws one script live AND as a still, which is the claim the pair exists to make).
 - Imports inside items use `@/registry/base-nova/{ui,lib,hooks,blocks}/...`; the CLI rewrites them to the consumer's aliases.
 - **How an item is styled (the pattern; `quote` and `avatar` are the reference).** Three tiers, and which one a value belongs to is decided by one question: is it a fixed value, a computed one, or something CSS alone can express?
@@ -361,10 +361,21 @@ Left on the item:
 ### telegram: the phone is a mode
 
 `telegram-chat` has four orthogonal knobs on one script (`/telegram-chat`, sections
-02-05). `until` is the autoplay's CEILING (play to the end of message k and wait; raise
-it and it resumes from where it waited): a storyboard paces the chat with it, one act
-at a time, because a chat that played whole in act one left acts two and three
-pointing back at messages already watched. Then `frame="none"` (bubbles on a bare canvas at the container's width; header a
+02-06). `until` is the autoplay's CEILING (play to the end of message k and wait; raise
+it and it resumes): a storyboard paces the chat with it, one act at a time, because a
+chat that played whole in act one left acts two and three pointing back at messages
+already watched. **An act's story is "message k lands now"**: everything before k is
+context and lands whole (`lift`, the start of k's beat), so a reader who skips two acts
+or reloads mid-scrolly gets the act's own beat, never a blurred replay at normal speed;
+the focus blur waits for the focused message to exist. **People** (`ChatScript.people`,
+`ChatProfile`): the accounts defined once, keyed by a message's `from`, so the bot has
+its handle and its picture and a person their photo and profile video everywhere; the
+header reads the profile too (a bot's handle is its default sub-line). **Reactions are
+buttons**: press one and you count, drawn as the client draws your own; the emoji are
+Noto Animated Emoji as animated WebP (Google, Apache 2.0, no player, lazy, 150-300 KB
+each, so reactions only; Telegram's set is TGS behind its API and its own IP), text
+glyph when the set lacks one. **Nothing happens on hover**: Telegram messages do not,
+and a bubble that moved under the pointer read as a control. Then `frame="none"` (bubbles on a bare canvas at the container's width; header a
 slim strip, composer only while typing), `focus` (indices that lift, the rest blur and
 return on hover, the code item's rule; a phone thread centres the focused message) and
 `crop` (a viewport of a given aspect: the device keeps its FULL WIDTH and is cut in

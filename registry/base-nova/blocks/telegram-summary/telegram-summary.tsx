@@ -75,6 +75,9 @@ export interface TelegramSummaryScript {
     reactions?: { emoji: string; count: number }[]
   }
   afterlife?: ChatScript["afterlife"]
+  /** The accounts, keyed by the names the flow uses (`chatName`, `linkFrom`,
+   *  `summary.from`): the bot's handle and picture, a person's photo, defined once. */
+  people?: ChatScript["people"]
   alt: string
 }
 
@@ -140,6 +143,7 @@ export function summaryScript(s: TelegramSummaryScript): ChatScript {
     chatTag: s.chatTag,
     avatar: s.avatar,
     avatarVideo: s.avatarVideo,
+    people: s.people,
     messages: summaryMessages(s),
     afterlife: s.afterlife,
     alt: s.alt,
