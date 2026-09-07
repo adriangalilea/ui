@@ -36,6 +36,15 @@ SEE a moving interface are both better than they are.
   a slide landed on a snap point, a dismiss engaged, a curve never reverses. Treat
   every one of them as necessary and never as sufficient. Green means nothing broke
   that was already understood. It never means it feels right.
+- **The dev-server session is how a bug is read, not guessed.** `mise dev`, then Adrian
+  opens `http://localhost:3100/<item>?debug` (LOCALHOST: Next blocks its own scripts
+  for any other origin, and a LAN address gives a page with no JavaScript, dead buttons
+  and all) and scrolls; the corner toggle writes the same `?debug`, one flag in the URL
+  (`app/debug.tsx`, `useDebug()`). With it on, demos post every decision to
+  `/api/trace` (dev-only) and it lands in `/tmp/ui-trace.jsonl`, which the agent
+  tails: `trace("cut", …)` from the chat's `debug` function prop, `trace("act", …)`
+  from the scrolly. A screen recording on the Desktop plus `ffmpeg -vf fps=3` frames
+  read alongside the trace found the coil-spring in one pass; the readout alone had not.
 - **Say which kind of claim is being made**, every time. "Verified structurally,
   unverified by hand" is a complete and honest status; "verified" alone, off a passing
   script, is a lie that has been told here before and cost rounds.
