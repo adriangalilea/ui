@@ -17,6 +17,7 @@ import {
 } from "../registry"
 import { SamplesProvider } from "../samples"
 import { extractSamples } from "../samples-extract"
+import { SourceLink } from "../source-link"
 
 export function generateStaticParams() {
   return ITEMS.map((i) => ({ item: i.name }))
@@ -68,12 +69,7 @@ export default async function ItemPage({ params }: PageProps<"/[item]">) {
         <span className="font-mono text-xs text-muted-foreground">
           {meta.type.replace("registry:", "")}
         </span>
-        <a
-          href={sourceUrl(meta)}
-          className="ml-auto font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
-        >
-          source ↗
-        </a>
+        <SourceLink href={sourceUrl(meta)} />
       </div>
       <p className="mt-2 max-w-prose text-[0.9375rem] text-foreground/70">
         {meta.description}

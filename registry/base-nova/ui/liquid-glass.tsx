@@ -12,7 +12,7 @@ export const glassVariants = cva(
   [
     "relative isolate bg-clip-padding",
     "backdrop-blur-[var(--glass-blur,6px)] backdrop-saturate-125",
-    "shadow-[0_4px_16px_-6px_rgb(0_0_0/0.2),inset_1px_2px_4px_-2px_rgb(255_255_255/0.16),inset_-1px_-2px_4px_-2px_rgb(255_255_255/0.08)]",
+    "shadow-[0_4px_16px_-6px_rgb(0_0_0/0.28),inset_1px_2px_4px_-2px_rgb(255_255_255/0.22),inset_-1px_-2px_4px_-2px_rgb(255_255_255/0.11)]",
     "before:pointer-events-none before:absolute before:inset-0 before:rounded-[inherit] before:p-[0.5px] before:content-['']",
     "before:bg-[linear-gradient(135deg,rgb(255_255_255/0.26),transparent_28%,transparent_72%,rgb(255_255_255/0.14))]",
     "before:[mask-image:linear-gradient(#000_0_0),linear-gradient(#000_0_0)] before:[mask-clip:content-box,border-box] before:[mask-composite:exclude]",
@@ -23,9 +23,9 @@ export const glassVariants = cva(
   {
     variants: {
       tone: {
-        auto: "bg-[var(--glass-tint,rgb(255_255_255/0.1))] text-foreground dark:bg-[var(--glass-tint,rgb(16_16_18/0.6))] supports-[not(backdrop-filter:blur(1px))]:bg-background/95",
+        auto: "bg-[var(--glass-tint,rgb(238_241_245/0.64))] text-foreground backdrop-saturate-100 backdrop-blur-[var(--glass-blur,5px)] shadow-[0_0_0_0.5px_rgb(24_32_44/0.08),0_2px_5px_-2px_rgb(24_32_44/0.24),0_8px_20px_-8px_rgb(24_32_44/0.22),inset_0_1px_0_rgb(255_255_255/0.7),inset_0_-0.5px_0_rgb(24_32_44/0.2)] dark:bg-[var(--glass-tint,rgb(16_16_18/0.6))] dark:backdrop-saturate-125 dark:backdrop-blur-[var(--glass-blur,6px)] dark:shadow-[0_4px_16px_-6px_rgb(0_0_0/0.28),inset_1px_2px_4px_-2px_rgb(255_255_255/0.22),inset_-1px_-2px_4px_-2px_rgb(255_255_255/0.11)] supports-[not(backdrop-filter:blur(1px))]:bg-background/95",
         light:
-          "bg-[var(--glass-tint,rgb(248_250_252/0.56))] text-zinc-950 backdrop-saturate-100 backdrop-blur-[var(--glass-blur,5px)] shadow-[0_3px_12px_-5px_rgb(0_0_0/0.14),inset_0_1px_2px_-1px_rgb(255_255_255/0.32),inset_0_-1px_2px_-1px_rgb(0_0_0/0.12)] supports-[not(backdrop-filter:blur(1px))]:bg-zinc-100/95",
+          "bg-[var(--glass-tint,rgb(238_241_245/0.64))] text-zinc-950 backdrop-saturate-100 backdrop-blur-[var(--glass-blur,5px)] shadow-[0_0_0_0.5px_rgb(24_32_44/0.08),0_2px_5px_-2px_rgb(24_32_44/0.24),0_8px_20px_-8px_rgb(24_32_44/0.22),inset_0_1px_0_rgb(255_255_255/0.7),inset_0_-0.5px_0_rgb(24_32_44/0.2)] supports-[not(backdrop-filter:blur(1px))]:bg-zinc-100/95",
         dark: "bg-[var(--glass-tint,rgb(16_16_18/0.6))] text-zinc-50 supports-[not(backdrop-filter:blur(1px))]:bg-zinc-950/95",
       },
       shape: {

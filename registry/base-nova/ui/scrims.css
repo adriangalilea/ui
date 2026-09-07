@@ -32,10 +32,11 @@
     background: linear-gradient(
       to bottom,
       color-mix(
-        in oklab,
-        var(--scrim-color, var(--background)) var(--scrim-strength, 90%),
-        transparent
-      ),
+          in oklab,
+          var(--scrim-color, var(--background)) var(--scrim-strength, 90%),
+          transparent
+        )
+        var(--scrim-start-stop, 0%),
       color-mix(
           in oklab,
           var(--scrim-color, var(--background)) var(--scrim-mid-strength, 35%),

@@ -164,20 +164,21 @@ const MANAGED: ChatScript = {
     ...PEER.messages,
     {
       from: ADRIAN,
-      text: "My new keyboard. The old split finally gave out.",
+      text: "My new keyboard.",
       reactions: [{ emoji: "❤️", count: 1, when: "timeline" }],
     },
+    { from: ADRIAN, text: "The old split finally gave out." },
     {
       from: "me",
       text: "That looks so comfortable",
       reply: { from: ADRIAN, text: "My new keyboard." },
     },
+    { from: "me", text: "I need to try it sometime" },
     {
       from: ADRIAN,
       text: "It took a little practice, but now I can keep my shoulders relaxed while I work.",
       reactions: [{ emoji: "🔥", count: 2, when: "timeline" }],
     },
-    { from: "me", text: "I need to try it sometime" },
     {
       from: ADRIAN,
       text: "Come over and try it. Bring the old one too — we might be able to fix it.",

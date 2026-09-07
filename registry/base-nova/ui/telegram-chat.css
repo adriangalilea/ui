@@ -63,12 +63,18 @@
     --tg-phone-button: linear-gradient(180deg, #b3b7bd, #8c9097);
     --tg-lift:
       0 24px 60px rgba(27, 29, 30, 0.22), 0 4px 14px rgba(27, 29, 30, 0.1);
-    --tg-screen: #ffffff;
+    --tg-screen: #c3d7ab;
+    --tg-wallpaper:
+      radial-gradient(ellipse at 12% 8%, #8fb995 0%, transparent 58%),
+      radial-gradient(ellipse at 92% 38%, #dce5b3 0%, transparent 60%),
+      radial-gradient(ellipse at 12% 88%, #d5d88f 0%, transparent 55%),
+      linear-gradient(145deg, #b6d1ac, #93bda6);
+    --tg-outgoing-reply: #568d48;
     --tg-island: #16181a;
     --tg-status-ink: #1c1c1a;
-    --tg-bot-bubble: #f1f1f1;
-    --tg-user-bubble: #0b74bd;
-    --tg-on-accent: #ffffff;
+    --tg-bot-bubble: #ffffff;
+    --tg-user-bubble: #e4ffc7;
+    --tg-on-accent: #192619;
     --tg-border: #e4e4e2;
     --tg-text: #1c1c1a;
     --tg-muted: #69675f;
@@ -76,8 +82,8 @@
     --tg-accent: #0b74bd;
     --tg-reaction: #168acd;
     --tg-link: #0b74bd;
-    --tg-doodle: rgba(0, 0, 0, 0.08);
-    --tg-glass: rgba(255, 255, 255, 0.27);
+    --tg-doodle: rgba(48, 83, 48, 0.16);
+    --tg-glass: rgba(250, 255, 244, 0.6);
   }
   /* `theme="page"`, the default, follows the page instead of being told. It is the same
    two palettes with a second selector each, never a third copy: the page's own `.dark`
@@ -101,6 +107,8 @@
     --tg-phone-button: linear-gradient(180deg, #5c6167, #43474d);
     --tg-lift: 0 24px 60px rgba(0, 0, 0, 0.45), 0 4px 14px rgba(0, 0, 0, 0.3);
     --tg-screen: #101315;
+    --tg-wallpaper: none;
+    --tg-outgoing-reply: var(--tg-on-accent);
     --tg-island: #000000;
     --tg-status-ink: #e8e6e1;
     --tg-bot-bubble: #1e2227;
@@ -179,7 +187,7 @@
     height: 100%;
     overflow: hidden;
     flex-direction: column;
-    background: var(--tg-screen);
+    background: var(--tg-wallpaper), var(--tg-screen);
     border-radius: var(--tg-screen-radius);
     color: var(--tg-text);
     font-size: 3.8cqw;
@@ -213,8 +221,12 @@
 
   .tgchat .tgchat-chrome-scrim[data-edge="top"] {
     --scrim-blur: 0.35cqw;
-    --scrim-strength: 24%;
-    --scrim-mid-strength: 8%;
+    /* Protect the clock with tint, then let the thread reappear beneath the
+       floating header. The blur stays subtle and is independent of the shade. */
+    --scrim-strength: 84%;
+    --scrim-start-stop: var(--tg-header-top);
+    --scrim-mid-strength: 14%;
+    --scrim-mid-stop: 70%;
   }
 
   .tgchat[data-managed] .tgchat-chrome-scrim {
@@ -441,17 +453,18 @@
     min-height: 100%;
     flex-direction: column;
     justify-content: flex-end;
-    gap: 3.4cqw;
+    gap: var(--tg-message-gap, 3.4cqw);
     padding: calc(var(--tg-header-top) + 16cqw) 4cqw
       calc(var(--tg-composer-h) + 11.8cqw);
   }
 
-  /* Telegram iOS geometry at the 356 design width: 17px corners, 7 x 12 padding. */
+  /* Compact message corners at the 356 design width: 12px, with 7 x 12 padding. */
   .tgchat-bubble {
+    position: relative;
     inline-size: fit-content;
     max-inline-size: 94%;
     padding: 1.9cqw 3.4cqw;
-    border-radius: 4.8cqw;
+    border-radius: 3.4cqw;
     animation: tgchat-bubble-in 350ms var(--tg-ease) both;
   }
   @keyframes tgchat-bubble-in {
@@ -468,7 +481,44 @@
   .tgchat-bubble.bot {
     align-self: flex-start;
     background: var(--tg-bot-bubble);
-    border-bottom-left-radius: 1.7cqw;
+    border-bottom-left-radius: 0.9cqw;
+  }
+  /* A curved, outward tip joins the small sender-side corner. The mask keeps
+     the cutout transparent over both the wallpaper and moving content. */
+  .tgchat-bubble::before {
+    content: "";
+    position: absolute;
+    bottom: -0.25cqw;
+    left: -0.55cqw;
+    width: 2.2cqw;
+    height: 2.8cqw;
+    background: var(--tg-bot-bubble);
+    pointer-events: none;
+    mask:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 14'%3E%3Cpath d='M6 0H10V10C8 12 5 13 1 14C4 10 6 6 6 0Z'/%3E%3C/svg%3E")
+      center / 100% 100% no-repeat;
+  }
+  .tgchat-bubble.user::before {
+    right: -0.55cqw;
+    left: auto;
+    transform: scaleX(-1);
+    background: var(--tg-user-bubble);
+  }
+  .tgchat[data-frame="none"] .tgchat-bubble::before {
+    display: none;
+  }
+  .tgchat-bubble:not([data-tail])::before {
+    display: none;
+  }
+  .tgchat-bubble.bot:not([data-tail]) {
+    border-bottom-left-radius: 3.4cqw;
+  }
+  .tgchat-bubble.user:not([data-tail]) {
+    border-bottom-right-radius: 3.4cqw;
+  }
+  .tgchat-thread > .tgchat-bubble[data-continued],
+  .tgchat-thread > .tgchat-rowline:has(> .tgchat-bubble[data-continued]) {
+    margin-top: calc(var(--tg-message-gap, 3.4cqw) / -2);
   }
   /* Reaction pills, as Telegram draws them: rounded chips at the bubble's foot,
    emoji + count, popping in with a small scale. */
@@ -572,7 +622,7 @@
     color: var(--tg-on-accent);
     overflow-wrap: anywhere;
     background: var(--tg-user-bubble);
-    border-bottom-right-radius: 1.7cqw;
+    border-bottom-right-radius: 0.9cqw;
   }
   .tgchat-bubble.link {
     max-inline-size: min(94%, 24ch);
@@ -614,30 +664,45 @@
 
   /* The quoted message inside a reply bubble, as Telegram draws it: a rule, the quoted
    sender, one truncated line. */
-  /* The quoted message, as the client draws it: a rounded panel washed in the bubble's
-   own ink, a bar down its left, the name bold, the text on one line. In an outgoing
-   bubble the ink is white; in an incoming one, the accent. */
+  /* Reply previews keep a straight inner accent edge inside the rounded panel.
+     The incoming accent belongs to the quoted sender; outgoing ink follows the theme. */
   .tgchat-reply {
+    position: relative;
+    isolation: isolate;
+    --tg-reply-ink: var(--tg-reply-color, var(--tg-accent));
     display: flex;
     flex-direction: column;
     gap: 0.3cqw;
     margin-bottom: 1.6cqw;
-    padding: 1.2cqw 2.6cqw 1.3cqw 2.8cqw;
-    border-left: 3px solid var(--tg-accent);
-    border-radius: 1.8cqw;
-    background: color-mix(in srgb, var(--tg-accent) 12%, transparent);
+    padding: 1.2cqw 2.6cqw 1.3cqw calc(2.8cqw + 3px);
+    border-radius: 1.2cqw;
+    background:
+      linear-gradient(to right, var(--tg-reply-ink) 3px, transparent 3px),
+      color-mix(in srgb, var(--tg-reply-ink) 10%, transparent);
   }
   .tgchat-bubble.user .tgchat-reply {
-    border-left-color: var(--tg-on-accent);
-    background: rgba(255, 255, 255, 0.16);
+    --tg-reply-ink: var(--tg-outgoing-reply);
+  }
+  /* A quiet quote motif, strongest at the trailing edge and behind the text. */
+  .tgchat-reply::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 0 0 0 35%;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0.12;
+    background-color: var(--tg-reply-ink);
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='32' viewBox='0 0 40 32'%3E%3Cg fill='none' stroke='black' stroke-width='1.5' transform='translate(12 8) rotate(-15 8 8)'%3E%3Cpath d='M0 0h6v7c0 4-2 6-5 7v-3c2-1 2-2 2-4H0zM10 0h6v7c0 4-2 6-5 7v-3c2-1 2-2 2-4h-3z'/%3E%3C/g%3E%3C/svg%3E");
+    mask-size: 11cqw 9cqw;
   }
   .tgchat-reply strong {
-    color: var(--tg-accent);
+    color: var(--tg-reply-color, var(--tg-accent));
     font-size: 3.4cqw;
     font-weight: 600;
   }
   .tgchat-bubble.user .tgchat-reply strong {
-    color: var(--tg-on-accent);
+    color: var(--tg-outgoing-reply);
   }
   .tgchat-reply span {
     overflow: hidden;
@@ -722,10 +787,11 @@
   .tgchat-quote {
     position: relative;
     margin: 0;
-    padding: 1.4cqw 7.5cqw 1.4cqw 3.4cqw;
-    border-left: 3px solid var(--tg-quote);
+    padding: 1.4cqw 7.5cqw 1.4cqw calc(3.4cqw + 3px);
     border-radius: 1.4cqw;
-    background: color-mix(in srgb, var(--tg-quote) 12%, transparent);
+    background:
+      linear-gradient(to right, var(--tg-quote) 3px, transparent 3px),
+      color-mix(in srgb, var(--tg-quote) 12%, transparent);
   }
   .tgchat-quote::after {
     content: "\201D";

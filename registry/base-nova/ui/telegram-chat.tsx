@@ -39,7 +39,7 @@
 import { ChevronDown, SlidersHorizontal } from "lucide-react"
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { Glass } from "@/registry/base-nova/ui/liquid-glass"
+import { Glass, type GlassTone } from "@/registry/base-nova/ui/liquid-glass"
 import { Scrims } from "@/registry/base-nova/ui/scrims"
 import { WebPreview } from "@/registry/base-nova/ui/web-preview"
 import "./telegram-chat.css"
@@ -666,10 +666,15 @@ function Emoji({
 }
 
 /** Shared glass material; Telegram owns its container-relative geometry and theme. */
-function TelegramGlass({ className, ...props }: React.ComponentProps<"div">) {
+function TelegramGlass({
+  tone,
+  className,
+  ...props
+}: React.ComponentProps<"div"> & { tone: GlassTone }) {
   return (
     <Glass
       shape="surface"
+      tone={tone}
       className={cn(
         "bg-(--tg-glass) text-(--tg-text) [--glass-blur:1.35cqw] dark:bg-(--tg-glass)",
         className,
@@ -711,6 +716,23 @@ export function TelegramChat({
     typeof who === "string" ? script.people?.[who] : who
   const nameOf = (who: Who) =>
     typeof who === "string" ? (profileOf(who)?.name ?? who) : who.name
+  const sameSender = (a: Who, b: Who) => {
+    if (a === b) return true
+    // "me" is a reserved role, even if a profile happens to share its name.
+    if (a === "me" || b === "me") return false
+    const first = profileOf(a)
+    const second = profileOf(b)
+    if (!first || !second) return false
+    return (
+      first === second ||
+      Boolean(
+        first.handle &&
+          second.handle &&
+          first.handle.toLowerCase() === second.handle.toLowerCase(),
+      )
+    )
+  }
+  const glassTone = theme === "page" ? "auto" : theme
   const [showLatest, setShowLatest] = React.useState(false)
   const manager = script.managedBy ? profileOf(script.managedBy) : undefined
   const header = profileOf(script.chatName)
@@ -1378,6 +1400,15 @@ export function TelegramChat({
     const final = !Number.isFinite(clock)
     const source = m.source ?? linkIn(m.text) ?? ""
     const next = timeline.beats[i + 1]
+    const previousMessage = script.messages[i - 1]
+    const nextMessage = script.messages[i + 1]
+    const continued =
+      previousMessage && sameSender(previousMessage.from, m.from)
+    const hasFollowing =
+      nextMessage &&
+      next &&
+      clock >= next.land &&
+      sameSender(nextMessage.from, m.from)
     const lit = Boolean(m.emphasis) && (!next || clock < next.land)
     const streaming = m.blocks !== undefined
     let full = 0
@@ -1397,7 +1428,15 @@ export function TelegramChat({
     const body = (
       <>
         {m.reply && (
-          <div className="tgchat-reply">
+          <div
+            className="tgchat-reply"
+            style={
+              {
+                "--tg-reply-color":
+                  SENDER_COLORS[senderIndex(nameOf(m.reply.from))],
+              } as React.CSSProperties
+            }
+          >
             <strong>{nameOf(m.reply.from)}</strong>
             <span>{m.reply.text}</span>
           </div>
@@ -1444,6 +1483,8 @@ export function TelegramChat({
         <div
           ref={hold}
           data-focused={hero}
+          data-continued={continued || undefined}
+          data-tail={!hasFollowing || undefined}
           className={`tgchat-bubble user${m.preview || linkIn(m.text) ? " link" : ""}`}
           key={i}
         >
@@ -1456,6 +1497,8 @@ export function TelegramChat({
           <div
             ref={hold}
             data-focused={hero}
+            data-continued={continued || undefined}
+            data-tail={!hasFollowing || undefined}
             className={`tgchat-bubble bot${streaming ? " tgchat-summary" : ""}${!streaming && (m.preview || linkIn(m.text)) ? " link" : ""}`}
             // The sender's peer colour: Telegram tints a quote in an incoming message
             // with it, the same palette that colours a group's sender labels.
@@ -1600,7 +1643,7 @@ export function TelegramChat({
                 story, the typing status, goes into the thread instead. */}
             {frame === "phone" && (
               <div className="tgchat-header" aria-hidden="true">
-                <TelegramGlass className="tgchat-round">
+                <TelegramGlass tone={glassTone} className="tgchat-round">
                   <svg
                     aria-hidden="true"
                     viewBox="0 0 16 16"
@@ -1612,7 +1655,7 @@ export function TelegramChat({
                     <path d="M10 3 5 8l5 5" />
                   </svg>
                 </TelegramGlass>
-                <TelegramGlass className="tgchat-card">
+                <TelegramGlass tone={glassTone} className="tgchat-card">
                   <div className="tgchat-names">
                     <strong>{nameOf(script.chatName)}</strong>
                     {typingLabel ? (
@@ -1629,7 +1672,7 @@ export function TelegramChat({
                     )}
                   </div>
                 </TelegramGlass>
-                <TelegramGlass className="tgchat-profile">
+                <TelegramGlass tone={glassTone} className="tgchat-profile">
                   <Avatar
                     className="tgchat-avatar"
                     name={nameOf(script.chatName)}
@@ -1641,6 +1684,7 @@ export function TelegramChat({
             )}
             {frame === "phone" && script.managedBy && (
               <TelegramGlass
+                tone={glassTone}
                 className="tgchat-manager absolute"
                 aria-hidden="true"
               >
@@ -1749,6 +1793,7 @@ export function TelegramChat({
               // Story chrome like the rest of the mockup (the figure's alt tells the
               // story), not a control: nothing here is for choosing.
               <TelegramGlass
+                tone={glassTone}
                 className="tgchat-options absolute"
                 aria-hidden="true"
               >
@@ -1767,6 +1812,7 @@ export function TelegramChat({
             )}
             {composing?.reply && composerChars > 0 && (
               <TelegramGlass
+                tone={glassTone}
                 className="tgchat-replybar absolute [.tgchat[data-frame=none]_&]:relative"
                 aria-hidden="true"
               >
@@ -1792,6 +1838,7 @@ export function TelegramChat({
               <Glass
                 as="button"
                 shape="circle"
+                tone={glassTone}
                 className="absolute right-(--tg-control-inset) bottom-[calc(var(--tg-composer-h)+var(--tg-control-inset)+2cqw)] z-3 size-[10cqw] bg-(--tg-glass) text-(--tg-text) [--glass-blur:1.35cqw] dark:bg-(--tg-glass)"
                 aria-label="Jump to latest message"
                 onClick={() => {
@@ -1824,7 +1871,7 @@ export function TelegramChat({
                   Menu
                 </span>
               )}
-              <TelegramGlass className="cbtn">
+              <TelegramGlass tone={glassTone} className="cbtn">
                 <svg
                   aria-hidden="true"
                   viewBox="0 0 24 24"
@@ -1837,7 +1884,7 @@ export function TelegramChat({
                   <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                 </svg>
               </TelegramGlass>
-              <TelegramGlass className="box">
+              <TelegramGlass tone={glassTone} className="box">
                 {composing && composerChars > 0 ? (
                   <span className="typed">
                     <span>
@@ -1863,7 +1910,7 @@ export function TelegramChat({
                   <line x1="15" y1="9" x2="15.01" y2="9" />
                 </svg>
               </TelegramGlass>
-              <TelegramGlass className="cbtn">
+              <TelegramGlass tone={glassTone} className="cbtn">
                 <svg
                   aria-hidden="true"
                   viewBox="0 0 24 24"

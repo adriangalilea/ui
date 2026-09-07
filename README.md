@@ -57,3 +57,40 @@ provide the classes for existing elements; merge overrides with `cn()`.
 The `/liquid-glass` showcase uses the lightbox demo's photograph IDs, served locally.
 It glides horizontally between photos, snaps during manual navigation, and pauses
 offscreen. Reduced-motion users start with a still gallery.
+
+## Telegram storyboard
+
+```tsx
+import { TelegramChat, type ChatScript } from "@/components/ui/telegram-chat"
+
+const adrian = { name: "Adrian", handle: "@adriangalilea" }
+const script = {
+  kind: "peer",
+  chatName: adrian,
+  chatTag: "online",
+  alt: "Adrian and me planning a keyboard meetup.",
+  messages: [
+    { from: adrian, text: "Come over and try it." },
+    { from: adrian, text: "Bring your old keyboard too." },
+    { from: "me", text: "Saturday?" },
+  ],
+} satisfies ChatScript
+
+<TelegramChat script={script} theme="page" />
+```
+
+Reuse a profile object, or put profiles in `script.people` and use their keys.
+`"me"` means outgoing. Consecutive messages from the same account use half the
+normal gap; only the last visible message gets a tail. Display names alone do not
+merge different profiles.
+
+Omit `progress` for autoplay when visible; use `progress={1}` for a finished still,
+or pass a value from 0 to 1 to scrub. `frame="none"` presents the conversation
+without a phone. This is a storyboard, not a messaging client: header and composer
+chrome are decorative; links, scrolling, and reactions are interactive.
+
+`theme` accepts `page`, `light`, or `dark`. The `wallpaper` prop is a doodle **mask
+URL**, not a photograph. Tailwind classes on the root can override inherited CSS
+variables, for example `className="[--tg-message-gap:4cqw]"`. The grouped gap stays
+half that value. Light mode uses a colored wallpaper beneath translucent controls;
+`--tg-wallpaper` controls that CSS background and `--tg-screen` its scrim tint.
