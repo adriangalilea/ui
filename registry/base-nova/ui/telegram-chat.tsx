@@ -153,6 +153,16 @@ export interface TelegramChatProps {
  *  inside it instead of growing the page under the reader. */
 export const FRAMELESS_CROP = "4 / 3"
 
+/** A CSS aspect-ratio value ("4 / 3", "1/1", "1.5") as width over height. */
+function ratioOf(crop: string): number {
+  const m = /^\s*([\d.]+)\s*(?:\/\s*([\d.]+))?\s*$/.exec(crop)
+  const w = m ? Number(m[1]) : Number.NaN
+  const h = m?.[2] ? Number(m[2]) : 1
+  if (!(w > 0) || !(h > 0))
+    throw new Error(`telegram-chat: crop "${crop}" is not an aspect ratio`)
+  return w / h
+}
+
 type Placement = { x: number; y: number; w: number; h: number }
 
 /** An element's box in its ancestor's layout coordinates, transforms ignored: the offset
@@ -570,29 +580,41 @@ export function TelegramChat({
     if (!completed || atBottom) el.scrollTop = el.scrollHeight
   }, [completed, eff, aliveSec, target])
 
-  // THE CUT: inside a cropped viewport the device keeps its width and is panned
-  // vertically, so the focused message's centre (measured in layout coordinates, the
-  // thread's scroll subtracted) sits at the viewport's centre, or, with nothing focused,
-  // so the latest messages show. Clamped to the device's own edges. Re-measured whenever
-  // the story grows the thread or the box changes; the CSS transition carries it, so a
-  // landing message slides the thread up the way a chat does.
-  const [pan, setPan] = React.useState<number | null>(null)
+  // THE CUT is a real scroller. The viewport takes the crop's height (a measured px
+  // value, so a change of crop TRANSITIONS instead of jumping: a phone with a focused
+  // message can cut down onto it in the next act), the device keeps its full width
+  // inside it, and the viewport scrolls so the focused message's centre (measured in
+  // layout coordinates, the thread's scroll subtracted) sits at its centre, or, with
+  // nothing focused, to the latest. A scroll, not a transform: the reader can scroll
+  // up once the story settles, exactly as in the phone's thread, and the edge scrims
+  // are scroll-driven in CSS, so they appear only where something is actually hidden.
+  // Smooth after the first frame, so a landing message slides the thread up the way a
+  // chat does; instant under reduced motion.
+  const [viewH, setViewH] = React.useState<number | null>(null)
+  const settledOnce = React.useRef(false)
   // biome-ignore lint/correctness/useExhaustiveDependencies: eff and aliveSec grow the thread and move the message
   React.useLayoutEffect(() => {
     const port = view.current
     const dev = device.current
     if (!cut || !port || !dev) {
-      setPan(null)
+      setViewH(null)
+      settledOnce.current = false
       return
     }
     const place = () => {
-      const vh = port.clientHeight
+      const vh = port.clientWidth / ratioOf(cut)
       const dh = dev.offsetHeight
+      setViewH(vh)
       const hero = target === undefined ? null : bubbles.current[target]
       const want = hero
-        ? vh / 2 - (placeIn(hero, dev).y + hero.offsetHeight / 2)
-        : vh - dh
-      setPan(dh <= vh ? 0 : Math.min(0, Math.max(vh - dh, want)))
+        ? placeIn(hero, dev).y + hero.offsetHeight / 2 - vh / 2
+        : dh - vh
+      const top = Math.max(0, Math.min(dh - vh, want))
+      const smooth =
+        settledOnce.current &&
+        !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      port.scrollTo({ top, behavior: smooth ? "smooth" : "auto" })
+      settledOnce.current = true
     }
     place()
     const ro = new ResizeObserver(place)
@@ -743,22 +765,22 @@ export function TelegramChat({
       data-settled={completed || undefined}
       aria-label={script.alt}
     >
-      {/* The viewport: what the reader sees of the device. Cut to an aspect, it pans the
-          device vertically inside it; otherwise it is the device's own box. */}
+      {/* The viewport: what the reader sees of the device. Cut to an aspect, it is a
+          scroller of that height with the device inside at full width and a scrim at
+          each edge that hides something; otherwise it is the device's own box. */}
       <div
         ref={view}
         className="tgchat-view"
-        style={cut ? { aspectRatio: cut } : undefined}
+        style={
+          cut
+            ? viewH !== null
+              ? { height: `${viewH.toFixed(1)}px` }
+              : { aspectRatio: cut }
+            : undefined
+        }
       >
-        <div
-          ref={device}
-          className="tgchat-phone"
-          style={
-            pan !== null
-              ? { transform: `translateY(${pan.toFixed(1)}px)` }
-              : undefined
-          }
-        >
+        {cut && <div className="tgchat-scrim" data-edge="top" />}
+        <div ref={device} className="tgchat-phone">
           {frame === "phone" && (
             <>
               <span className="tgchat-btn action" />
@@ -1094,6 +1116,7 @@ export function TelegramChat({
             )}
           </div>
         </div>
+        {cut && <div className="tgchat-scrim" data-edge="bottom" />}
       </div>
     </figure>
   )

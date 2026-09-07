@@ -365,12 +365,18 @@ Left on the item:
 slim strip, composer only while typing), `focus` (indices that lift, the rest blur and
 return on hover, the code item's rule; a phone thread centres the focused message) and
 `crop` (a viewport of a given aspect: the device keeps its FULL WIDTH and is cut in
-height only, panned to the focused message or to the latest, the cut edges fading
-under a backdrop-blur scrim; the message's place is MEASURED in layout coordinates
-with the thread's scroll subtracted, and the pan transitions, so a landing message
-slides the thread up and a scrolly glides between messages). Frameless crops to
-`FRAMELESS_CROP` by default, because a canvas that grew as messages landed reflowed
-the page under the reader. **Judged on the demo:** scaling the device into a bubble
+height only, scrolled to the focused message or to the latest; the message's place is
+MEASURED in layout coordinates with the thread's scroll subtracted). The cut is a REAL
+SCROLLER, not a transform: the reader scrolls it once the story settles, the phone
+thread's own rule, and the scroll is smooth so a landing message slides the thread up
+and a scrolly glides between messages. Its height is set in px so a change of crop
+transitions, which is what lets the effects chain (whole phone → one message lifted →
+the viewport cut down onto it). The edge scrims are scroll-driven in CSS on two
+registered numbers, so a scrim exists only where something is hidden: at the bottom of
+the thread the last message is never blurred by a band with nothing to hide, and a
+browser without scroll timelines gets a clean cut rather than a wrong scrim. Frameless
+crops to `FRAMELESS_CROP` by default, because a canvas that grew as messages landed
+reflowed the page under the reader. **Judged on the demo:** scaling the device into a bubble
 cut the width and lost the phone; an unscaled phone panned vertically is what still
 reads as Telegram, so there is no scale knob. Bare canvas for copy that must be read,
 the cut phone for copy that must still look like a phone.

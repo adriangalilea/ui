@@ -890,46 +890,110 @@ video.tgchat-mini {
 .tgchat-view {
   position: relative;
 }
+/* THE CUT IS A SCROLLER. Its height is the crop's, set in px by the component so a
+   change of crop transitions; the wheel belongs to the page while the story streams
+   and to the viewport once it has settled, the phone thread's own rule. A scrim only
+   where something is hidden: the two edge fades are driven by the scroll position
+   itself (scroll-driven animations on two registered numbers), so at the top of the
+   thread there is no top scrim and at the bottom no bottom scrim, and the last
+   message is never blurred by a band that has nothing to hide. Browsers without
+   scroll timelines get a clean cut and no scrim, never a wrong one. */
+@property --tg-cut-top {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+@property --tg-cut-bottom {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
 .tgchat[data-cut] .tgchat-view {
   overflow: hidden;
-  --tg-fade: 14%;
+  scrollbar-width: none;
+  --tg-fade: 9%;
   mask-image: linear-gradient(
     to bottom,
-    transparent,
-    #000 var(--tg-fade),
-    #000 calc(100% - var(--tg-fade)),
-    transparent
+    rgb(0 0 0 / calc(1 - var(--tg-cut-top))),
+    #000 calc(var(--tg-fade) * var(--tg-cut-top)),
+    #000 calc(100% - var(--tg-fade) * var(--tg-cut-bottom)),
+    rgb(0 0 0 / calc(1 - var(--tg-cut-bottom)))
   );
+  animation:
+    tgchat-cut-top linear both,
+    tgchat-cut-bottom linear both;
+  animation-timeline: scroll(self block), scroll(self block);
+  animation-range:
+    0 6%,
+    94% 100%;
+  transition: height 800ms var(--tg-ease);
 }
-.tgchat[data-cut] .tgchat-phone {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  transition: transform 800ms var(--tg-ease);
+.tgchat[data-settled][data-cut] .tgchat-view {
+  overflow-y: auto;
 }
-.tgchat[data-cut] .tgchat-view::before,
-.tgchat[data-cut] .tgchat-view::after {
-  position: absolute;
+.tgchat[data-cut] .tgchat-view::-webkit-scrollbar {
+  display: none;
+}
+@keyframes tgchat-cut-top {
+  from {
+    --tg-cut-top: 0;
+  }
+  to {
+    --tg-cut-top: 1;
+  }
+}
+@keyframes tgchat-cut-bottom {
+  from {
+    --tg-cut-bottom: 1;
+  }
+  to {
+    --tg-cut-bottom: 0;
+  }
+}
+/* The blur under each fade: sticky, so it stays at the edge while the content
+   scrolls under it, taking no room in the flow, fading with the same scroll. */
+.tgchat-scrim {
+  position: sticky;
   z-index: 6;
-  right: 0;
-  left: 0;
   height: var(--tg-fade);
-  content: "";
   pointer-events: none;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: tgchat-scrim-top linear both;
+  animation-timeline: scroll(nearest block);
+  animation-range: 0 6%;
+  opacity: 0;
 }
-.tgchat[data-cut] .tgchat-view::before {
+.tgchat-scrim[data-edge="top"] {
   top: 0;
+  margin-bottom: calc(-1 * var(--tg-fade));
   mask-image: linear-gradient(to bottom, #000, transparent);
 }
-.tgchat[data-cut] .tgchat-view::after {
+.tgchat-scrim[data-edge="bottom"] {
   bottom: 0;
+  margin-top: calc(-1 * var(--tg-fade));
   mask-image: linear-gradient(to top, #000, transparent);
+  animation-name: tgchat-scrim-bottom;
+  animation-range: 94% 100%;
+}
+@keyframes tgchat-scrim-top {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes tgchat-scrim-bottom {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .tgchat[data-cut] .tgchat-phone {
+  .tgchat[data-cut] .tgchat-view {
     transition: none;
   }
 }

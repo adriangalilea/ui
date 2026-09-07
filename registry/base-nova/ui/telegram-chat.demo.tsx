@@ -61,22 +61,25 @@ function Label({ children }: { children: React.ReactNode }) {
   )
 }
 
-/** THE SCROLLY: an act index in, focus out. Nothing here is special to the chat; a
- *  consumer's storyboard does exactly this with its own words per act. */
-const ACTS: { focus?: number; head: string; body: string }[] = [
+/** THE SCROLLY: an act index in, focus and crop out. The effects CHAIN: the whole
+ *  phone, then one message lifted with the rest blurred, then the viewport cut down
+ *  onto it, the height transitioning rather than jumping. Nothing here is special to
+ *  the chat; a consumer's storyboard does exactly this with its own words per act. */
+const ACTS: { focus?: number; crop?: string; head: string; body: string }[] = [
   {
     head: "a conversation",
-    body: "the phone cut to the card, panned to the latest, playing once on its own clock as it enters.",
+    body: "the whole phone, playing once on its own clock as it enters.",
   },
   {
-    focus: 1,
-    head: "then a question",
-    body: "the cut pans to the message that matters; the rest steps back.",
+    focus: 2,
+    head: "then one message",
+    body: "it lifts; the rest blur and step back. hover brings them back.",
   },
   {
     focus: 3,
-    head: "then the answer",
-    body: "the pan glides from one message to the next. scroll back and it returns.",
+    crop: "4 / 3",
+    head: "then the answer, up close",
+    body: "the viewport cuts down onto it, full width, the height gliding; the edges fade only where something is hidden. scroll it once it has settled.",
   },
 ]
 
@@ -84,7 +87,7 @@ function Scrolly() {
   const act = useAct()
   const now = ACTS[act] as (typeof ACTS)[number]
   return (
-    <div className="grid h-svh items-center gap-10 lg:grid-cols-[1fr_minmax(0,28rem)]">
+    <div className="grid h-svh items-center gap-10 lg:grid-cols-[1fr_minmax(0,22rem)]">
       <div className="space-y-6">
         {ACTS.map((a, i) => (
           <Act
@@ -104,8 +107,8 @@ function Scrolly() {
         theme="dark"
         from={{ message: 3 }}
         focus={now.focus}
-        crop="4 / 3"
-        className="mx-auto w-full max-w-[28rem]"
+        crop={now.crop}
+        className="mx-auto w-full max-w-[22rem]"
       />
     </div>
   )
@@ -193,7 +196,10 @@ export default function Demo() {
       </section>
 
       <section className="space-y-4">
-        <Label>05 · a scrolly · an act index in, focus out</Label>
+        <Label>
+          05 · a scrolly · an act index in, focus and crop out; the effects
+          chain
+        </Label>
         <ScrollStage
           acts={ACTS.length}
           pace="80svh"
@@ -208,8 +214,8 @@ export default function Demo() {
                     theme="dark"
                     from={{ message: 3 }}
                     focus={a.focus}
-                    crop="4 / 3"
-                    className="mx-auto w-full max-w-[24rem]"
+                    crop={a.crop}
+                    className="mx-auto w-full max-w-[22rem]"
                   />
                   <p className="text-foreground/70">{a.body}</p>
                 </div>
