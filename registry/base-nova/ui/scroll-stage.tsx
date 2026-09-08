@@ -10,8 +10,8 @@
 // Renderers needing continuous JS progress opt into useScrollStageTimeline from
 // scroll-stage-timeline. Its weighted beats replace these equal checkpoints.
 //
-// Below lg or under prefers-reduced-motion nothing pins: the track is its natural
-// height, --stage-p is 1, and `stacked` (when given) renders instead of the stage.
+// Desktop pinning is the default. `pin="all"` also enables phone-sized scenes;
+// short landscape windows and reduced motion use the natural-height alternative.
 
 import * as React from "react"
 import "./scroll-stage.css"
@@ -21,6 +21,7 @@ const StageContext = React.createContext<{
   active: number
   seek: (index: number) => boolean
   track: React.RefObject<HTMLElement | null>
+  pinnedQuery: string
 } | null>(null)
 
 /** Navigate the pinned story using the same act boundaries as useAct().
@@ -46,6 +47,8 @@ export interface ScrollStageProps
   pace?: string
   /** Extra travel after the last act, so it dwells. Default 40svh. */
   tail?: string
+  /** Enable phone-sized scenes too; windows shorter than 36rem remain unpinned. */
+  pin?: "desktop" | "all"
   /** Fires once per checkpoint change, never per frame. */
   onAct?: (act: number) => void
   /** The alternative layout below lg / under reduced motion (the acts stacked). */
@@ -61,6 +64,7 @@ export function ScrollStage({
   acts,
   pace,
   tail,
+  pin = "desktop",
   onAct,
   stacked,
   children,
@@ -72,6 +76,10 @@ export function ScrollStage({
   if (!Number.isInteger(acts) || acts < 1)
     throw new Error(`ScrollStage: acts must be a positive integer, got ${acts}`)
   const track = React.useRef<HTMLElement>(null)
+  const pinnedQuery =
+    pin === "all"
+      ? "(min-height: 36rem) and (prefers-reduced-motion: no-preference)"
+      : PINNED
   const paceEl = React.useRef<HTMLDivElement>(null)
   const [active, setActive] = React.useState(0)
   const [engine, setEngine] = React.useState<"css" | "js">("css")
@@ -84,7 +92,7 @@ export function ScrollStage({
     if (!el || !paceNode) return
     const css = CSS.supports("animation-timeline: view()")
     setEngine(css ? "css" : "js")
-    const pinned = window.matchMedia(PINNED)
+    const pinned = window.matchMedia(pinnedQuery)
     let frame = 0
     let current = -1
 
@@ -143,14 +151,14 @@ export function ScrollStage({
       pinned.removeEventListener("change", queue)
       cancelAnimationFrame(frame)
     }
-  }, [acts])
+  }, [acts, pinnedQuery])
 
   const seek = React.useCallback(
     (index: number) => {
       if (!Number.isInteger(index) || index < 0 || index >= acts)
         throw new Error(`ScrollStage: act ${index} outside 0..${acts - 1}`)
       const el = track.current
-      if (!el || !window.matchMedia(PINNED).matches) return false
+      if (!el || !window.matchMedia(pinnedQuery).matches) return false
       const rect = el.getBoundingClientRect()
       const travel = Math.max(0, rect.height - window.innerHeight)
       // Aim inside the act, not at a rounding-sensitive boundary. rect + scrollY
@@ -161,11 +169,11 @@ export function ScrollStage({
       })
       return true
     },
-    [acts],
+    [acts, pinnedQuery],
   )
   const ctx = React.useMemo(
-    () => ({ acts, active, seek, track }),
-    [acts, active, seek],
+    () => ({ acts, active, seek, track, pinnedQuery }),
+    [acts, active, seek, pinnedQuery],
   )
   return (
     <StageContext.Provider value={ctx}>
@@ -175,6 +183,7 @@ export function ScrollStage({
           ref: track,
           className: `ag-stage-track${className ? ` ${className}` : ""}`,
           "data-engine": engine,
+          "data-pin": pin,
           "data-stacked": stacked !== undefined ? "" : undefined,
           style: {
             "--acts": acts,

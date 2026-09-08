@@ -74,6 +74,7 @@ export default function Demo() {
         with="cards driven"
       >
         <ScrollStage
+          pin="all"
           acts={3}
           pace="70svh"
           tail="0svh"

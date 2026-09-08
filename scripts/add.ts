@@ -8,11 +8,13 @@
 // order is not a fix. This adds the item, then re-adds every transitive local
 // dependency after it, so the last write for every file is the local one.
 import { spawnSync } from "node:child_process"
+import { createHash } from "node:crypto"
 import {
   existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  rmSync,
   writeFileSync,
 } from "node:fs"
 import { createRequire } from "node:module"
@@ -25,6 +27,18 @@ if (!item || !dir) {
   process.exit(2)
 }
 const built = join(import.meta.dirname, "..", "public", "r")
+// A second install must never snapshot files halfway through the first one.
+const lock = join(
+  tmpdir(),
+  `ui-registry-lock-${createHash("sha256").update(dir).digest("hex").slice(0, 16)}`,
+)
+try {
+  mkdirSync(lock)
+} catch (error) {
+  if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error
+  throw new Error(`A registry sync is already running for ${dir}`)
+}
+process.on("exit", () => rmSync(lock, { recursive: true, force: true }))
 // A consumer owns its existing cn helper. Registry installation must not replace
 // it with a different implementation (or install an unrelated package named cn).
 const config = JSON.parse(readFileSync(join(dir, "components.json"), "utf8"))
@@ -81,7 +95,11 @@ for (const name of order) {
   const localMeta = JSON.parse(readFileSync(jsonOf(name), "utf8"))
   localMeta.registryDependencies = (
     localMeta.registryDependencies ?? []
-  ).filter((dep: string) => !dep.startsWith("@ag/"))
+  ).filter(
+    (dep: string) =>
+      !dep.startsWith("@ag/") &&
+      !(dep === "utils" && originalUtils !== undefined),
+  )
   const localItem = join(localItems, `${name}.json`)
   writeFileSync(localItem, JSON.stringify(localMeta))
   console.log(`→ ${name}`)

@@ -37,8 +37,6 @@ export function scrollBeatFrame(
   return { active, offset, progress }
 }
 
-const PINNED = "(min-width: 64rem) and (prefers-reduced-motion: no-preference)"
-
 /** Opt-in JS driver for renderers such as transcripts that need exact content
  * progress. CSS-only scenes can keep using Act. No autoplay, no timed exit gates.
  * Keep beats stable (declare them outside the component). */
@@ -59,7 +57,7 @@ export function useScrollStageTimeline(
     throw new Error(
       "Scroll beats require positive spans and 0 < play <= hold < 1",
     )
-  const { track } = useScrollStage()
+  const { track, pinnedQuery } = useScrollStage()
   const span = beats.reduce((sum, beat) => sum + beat.span, 0)
   const [position, setPosition] = React.useState(0)
   const [ambient, setAmbient] = React.useState(0)
@@ -68,7 +66,7 @@ export function useScrollStageTimeline(
     const el = track.current
     const stage = el?.querySelector<HTMLElement>(".ag-stage")
     if (!el || !stage) return
-    const media = matchMedia(PINNED)
+    const media = matchMedia(pinnedQuery)
     let frame = 0
     let last = performance.now()
     let destination = scrollY
@@ -182,14 +180,14 @@ export function useScrollStageTimeline(
       el.style.removeProperty("--stage-top")
       el.style.removeProperty("--stage-min-height")
     }
-  }, [track, span, top, bottom])
+  }, [track, span, top, bottom, pinnedQuery])
 
   const seek = React.useCallback(
     (index: number) => {
       const beat = beats[index]
       if (!beat) throw new Error(`Unknown scroll beat: ${index}`)
       const el = track.current
-      if (!el || !matchMedia(PINNED).matches) return false
+      if (!el || !matchMedia(pinnedQuery).matches) return false
       const rect = el.getBoundingClientRect()
       const start = beats.slice(0, index).reduce((sum, b) => sum + b.span, 0)
       const reading = ((beat.play ?? 0.6) + (beat.hold ?? 0.85)) / 2
@@ -202,7 +200,7 @@ export function useScrollStageTimeline(
       })
       return true
     },
-    [beats, track, span],
+    [beats, track, span, pinnedQuery],
   )
 
   return { ...scrollBeatFrame(position, beats), position, ambient, seek }
