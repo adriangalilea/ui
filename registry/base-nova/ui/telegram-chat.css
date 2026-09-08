@@ -1028,7 +1028,9 @@
   .tgchat[data-cut] .tgchat-view {
     overflow: hidden;
     scrollbar-width: none;
-    --tg-fade: 9%;
+    /* Height and its cancelling margin must resolve to the same length.
+       Percent heights use the viewport height; percent margins use its width. */
+    --tg-fade: 9cqw;
     mask-image: linear-gradient(
       to bottom,
       rgb(0 0 0 / calc(1 - var(--tg-cut-top))),
@@ -1047,6 +1049,11 @@
   }
   .tgchat[data-settled][data-cut] .tgchat-view {
     overflow-y: auto;
+  }
+  /* A cropped viewport cannot contain the device's outer shadow: it turns
+     into a rectangular strip at the cut. Keep the metal's inset shading. */
+  .tgchat[data-cut] .tgchat-phone {
+    box-shadow: none;
   }
   .tgchat[data-cut] .tgchat-view::-webkit-scrollbar {
     display: none;
