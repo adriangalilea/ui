@@ -1,7 +1,14 @@
 import { existsSync } from "node:fs"
 import { parseArgs } from "node:util"
-import { renderMetrics } from "@adriangalilea/utils/metrics/cli"
-import { summarizeMetrics } from "@adriangalilea/utils/metrics/report"
+import {
+  renderMetricComparison,
+  renderMetrics,
+} from "@adriangalilea/utils/metrics/cli"
+import {
+  compareMetrics,
+  metricWindows,
+  summarizeMetrics,
+} from "@adriangalilea/utils/metrics/report"
 import { readMetrics } from "@adriangalilea/utils/metrics/sqlite"
 import { createClient } from "@libsql/client"
 
@@ -12,16 +19,20 @@ const { values } = parseArgs({
     component: { type: "string" },
     metric: { type: "string" },
     daily: { type: "boolean" },
+    "include-today": { type: "boolean" },
     json: { type: "boolean" },
     help: { type: "boolean", short: "h" },
   },
 })
 if (values.help) {
   console.log(`Usage: pnpm kpi [--days 30] [--project ui] [--component telegram-chat]
-                [--metric installCopy] [--daily] [--json]
+                [--metric installCopy] [--daily] [--include-today] [--json]
 
 Reads the dedicated metrics database with METRICS_READ_TOKEN.
-Default: 30 UTC days through today (partial). --json includes daily rows and totals.
+Default: 30 completed UTC days versus the preceding 30 days.
+--include-today includes today's partial counts; comparison is provisional.
+--daily adds current-window daily rows. --json includes both windows and comparisons.
+METRICS_HEALTH_TOKEN enables the deployed UI write/read probe; unhealthy exits nonzero.
 Metric names and labels come from declarations, not a report-specific list.`)
   process.exit(0)
 }
@@ -86,17 +97,22 @@ try {
       }
     }
   }
-  const to = new Date().toISOString().slice(0, 10)
-  const from = new Date(Date.parse(to) - (days - 1) * 86400000)
-    .toISOString()
-    .slice(0, 10)
-  const rows = (
-    await readMetrics(db, { from, to, project: values.project })
+  const windows = metricWindows(days, { includeToday: values["include-today"] })
+  const { from, to } = windows.current
+  const observations = (
+    await readMetrics(db, {
+      from: windows.previous.from,
+      to,
+      project: values.project,
+    })
   ).filter(
     (r) =>
       (!values.component || r.dimensions.component === values.component) &&
       (!values.metric || r.key === values.metric),
   )
+  const rows = observations.filter((r) => r.day >= from)
+  const previousRows = observations.filter((r) => r.day < from)
+  const comparison = compareMetrics(rows, previousRows)
   if (values.json)
     console.log(
       JSON.stringify(
@@ -105,8 +121,14 @@ try {
           to,
           project: values.project,
           collection,
+          windows,
           rows,
           totals: summarizeMetrics(rows),
+          previous: {
+            rows: previousRows,
+            totals: summarizeMetrics(previousRows),
+          },
+          comparison,
         },
         null,
         2,
@@ -114,9 +136,13 @@ try {
     )
   else {
     console.log(
-      `${values.project} metrics · ${from} to ${to} UTC (today is partial)\n`,
+      `${values.project} metrics · ${from} to ${to} UTC\nPrevious: ${windows.previous.from} to ${windows.previous.to} UTC\n${windows.partial ? "PROVISIONAL: current window includes today; previous window is complete." : "Equal windows of completed days; today is excluded."}\n`,
     )
-    console.log(renderMetrics(rows, { daily: values.daily }))
+    console.log(renderMetricComparison(comparison))
+    if (values.daily) {
+      console.log("\nCurrent window · daily observations\n")
+      console.log(renderMetrics(rows, { daily: true }))
+    }
     console.log(
       `\nDeployed collector write probe: ${collection.status}${collection.checkedAt ? ` (${collection.checkedAt})` : ""}`,
     )
@@ -125,7 +151,7 @@ try {
         "Set METRICS_HEALTH_TOKEN to check collection; zero counts alone do not prove quiet traffic.",
       )
     console.log(
-      "\nRequests are not installs. Command copies are intent. Known-bot classification is heuristic.",
+      "\nChanges compare recorded observations only; no baseline means no prior count to divide by.\nRequests are not installs. Command copies are intent. Known-bot classification is heuristic.",
     )
   }
 } finally {

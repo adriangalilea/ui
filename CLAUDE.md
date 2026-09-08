@@ -131,8 +131,16 @@ requests in the dedicated Turso `metrics` database, project `ui`. Definitions in
 validation, SQLite storage, and CLI rendering use those definitions. New metrics
 are rows, not schema migrations or hand-maintained report panels.
 
-Run `pnpm kpi` for the last 30 UTC days, or add `--days 7`,
-`--component telegram-chat`, `--metric registryRequest`, `--daily`, or `--json`.
+Run `pnpm kpi` to compare the last 30 completed UTC days with the preceding 30,
+or add `--days 14`, `--component telegram-chat`, `--metric registryRequest`,
+`--daily`, or `--json`. Both windows receive the same filters. `--include-today`
+opts into a clearly provisional comparison including today's partial counts.
+Missing baselines show no percentage; disappearing series remain visible.
+The shared comparison functions own window arithmetic and deltas. JSON includes
+both windows, observations, totals and comparisons. For machine output with
+health-check failures, invoke `node scripts/kpi.mts --json` directly so pnpm's
+failure banner cannot be appended to stdout. New collection has no historical
+baseline; don't interpret missing observations as proof of zero demand.
 The CLI loads `.env.local`: `METRICS_DATABASE_URL` and read-only
 `METRICS_READ_TOKEN`. Production uses `METRICS_AUTH_TOKEN`, limited to data
 read/add/update on the three metrics tables; schema changes use the Turso CLI.
