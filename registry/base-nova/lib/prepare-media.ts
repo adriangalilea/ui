@@ -20,13 +20,16 @@ export type PreparedMedia = {
 export type PrepareOptions = {
   maxBytes?: number
   maxPixels?: number
-  /** Explicit opt-in: requires ffmpeg/ffprobe on PATH. Images never invoke them. */
+  /** Enable video preparation. Requires ffmpeg/ffprobe on PATH. */
   video?: boolean
   /** Keep sound in the prepared video. Preview components still play muted. */
   audio?: boolean
   posterFormat?: "webp" | "jpeg"
   /** A chosen video poster time, clamped to the clip duration. */
   posterTime?: number
+  /** Prepare a silent forward/reverse video from a GIF or video up to 10 seconds.
+   * Explicitly enables FFmpeg processing; ordinary images remain untouched. */
+  playback?: "forward" | "boomerang"
   signal?: AbortSignal
 }
 
@@ -82,7 +85,14 @@ export async function prepareMedia(
     meta?.format === "heif" && meta.compression === "av1"
       ? "avif"
       : meta?.format
-  if (meta && ["jpeg", "png", "webp", "gif", "avif"].includes(format ?? "")) {
+  const boomerang = options.playback === "boomerang"
+  if (meta && boomerang && (meta.pages ?? 1) <= 1)
+    throw new Error("Boomerang requires an animated image or video")
+  if (
+    meta &&
+    !boomerang &&
+    ["jpeg", "png", "webp", "gif", "avif"].includes(format ?? "")
+  ) {
     const height = meta.pageHeight ?? meta.height
     if (!meta.width || !height || meta.width * height > maxPixels)
       throw new Error("Invalid image dimensions")
@@ -125,7 +135,7 @@ export async function prepareMedia(
       ],
     }
   }
-  if (!options.video)
+  if (!options.video && !boomerang)
     throw new Error(
       "Unsupported image; video preparation must be explicitly enabled",
     )
@@ -161,25 +171,38 @@ export async function prepareMedia(
       throw new Error(
         "Expected a video up to 10 minutes within the pixel limit",
       )
-    // A browser-compatible rendition; preserve audio for the normal player (previews mute it).
+    if (boomerang && (duration < 0.1 || duration > 10))
+      throw new Error("Boomerang clips must be between 0.1 and 10 seconds")
+    if (boomerang && options.audio === true)
+      throw new Error(
+        "Boomerang clips are silent; omit audio or set it to false",
+      )
+    // Reverse is prepared once, never emulated with browser seeks. Trim duplicate
+    // turnaround frames so the loop does not pause at either endpoint.
+    const filter = `scale=w='min(1280,iw)':h='min(1280,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,fps=30,split[f][r];[r]reverse,trim=start_frame=1:end=${duration - 1 / 30},setpts=PTS-STARTPTS[b];[f][b]concat=n=2:v=1:a=0[v]`
+    // Forward renditions preserve audio for native players; boomerangs are silent.
     await run("ffmpeg", [
       "-v",
       "error",
       "-i",
       source,
-      "-map",
-      "0:v:0",
-      "-map",
-      "0:a?",
-      "-vf",
-      "scale='trunc(min(1920,iw)/2)*2':-2",
+      ...(boomerang
+        ? ["-filter_complex", filter, "-map", "[v]"]
+        : [
+            "-map",
+            "0:v:0",
+            "-map",
+            "0:a?",
+            "-vf",
+            "scale='trunc(min(1920,iw)/2)*2':-2",
+          ]),
       "-c:v",
       "libx264",
       "-pix_fmt",
       "yuv420p",
       "-crf",
       "23",
-      ...(options.audio === false ? ["-an"] : ["-c:a", "aac"]),
+      ...(boomerang || options.audio === false ? ["-an"] : ["-c:a", "aac"]),
       "-movflags",
       "+faststart",
       output,
@@ -201,6 +224,18 @@ export async function prepareMedia(
       throw new Error("Missing video dimensions")
     const p = await preview(posterBytes, maxPixels, options.posterFormat)
     const video = await readFile(output)
+    const outputProbe = await run("ffprobe", [
+      "-v",
+      "error",
+      "-show_entries",
+      "format=duration",
+      "-of",
+      "json",
+      output,
+    ])
+    const outputDuration = Number(
+      JSON.parse(outputProbe.stdout).format.duration,
+    )
     const rev = createHash("sha256")
       .update(video)
       .update(p.poster)
@@ -214,7 +249,7 @@ export async function prepareMedia(
         height: dimensions.height,
         mime: "video/mp4",
         bytes: video.length,
-        duration,
+        duration: outputDuration,
         blurDataURL: p.blurDataURL,
       },
       files: [

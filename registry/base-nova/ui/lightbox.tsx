@@ -2678,6 +2678,8 @@ function Stage(props: StageProps) {
     <Dialog.Popup
       ref={root}
       className="ag-lb"
+      // Portal clicks must not activate a card containing the trigger.
+      onClick={(event) => event.stopPropagation()}
       data-phase={phase}
       data-chrome={chrome ? "on" : "off"}
       data-zoomed={zoomed ? "" : undefined}

@@ -12,6 +12,7 @@ export function useMediaIntent(
   const [touch, setTouch] = useState(false)
   const [reduced, setReduced] = useState(true)
   const [manual, setManual] = useState<boolean | null>(null)
+  const [activation, setActivation] = useState(0)
   useEffect(() => {
     const root = frame.current
     if (!root) return
@@ -33,6 +34,7 @@ export function useMediaIntent(
       focus = false
     const update = () => setIntent(pointer || focus)
     const enter = () => {
+      if (!pointer) setActivation((n) => n + 1)
       pointer = true
       update()
     }
@@ -41,6 +43,7 @@ export function useMediaIntent(
       update()
     }
     const focusIn = () => {
+      if (!focus) setActivation((n) => n + 1)
       focus = true
       update()
     }
@@ -73,6 +76,7 @@ export function useMediaIntent(
   }, [frame, interactionRef])
   return {
     manual,
+    activation,
     setManual,
     active: (playOn: "intent" | "visible" = "intent") =>
       visible &&

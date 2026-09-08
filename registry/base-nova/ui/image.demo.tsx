@@ -13,6 +13,7 @@ export default function Demo() {
         label="a native GIF cover, requested on hover/focus; touch uses visibility"
       >
         <AnimatedImage
+          controls
           src="/preview-animation.gif"
           poster="/video-poster.jpg"
           width={160}

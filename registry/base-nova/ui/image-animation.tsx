@@ -15,6 +15,8 @@ export type AnimatedImageProps = {
   imageClassName?: string
   sizes?: string
   playOn?: "intent" | "visible"
+  /** Show an optional play/pause button. Covers are unadorned by default. */
+  controls?: boolean
   interactionRef?: RefObject<HTMLElement | null>
 }
 
@@ -34,6 +36,7 @@ function AnimationSource({
   imageClassName,
   sizes = "100vw",
   playOn,
+  controls = false,
   interactionRef,
 }: AnimatedImageProps) {
   const frame = useRef<HTMLDivElement>(null)
@@ -65,19 +68,21 @@ function AnimationSource({
           imageClassName={imageClassName}
         />
       )}
-      <button
-        type="button"
-        aria-label={`${active ? "Pause" : "Play"} ${alt}`}
-        aria-pressed={active}
-        onClick={(e) => {
-          e.preventDefault()
-          e.stopPropagation()
-          intent.setManual(!active)
-        }}
-        className="absolute right-2 bottom-2 rounded-full bg-black/60 px-3 py-2 text-xs text-white focus-visible:outline-2 focus-visible:outline-offset-2"
-      >
-        {active ? "pause" : "play"}
-      </button>
+      {controls && (
+        <button
+          type="button"
+          aria-label={`${active ? "Pause" : "Play"} ${alt}`}
+          aria-pressed={active}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            intent.setManual(!active)
+          }}
+          className="absolute right-2 bottom-2 rounded-full bg-black/60 px-3 py-2 text-xs text-white focus-visible:outline-2 focus-visible:outline-offset-2"
+        >
+          {active ? "pause" : "play"}
+        </button>
+      )}
     </div>
   )
 }

@@ -17,12 +17,19 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 - Added `AnimatedImage` in `image-animation`: poster-first native animation on
   hover/focus, visibility on touch, explicit pause, and reduced-motion support.
   Stopping returns to the poster; native GIFs do not offer frame-accurate seeking.
+- `AnimatedImage` controls are now opt-in. Add `controls` to retain the play/pause
+  button; the default preview has no overlay control.
 
 ### video
 
 - Added native playback and silent cover previews with posters, explicit pause,
   visibility handling and race-safe hover changes. `playOn="visible"` supports
   article covers; normal players retain browser controls, sound and caption tracks.
+- Cover previews are unadorned by default. Opt into a play/pause button with
+  `controls`.
+- `playOn="visible-once"` plays a cover once on arrival, holds its final frame,
+  and replays on a fresh hover/focus. With `loop`, those later interactions loop
+  until the pointer/focus leaves; the initial arrival still plays only once.
 
 ### media-asset
 
@@ -34,6 +41,8 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
   measures orientation, retains transparency in previews, and generates posters.
   Video is opt-in and requires FFmpeg/ffprobe. The caller uploads returned files;
   preparation never writes to a database or chooses a storage provider.
+- `playback: "boomerang"` (CLI `--boomerang`) explicitly prepares GIFs or videos
+  of 0.1–10 seconds into silent forward/reverse MP4s for the same video component.
 
 ### upload
 
@@ -51,6 +60,7 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 - Responsive images now open from their loaded `currentSrc`, avoiding a second
   thumbnail download when the browser selected a different rendition. The photo
   demo uses local originals and the new image loading treatment.
+- Dismissal clicks no longer bubble through the portal to a containing card.
 
 ### Registry website
 

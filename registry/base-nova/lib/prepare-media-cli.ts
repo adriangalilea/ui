@@ -5,13 +5,19 @@ import { mediaAsset, prepareMedia } from "./prepare-media"
 // node --experimental-strip-types requires extension-aware imports; use tsx for this copied CLI.
 // pnpm exec tsx lib/prepare-media-cli.ts input output-directory /public-url-prefix [--video]
 async function main() {
-  const [input, directory, prefix, flag] = process.argv.slice(2)
-  if (!input || !directory || !prefix || (flag && flag !== "--video"))
+  const [input, directory, prefix, ...flags] = process.argv.slice(2)
+  if (
+    !input ||
+    !directory ||
+    !prefix ||
+    flags.some((f) => !["--video", "--boomerang"].includes(f))
+  )
     throw new Error(
-      "usage: tsx prepare-media-cli.ts <input> <output-directory> <url-prefix> [--video]",
+      "usage: tsx prepare-media-cli.ts <input> <output-directory> <url-prefix> [--video] [--boomerang]",
     )
   const prepared = await prepareMedia(await readFile(resolve(input)), {
-    video: flag === "--video",
+    video: flags.includes("--video") || flags.includes("--boomerang"),
+    playback: flags.includes("--boomerang") ? "boomerang" : "forward",
     maxBytes: 256 * 1024 * 1024,
   })
   await mkdir(resolve(directory), { recursive: true })

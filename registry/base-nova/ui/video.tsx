@@ -20,8 +20,10 @@ export type VideoProps = Omit<
   height: number
   /** A normal native player, or a silent cover that plays on hover/focus (visibility on touch). */
   mode?: "player" | "preview"
-  /** Preview trigger. Covers in an article may play whenever visible. */
-  playOn?: "intent" | "visible"
+  /** Native controls default on for players; a preview button is opt-in. */
+  controls?: boolean
+  /** visible-once plays on arrival, then waits for a fresh hover/focus to replay. */
+  playOn?: "intent" | "visible" | "visible-once"
   label: string
   blurDataURL?: string
   className?: string
@@ -41,6 +43,7 @@ function VideoSource({
   poster,
   blurDataURL,
   mode = "player",
+  controls = mode === "player",
   playOn = "intent",
   label,
   className,
@@ -60,9 +63,20 @@ function VideoSource({
   const { setManual } = intent
   const [playing, setPlaying] = useState(false)
   const [failed, setFailed] = useState(false)
+  const [finished, setFinished] = useState(false)
+  const [completedAt, setCompletedAt] = useState<number | null>(null)
   const preview = mode === "preview"
 
-  const shouldPlay = preview && intent.active(playOn)
+  const trigger =
+    playOn === "visible-once"
+      ? completedAt === null
+        ? "visible"
+        : "intent"
+      : playOn
+  const shouldPlay =
+    preview &&
+    intent.active(trigger) &&
+    (completedAt === null || intent.activation > completedAt)
   useEffect(() => {
     if (!preview) return
     const el = video.current
@@ -82,7 +96,7 @@ function VideoSource({
       el.pause()
       setPlaying(false)
       // No delayed pause can race with a new hover. The poster owns the fade.
-      if (el.readyState > 0) el.currentTime = 0
+      if (el.readyState > 0 && !el.ended) el.currentTime = 0
     }
     return () => {
       current = false
@@ -124,12 +138,18 @@ function VideoSource({
         height={height}
         aria-label={label}
         playsInline
+        tabIndex={preview ? 0 : undefined}
         muted={preview || props.muted}
-        controls={!preview}
+        controls={!preview && controls}
+        loop={
+          playOn === "visible-once"
+            ? completedAt !== null && shouldPlay && props.loop
+            : props.loop
+        }
         preload={props.preload ?? (preview ? "none" : "metadata")}
         className={cn(
           "relative block size-full object-cover transition-opacity duration-300 motion-reduce:transition-none",
-          preview && !playing && "opacity-0",
+          preview && !playing && !finished && "opacity-0",
           videoClassName,
         )}
         onPlaying={(e) => {
@@ -138,6 +158,7 @@ function VideoSource({
             return
           }
           setPlaying(true)
+          setFinished(false)
           onPlaying?.(e)
         }}
         onPause={(e) => {
@@ -146,7 +167,10 @@ function VideoSource({
         }}
         onEnded={(e) => {
           setPlaying(false)
-          if (preview) setManual(false)
+          if (preview) {
+            setFinished(true)
+            setCompletedAt(intent.activation)
+          }
           onEnded?.(e)
         }}
         onError={(e) => {
@@ -157,7 +181,7 @@ function VideoSource({
       >
         {children}
       </video>
-      {preview && (
+      {preview && controls && (
         <button
           type="button"
           aria-label={`${playing ? "Pause" : "Play"} ${label}`}
@@ -165,6 +189,7 @@ function VideoSource({
           onClick={(e) => {
             e.preventDefault()
             e.stopPropagation()
+            if (!playing) setCompletedAt(null)
             setManual(!playing)
           }}
           className="absolute right-2 bottom-2 rounded-full bg-black/60 px-3 py-2 text-xs text-white focus-visible:outline-2 focus-visible:outline-offset-2"

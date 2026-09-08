@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { execFileSync } from "node:child_process"
-import { mkdtemp, readFile, rm } from "node:fs/promises"
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import sharp from "sharp"
@@ -51,8 +51,10 @@ try {
   execFileSync("ffmpeg", [
     "-v",
     "error",
+    "-f",
+    "lavfi",
     "-i",
-    "public/bunny.mp4",
+    "testsrc2=size=160x90:rate=30",
     "-t",
     "0.5",
     "-vf",
@@ -71,6 +73,58 @@ try {
   const animation = await prepareMedia(bytes)
   assert.equal(animation.asset.kind, "animation")
   assert.deepEqual(animation.files[0].data, bytes)
+  for (const input of [await readFile(clip), bytes]) {
+    const bounce = await prepareMedia(input, { playback: "boomerang" })
+    assert.equal(bounce.asset.kind, "video")
+    assert.equal(bounce.asset.mime, "video/mp4")
+    assert.ok(bounce.asset.duration && bounce.asset.duration > 0.7)
+    const output = join(dir, "bounce.mp4")
+    await writeFile(output, bounce.files[0].data)
+    const probe = JSON.parse(
+      execFileSync(
+        "ffprobe",
+        ["-v", "error", "-show_streams", "-of", "json", output],
+        { encoding: "utf8" },
+      ),
+    )
+    assert.equal(probe.streams.length, 1, "boomerang has no audio track")
+    assert.equal(probe.streams[0].codec_name, "h264")
+    const frames = execFileSync("ffmpeg", [
+      "-v",
+      "error",
+      "-i",
+      output,
+      "-f",
+      "rawvideo",
+      "-pix_fmt",
+      "gray",
+      "pipe:1",
+    ])
+    const frameSize = bounce.asset.width * bounce.asset.height
+    const count = frames.length / frameSize
+    assert.ok(count >= 4)
+    // Every interior frame in the forward half has a matching reversed frame.
+    for (let frame = 1; frame < count / 2; frame++) {
+      let difference = 0
+      for (let pixel = 0; pixel < frameSize; pixel++)
+        difference += Math.abs(
+          frames[frame * frameSize + pixel] -
+            frames[(count - frame) * frameSize + pixel],
+        )
+      assert.ok(
+        difference / frameSize < 8,
+        "decoded motion reverses, allowing lossy encoding",
+      )
+    }
+  }
+  await assert.rejects(
+    prepareMedia(transparent, { playback: "boomerang" }),
+    /animated/,
+  )
+  await assert.rejects(
+    prepareMedia(bytes, { playback: "boomerang", audio: true }),
+    /silent/,
+  )
 } finally {
   await rm(dir, { recursive: true, force: true })
 }

@@ -29,6 +29,12 @@ export default async function Demo() {
       <p className="font-mono text-xs">
         pnpm exec tsx lib/prepare-media-cli.ts input.jpg public/media /media
       </p>
+      <p className="text-sm text-muted-foreground">
+        For a deliberate boomerang, add --boomerang to a GIF or video input.
+        Preparation renders a silent forward/reverse MP4, ready for Video with
+        loop enabled. Clips must be 0.1–10 seconds. Without this option, GIF
+        bytes and animation stay intact.
+      </p>
       <Sample
         name="prepared"
         with="prepare"

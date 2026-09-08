@@ -1,5 +1,8 @@
 import assert from "node:assert/strict"
-import { readFileSync } from "node:fs"
+import { execFileSync } from "node:child_process"
+import { mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import type { Browser } from "playwright"
 
 export async function checkMediaBrowser(browser: Browser, base: string) {
@@ -29,8 +32,17 @@ export async function checkMediaBrowser(browser: Browser, base: string) {
     }),
   )
   await page.goto(`${base}/lab/media`)
-  const video = page.locator("video")
-  const preview = page.locator('[data-slot="video"]')
+  const video = page.locator('video[aria-label="test preview"]')
+  const preview = page.locator('[data-slot="video"]').filter({ has: video })
+  assert.equal(
+    await page
+      .locator('[data-slot="video"]')
+      .filter({ has: page.locator('video[aria-label="plain preview"]') })
+      .getByRole("button")
+      .count(),
+    0,
+    "cover controls must be opt-in",
+  )
   await preview.hover()
   await page.waitForFunction(() => {
     const v = document.querySelector("video")
@@ -181,17 +193,100 @@ export async function checkMediaBrowser(browser: Browser, base: string) {
   await page.close()
   const reduced = await browser.newPage({ reducedMotion: "reduce" })
   await reduced.goto(`${base}/lab/media`)
-  await reduced.locator('[data-slot="video"]').hover()
+  await reduced.locator('[data-slot="video"]').first().hover()
   await reduced.waitForTimeout(400)
   assert.equal(
     await reduced
-      .locator("video")
+      .locator('video[aria-label="test preview"]')
       .evaluate((v) => (v as HTMLVideoElement).paused),
     true,
   )
   await reduced.getByRole("button", { name: "Play test preview" }).click()
   await reduced.waitForFunction(() => !document.querySelector("video")?.paused)
   await reduced.close()
+  const dir = mkdtempSync(join(tmpdir(), "playback-check-"))
+  const playback = await browser.newPage({
+    viewport: { width: 900, height: 1000 },
+  })
+  try {
+    const clip = join(dir, "short.mp4")
+    execFileSync("ffmpeg", [
+      "-v",
+      "error",
+      "-i",
+      "public/bunny.mp4",
+      "-t",
+      "0.5",
+      "-vf",
+      "scale=160:-2",
+      "-an",
+      clip,
+    ])
+    await playback.route("**/bunny.mp4?once", (route) =>
+      route.fulfill({ body: readFileSync(clip), contentType: "video/mp4" }),
+    )
+    await playback.goto(`${base}/lab/media`)
+    const once = playback.locator('video[aria-label="once preview"]')
+    await once.scrollIntoViewIfNeeded()
+    await playback.waitForFunction(
+      () =>
+        (
+          document.querySelector(
+            'video[aria-label="once preview"]',
+          ) as HTMLVideoElement
+        )?.ended,
+    )
+    await playback.waitForTimeout(650)
+    assert.equal(
+      await once.evaluate((v) => (v as HTMLVideoElement).ended),
+      true,
+      "arrival holds the final frame",
+    )
+    await once.hover()
+    await playback.waitForFunction(() => {
+      const v = document.querySelector(
+        'video[aria-label="once preview"]',
+      ) as HTMLVideoElement
+      return v && !v.paused && v.loop
+    })
+    await playback.waitForTimeout(1200)
+    assert.equal(
+      await once.evaluate((v) => (v as HTMLVideoElement).paused),
+      false,
+      "hover keeps looping beyond clip duration",
+    )
+    await playback.mouse.move(1, 1)
+    await playback.waitForFunction(
+      () =>
+        (
+          document.querySelector(
+            'video[aria-label="once preview"]',
+          ) as HTMLVideoElement
+        )?.paused,
+    )
+    await once.hover()
+    await playback.waitForFunction(
+      () =>
+        !(
+          document.querySelector(
+            'video[aria-label="once preview"]',
+          ) as HTMLVideoElement
+        )?.paused,
+    )
+    await playback.getByRole("img", { name: "portal landscape" }).click()
+    await playback.locator('.ag-lb[data-phase="idle"]').waitFor()
+    const clicks = await playback.locator("#card-clicks").textContent()
+    await playback.mouse.click(10, 500)
+    await playback.locator(".ag-lb").waitFor({ state: "detached" })
+    assert.equal(
+      await playback.locator("#card-clicks").textContent(),
+      clicks,
+      "dismiss must not activate the containing card",
+    )
+  } finally {
+    await playback.close()
+    rmSync(dir, { recursive: true, force: true })
+  }
   console.log(
     "✓ media browser: rapid hover, pause intent, reduced motion/manual playback, pending upload, mapped insertion, retry and cancellation",
   )

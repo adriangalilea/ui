@@ -14,7 +14,24 @@ export default function Demo() {
           width={1280}
           height={720}
           mode="preview"
+          controls
           label="bunny preview"
+          className="w-full rounded-xl"
+        />
+      </Sample>
+      <Sample
+        name="once"
+        label="once on arrival; then loop only during a fresh hover or focus"
+      >
+        <Video
+          src="/bunny.mp4"
+          poster="/video-poster.jpg"
+          width={1280}
+          height={720}
+          mode="preview"
+          playOn="visible-once"
+          loop
+          label="bunny cover"
           className="w-full rounded-xl"
         />
       </Sample>
