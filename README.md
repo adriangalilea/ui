@@ -134,6 +134,8 @@ Omit `progress` for autoplay when visible; use `progress={1}` for a finished sti
 or pass a value from 0 to 1 to scrub. `frame="none"` presents the conversation
 without a phone. This is a storyboard, not a messaging client: header and composer
 chrome are decorative; links, scrolling, and reactions are interactive.
+Autoplay runs at its configured pace and pauses offscreen. For scroll-linked
+playback, let a scroll timeline own `progress`; decreasing it reverses the story.
 
 `theme` accepts `page`, `light`, or `dark`. The `wallpaper` prop is a doodle **mask
 URL**, not a photograph. Tailwind classes on the root can override inherited CSS

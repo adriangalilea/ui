@@ -213,14 +213,6 @@ export interface TelegramChatProps {
   /** `false`: the thread never becomes a scroller, even settled. For a chat that is a
    *  film in a card rather than a phone to poke at; reactions stay pressable. */
   scrollable?: boolean
-  /** Bump it and the story REWINDS to its start, at rewind speed, then plays again: a
-   *  card the reader comes back to tells its story a second time instead of sitting
-   *  there finished. The value itself means nothing; only a change does. */
-  replay?: number
-  /** The page's scroll becomes the remote: scrolling UP runs the story backwards for as
-   *  long as the reader scrolls, and it plays on again when they stop; scrolling down
-   *  hurries it (that part is always on). For a chat that is the film of a scrolly. */
-  scrub?: boolean
   className?: string
 }
 
@@ -369,14 +361,6 @@ const BEAT = {
  *  back an act) is a story reversing, not a cut, and it should not take as long as it
  *  took to tell. */
 const REWIND = 3
-/** While the page is being scrolled the story hurries this much: a reader moving is
- *  a reader who has seen the beat, and the next act should not have to wait for a
- *  stream that is behind them. Measured from the last scroll event. */
-const HURRY = 2.5
-const HURRY_MS = 400
-/** The scroll speed, px/s, at which the hurry is full; slower scrolls hurry less. */
-const HURRY_SPEED = 1200
-
 interface Beat {
   /** The beat begins (typing status may show, composer may fill). */
   start: number
@@ -738,8 +722,6 @@ export function TelegramChat({
   animatedEmoji: animateEmoji = true,
   debug = false,
   scrollable = true,
-  replay,
-  scrub = false,
   className,
 }: TelegramChatProps) {
   const animatedEmoji = animateEmoji && !frozen
@@ -853,8 +835,7 @@ export function TelegramChat({
         })()
   // ~6ms per weighted char: a brisk stream, bounded both ways.
   // ~6ms per weighted char, no ceiling: a cap squeezed every structural beat of a long
-  // script (the options popup lasted a second under a three-summary story). A reader
-  // in a hurry has the hurry.
+  // script (the options popup lasted a second under a three-summary story).
   const autoDuration =
     duration ?? Math.max(4000, (1 - floor) * timeline.total * 6)
 
@@ -888,14 +869,8 @@ export function TelegramChat({
   const started = React.useRef(false)
   /** The ceiling the last run of the effect saw; null before the first. */
   const lastCeiling = React.useRef<number | null>(null)
-  /** A `replay` bump in flight: the story is running back to its start. */
-  const rewinding = React.useRef(false)
-  const lastReplay = React.useRef<number | null>(null)
   React.useEffect(() => {
     if (controlled) return
-    if (lastReplay.current !== null && (replay ?? 0) !== lastReplay.current)
-      rewinding.current = true
-    lastReplay.current = replay ?? 0
     const el = root.current
     if (!el) return
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -909,7 +884,7 @@ export function TelegramChat({
     // beat with everything before it already there. A story already under way keeps
     // its place when the ceiling rises, however far: a gallery that lets a card rest at
     // the link and then frees it to the end must play the typing and the popup in
-    // between, not jump to the summary. The hurry covers the reader who skipped ahead.
+    // between, not jump to the summary.
     if (lastCeiling.current === null) {
       if (played.current < lift) played.current = lift
     } else if (
@@ -928,72 +903,33 @@ export function TelegramChat({
     let frame = 0
     let last = 0
     let visible = false
-    // THE PAGE'S SCROLL IS THE REMOTE. A scroll in the last HURRY_MS and the story
-    // hurries; with `scrub`, a scroll UP runs it backwards for as long as the reader
-    // keeps scrolling up, and it plays on again the moment they stop.
-    let scrolledAt = Number.NEGATIVE_INFINITY
-    let scrollDir = 1
-    /** The reader's scroll speed, px/s, from the last two scroll events. */
-    let scrollSpeed = 0
-    let lastY = window.scrollY
     const running = () => frame !== 0
     const start = () => {
       if (running() || !visible) return
       last = performance.now()
       frame = requestAnimationFrame(tick)
     }
-    const onScroll = () => {
-      const now = performance.now()
-      const y = window.scrollY
-      const dtMs = now - scrolledAt
-      if (y !== lastY) {
-        scrollDir = y < lastY ? -1 : 1
-        scrollSpeed =
-          dtMs > 0 && dtMs < 200 ? (Math.abs(y - lastY) / dtMs) * 1000 : 0
-      }
-      scrolledAt = now
-      lastY = y
-      if (scrub && scrollDir < 0) start()
-    }
-    window.addEventListener("scroll", onScroll, { passive: true })
-    // Forward to the ceiling at the story's pace; BACK, faster, when the ceiling has
-    // been lowered, when a replay was asked for (all the way to the start), or when
-    // the reader scrubs up: every frame of the story is a pure function of its
-    // position, so running the position backwards is the story reversing, a summary
-    // un-streaming and a typed line un-typing.
+    // Autoplay has one clock. A lowered `until` ceiling reverses toward that
+    // explicit target; page scroll position belongs to controlled `progress`.
     const tick = (now: number) => {
       frame = 0
       const dt = (now - last) / autoDuration
       last = now
-      // Hurry follows the reader's SPEED, not the fact of a scroll: a trackpad's dying
-      // inertia is a few px/s and should barely move the story; a deliberate flick is
-      // HURRY_SPEED px/s and gets the full hurry.
-      const recent = now - scrolledAt < HURRY_MS
-      const hurry = recent
-        ? 1 + (HURRY - 1) * Math.min(1, scrollSpeed / HURRY_SPEED)
-        : 1
-      const scrubbing = scrub && recent && scrollDir < 0
-      if (rewinding.current || scrubbing) {
-        const to = rewinding.current ? 0 : lift
-        played.current = Math.max(to, played.current - dt * REWIND * hurry)
-        if (played.current <= to) rewinding.current = false
-      } else if (played.current > ceiling) {
-        played.current = Math.max(ceiling, played.current - dt * REWIND * hurry)
+      if (played.current > ceiling) {
+        played.current = Math.max(ceiling, played.current - dt * REWIND)
       } else {
-        played.current = Math.min(ceiling, played.current + dt * hurry)
+        played.current = Math.min(ceiling, played.current + dt)
       }
       started.current = true
       setAuto(played.current)
-      if (rewinding.current || scrubbing || played.current !== ceiling)
-        frame = requestAnimationFrame(tick)
+      if (played.current !== ceiling) frame = requestAnimationFrame(tick)
     }
     const io = new IntersectionObserver(
       ([entry]) => {
         visible = Boolean(entry?.isIntersecting)
         cancelAnimationFrame(frame)
         frame = 0
-        if (visible && (rewinding.current || played.current !== ceiling))
-          start()
+        if (visible && played.current !== ceiling) start()
       },
       { threshold: 0.35 },
     )
@@ -1001,9 +937,8 @@ export function TelegramChat({
     return () => {
       io.disconnect()
       cancelAnimationFrame(frame)
-      window.removeEventListener("scroll", onScroll)
     }
-  }, [controlled, autoDuration, ceiling, lift, replay, scrub])
+  }, [controlled, autoDuration, ceiling, lift])
 
   const raw = frozen ? 1 : controlled ? (progress as number) : auto
   const eff = floor + (1 - floor) * Math.min(1, Math.max(0, raw))

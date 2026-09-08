@@ -189,6 +189,32 @@ try {
           "Timeline must not steal unrelated wheel input",
         )
         assert.deepEqual(errors, [])
+        await page.emulateMedia({ reducedMotion: "no-preference" })
+        await page.locator("#start-playback").click()
+        await page.locator("#autoplay-check .tgchat[data-settled]").waitFor()
+        await page.locator("#finish-progress").click()
+        assert.match(
+          await page
+            .locator("#progress-check .tgchat-thread")
+            .first()
+            .innerText(),
+          /A message that fits/,
+        )
+        await page.locator("#reverse-progress").click()
+        assert.doesNotMatch(
+          await page
+            .locator("#progress-check .tgchat-thread")
+            .first()
+            .innerText(),
+          /A message that fits/,
+        )
+        // A completed autoplay story stays complete after leaving and reentering.
+        await page.evaluate(() => scrollTo(0, 0))
+        await page.locator("#autoplay-check").scrollIntoViewIfNeeded()
+        assert.equal(
+          await page.locator("#autoplay-check .tgchat[data-settled]").count(),
+          1,
+        )
         await page.setViewportSize({ width: 1440, height: 1000 })
         await page.emulateMedia({ reducedMotion: "reduce" })
         await page.goto(`${base}/telegram-chat`)

@@ -54,6 +54,8 @@ function Timeline() {
   return <div className="h-64">Native scroll timeline</div>
 }
 export function Checks() {
+  const [play, setPlay] = useState(false)
+  const [progress, setProgress] = useState(0)
   const [observed, setObserved] = useState("")
   const [selected, setSelected] = useState("Observe")
   const [language, setLanguage] = useState("en")
@@ -147,6 +149,31 @@ export function Checks() {
           <div style={{ height: late ? 800 : 20 }}>Nested scroll content</div>
         </div>
       </div>
+      <section id="playback-check" className="space-y-4">
+        <button type="button" id="start-playback" onClick={() => setPlay(true)}>
+          Start autoplay
+        </button>
+        <div id="autoplay-check" className="min-h-32">
+          {play && <TelegramChat script={script} frame="none" duration={800} />}
+        </div>
+        <button
+          type="button"
+          id="finish-progress"
+          onClick={() => setProgress(1)}
+        >
+          Complete controlled story
+        </button>
+        <button
+          type="button"
+          id="reverse-progress"
+          onClick={() => setProgress(0)}
+        >
+          Reverse controlled story
+        </button>
+        <div id="progress-check">
+          <TelegramChat script={script} frame="none" progress={progress} />
+        </div>
+      </section>
       <ScrollStage
         acts={2}
         pin="all"
