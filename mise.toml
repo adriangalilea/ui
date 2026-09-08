@@ -30,6 +30,7 @@ run = [
   "bun scripts/examples/telegram-chat-framing.ts",
   "bun scripts/examples/telegram-chat-scroll.ts",
   "bun scripts/check-browser.ts",
+  "bun scripts/check-media.ts",
   "bun scripts/check-install.ts",
   "bun scripts/examples/quote-card.ts",
   "bun scripts/examples/lightbox-motion.ts",

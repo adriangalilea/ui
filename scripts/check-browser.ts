@@ -5,6 +5,7 @@ import { existsSync } from "node:fs"
 import { createServer } from "node:net"
 import { chromium, webkit } from "playwright"
 import { checkImage } from "./check-image"
+import { checkMediaBrowser } from "./check-media-browser"
 
 // Run against the production build by default; BASE_URL can target a running lab.
 const reservation = createServer().listen(0, "127.0.0.1")
@@ -104,6 +105,7 @@ try {
     })
     try {
       await checkImage(browser, base)
+      await checkMediaBrowser(browser, base)
       for (const colorScheme of ["light", "dark"] as const) {
         const page = await browser.newPage({
           viewport: { width: 400, height: 850 },

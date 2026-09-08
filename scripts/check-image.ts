@@ -24,7 +24,7 @@ export async function checkImage(browser: Browser, base: string) {
     )
     await page.goto(`${base}/lab/image`, { waitUntil: "domcontentloaded" })
     const frame = page.locator('[data-slot="image"]')
-    const img = frame.locator("img")
+    const img = frame.locator('[data-slot="image-content"]')
     const before = await frame.boundingBox()
     const afterText = await page.locator("#after-image").boundingBox()
     assert.ok(before && before.height > 200)
@@ -128,7 +128,7 @@ export async function checkImage(browser: Browser, base: string) {
         ?.getAttribute("data-state") === "ready",
   )
   const selected = await preview
-    .locator("img")
+    .locator('[data-slot="image-content"]')
     .evaluate((img) => (img as HTMLImageElement).currentSrc)
   assert.ok(
     selected.includes("/_next/image?"),

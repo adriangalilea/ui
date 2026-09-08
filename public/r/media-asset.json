@@ -1,0 +1,14 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "media-asset",
+  "title": "media-asset",
+  "description": "portable, validated asset metadata shared by preparation, upload and presentation",
+  "files": [
+    {
+      "path": "registry/base-nova/lib/media-asset.ts",
+      "content": "/** Portable metadata. Store this beside an asset, never infer dimensions in a renderer. */\nexport type MediaAsset = {\n  src: string\n  kind: \"image\" | \"animation\" | \"video\"\n  width: number\n  height: number\n  mime: string\n  bytes: number\n  blurDataURL?: string\n  poster?: string\n  duration?: number\n}\n\n/** Validate responses at the upload boundary; no framework or storage dependency. */\nexport function isMediaAsset(value: unknown): value is MediaAsset {\n  if (!value || typeof value !== \"object\") return false\n  const a = value as Record<string, unknown>\n  return (\n    typeof a.src === \"string\" &&\n    a.src.length > 0 &&\n    [\"image\", \"animation\", \"video\"].includes(String(a.kind)) &&\n    typeof a.mime === \"string\" &&\n    [a.width, a.height].every(\n      (n) => typeof n === \"number\" && Number.isFinite(n) && n > 0,\n    ) &&\n    typeof a.bytes === \"number\" &&\n    Number.isFinite(a.bytes) &&\n    a.bytes > 0 &&\n    (a.poster === undefined || typeof a.poster === \"string\") &&\n    (a.blurDataURL === undefined || typeof a.blurDataURL === \"string\") &&\n    (a.duration === undefined ||\n      (typeof a.duration === \"number\" &&\n        Number.isFinite(a.duration) &&\n        a.duration >= 0))\n  )\n}\n",
+      "type": "registry:lib"
+    }
+  ],
+  "type": "registry:lib"
+}

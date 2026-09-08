@@ -87,6 +87,10 @@ try {
       join(app, "app/globals.css"),
       '@import "tailwindcss";\n@import "./tokens.css";\n',
     )
+    // Match this repository's exact reviewed exception; keep the global age policy intact.
+    const releasePolicy =
+      'minimumReleaseAgeExclude:\n  - "wordgard@0.5.2"\n  - "@adriangalilea/utils@4.1.0"\noverrides:\n  fastq: 1.20.1\nallowBuilds:\n  esbuild: true\n  sharp: false\n'
+    await writeFile(join(destination, "pnpm-workspace.yaml"), releasePolicy)
     let utils = join(app, "lib/utils.ts")
     if (workspace) {
       await json(join(destination, "package.json"), {
@@ -95,7 +99,7 @@ try {
       })
       await writeFile(
         join(destination, "pnpm-workspace.yaml"),
-        'packages:\n  - "apps/*"\n  - "packages/*"\n',
+        `packages:\n  - "apps/*"\n  - "packages/*"\n${releasePolicy}`,
       )
       const shared = join(destination, "packages/ui")
       await mkdir(join(shared, "src/lib"), { recursive: true })
@@ -143,6 +147,9 @@ try {
           "@ag/telegram-chat",
           "@ag/code",
           "@ag/image",
+          "@ag/video",
+          "@ag/editor",
+          "@ag/prepare-media",
           "--cwd",
           app,
           "--yes",
@@ -161,6 +168,11 @@ try {
       : join(app, "components/ui")
     const installed = [
       join(components, "image.tsx"),
+      join(components, "image-animation.tsx"),
+      join(components, "video.tsx"),
+      join(components, "editor.tsx"),
+      join(components, "editor-engine.ts"),
+      join(components, "editor.css"),
       join(components, "telegram-chat.tsx"),
       join(components, "device-frame.tsx"),
       join(components, "telegram-chat.css"),
@@ -188,7 +200,12 @@ try {
       )
     await run(
       "bun",
-      ["scripts/add.ts", "telegram-chat,code,image", app, "--dry-run"],
+      [
+        "scripts/add.ts",
+        "telegram-chat,code,image,video,editor,prepare-media",
+        app,
+        "--dry-run",
+      ],
       root,
     )
     for (const path of installed)
@@ -199,7 +216,12 @@ try {
       )
     await run(
       "bun",
-      ["scripts/add.ts", "telegram-chat,code,image", app, "--overwrite"],
+      [
+        "scripts/add.ts",
+        "telegram-chat,code,image,video,editor,prepare-media",
+        app,
+        "--overwrite",
+      ],
       root,
     )
     for (let i = 0; i < installed.length; i++)

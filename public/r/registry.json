@@ -4,13 +4,87 @@
   "homepage": "https://ui.adriangalilea.com",
   "items": [
     {
+      "name": "editor",
+      "type": "registry:ui",
+      "title": "editor",
+      "description": "Wordgard rich text with scoped styling, application-owned uploads, mapped paste/drop positions and HTML in/out",
+      "dependencies": ["wordgard@0.5.2"],
+      "registryDependencies": ["@ag/upload"],
+      "files": [
+        { "path": "registry/base-nova/ui/editor.tsx", "type": "registry:ui" },
+        {
+          "path": "registry/base-nova/ui/editor-engine.ts",
+          "type": "registry:ui"
+        },
+        { "path": "registry/base-nova/ui/editor.css", "type": "registry:ui" }
+      ]
+    },
+    {
+      "name": "media-asset",
+      "type": "registry:lib",
+      "title": "media-asset",
+      "description": "portable, validated asset metadata shared by preparation, upload and presentation",
+      "files": [
+        {
+          "path": "registry/base-nova/lib/media-asset.ts",
+          "type": "registry:lib"
+        }
+      ]
+    },
+    {
+      "name": "prepare-media",
+      "type": "registry:lib",
+      "title": "prepare-media",
+      "description": "Node image preparation and opt-in FFmpeg video preparation; dimensions, transparent previews, posters, content-addressed files and a CLI, with no storage dependency",
+      "dependencies": ["sharp", "tsx"],
+      "registryDependencies": ["@ag/media-asset"],
+      "files": [
+        {
+          "path": "registry/base-nova/lib/prepare-media.ts",
+          "type": "registry:lib"
+        },
+        {
+          "path": "registry/base-nova/lib/prepare-media-cli.ts",
+          "type": "registry:lib"
+        }
+      ]
+    },
+    {
+      "name": "video",
+      "type": "registry:ui",
+      "title": "video",
+      "description": "native video player and poster-first hover/focus previews, touch visibility playback, reduced motion and explicit pause",
+      "registryDependencies": ["@ag/image"],
+      "files": [
+        { "path": "registry/base-nova/ui/video.tsx", "type": "registry:ui" }
+      ]
+    },
+    {
+      "name": "upload",
+      "type": "registry:ui",
+      "title": "upload",
+      "description": "application-owned media uploads with progress, preparation state, cancellation, retries and local previews",
+      "registryDependencies": ["@ag/media-asset"],
+      "files": [
+        { "path": "registry/base-nova/ui/upload.tsx", "type": "registry:ui" }
+      ]
+    },
+    {
       "name": "image",
       "type": "registry:ui",
       "title": "image",
       "description": "Next.js images with reserved space and a decoded blur reveal; self-hostable optimization, prepared placeholders, reduced motion",
       "dependencies": ["next"],
       "files": [
-        { "path": "registry/base-nova/ui/image.tsx", "type": "registry:ui" }
+        { "path": "registry/base-nova/ui/image.tsx", "type": "registry:ui" },
+        {
+          "path": "registry/base-nova/ui/image-intent.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/base-nova/ui/image-animation.tsx",
+          "type": "registry:ui"
+        }
       ]
     },
     {

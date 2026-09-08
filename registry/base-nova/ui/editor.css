@@ -1,0 +1,97 @@
+/* biome-ignore-all lint/complexity/noImportantStyles: override Wordgard's runtime-injected custom-element styles */
+/* Wordgard injects styles at runtime onto custom elements. Scoped overrides must
+   win that injection; ordinary Tailwind utilities cannot target the content nodes. */
+[data-slot="editor"] wordgard-editor {
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  overflow: hidden !important;
+  background: var(--background) !important;
+  color: var(--foreground) !important;
+  font-family: inherit !important;
+}
+[data-slot="editor"] wordgard-editor:focus-within {
+  border-color: var(--ring) !important;
+}
+[data-slot="editor"] wg-menubar {
+  background: var(--muted) !important;
+  border-bottom: 1px solid var(--border) !important;
+  padding: 0.25rem !important;
+}
+[data-slot="editor"] .wg-menu-button {
+  color: var(--muted-foreground) !important;
+  background: transparent !important;
+  border-radius: calc(var(--radius) - 4px) !important;
+}
+[data-slot="editor"] .wg-menu-button:hover {
+  background: var(--accent) !important;
+  color: var(--accent-foreground) !important;
+}
+[data-slot="editor"] .wg-menu-button[aria-pressed="true"] {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+}
+[data-slot="editor"] wg-menu-list {
+  background: var(--popover) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--popover-foreground) !important;
+}
+[data-slot="editor"] wg-content {
+  color: var(--foreground) !important;
+  background: transparent !important;
+  padding: 0.75rem !important;
+  min-height: var(--editor-min-height, 8rem) !important;
+  outline: none !important;
+  font-size: 0.875rem !important;
+  line-height: 1.6 !important;
+}
+[data-slot="editor"] wg-content ul,
+[data-slot="editor"] wg-content ol {
+  padding-left: 1.375rem !important;
+  margin: 0.5rem 0 !important;
+}
+[data-slot="editor"] wg-content ul {
+  list-style: disc !important;
+}
+[data-slot="editor"] wg-content ol {
+  list-style: decimal !important;
+}
+[data-slot="editor"] wg-content p {
+  margin: 0.5rem 0 !important;
+}
+/* Restore document semantics removed by Tailwind preflight, scoped to this editor. */
+[data-slot="editor"] wg-content :is(h1, h2, h3, h4, h5, h6) {
+  font-weight: 600 !important;
+  line-height: 1.25 !important;
+  margin: 0.75rem 0 0.5rem !important;
+}
+[data-slot="editor"] wg-content h1 {
+  font-size: 1.5rem !important;
+}
+[data-slot="editor"] wg-content h2 {
+  font-size: 1.25rem !important;
+}
+[data-slot="editor"] wg-content h3 {
+  font-size: 1.125rem !important;
+}
+[data-slot="editor"] wg-content code {
+  font-family: var(--font-mono, monospace) !important;
+  background: var(--muted) !important;
+  padding: 0.125rem 0.25rem !important;
+  border-radius: 0.25rem !important;
+}
+[data-slot="editor"] wg-content a {
+  text-decoration: underline !important;
+  text-underline-offset: 0.15em !important;
+}
+[data-slot="editor"] wg-content blockquote {
+  border-left: 2px solid var(--border) !important;
+  padding-left: 0.75rem !important;
+  margin: 0.5rem 0 !important;
+}
+[data-slot="editor"] wg-content img {
+  max-width: 100%;
+  height: auto;
+}
+[data-slot="editor"] wg-placeholder {
+  color: var(--muted-foreground) !important;
+}

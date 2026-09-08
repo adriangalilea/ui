@@ -4,6 +4,8 @@ import type { ComponentType } from "react"
 import TelegramSummary from "@/registry/base-nova/blocks/telegram-summary/telegram-summary.demo"
 import LightboxActions from "@/registry/base-nova/lib/lightbox-actions.demo"
 import LightboxMotion from "@/registry/base-nova/lib/lightbox-motion.demo"
+import Media from "@/registry/base-nova/lib/media-asset.demo"
+import PrepareMedia from "@/registry/base-nova/lib/prepare-media.demo"
 import QuoteCard from "@/registry/base-nova/lib/quote-card.demo"
 import TerminalSession from "@/registry/base-nova/lib/terminal-session.demo"
 import WebPreviewUnfurl from "@/registry/base-nova/lib/web-preview-unfurl.demo"
@@ -13,6 +15,7 @@ import CardGallery from "@/registry/base-nova/ui/card-gallery.demo"
 import Code from "@/registry/base-nova/ui/code.demo"
 import Copy from "@/registry/base-nova/ui/copy.demo"
 import DeviceFrame from "@/registry/base-nova/ui/device-frame.demo"
+import Editor from "@/registry/base-nova/ui/editor.demo"
 import Image from "@/registry/base-nova/ui/image.demo"
 import Lightbox from "@/registry/base-nova/ui/lightbox.demo"
 import LiquidGlass from "@/registry/base-nova/ui/liquid-glass.demo"
@@ -24,9 +27,16 @@ import ScrollStage from "@/registry/base-nova/ui/scroll-stage.demo"
 import TelegramChat from "@/registry/base-nova/ui/telegram-chat.demo"
 import Terminal from "@/registry/base-nova/ui/terminal.demo"
 import ThemeToggle from "@/registry/base-nova/ui/theme-toggle.demo"
+import Upload from "@/registry/base-nova/ui/upload.demo"
+import Video from "@/registry/base-nova/ui/video.demo"
 import WebPreview from "@/registry/base-nova/ui/web-preview.demo"
 
 export const DEMOS: Record<string, ComponentType> = {
+  editor: Editor,
+  "media-asset": Media,
+  "prepare-media": PrepareMedia,
+  video: Video,
+  upload: Upload,
   image: Image,
   "card-gallery": CardGallery,
   "preview-picker": PreviewPicker,

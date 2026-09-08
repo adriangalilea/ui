@@ -34,6 +34,12 @@ judging whether an apparent difference is a component change.
 
 | item | what |
 |---|---|
+| `image` | proportional or cropped images, matched blur previews, and optional native GIF hover covers |
+| `video` | native player or poster-first hover/focus preview, with touch and reduced-motion behavior |
+| `media-asset` | validated asset metadata shared between preparation, upload and rendering |
+| `prepare-media` | Node preparation and a CLI; original images, measured dimensions, previews, posters and opt-in FFmpeg video |
+| `upload` | application-owned upload transport and UI state: progress, preparation, cancel and retry |
+| `editor` | Wordgard rich text with HTML in/out and an injected media uploader |
 | `tokens` | the studio's voice over shadcn's neutral theme: type voices, tones, the alpha ladder, motion |
 | `scroll-stage` | the pinned stage: a tall track, a sticky stage, `--stage-p` from a CSS scroll-driven animation, acts as checkpoints |
 | `reveal` | content that arrives as it enters the viewport |

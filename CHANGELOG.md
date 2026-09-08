@@ -11,6 +11,40 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
   and a short reveal after decoding. It supports self-hosted Next optimization,
   custom loaders, reduced motion, and rendering without JavaScript. `className`
   styles the frame; `imageClassName` styles the pixels.
+- Isolated internal pixels from prose typography. Placeholders now receive blur
+  and share the final image's fit and position. Use `className="w-full"` for
+  full-width articles; dimensions reserve proportions rather than forcing a crop.
+- Added `AnimatedImage` in `image-animation`: poster-first native animation on
+  hover/focus, visibility on touch, explicit pause, and reduced-motion support.
+  Stopping returns to the poster; native GIFs do not offer frame-accurate seeking.
+
+### video
+
+- Added native playback and silent cover previews with posters, explicit pause,
+  visibility handling and race-safe hover changes. `playOn="visible"` supports
+  article covers; normal players retain browser controls, sound and caption tracks.
+
+### media-asset
+
+- Added a storage-independent metadata contract and response validator.
+
+### prepare-media
+
+- Added shared Node preparation and a CLI. Preserves original image bytes,
+  measures orientation, retains transparency in previews, and generates posters.
+  Video is opt-in and requires FFmpeg/ffprobe. The caller uploads returned files;
+  preparation never writes to a database or chooses a storage provider.
+
+### upload
+
+- Added a typed uploader contract, multipart transport, and a React hook with
+  cancellation, retries, progress, preparation status and local preview cleanup.
+
+### editor
+
+- Added a Wordgard editor with scoped styles, HTML in/out and an injected uploader.
+  Paste/drop uploads follow document edits, preserve batch order, offer retry/cancel,
+  and prevent publishing pending uploads. Set `images={false}` for text-only formats.
 
 ### lightbox
 

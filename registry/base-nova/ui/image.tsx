@@ -45,7 +45,7 @@ function ImageResource({
       data-slot="image"
       data-state={state}
       className={cn(
-        "group/image relative block overflow-hidden bg-foreground/4",
+        "not-prose group/image relative block overflow-hidden bg-foreground/4",
         fill
           ? "absolute inset-0"
           : "w-(--image-width) max-w-full aspect-(--image-aspect)",
@@ -63,9 +63,17 @@ function ImageResource({
         <span
           aria-hidden="true"
           data-slot="image-placeholder"
-          className="absolute inset-0 bg-cover bg-center transition-opacity duration-300 motion-reduce:transition-none group-data-[state=ready]/image:opacity-0 group-data-[state=error]/image:opacity-0"
-          style={{ backgroundImage: `url(${JSON.stringify(blur)})` }}
-        />
+          className="pointer-events-none absolute inset-0 overflow-hidden transition-opacity duration-300 motion-reduce:transition-none group-data-[state=ready]/image:opacity-0 group-data-[state=error]/image:opacity-0"
+        >
+          {/* Same fit and position as the final pixels, including transparent/contained media. */}
+          {/* biome-ignore lint/performance/noImgElement: inline preview, no network or optimizer */}
+          <img
+            src={blur}
+            alt=""
+            className={cn("size-full object-cover", imageClassName)}
+            style={{ filter: "blur(12px)" }}
+          />
+        </span>
       )}
       <NextImage
         {...props}
