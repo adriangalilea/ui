@@ -1,8 +1,15 @@
 "use client"
 
 import { useTheme } from "next-themes"
+import { useSyncExternalStore } from "react"
 import { Sample } from "@/app/samples"
 import { type Theme, ThemeToggle } from "@/registry/base-nova/ui/theme-toggle"
+
+// #region hydration
+const subscribe = () => () => {}
+const clientSnapshot = () => true
+const serverSnapshot = () => false
+// #endregion
 
 export default function Demo() {
   // next-themes here, but the item does not know that: it takes a value and a setter,
@@ -10,17 +17,22 @@ export default function Demo() {
   // included); `resolvedTheme` is what that currently means.
   // #region theme
   const { theme, resolvedTheme, setTheme } = useTheme()
+  const hydrated = useSyncExternalStore(
+    subscribe,
+    clientSnapshot,
+    serverSnapshot,
+  )
   // #endregion
   return (
     <div className="space-y-8">
-      <Sample name="theme" label="compact icon picker" with="theme">
+      <Sample name="theme" label="compact icon picker" with="hydration theme">
         <ThemeToggle
-          value={theme as Theme | undefined}
+          value={hydrated ? (theme as Theme | undefined) : undefined}
           onChange={(t) => setTheme(t)}
         />
         <div className="space-y-2 font-mono text-xs text-muted-foreground">
-          <div>chosen · {theme ?? "…"}</div>
-          <div>resolves to · {resolvedTheme ?? "…"}</div>
+          <div>chosen · {hydrated ? theme : "…"}</div>
+          <div>resolves to · {hydrated ? resolvedTheme : "…"}</div>
         </div>
       </Sample>
       <p className="max-w-prose text-[0.9375rem] leading-relaxed text-foreground/70">
