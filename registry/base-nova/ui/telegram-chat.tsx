@@ -1135,6 +1135,14 @@ export function TelegramChat({
             )
           : dh
       const pad = base * FOCUS_PAD
+      // Focus padding is also the fade's budget: the fade must not wash over
+      // a message that fits inside the viewport's reserved reading area.
+      if (hero)
+        port.style.setProperty(
+          "--tg-fade",
+          `${Math.min(port.clientWidth * 0.09, pad)}px`,
+        )
+      else port.style.removeProperty("--tg-fade")
       const vh = Math.min(
         dhFinal,
         focused.length > 0
@@ -1149,7 +1157,20 @@ export function TelegramChat({
           ? heroY + heroH / 2 - vh / 2
           : heroY - pad
         : dh - vh
-      const top = Math.max(0, Math.min(dh - vh, want))
+      let top = Math.max(0, Math.min(dh - vh, want))
+      // Preserve an intact device edge when that viewport still contains the focus.
+      // Strict centring can otherwise shave off the chin for no extra information.
+      // Keep the focus clear of the opposite edge's fade as well as its usual padding.
+      if (frame === "phone" && hero && finalH + 2 * pad <= vh) {
+        const safe = pad
+        const end = Math.max(0, dh - vh)
+        const fitsTop =
+          heroY >= pad && heroY + Math.max(heroH, finalH) <= vh - safe
+        const fitsBottom =
+          heroY >= end + safe && heroY + Math.max(heroH, finalH) <= dh - pad
+        if (fitsTop && (!fitsBottom || top < end - top)) top = 0
+        else if (fitsBottom) top = end
+      }
       // THE TARGET STAYS PENDING UNTIL THE BOX CAN REACH IT. The height transitions:
       // in the frame the crop turns on the viewport is still full height, a scroll has
       // nowhere to go and the browser clamps it to 0, and a remembered "already there"
