@@ -14,10 +14,30 @@ export const browserMetrics = [
 export type BrowserMetric = (typeof browserMetrics)[number]
 
 let instance: ReturnType<typeof createMetrics> | undefined
-function createMetrics() {
+function createWriter(project: string) {
   const url = process.env.METRICS_DATABASE_URL
   const authToken = process.env.METRICS_AUTH_TOKEN
   if (!url || !authToken) throw new Error("Metrics database is not configured")
+  return sqliteMetricsWriter(createClient({ url, authToken }), project)
+}
+
+/** Strict write probe: errors propagate and synthetic counts never enter UI KPIs. */
+export async function probeCollection() {
+  if (process.env.VERCEL_ENV !== "production")
+    throw new Error("Collector is not a production deployment")
+  const checkedAt = new Date().toISOString()
+  await createWriter("ui-health")({
+    key: "writeProbe",
+    day: checkedAt.slice(0, 10),
+    count: 1,
+    sum: 0,
+    dimensions: {},
+    spec: { kind: "counter", label: "collector write probes", help: checkedAt },
+  })
+  return checkedAt
+}
+
+function createMetrics() {
   return defineMetrics(
     {
       installCopy: {
@@ -42,7 +62,7 @@ function createMetrics() {
         dimensions: { ...dimensions, traffic: ["known-bot", "other"] },
       },
     },
-    { write: sqliteMetricsWriter(createClient({ url, authToken }), "ui") },
+    { write: createWriter("ui") },
   )
 }
 

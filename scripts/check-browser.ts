@@ -15,7 +15,14 @@ await new Promise<void>((resolve) => reservation.close(() => resolve()))
 const base = process.env.BASE_URL ?? `http://localhost:${port}`
 const server = process.env.BASE_URL
   ? null
-  : spawn("pnpm", ["next", "start", "--port", String(port)], { stdio: "pipe" })
+  : spawn("pnpm", ["next", "start", "--port", String(port)], {
+      stdio: "pipe",
+      env: {
+        ...process.env,
+        VERCEL_ENV: "preview",
+        METRICS_HEALTH_TOKEN: "browser-check-only",
+      },
+    })
 let log = ""
 server?.stderr.on("data", (data) => {
   log = (log + data).slice(-4000)
@@ -35,6 +42,23 @@ try {
       headers: { origin, "content-type": "application/json" },
       body,
     })
+  if (server) {
+    assert.equal(
+      (await fetch(`${base}/api/metrics/health`, { method: "POST" })).status,
+      401,
+    )
+    assert.equal(
+      (
+        await fetch(`${base}/api/metrics/health`, {
+          method: "POST",
+          headers: { Authorization: "Bearer browser-check-only" },
+        })
+      ).status,
+      503,
+      "Preview collector must never report healthy or write production probes",
+    )
+    assert.equal((await fetch(`${base}/api/metrics/health`)).status, 405)
+  }
   assert.equal(
     (
       await metricRequest(

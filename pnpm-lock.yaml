@@ -12,8 +12,8 @@ importers:
   .:
     dependencies:
       '@adriangalilea/utils':
-        specifier: 3.0.0
-        version: 3.0.0(zod@3.25.76)
+        specifier: 4.0.0
+        version: 4.0.0(zod@3.25.76)
       '@base-ui/react':
         specifier: ^1.7.0
         version: 1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -90,8 +90,8 @@ importers:
 
 packages:
 
-  '@adriangalilea/utils@3.0.0':
-    resolution: {integrity: sha512-dciUoUMsIN2hO5n7i99STq4JPbSUBmYY+B5+w7HS01332/KdM2dYV5cJawBCvdvQzKmqEw8HnJuwRviKxhCpTA==}
+  '@adriangalilea/utils@4.0.0':
+    resolution: {integrity: sha512-bfmkxSSp2tlXSClMmRr+GbhGU+7qrxUopELzE7lECnN00HbuaxMRlUc4p/Yroi2EbQC4WfurnGqXoCuyczNw0Q==}
     peerDependencies:
       '@ai-sdk/anthropic': ^4.0.0
       '@ai-sdk/openai-compatible': ^3.0.0
@@ -2306,7 +2306,7 @@ packages:
 
 snapshots:
 
-  '@adriangalilea/utils@3.0.0(zod@3.25.76)':
+  '@adriangalilea/utils@4.0.0(zod@3.25.76)':
     dependencies:
       linkifyjs: 4.3.3
     optionalDependencies:

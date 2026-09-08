@@ -37,6 +37,55 @@ if (!url || !authToken)
   )
 const db = createClient({ url, authToken })
 try {
+  // This tests the deployed writer separately from the read-only report connection.
+  // No token means unknown health, never a false claim of healthy collection.
+  const token = process.env.METRICS_HEALTH_TOKEN
+  let collection: { status: string; checkedAt?: string } = {
+    status: "not-checked",
+  }
+  if (values.project === "ui") {
+    collection = { status: "unconfigured" }
+    if (token) {
+      try {
+        const response = await fetch(
+          `${process.env.METRICS_COLLECTOR_URL ?? "https://ui.adriangalilea.com"}/api/metrics/health`,
+          {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+            signal: AbortSignal.timeout(12000),
+            redirect: "error",
+          },
+        )
+        const result = await response.json()
+        collection =
+          response.ok &&
+          result.status === "healthy" &&
+          typeof result.checkedAt === "string"
+            ? { status: "healthy", checkedAt: result.checkedAt }
+            : { status: "unavailable" }
+      } catch {
+        collection = { status: "unavailable" }
+      }
+    }
+    if (collection.status !== "healthy") process.exitCode = 1
+    if (collection.status === "healthy" && collection.checkedAt) {
+      const checkedAt = collection.checkedAt
+      const day = checkedAt.slice(0, 10)
+      const probes = await readMetrics(db, {
+        from: day,
+        to: day,
+        project: "ui-health",
+      })
+      if (
+        !probes.some(
+          (r) => r.key === "writeProbe" && r.count > 0 && r.help >= checkedAt,
+        )
+      ) {
+        collection = { status: "unavailable" }
+        process.exitCode = 1
+      }
+    }
+  }
   const to = new Date().toISOString().slice(0, 10)
   const from = new Date(Date.parse(to) - (days - 1) * 86400000)
     .toISOString()
@@ -55,6 +104,7 @@ try {
           from,
           to,
           project: values.project,
+          collection,
           rows,
           totals: summarizeMetrics(rows),
         },
@@ -67,6 +117,13 @@ try {
       `${values.project} metrics · ${from} to ${to} UTC (today is partial)\n`,
     )
     console.log(renderMetrics(rows, { daily: values.daily }))
+    console.log(
+      `\nDeployed collector write probe: ${collection.status}${collection.checkedAt ? ` (${collection.checkedAt})` : ""}`,
+    )
+    if (collection.status === "unconfigured")
+      console.log(
+        "Set METRICS_HEALTH_TOKEN to check collection; zero counts alone do not prove quiet traffic.",
+      )
     console.log(
       "\nRequests are not installs. Command copies are intent. Known-bot classification is heuristic.",
     )

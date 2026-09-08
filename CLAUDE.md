@@ -138,6 +138,15 @@ The CLI loads `.env.local`: `METRICS_DATABASE_URL` and read-only
 read/add/update on the three metrics tables; schema changes use the Turso CLI.
 The shared package exports `METRICS_SCHEMA`; do not maintain a second SQL copy.
 
+`pnpm kpi` also checks the deployed writer through authenticated
+`POST /api/metrics/health`. Set `METRICS_HEALTH_TOKEN` in production and locally;
+it authorizes only a synthetic write probe, not database access. Probe counts live
+under project `ui-health`, never `ui`. The report includes collection health and
+exits nonzero if the UI probe is unconfigured or unavailable. This checks the
+writer now, not browser delivery, historical completeness, or exactly-once counts.
+No scheduled job is installed. `METRICS_COLLECTOR_URL` overrides the production URL
+for diagnostics; redirects are refused so the bearer token cannot follow one.
+
 Writes finish through Next `after`/`waitUntil` and fail without blocking usage.
 Counters are best-effort, not exactly-once. Only allowlisted component names and
 event types are stored, with a coarse known-bot/other request category; no IPs,
