@@ -9,7 +9,10 @@
 // a provider would make the item unusable to anyone who already has one.
 
 import { Monitor, Moon, Sun } from "lucide-react"
-import { PreviewPicker } from "@/registry/base-nova/ui/preview-picker"
+import {
+  PreviewPicker,
+  type PreviewPickerProps,
+} from "@/registry/base-nova/ui/preview-picker"
 
 export type Theme = "light" | "dark" | "system"
 
@@ -19,7 +22,8 @@ export const THEMES: { value: Theme; label: string; Icon: typeof Sun }[] = [
   { value: "dark", label: "dark", Icon: Moon },
 ]
 
-export interface ThemeToggleProps {
+export interface ThemeToggleProps
+  extends Omit<PreviewPickerProps<Theme>, "value" | "label" | "options"> {
   /** The chosen theme, `system` included. NOT the resolved one: a control that shows
    *  `dark` when the reader picked `system` at night is reporting a fact they did not
    *  choose, and the next press then reads as a no-op.
@@ -40,9 +44,11 @@ export function ThemeToggle({
   fallback = "system",
   onChange,
   className,
+  ...props
 }: ThemeToggleProps) {
   return (
     <PreviewPicker
+      {...props}
       label="Theme"
       value={value ?? fallback}
       onChange={onChange}

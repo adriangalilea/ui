@@ -25,6 +25,9 @@ run = [
   # and on a quote that only overflowed at prerender: twice in a day the first thing to
   # notice was Vercel. A minute here is cheaper than a broken production.
   "pnpm next build",
+  "bun scripts/examples/telegram-chat-framing.ts",
+  "bun scripts/check-browser.ts",
+  "bun scripts/check-install.ts",
   "bun scripts/examples/quote-card.ts",
   "bun scripts/examples/lightbox-motion.ts",
   "bun scripts/examples/lightbox-flight.ts",

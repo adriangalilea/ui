@@ -7,6 +7,7 @@
 // token) and code.css picks with the theme, so switching does not re-highlight and
 // cannot flash.
 
+import "server-only"
 import {
   transformerNotationDiff,
   transformerNotationErrorLevel,

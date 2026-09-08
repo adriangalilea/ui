@@ -2,10 +2,11 @@
 
 // Top and bottom viewport scrims, scroll-linked (see scrims.css for why they are never
 // transitioned). Pure CSS where animation-timeline: scroll() exists; a passive scroll
-// listener toggles data-on elsewhere. Place it inside the element that scrolls
+// listener measures opacity elsewhere. Place it inside the element that scrolls
 // (the document, or a scrolling inset): the timeline is scroll(nearest).
 
 import * as React from "react"
+import { cn } from "@/lib/utils"
 import "./scrims.css"
 
 export interface ScrimsProps {
@@ -17,6 +18,10 @@ export interface ScrimsProps {
   /** Static scrims protect floating chrome even at the end of a conversation. */
   mode?: "scroll" | "static"
   className?: string
+  /** Explicit scroll owner, independent of where the overlays are painted. */
+  scrollRef?: React.RefObject<HTMLElement | null>
+  topProps?: React.ComponentPropsWithRef<"div">
+  bottomProps?: React.ComponentPropsWithRef<"div">
 }
 
 export function Scrims({
@@ -25,56 +30,104 @@ export function Scrims({
   position = "fixed",
   mode = "scroll",
   className,
+  scrollRef,
+  topProps,
+  bottomProps,
 }: ScrimsProps) {
   const topRef = React.useRef<HTMLDivElement>(null)
   const bottomRef = React.useRef<HTMLDivElement>(null)
 
   React.useEffect(() => {
     if (mode === "static" || (!top && !bottom)) return
-    if (CSS.supports("animation-timeline: scroll()")) return
-    const scroller = (topRef.current ?? bottomRef.current)?.parentElement
-    if (!scroller) return
+    if (!scrollRef && CSS.supports("animation-timeline: scroll()")) return
+    let ancestor = (topRef.current ?? bottomRef.current)?.parentElement
+    while (
+      ancestor &&
+      !/(auto|scroll|hidden)/.test(getComputedStyle(ancestor).overflowY)
+    )
+      ancestor = ancestor.parentElement
     const target =
-      scroller.scrollHeight > scroller.clientHeight
-        ? scroller
-        : (document.scrollingElement as HTMLElement)
+      scrollRef?.current ??
+      ancestor ??
+      (document.scrollingElement as HTMLElement)
     const measure = () => {
       const y = target.scrollTop
-      const end = y + target.clientHeight >= target.scrollHeight - 140
-      topRef.current?.toggleAttribute("data-on", y > 160)
-      bottomRef.current?.toggleAttribute("data-on", !end)
+      const remaining = target.scrollHeight - target.clientHeight - y
+      if (topRef.current)
+        topRef.current.style.opacity = String(Math.max(0, Math.min(1, y / 160)))
+      if (bottomRef.current)
+        bottomRef.current.style.opacity = String(
+          Math.max(0, Math.min(1, remaining / 140)),
+        )
     }
     const source = target === document.scrollingElement ? window : target
     source.addEventListener("scroll", measure, { passive: true })
     window.addEventListener("resize", measure)
+    const resize = new ResizeObserver(measure)
+    const observe = () => {
+      resize.disconnect()
+      resize.observe(target)
+      for (const child of target.children) resize.observe(child)
+      measure()
+    }
+    const mutation = new MutationObserver(observe)
+    mutation.observe(target, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    })
+    observe()
     measure()
     return () => {
       source.removeEventListener("scroll", measure)
       window.removeEventListener("resize", measure)
+      resize.disconnect()
+      mutation.disconnect()
     }
-  }, [mode, top, bottom])
+  }, [mode, top, bottom, scrollRef])
 
   return (
     <>
       {bottom && (
         <div
-          ref={bottomRef}
-          style={{ margin: 0 }}
+          {...bottomProps}
+          ref={(node) => {
+            bottomRef.current = node
+            if (typeof bottomProps?.ref === "function")
+              return bottomProps.ref(node)
+            if (bottomProps?.ref) bottomProps.ref.current = node
+          }}
+          data-slot="scrim-bottom"
+          style={{
+            ...bottomProps?.style,
+            margin: 0,
+            animation: scrollRef ? "none" : undefined,
+          }}
           aria-hidden
           data-position={position}
           data-mode={mode}
-          className={`ag-scrim${className ? ` ${className}` : ""}`}
+          className={cn("ag-scrim", className, bottomProps?.className)}
           data-edge="bottom"
         />
       )}
       {top && (
         <div
-          ref={topRef}
-          style={{ margin: 0 }}
+          {...topProps}
+          ref={(node) => {
+            topRef.current = node
+            if (typeof topProps?.ref === "function") return topProps.ref(node)
+            if (topProps?.ref) topProps.ref.current = node
+          }}
+          data-slot="scrim-top"
+          style={{
+            ...topProps?.style,
+            margin: 0,
+            animation: scrollRef ? "none" : undefined,
+          }}
           aria-hidden
           data-position={position}
           data-mode={mode}
-          className={`ag-scrim${className ? ` ${className}` : ""}`}
+          className={cn("ag-scrim", className, topProps?.className)}
           data-edge="top"
         />
       )}

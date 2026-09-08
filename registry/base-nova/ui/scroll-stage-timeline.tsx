@@ -42,7 +42,10 @@ export function scrollBeatFrame(
  * Keep beats stable (declare them outside the component). */
 export function useScrollStageTimeline(
   beats: readonly ScrollBeat[],
-  { top = 0, bottom = 0 }: { top?: number; bottom?: number } = {},
+  {
+    top = 0,
+    bottom = 0,
+  }: { top?: number | string; bottom?: number | string } = {},
 ) {
   if (
     !beats.length ||
@@ -68,9 +71,6 @@ export function useScrollStageTimeline(
     if (!el || !stage) return
     const media = matchMedia(pinnedQuery)
     let frame = 0
-    let last = performance.now()
-    let destination = scrollY
-    let written = -1
     const bounds = () => {
       if (!media.matches) return null
       const rect = el.getBoundingClientRect()
@@ -80,10 +80,20 @@ export function useScrollStageTimeline(
       }
     }
     const fit = () => {
+      // Resolve CSS lengths in the scene's own inherited shell, including rem and
+      // custom properties, instead of making consumers repeat pixel offsets.
+      el.style.setProperty(
+        "--stage-clear-top",
+        typeof top === "number" ? `${top}px` : top,
+      )
+      el.style.setProperty(
+        "--stage-clear-bottom",
+        typeof bottom === "number" ? `${bottom}px` : bottom,
+      )
       el.style.setProperty("--stage-min-height", "0px")
       el.style.setProperty(
         "--stage-top",
-        `${Math.max(top, (innerHeight - stage.offsetHeight + top - bottom) / 2)}px`,
+        `max(var(--stage-clear-top), calc((100dvh - ${stage.offsetHeight}px + var(--stage-clear-top) - var(--stage-clear-bottom)) / 2))`,
       )
     }
     const sample = () => {
@@ -92,7 +102,6 @@ export function useScrollStageTimeline(
         setPosition(span)
         return
       }
-      if (Math.abs(scrollY - written) > 1) destination = scrollY
       setPosition(
         Math.max(
           0,
@@ -108,56 +117,12 @@ export function useScrollStageTimeline(
         ),
       )
     }
-    const tick = (now: number) => {
-      frame = 0
-      const range = bounds()
-      if (!range) return
-      const dt = Math.min(64, now - last)
-      last = now
-      const distance = destination - scrollY
-      const step =
-        Math.sign(distance) *
-        Math.max(1, Math.abs(distance) * (1 - Math.exp(-dt / 55)))
-      const limit = (range.travel / span) * 0.2
-      written = Math.round(
-        Math.abs(distance) < 1
-          ? destination
-          : scrollY + Math.max(-limit, Math.min(limit, step)),
-      )
-      window.scrollTo({ top: written, behavior: "instant" })
-      sample()
-      if (Math.abs(destination - written) >= 1)
-        frame = requestAnimationFrame(tick)
-    }
-    const wheel = (event: WheelEvent) => {
-      const range = bounds()
-      if (
-        !range ||
-        event.ctrlKey ||
-        Math.abs(event.deltaX) > Math.abs(event.deltaY)
-      )
-        return
-      const delta =
-        event.deltaY *
-        (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1)
-      if (
-        Math.max(scrollY, scrollY + delta) < range.start ||
-        Math.min(scrollY, scrollY + delta) > range.start + range.travel
-      )
-        return
-      event.preventDefault()
-      if ((destination - scrollY) * delta < 0) destination = scrollY
-      destination = Math.max(
-        0,
-        Math.min(
-          document.documentElement.scrollHeight - innerHeight,
-          destination + delta,
-        ),
-      )
-      if (!frame) {
-        last = performance.now()
-        frame = requestAnimationFrame(tick)
-      }
+    const schedule = () => {
+      if (!frame)
+        frame = requestAnimationFrame(() => {
+          frame = 0
+          sample()
+        })
     }
     const resize = new ResizeObserver(fit)
     resize.observe(stage)
@@ -165,20 +130,20 @@ export function useScrollStageTimeline(
       fit()
       sample()
     }
-    window.addEventListener("scroll", sample, { passive: true })
-    window.addEventListener("wheel", wheel, { passive: false })
+    window.addEventListener("scroll", schedule, { passive: true })
     window.addEventListener("resize", refresh)
     media.addEventListener("change", refresh)
     refresh()
     return () => {
       cancelAnimationFrame(frame)
       resize.disconnect()
-      window.removeEventListener("scroll", sample)
-      window.removeEventListener("wheel", wheel)
+      window.removeEventListener("scroll", schedule)
       window.removeEventListener("resize", refresh)
       media.removeEventListener("change", refresh)
       el.style.removeProperty("--stage-top")
       el.style.removeProperty("--stage-min-height")
+      el.style.removeProperty("--stage-clear-top")
+      el.style.removeProperty("--stage-clear-bottom")
     }
   }, [track, span, top, bottom, pinnedQuery])
 

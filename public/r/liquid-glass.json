@@ -6,9 +6,7 @@
   "dependencies": [
     "class-variance-authority"
   ],
-  "registryDependencies": [
-    "utils"
-  ],
+  "registryDependencies": [],
   "files": [
     {
       "path": "registry/base-nova/ui/liquid-glass.tsx",

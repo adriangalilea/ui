@@ -121,7 +121,6 @@ export function Avatar({
       entry={entry}
       label="portrait"
       render={
-        // biome-ignore lint/a11y/useAnchorContent: the trigger clones the picture into this element, and it carries the name
         <a
           data-slot="avatar"
           href={full.src}

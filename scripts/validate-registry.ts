@@ -52,6 +52,10 @@ for (const item of registry.items) {
   if (!new RegExp(`(^|[\\s{,])["']?${item.name}["']?\\s*:`, "m").test(demos))
     fail(`${item.name}: not listed in app/demos.tsx`)
   for (const dep of item.registryDependencies ?? []) {
+    if (dep === "utils")
+      fail(
+        `${item.name}: cn belongs to the consumer scaffold; do not depend on upstream utils`,
+      )
     if (dep.startsWith("@ag/") && !names.has(dep.slice(4)))
       fail(`${item.name}: unknown dependency ${dep}`)
   }

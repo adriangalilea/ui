@@ -23,6 +23,7 @@
 // `useLightbox().id === null`. Escape walks the ladder from anywhere.
 
 import { Dialog } from "@base-ui/react/dialog"
+import { useRender } from "@base-ui/react/use-render"
 import * as React from "react"
 import {
   type Action,
@@ -79,11 +80,9 @@ import {
   HAND,
   MACHINE,
   neighbours,
-  type Obstruction,
   type Point,
   type Pose,
   project,
-  type Rect,
   type Sample,
   type Size,
   SLIDE_GAP,
@@ -92,7 +91,6 @@ import {
   SWIPE_END,
   sharpScale,
   sourceView,
-  stageBand,
   swipeBreak,
   swipeCommitPx,
   swipeEnvelope,
@@ -117,6 +115,14 @@ import {
   phaseStart,
 } from "@/registry/base-nova/lib/lightbox-wheel-phase"
 import { Copy } from "@/registry/base-nova/ui/copy"
+import {
+  INSET_Y,
+  measureBand,
+  RAIL_H,
+  RAIL_W,
+  rectOf,
+  sameBand,
+} from "@/registry/base-nova/ui/lightbox-viewport"
 import "./lightbox.css"
 
 export type Source = {
@@ -183,6 +189,7 @@ export interface LightboxProps {
   children: React.ReactNode
 }
 export interface LightboxTriggerProps {
+  ref?: React.Ref<HTMLElement>
   entry: Entry
   /** Default `<a href={full}>`; must be focusable. */
   render?: React.ReactElement
@@ -214,7 +221,6 @@ const RegistryContext = React.createContext<Registry | null>(null)
 const StateContext = React.createContext<State | null>(null)
 
 /** Reserved for the bar and the caption; consumer chrome is declared via data-obstructs. */
-const INSET_Y = 48
 const INSET_X = 16
 /** Thumbnails ride the bar, between the counter and the buttons: 32px tall. */
 const THUMB_H = 32
@@ -231,9 +237,6 @@ let TRACE: string[] = []
 const FRAME_GUTTER = 32
 /** The rail beside the media at lg (px), under it below (share of the stage). The
  *  css reads both from the root (--lb-rail-w, --lb-rail-h). */
-const RAIL_W = 288
-const RAIL_H = 0.4
-const LG = "(min-width: 64rem)"
 /** The two elements the browser activates from the keyboard: a `render` that is
  *  merely focusable opens by pointer only. */
 const ACTIVATABLE = "a[href], button"
@@ -287,55 +290,6 @@ const gutterOf = (m: Media): number => (m.kind === "frame" ? FRAME_GUTTER : 0)
 function fitOf(m: Media, band: Band, floor?: Size): Size {
   return fit(boxOf(m), band, m.kind === "frame" ? FRAME_GUTTER : INSET_X, floor)
 }
-
-/** The trigger's rect, its corner resolved to px the way the browser draws it: a
- *  percentage is of the box, a length is capped at the half-size that makes a pill. */
-function rectOf(el: HTMLElement): Rect {
-  const r = el.getBoundingClientRect()
-  const [rx] = getComputedStyle(el).borderTopLeftRadius.split(" ") as [string]
-  const n = Number.parseFloat(rx)
-  assert(Number.isFinite(n), `border radius "${rx}" is not a number`)
-  const radius = rx.endsWith("%")
-    ? (n / 100) * r.width
-    : Math.min(n, Math.min(r.width, r.height) / 2)
-  return { x: r.left, y: r.top, w: r.width, h: r.height, radius }
-}
-
-function measureBand(rail: boolean): Band {
-  const vv = window.visualViewport
-  assert(vv, "visualViewport")
-  const base: Band = {
-    top: vv.offsetTop,
-    left: vv.offsetLeft,
-    w: vv.width,
-    h: vv.height,
-  }
-  const blocks: Obstruction[] = []
-  for (const el of document.querySelectorAll<HTMLElement>("[data-obstructs]")) {
-    const r = el.getBoundingClientRect()
-    if (r.height <= 0) continue
-    blocks.push(
-      el.dataset.obstructs === "top"
-        ? { side: "top", edge: r.bottom }
-        : { side: "bottom", edge: r.top },
-    )
-  }
-  const b = stageBand(base, blocks)
-  // The rail takes its share of the stage before the bar and caption insets, so the
-  // chrome positioned from this band ends where the rail begins.
-  const lane = !rail
-    ? b
-    : window.matchMedia(LG).matches
-      ? { ...b, w: b.w - RAIL_W }
-      : { ...b, h: b.h * (1 - RAIL_H) }
-  return { ...lane, top: lane.top + INSET_Y, h: lane.h - 2 * INSET_Y }
-}
-
-const sameBand = (a: Band, b: Band) =>
-  Math.abs(a.top - b.top) < 1 &&
-  Math.abs(a.left - b.left) < 1 &&
-  Math.abs(a.w - b.w) < 1 &&
-  Math.abs(a.h - b.h) < 1
 
 /** Decode of `full` starts on pointerdown, at the size the stage will ask for: the
  *  same band the Still measures, rail included, so both pick one candidate. A
@@ -508,6 +462,7 @@ export function LightboxTrigger({
   entry,
   render,
   children,
+  ref: externalRef,
 }: LightboxTriggerProps) {
   const ctx = React.useContext(RegistryContext)
   assert(ctx, "<LightboxTrigger> outside <Lightbox>")
@@ -541,30 +496,20 @@ export function LightboxTrigger({
     }
   }, [entry, triggers])
 
-  const element = (render ??
-    React.createElement("a", {
-      href: fullOf(entry.media),
-    })) as React.ReactElement<Record<string, unknown>>
-  const props = element.props
-  assert(
-    !("ref" in props),
-    `trigger "${entry.id}": the render element carries its own ref; the trigger owns it`,
-  )
-  return React.cloneElement(
-    element,
-    {
-      ref,
+  return useRender({
+    defaultTagName: "a",
+    render,
+    ref: [ref, externalRef ?? null],
+    props: {
+      href: render ? undefined : fullOf(entry.media),
+      children,
       "data-lightbox": entry.id,
       "data-lightbox-kind": entry.media.kind,
-      "aria-label": props["aria-label"] ?? (altOf(entry.media) || undefined),
+      "aria-label": altOf(entry.media) || undefined,
       onPointerDown: (e: React.PointerEvent) => {
-        ;(
-          props.onPointerDown as ((e: React.PointerEvent) => void) | undefined
-        )?.(e)
-        ctx.prime(entry)
+        if (!e.defaultPrevented) ctx.prime(entry)
       },
       onClick: (e: React.MouseEvent) => {
-        ;(props.onClick as ((e: React.MouseEvent) => void) | undefined)?.(e)
         if (
           e.defaultPrevented ||
           e.metaKey ||
@@ -577,8 +522,7 @@ export function LightboxTrigger({
         ctx.open(entry.id)
       },
     },
-    children,
-  )
+  })
 }
 
 /** A picture that opens ALONE: its own provider around its own trigger, so it is never

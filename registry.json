@@ -60,7 +60,7 @@
       "type": "registry:ui",
       "title": "code",
       "description": "a code block highlighted on the server by shiki: marked lines, diffs, focus and word marks, both themes in one render, copy built in",
-      "dependencies": ["shiki", "@shikijs/transformers"],
+      "dependencies": ["shiki", "@shikijs/transformers", "server-only"],
       "registryDependencies": ["@ag/tokens", "@ag/copy"],
       "files": [
         {
@@ -152,7 +152,7 @@
       "title": "liquid-glass",
       "description": "translucent glass with inset reflections and a directional rim; typed shapes and tones, Tailwind overrides, and polymorphic composition",
       "dependencies": ["class-variance-authority"],
-      "registryDependencies": ["utils"],
+      "registryDependencies": [],
       "files": [
         {
           "path": "registry/base-nova/ui/liquid-glass.tsx",
@@ -284,6 +284,14 @@
           "type": "registry:ui"
         },
         {
+          "path": "registry/base-nova/lib/telegram-chat-framing.ts",
+          "type": "registry:lib"
+        },
+        {
+          "path": "registry/base-nova/ui/telegram-chat-playback.tsx",
+          "type": "registry:ui"
+        },
+        {
           "path": "registry/base-nova/ui/telegram-chat.css",
           "type": "registry:ui"
         }
@@ -317,6 +325,10 @@
       "files": [
         {
           "path": "registry/base-nova/ui/lightbox.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/base-nova/ui/lightbox-viewport.tsx",
           "type": "registry:ui"
         },
         {

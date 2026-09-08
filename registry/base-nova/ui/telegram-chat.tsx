@@ -38,9 +38,11 @@
 import { ChevronDown, SlidersHorizontal } from "lucide-react"
 import * as React from "react"
 import { cn } from "@/lib/utils"
+import { frameChat } from "@/registry/base-nova/lib/telegram-chat-framing"
 import { IphoneFrame } from "@/registry/base-nova/ui/device-frame"
 import { Glass, type GlassTone } from "@/registry/base-nova/ui/liquid-glass"
 import { Scrims } from "@/registry/base-nova/ui/scrims"
+import { useChatAfterlife } from "@/registry/base-nova/ui/telegram-chat-playback"
 import { WebPreview } from "@/registry/base-nova/ui/web-preview"
 import "./telegram-chat.css"
 
@@ -172,6 +174,10 @@ export interface TelegramChatProps {
   /** Seconds added to the whole afterlife schedule (reactions + messages): lets a
    *  phone that completes instantly wait for its neighbours' story. */
   afterlifeDelay?: number
+  /** Render a deterministic completed conversation without a decorative clock. */
+  frozen?: boolean
+  /** Fill a definite parent height; focus pans within that measured viewport. */
+  viewport?: "content" | "container"
   /** URL of Telegram's doodle pattern (telegram-tt's assets/pattern.svg), applied as
    *  a CSS mask tinted per theme, exactly like the client. */
   wallpaper?: string
@@ -238,7 +244,6 @@ export const FRAMELESS_CROP = "4 / 3"
 /** Air above and below a focused message, as a share of the viewport; and how far a
  *  viewport may grow past its crop to hold a tall one before showing its start instead. */
 const FOCUS_PAD = 0.06
-const FOCUS_GROW = 1.5
 
 /** The viewport's scroll travels on the SAME clock and curve as the CSS layout moves
  *  (`--tg-glide`: 800 ms, ease-in-out cubic), so width, height and scroll arrive
@@ -562,8 +567,27 @@ function AvatarVideo({
 }) {
   const ref = React.useRef<HTMLVideoElement>(null)
   React.useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches)
-      ref.current?.pause()
+    const video = ref.current
+    if (!video) return
+    const motion = matchMedia("(prefers-reduced-motion: reduce)")
+    let visible = false
+    const update = () => {
+      if (motion.matches || !visible || document.hidden) video.pause()
+      else if (!video.ended) void video.play().catch(() => {})
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      visible = !!entry?.isIntersecting
+      update()
+    })
+    observer.observe(video)
+    motion.addEventListener("change", update)
+    document.addEventListener("visibilitychange", update)
+    return () => {
+      observer.disconnect()
+      video.pause()
+      motion.removeEventListener("change", update)
+      document.removeEventListener("visibilitychange", update)
+    }
   }, [])
   return (
     <video
@@ -571,9 +595,7 @@ function AvatarVideo({
       className={className}
       src={src}
       poster={poster}
-      autoPlay
       muted
-      loop
       playsInline
       tabIndex={-1}
     />
@@ -626,11 +648,18 @@ function Emoji({
   const [playing, setPlaying] = React.useState(0)
   const seen = React.useRef(false)
   const ref = React.useRef<HTMLImageElement>(null)
+  const timer = React.useRef(0)
+  React.useEffect(() => () => window.clearTimeout(timer.current), [])
   const start = React.useCallback(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
+    if (
+      !animated ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    )
+      return
     setPlaying((n) => n + 1)
-    window.setTimeout(() => setPlaying(0), EMOJI_PLAY_MS)
-  }, [])
+    window.clearTimeout(timer.current)
+    timer.current = window.setTimeout(() => setPlaying(0), EMOJI_PLAY_MS)
+  }, [animated])
   React.useEffect(() => {
     const el = ref.current
     if (!el || seen.current) return
@@ -695,24 +724,27 @@ export function TelegramChat({
   duration,
   until,
   afterlifeDelay = 0,
+  frozen = false,
+  viewport = "content",
   wallpaper,
   theme = "page",
   frame = "phone",
   composer = true,
   focus,
   crop,
-  animatedEmoji = true,
+  animatedEmoji: animateEmoji = true,
   debug = false,
   scrollable = true,
   replay,
   scrub = false,
   className,
 }: TelegramChatProps) {
+  const animatedEmoji = animateEmoji && !frozen
   // The frameless cut exists so a landing message slides the thread instead of growing
   // the page; a controlled chat (a still, one bubble at `progress`) lands nothing and
   // is simply its content's height.
   const wantsCut =
-    crop ??
+    (viewport === "container" ? "1" : crop) ??
     (frame === "none" && progress === undefined ? FRAMELESS_CROP : undefined)
   // The accounts: a `from` is the profile itself, a key into `people`, or a bare name.
   const profileOf = (who: Who): ChatProfile | undefined =>
@@ -757,9 +789,8 @@ export function TelegramChat({
     setPresses((p) => ({ ...p, [key]: (p[key] ?? 0) + 1 }))
   }
   const timeline = React.useMemo(() => buildTimeline(script), [script])
-  const controlled = progress !== undefined
+  const controlled = progress !== undefined || frozen
   const [auto, setAuto] = React.useState(0)
-  const [aliveSec, setAliveSec] = React.useState(0)
   const root = React.useRef<HTMLElement>(null)
   const thread = React.useRef<HTMLDivElement>(null)
   React.useEffect(() => {
@@ -971,7 +1002,7 @@ export function TelegramChat({
     }
   }, [controlled, autoDuration, ceiling, lift, replay, scrub])
 
-  const raw = controlled ? (progress as number) : auto
+  const raw = frozen ? 1 : controlled ? (progress as number) : auto
   const eff = floor + (1 - floor) * Math.min(1, Math.max(0, raw))
   const at = eff * timeline.total
   // THE CUT WAITS FOR ITS TARGET. A phone cropped to a message that has not landed
@@ -980,21 +1011,35 @@ export function TelegramChat({
   // cut: there the viewport is the container, and the page must not reflow.
   const cut =
     wantsCut &&
-    (frame === "none" ||
+    (viewport === "container" ||
+      frame === "none" ||
       focused.every((f) => at >= (timeline.beats[f] as Beat).land))
       ? wantsCut
       : undefined
   const isGroup = script.kind === "group"
   const completed = at >= timeline.total - BEAT.meta / 2 - 1e-6 || eff >= 1
 
-  // The afterlife clock: wall-clock seconds since the story completed. Immune to
-  // progress by construction: scrolling back pauses the clock but never rewinds it,
-  // so reactions and late messages only ever accumulate.
-  React.useEffect(() => {
-    if (!completed) return
-    const id = window.setInterval(() => setAliveSec((s) => s + 1), 1000)
-    return () => window.clearInterval(id)
-  }, [completed])
+  const afterlifeEnd = React.useMemo(() => {
+    const reactions = script.messages.flatMap((message) =>
+      (message.reactions ?? []).filter(
+        (reaction) => reaction.when !== "timeline",
+      ),
+    )
+    return Math.max(
+      0,
+      ...reactions.map(
+        (reaction, i) =>
+          afterlifeDelay +
+          3 +
+          i * 6 +
+          5 * Math.max(0, (reaction.count ?? 1) - 1),
+      ),
+      ...(script.afterlife?.messages.map(
+        (message) => afterlifeDelay + message.at,
+      ) ?? []),
+    )
+  }, [script, afterlifeDelay])
+  const aliveSec = useChatAfterlife(root, completed, afterlifeEnd, frozen)
 
   // The thread is a real scroller ONLY once the story has settled (data-settled
   // unlocks overflow): while streaming the wheel belongs to the page, and the thread
@@ -1115,7 +1160,10 @@ export function TelegramChat({
       // grows it, within reason (half again the crop), so the message is seen whole;
       // past that the message's START is what shows and the rest is a scroll away.
       // Centring a message taller than the box showed its middle with both ends cut.
-      const base = port.clientWidth / ratioOf(cut)
+      const base =
+        viewport === "container"
+          ? port.clientHeight
+          : port.clientWidth / ratioOf(cut)
       const hero = focusBox(dev)
       // WHAT THE EXCHANGE WILL BE, not what it is so far: the ghost holds every message
       // complete, so the height decided here is the same on the cut's first frame as on
@@ -1134,7 +1182,15 @@ export function TelegramChat({
               dh - liveThread.offsetHeight + ghostThread.offsetHeight,
             )
           : dh
-      const pad = base * FOCUS_PAD
+      const framing = frameChat({
+        deviceHeight: dh,
+        finalDeviceHeight: dhFinal,
+        baseHeight: base,
+        focus: hero ? { y: hero.y, height: hero.h, finalHeight: finalH } : null,
+        grow: viewport !== "container",
+        preserveFrame: frame === "phone",
+      })
+      const pad = framing.padding
       // Focus padding is also the fade's budget: the fade must not wash over
       // a message that fits inside the viewport's reserved reading area.
       if (hero)
@@ -1143,34 +1199,9 @@ export function TelegramChat({
           `${Math.min(port.clientWidth * 0.09, pad)}px`,
         )
       else port.style.removeProperty("--tg-fade")
-      const vh = Math.min(
-        dhFinal,
-        focused.length > 0
-          ? Math.min(Math.max(base, finalH + 2 * pad), base * FOCUS_GROW)
-          : base,
-      )
+      const vh = framing.height
       setViewH(vh)
-      const heroY = hero ? hero.y : 0
-      const heroH = hero ? hero.h : 0
-      const want = hero
-        ? finalH + 2 * pad <= vh
-          ? heroY + heroH / 2 - vh / 2
-          : heroY - pad
-        : dh - vh
-      let top = Math.max(0, Math.min(dh - vh, want))
-      // Preserve an intact device edge when that viewport still contains the focus.
-      // Strict centring can otherwise shave off the chin for no extra information.
-      // Keep the focus clear of the opposite edge's fade as well as its usual padding.
-      if (frame === "phone" && hero && finalH + 2 * pad <= vh) {
-        const safe = pad
-        const end = Math.max(0, dh - vh)
-        const fitsTop =
-          heroY >= pad && heroY + Math.max(heroH, finalH) <= vh - safe
-        const fitsBottom =
-          heroY >= end + safe && heroY + Math.max(heroH, finalH) <= dh - pad
-        if (fitsTop && (!fitsBottom || top < end - top)) top = 0
-        else if (fitsBottom) top = end
-      }
+      const top = framing.top
       // THE TARGET STAYS PENDING UNTIL THE BOX CAN REACH IT. The height transitions:
       // in the frame the crop turns on the viewport is still full height, a scroll has
       // nowhere to go and the browser clamps it to 0, and a remembered "already there"
@@ -1208,6 +1239,9 @@ export function TelegramChat({
       if (typeof debug === "function" && trace.current) debug(trace.current)
     }
     place()
+    const ready = requestAnimationFrame(() => {
+      if (root.current) root.current.dataset.ready = "true"
+    })
     const ro = new ResizeObserver(place)
     ro.observe(port)
     ro.observe(dev)
@@ -1219,15 +1253,16 @@ export function TelegramChat({
     // a glide cancelled on each re-run never arrived. It stops when a new target
     // replaces it, when the reader takes the wheel, or when it lands.
     return () => {
+      cancelAnimationFrame(ready)
       ro.disconnect()
       port.removeEventListener("wheel", yieldGlide)
       port.removeEventListener("touchstart", yieldGlide)
     }
-  }, [cut, focusKey, eff, aliveSec, frame])
+  }, [cut, focusKey, eff, aliveSec, frame, viewport])
 
   // Afterlife reactions across every message, in script order: staggered arrivals
   // with deterministic jitter, each pill lands at 1, climbs to its scripted count one
-  // press at a time, then (groups only) keeps creeping up forever.
+  // press at a time, stopping at the scripted count.
   let afterlifeIndex = 0
   const arriveAt = (i: number) => afterlifeDelay + 3 + i * 6 + ((i * 7) % 7)
   // Pills are BUTTONS: Telegram's reactions are pressable, and the demo's are too. A
@@ -1255,14 +1290,11 @@ export function TelegramChat({
         continue
       }
       const i = afterlifeIndex++
-      const since = aliveSec - arriveAt(i)
+      const since = (frozen ? afterlifeEnd : aliveSec) - arriveAt(i)
       if (since < 0) continue
       const target = r.count ?? 1
       const climb = Math.min(target - 1, Math.floor(since / 5))
-      const eternal = isGroup
-        ? Math.max(0, Math.floor((since - 5 * (target - 1)) / 22))
-        : 0
-      shown.push({ emoji: r.emoji, count: 1 + Math.max(0, climb) + eternal })
+      shown.push({ emoji: r.emoji, count: 1 + Math.max(0, climb) })
     }
     if (shown.length === 0) return null
     return (
@@ -1316,7 +1348,7 @@ export function TelegramChat({
           className="tgchat-mini"
           name={nameOf(who)}
           photo={avatarUrl ?? profileOf(who)?.avatar}
-          video={profileOf(who)?.avatarVideo}
+          video={frozen ? undefined : profileOf(who)?.avatarVideo}
         />
         {bubble}
       </div>
@@ -1553,6 +1585,7 @@ export function TelegramChat({
   return (
     <figure
       ref={root}
+      data-frozen={frozen}
       className={`tgchat${className ? ` ${className}` : ""}`}
       data-theme={theme}
       data-managed={script.managedBy ? "" : undefined}
@@ -1577,11 +1610,13 @@ export function TelegramChat({
         ref={view}
         className="tgchat-view"
         style={
-          viewH !== null
-            ? { height: `${viewH.toFixed(1)}px` }
-            : cut
-              ? { aspectRatio: cut }
-              : undefined
+          viewport === "container"
+            ? { height: "100%" }
+            : viewH !== null
+              ? { height: `${viewH.toFixed(1)}px` }
+              : cut
+                ? { aspectRatio: cut }
+                : undefined
         }
       >
         {scroller && <div className="tgchat-scrim" data-edge="top" />}
@@ -1648,7 +1683,11 @@ export function TelegramChat({
                   className="tgchat-avatar"
                   name={nameOf(script.chatName)}
                   photo={script.avatar ?? header?.avatar}
-                  video={script.avatarVideo ?? header?.avatarVideo}
+                  video={
+                    frozen
+                      ? undefined
+                      : (script.avatarVideo ?? header?.avatarVideo)
+                  }
                 />
               </TelegramGlass>
             </div>
@@ -1663,7 +1702,7 @@ export function TelegramChat({
                 className="tgchat-avatar"
                 name={nameOf(script.managedBy)}
                 photo={manager?.avatar}
-                video={manager?.avatarVideo}
+                video={frozen ? undefined : manager?.avatarVideo}
               />
               <div className="tgchat-manager-names">
                 <strong>{nameOf(script.managedBy)}</strong>
@@ -1733,8 +1772,10 @@ export function TelegramChat({
                           script.afterlife?.avatar ?? profileOf(who)?.avatar
                         }
                         video={
-                          script.afterlife?.avatarVideo ??
-                          profileOf(who)?.avatarVideo
+                          frozen
+                            ? undefined
+                            : (script.afterlife?.avatarVideo ??
+                              profileOf(who)?.avatarVideo)
                         }
                       />
                       {bubble}

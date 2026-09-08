@@ -134,21 +134,13 @@ console.log("inertia tail passed, hand accepted, dismiss commits once")
 // The axis comes from the TRAVEL and is undecided until there is enough of it. One
 // event of a two-finger swipe says almost nothing, which is how horizontal swipes
 // were being handed to the dismiss and back at random.
-{
-  assert(wheelAxisOf({ x: 3, y: 2 }) === null, "too small to have a direction")
-  assert(wheelAxisOf({ x: 40, y: 6 }) === "x", "sideways is the track's")
-  assert(wheelAxisOf({ x: 2, y: 40 }) === "y", "clearly down is the dismiss")
-  // A swipe that drifts is still a swipe: sideways is the common verb, so vertical
-  // has to win outright, not by a nose.
-  assert(
-    wheelAxisOf({ x: 20, y: 24 }) === "x",
-    "a drifting swipe stays a swipe",
-  )
-  assert(
-    wheelAxisOf({ x: 20, y: 40 }) === "y",
-    "a real drag down is a drag down",
-  )
-}
+assert(wheelAxisOf({ x: 3, y: 2 }) === null, "too small to have a direction")
+assert(wheelAxisOf({ x: 40, y: 6 }) === "x", "sideways is the track's")
+assert(wheelAxisOf({ x: 2, y: 40 }) === "y", "clearly down is the dismiss")
+// A swipe that drifts is still a swipe: sideways is the common verb, so vertical
+// has to win outright, not by a nose.
+assert(wheelAxisOf({ x: 20, y: 24 }) === "x", "a drifting swipe stays a swipe")
+assert(wheelAxisOf({ x: 20, y: 40 }) === "y", "a real drag down is a drag down")
 console.log("the track's when trackable, and only once the travel has said so")
 // ctrl + wheel is zoom: up zooms in at the cursor, the accumulator rubbers past the
 // ceiling and under fit, and the release under fit springs to fit (a wheel never

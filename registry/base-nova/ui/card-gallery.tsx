@@ -1,46 +1,98 @@
 "use client"
 
-import { type ReactNode, useLayoutEffect, useRef, useState } from "react"
+import {
+  type ComponentPropsWithRef,
+  type ReactNode,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react"
 import { cn } from "@/lib/utils"
 import { PreviewPicker } from "@/registry/base-nova/ui/preview-picker"
 
-export interface CardGalleryProps {
-  children: ReactNode[]
-  marks: { label: string; mark: ReactNode }[]
+export interface CardGalleryProps
+  extends Omit<
+    ComponentPropsWithRef<"section">,
+    "children" | "defaultValue" | "onChange"
+  > {
+  items: readonly {
+    id: string
+    label: string
+    mark: ReactNode
+    content: ReactNode
+  }[]
   label?: string
-  at?: number
-  /** Fractional card position from a scroll timeline; omitting it enables gliding. */
-  offset?: number
-  onSeek?: (index: number) => void
+  value?: string
+  defaultValue?: string
+  onValueChange?: (value: string) => void
+  /** Fractional position and navigation belong to the same timeline controller. */
+  timeline?: { offset: number; seek: (index: number) => unknown }
   /** Let neighboring cards reach the window edges, keeping the active card centered in its column. */
   bleed?: boolean
   /** Space outside the presentation for a fixed sidebar or table of contents. */
   insetInlineEnd?: string
   className?: string
+  classNames?: Partial<
+    Record<"body" | "viewport" | "track" | "card" | "picker", string>
+  >
 }
 
 /** Card presentation only. A scroll-stage timeline can own at/offset/onSeek;
  * otherwise the same gallery is a keyboard and touch driven carousel. */
 export function CardGallery({
-  children,
-  marks,
+  items,
   label = "Gallery",
-  at,
-  offset,
-  onSeek,
+  value,
+  defaultValue,
+  onValueChange,
+  timeline,
   bleed = false,
   insetInlineEnd = "0px",
   className,
+  classNames,
+  ref,
+  onKeyDown,
+  ...props
 }: CardGalleryProps) {
-  if (!children.length || children.length !== marks.length)
-    throw new Error("CardGallery needs one mark for each card")
-  const [local, setLocal] = useState(0)
-  const index = Math.max(0, Math.min(children.length - 1, at ?? local))
-  const seek = (value: number) =>
-    (onSeek ?? setLocal)(Math.max(0, Math.min(children.length - 1, value)))
+  if (
+    !items.length ||
+    new Set(items.map((item) => item.id)).size !== items.length
+  )
+    throw new Error("CardGallery needs nonempty items with unique IDs")
+  const [local, setLocal] = useState(defaultValue ?? items[0]?.id)
+  const offset = timeline
+    ? Math.max(0, Math.min(items.length - 1, timeline.offset))
+    : undefined
+  const index =
+    offset !== undefined
+      ? Math.floor(offset)
+      : Math.max(
+          0,
+          items.findIndex((item) => item.id === (value ?? local)),
+        )
+  const seek = (next: number) => {
+    const index = Math.max(0, Math.min(items.length - 1, next))
+    const id = items[index]?.id
+    if (id === undefined) return
+    if (timeline) timeline.seek(index)
+    else if (value === undefined) setLocal(id)
+    onValueChange?.(id)
+  }
   const wheelAt = useRef(0)
   const touch = useRef<{ x: number; y: number } | null>(null)
   const root = useRef<HTMLElement>(null)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: selection changes which subtree becomes inert
+  useLayoutEffect(() => {
+    const element = root.current
+    const active = document.activeElement
+    if (
+      element &&
+      active instanceof HTMLElement &&
+      element.contains(active) &&
+      active.closest("[inert]")
+    )
+      element.focus({ preventScroll: true })
+  }, [index])
   useLayoutEffect(() => {
     const element = root.current
     if (!element || !bleed) return
@@ -63,16 +115,23 @@ export function CardGallery({
   }, [bleed])
   return (
     <section
-      ref={root}
+      {...props}
+      ref={(element) => {
+        root.current = element
+        if (typeof ref === "function") return ref(element)
+        if (ref) ref.current = element
+      }}
       data-slot="card-gallery"
       aria-label={label}
       aria-roledescription="carousel"
       // biome-ignore lint/a11y/noNoninteractiveTabindex: carousel keyboard navigation needs a focus target
       tabIndex={0}
       onKeyDown={(event) => {
+        onKeyDown?.(event)
         if (
+          event.defaultPrevented ||
           (event.target as HTMLElement).closest(
-            "input,textarea,select,[contenteditable=true]",
+            "input,textarea,select,[contenteditable=true],[role=slider],[role=combobox],[role=listbox],[role=menu],[role=tablist]",
           )
         )
           return
@@ -84,7 +143,7 @@ export function CardGallery({
               : event.key === "Home"
                 ? 0
                 : event.key === "End"
-                  ? children.length - 1
+                  ? items.length - 1
                   : null
         if (next === null) return
         event.preventDefault()
@@ -95,10 +154,13 @@ export function CardGallery({
         className,
       )}
     >
-      <div className="space-y-8">
+      <div className={cn("space-y-8", classNames?.body)}>
         <div
           data-slot="card-gallery-viewport"
-          className="relative overflow-x-clip py-8 touch-pan-y touch-pinch-zoom"
+          className={cn(
+            "relative overflow-x-clip py-8 touch-pan-y touch-pinch-zoom",
+            classNames?.viewport,
+          )}
           style={
             bleed
               ? {
@@ -149,6 +211,7 @@ export function CardGallery({
               "flex gap-(--gap) pl-[calc((100cqw-var(--card))/2)]",
               offset === undefined &&
                 "transition-transform duration-700 ease-[cubic-bezier(0.65,0,0.35,1)] motion-reduce:transition-none",
+              classNames?.track,
             )}
             style={{
               paddingLeft: bleed
@@ -157,30 +220,35 @@ export function CardGallery({
               transform: `translateX(calc(-${offset ?? index} * (var(--card) + var(--gap))))`,
             }}
           >
-            {children.map((card, i) => (
+            {items.map((item, i) => (
+              // biome-ignore lint/a11y/useSemanticElements: a carousel slide groups content, not form fields
               <div
                 data-slot="card-gallery-card"
-                key={marks[i]?.label}
+                key={item.id}
+                role="group"
+                aria-roledescription="slide"
+                aria-label={`${item.label}, ${i + 1} of ${items.length}`}
                 aria-hidden={i !== index || undefined}
                 inert={i !== index}
                 className={cn(
                   "w-(--card) shrink-0 rounded-[2rem] bg-(--card-bg)",
                   i === index &&
                     "group-focus-visible/gallery:outline-2 group-focus-visible/gallery:outline-offset-4 group-focus-visible/gallery:outline-ring",
+                  classNames?.card,
                 )}
               >
-                {card}
+                {item.content}
               </div>
             ))}
           </div>
         </div>
-        <div className="flex justify-center">
+        <div className={cn("flex justify-center", classNames?.picker)}>
           <PreviewPicker
             label={label}
             value={index}
             onChange={seek}
             iconsOnly
-            options={marks.map((mark, value) => ({
+            options={items.map((mark, value) => ({
               value,
               label: mark.label,
               icon: mark.mark,

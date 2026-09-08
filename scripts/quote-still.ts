@@ -32,6 +32,7 @@ const LOOK: QuoteStillOptions = {
   fontFamily: "Georgia",
   // Georgia's average advance, measured with fontTools — see QUOTE_CH. Naming a face
   // without saying how wide it runs sets the type for some other face.
+  // biome-ignore lint/suspicious/noApproximativeNumericConstant: measured font advance, not an approximation of log10(e)
   ch: 0.434,
   nameFamily: "Helvetica Neue",
 }
