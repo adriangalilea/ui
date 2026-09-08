@@ -38,11 +38,14 @@
 import { ChevronDown, SlidersHorizontal } from "lucide-react"
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { frameChat } from "@/registry/base-nova/lib/telegram-chat-framing"
 import { IphoneFrame } from "@/registry/base-nova/ui/device-frame"
 import { Glass, type GlassTone } from "@/registry/base-nova/ui/liquid-glass"
 import { Scrims } from "@/registry/base-nova/ui/scrims"
-import { useChatAfterlife } from "@/registry/base-nova/ui/telegram-chat-playback"
+import { useChatLayout } from "@/registry/base-nova/ui/telegram-chat-layout"
+import {
+  useChatAfterlife,
+  useChatPlayback,
+} from "@/registry/base-nova/ui/telegram-chat-playback"
 import { WebPreview } from "@/registry/base-nova/ui/web-preview"
 import "./telegram-chat.css"
 
@@ -235,72 +238,6 @@ function emojiCodes(emoji: string): string {
 /** The frameless canvas's default viewport: a landing message slides the thread up
  *  inside it instead of growing the page under the reader. */
 export const FRAMELESS_CROP = "4 / 3"
-/** Air above and below a focused message, as a share of the viewport; and how far a
- *  viewport may grow past its crop to hold a tall one before showing its start instead. */
-const FOCUS_PAD = 0.06
-
-/** The viewport's scroll travels on the SAME clock and curve as the CSS layout moves
- *  (`--tg-glide`: 800 ms, ease-in-out cubic), so width, height and scroll arrive
- *  together. `scrollTo({behavior: "smooth"})` has its own duration and no curve to
- *  share, and three motions on three clocks read as a spring. Returns a cancel. */
-const GLIDE_MS = 800
-const glideEase = (t: number) =>
-  t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2
-function glide(el: HTMLElement, to: number): () => void {
-  const from = el.scrollTop
-  if (Math.abs(to - from) < 1) {
-    el.scrollTop = to
-    return () => {}
-  }
-  const start = performance.now()
-  let frame = 0
-  const step = (now: number) => {
-    const t = Math.min(1, (now - start) / GLIDE_MS)
-    el.scrollTop = from + (to - from) * glideEase(t)
-    if (t < 1) frame = requestAnimationFrame(step)
-  }
-  frame = requestAnimationFrame(step)
-  return () => cancelAnimationFrame(frame)
-}
-
-/** A CSS aspect-ratio value ("4 / 3", "1/1", "1.5") as width over height. */
-function ratioOf(crop: string): number {
-  const m = /^\s*([\d.]+)\s*(?:\/\s*([\d.]+))?\s*$/.exec(crop)
-  const w = m ? Number(m[1]) : Number.NaN
-  const h = m?.[2] ? Number(m[2]) : 1
-  if (!(w > 0) || !(h > 0))
-    throw new Error(`telegram-chat: crop "${crop}" is not an aspect ratio`)
-  return w / h
-}
-
-type Placement = { x: number; y: number; w: number; h: number }
-
-/** An element's box in its ancestor's layout coordinates, transforms ignored: the offset
- *  chain, less any scroll between them. Rects would report the zoomed position. */
-function placeIn(el: HTMLElement, ancestor: HTMLElement): Placement {
-  let x = 0
-  let y = 0
-  let node: HTMLElement | null = el
-  while (node && node !== ancestor) {
-    x += node.offsetLeft
-    y += node.offsetTop
-    const parent = node.offsetParent as HTMLElement | null
-    // Every scrolling box between the node and its offsetParent, the offsetParent
-    // included, shifts where the node is seen. The ancestor's own scroll is not the
-    // question: the answer is in ITS content coordinates.
-    for (
-      let s: HTMLElement | null = node.parentElement;
-      s && s !== ancestor;
-      s = s.parentElement
-    ) {
-      x -= s.scrollLeft
-      y -= s.scrollTop
-      if (s === parent) break
-    }
-    node = parent
-  }
-  return { x, y, w: el.offsetWidth, h: el.offsetHeight }
-}
 
 // Telegram's sender palette: label colors and the matching avatar gradients. A name
 // hashes to a stable index so a sender keeps one identity everywhere.
@@ -357,10 +294,6 @@ const BEAT = {
   pick: 250,
 } as const
 
-/** Rewind runs this many times faster than play: a lowered ceiling (a reader scrolling
- *  back an act) is a story reversing, not a cut, and it should not take as long as it
- *  took to tell. */
-const REWIND = 3
 interface Beat {
   /** The beat begins (typing status may show, composer may fill). */
   start: number
@@ -753,7 +686,6 @@ export function TelegramChat({
     )
   }
   const glassTone = theme === "page" ? "auto" : theme
-  const [showLatest, setShowLatest] = React.useState(false)
   const manager = script.managedBy ? profileOf(script.managedBy) : undefined
   const header = profileOf(script.chatName)
   const chatTag =
@@ -775,20 +707,8 @@ export function TelegramChat({
   }
   const timeline = React.useMemo(() => buildTimeline(script), [script])
   const controlled = progress !== undefined || frozen
-  const [auto, setAuto] = React.useState(0)
   const root = React.useRef<HTMLElement>(null)
   const thread = React.useRef<HTMLDivElement>(null)
-  React.useEffect(() => {
-    const el = thread.current
-    if (!el) return
-    const measure = () =>
-      setShowLatest(el.scrollHeight - el.scrollTop - el.clientHeight > 40)
-    const observer = new ResizeObserver(measure)
-    observer.observe(el)
-    if (el.firstElementChild) observer.observe(el.firstElementChild)
-    measure()
-    return () => observer.disconnect()
-  }, [])
   const view = React.useRef<HTMLDivElement>(null)
   const device = React.useRef<HTMLDivElement>(null)
   const bubbles = React.useRef<(HTMLElement | null)[]>([])
@@ -802,26 +722,6 @@ export function TelegramChat({
       throw new Error(
         `telegram-chat: focus ${f} outside 0..${script.messages.length - 1}`,
       )
-  const target = focused[0]
-  /** The box ALL focused messages span, in `root`'s layout coordinates, or null while
-   *  none has landed. A focus is often an exchange (the question and its answer), and a
-   *  viewport that fitted only the first of them cut the reader off from what was asked. */
-  const focusBox = (
-    root: HTMLElement,
-    held: React.RefObject<(HTMLElement | null)[]> = bubbles,
-  ): { y: number; h: number } | null => {
-    let top = Number.POSITIVE_INFINITY
-    let bottom = Number.NEGATIVE_INFINITY
-    for (const i of focused) {
-      const el = held.current[i]
-      if (!el) continue
-      const p = placeIn(el, root)
-      top = Math.min(top, p.y)
-      bottom = Math.max(bottom, p.y + p.h)
-    }
-    return top === Number.POSITIVE_INFINITY ? null : { y: top, h: bottom - top }
-  }
-  const focusKey = focused.join(",")
   const floor =
     typeof from === "number"
       ? from
@@ -833,7 +733,6 @@ export function TelegramChat({
             )
           return beat.start / timeline.total
         })()
-  // ~6ms per weighted char: a brisk stream, bounded both ways.
   // ~6ms per weighted char, no ceiling: a cap squeezed every structural beat of a long
   // script (the options popup lasted a second under a three-summary story).
   const autoDuration =
@@ -860,85 +759,7 @@ export function TelegramChat({
   const ceiling = untilBeat ? rawAt(untilBeat.end) : 1
   const lift = untilBeat ? rawAt(untilBeat.start) : 0
 
-  // One-shot in-view autoplay (uncontrolled only): rAF advance, paused off-screen,
-  // reduced-motion renders the completed state, never replays (anti-strobe). The
-  // position lives in a ref so a raised ceiling RESUMES from where the story waited
-  // rather than starting it over.
-  const played = React.useRef(0)
-  /** The story has advanced at least one frame on its own clock. */
-  const started = React.useRef(false)
-  /** The ceiling the last run of the effect saw; null before the first. */
-  const lastCeiling = React.useRef<number | null>(null)
-  React.useEffect(() => {
-    if (controlled) return
-    const el = root.current
-    if (!el) return
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      played.current = ceiling
-      lastCeiling.current = ceiling
-      setAuto(ceiling)
-      return
-    }
-    // Context lands whole; only the act's own beat plays. ONLY for a story that has not
-    // started: a reader arriving at act three (a reload, a deep link) gets that act's
-    // beat with everything before it already there. A story already under way keeps
-    // its place when the ceiling rises, however far: a gallery that lets a card rest at
-    // the link and then frees it to the end must play the typing and the popup in
-    // between, not jump to the summary.
-    if (lastCeiling.current === null) {
-      if (played.current < lift) played.current = lift
-    } else if (
-      lastCeiling.current !== ceiling &&
-      !started.current &&
-      played.current < lastCeiling.current
-    ) {
-      // Only a changed ceiling advances unseen context. Effect replay (Strict Mode)
-      // or a duration change must not complete a story that has not started.
-      // Gated below the old ceiling without ever playing (off screen): what the old
-      // ceiling allowed is context and lands whole; the story plays from there.
-      played.current = lastCeiling.current
-    }
-    lastCeiling.current = ceiling
-    setAuto(played.current)
-    let frame = 0
-    let last = 0
-    let visible = false
-    const running = () => frame !== 0
-    const start = () => {
-      if (running() || !visible) return
-      last = performance.now()
-      frame = requestAnimationFrame(tick)
-    }
-    // Autoplay has one clock. A lowered `until` ceiling reverses toward that
-    // explicit target; page scroll position belongs to controlled `progress`.
-    const tick = (now: number) => {
-      frame = 0
-      const dt = (now - last) / autoDuration
-      last = now
-      if (played.current > ceiling) {
-        played.current = Math.max(ceiling, played.current - dt * REWIND)
-      } else {
-        played.current = Math.min(ceiling, played.current + dt)
-      }
-      started.current = true
-      setAuto(played.current)
-      if (played.current !== ceiling) frame = requestAnimationFrame(tick)
-    }
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        visible = Boolean(entry?.isIntersecting)
-        cancelAnimationFrame(frame)
-        frame = 0
-        if (visible && played.current !== ceiling) start()
-      },
-      { threshold: 0.35 },
-    )
-    io.observe(el)
-    return () => {
-      io.disconnect()
-      cancelAnimationFrame(frame)
-    }
-  }, [controlled, autoDuration, ceiling, lift])
+  const auto = useChatPlayback(root, controlled, autoDuration, ceiling, lift)
 
   const raw = frozen ? 1 : controlled ? (progress as number) : auto
   const eff = floor + (1 - floor) * Math.min(1, Math.max(0, raw))
@@ -979,257 +800,21 @@ export function TelegramChat({
   }, [script, afterlifeDelay])
   const aliveSec = useChatAfterlife(root, completed, afterlifeEnd, frozen)
 
-  // The thread is a real scroller ONLY once the story has settled (data-settled
-  // unlocks overflow): while streaming the wheel belongs to the page, and the thread
-  // stays pinned to the bottom. Settled, you scroll up to what was summoned. A late
-  // message pulls it down only if you were already at the bottom, exactly the
-  // client's behaviour.
-  // A FOCUSED message owns the scroll instead: the thread centres it, because the reader
-  // was pointed at it — and moves ONLY when where it wants to be changes. The afterlife
-  // clock re-runs this every second; re-setting the same scrollTop each tick yanked the
-  // thread back from wherever the reader had scrolled it.
-  const threadWant = React.useRef<number | null>(null)
-  const threadInitialized = React.useRef(false)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: eff/aliveSec are the beats that grow the thread
-  React.useLayoutEffect(() => {
-    const el = thread.current
-    if (!el) return
-    const box = focusBox(el)
-    if (box) {
-      // In the thread's content coordinates, so the scroll it sets is absolute.
-      // Centred when it fits; an exchange taller than the screen shows its START, the
-      // rest a scroll away. Centring it showed its middle with both ends cut. Whether
-      // it fits is judged on what it WILL be (the ghost), so the choice never flips
-      // mid-stream and yanks the thread from centre to start.
-      const ghost = ghostRoot.current
-      const grown = ghost ? focusBox(ghost, ghosts) : null
-      const finalH = grown ? grown.h : box.h
-      const pad = el.clientHeight * FOCUS_PAD
-      const want = Math.max(
-        0,
-        finalH + 2 * pad <= el.clientHeight
-          ? box.y + box.h / 2 - el.clientHeight / 2
-          : box.y - pad,
-      )
-      if (
-        threadWant.current !== null &&
-        Math.abs(want - threadWant.current) < 1
-      )
-        return
-      threadWant.current = want
-      el.scrollTop = want
-      return
-    }
-    threadWant.current = null
-    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40
-    if (!threadInitialized.current || !completed || atBottom)
-      el.scrollTop = el.scrollHeight
-    threadInitialized.current = true
-  }, [completed, eff, aliveSec, focusKey])
-
-  // THE CUT is a real scroller. The viewport takes the crop's height (a measured px
-  // value, so a change of crop TRANSITIONS instead of jumping: a phone with a focused
-  // message can cut down onto it in the next act), the device keeps its full width
-  // inside it, and the viewport scrolls so the focused message's centre (measured in
-  // layout coordinates, the thread's scroll subtracted) sits at its centre, or, with
-  // nothing focused, to the latest. A scroll, not a transform: the reader can scroll
-  // up once the story settles, exactly as in the phone's thread, and the edge scrims
-  // are scroll-driven in CSS, so they appear only where something is actually hidden.
-  // Smooth after the first frame, so a landing message slides the thread up the way a
-  // chat does; instant under reduced motion.
-  // The viewport ALWAYS carries a measured px height, cut or not: `auto` to a px value
-  // does not transition, and the whole point of the cut is that it closes over the
-  // device like a curtain while the scroll glides, never a flash. The scroll moves only
-  // when where it wants to be changes (the afterlife clock re-runs this every second).
-  const [viewH, setViewH] = React.useState<number | null>(null)
-  const viewWant = React.useRef<number | null>(null)
-  const pendingScroll = React.useRef(false)
-  const glideStop = React.useRef<() => void>(() => {})
-  // THE VIEWPORT STAYS A SCROLLER WHILE IT OPENS. Dropping the cut removed `overflow`
-  // in the same frame the height began to grow, and a box that is no longer a scroll
-  // container has a scrollTop of 0 at once: the thread snapped to the phone's top while
-  // the box eased open, a jump under a glide. The scroller role outlives the cut by one
-  // glide, so the scroll can travel home on the same clock as the height.
-  const [opening, setOpening] = React.useState(false)
-  const hadCut = React.useRef(cut)
-  React.useEffect(() => {
-    const was = hadCut.current
-    hadCut.current = cut
-    if (was && !cut) {
-      setOpening(true)
-      const id = window.setTimeout(() => setOpening(false), GLIDE_MS)
-      return () => window.clearTimeout(id)
-    }
-    setOpening(false)
-  }, [cut])
-  const scroller = cut !== undefined || opening
-  /** What the cut decided, for the `debug` readout: the numbers, as they happened. */
-  const trace = React.useRef<Record<string, unknown> | null>(null)
-  React.useLayoutEffect(() => {
-    const element = root.current
-    if (!element || fit !== "focus" || viewport !== "container") return
-    const previous = element.style.width
-    return () => {
-      element.style.width = previous
-    }
-  }, [fit, viewport])
-  // biome-ignore lint/correctness/useExhaustiveDependencies: eff and aliveSec grow the thread and move the message
-  React.useLayoutEffect(() => {
-    const port = view.current
-    const dev = device.current
-    if (!port || !dev) return
-    const place = () => {
-      const dh = dev.offsetHeight
-      if (!cut) {
-        setViewH(dh)
-        viewWant.current = null
-        pendingScroll.current = false
-        // Leaving the cut: the scroll travels home on the same clock the box opens on.
-        // Left where it was, the browser clamped it frame by frame as the range shrank.
-        glideStop.current()
-        if (port.scrollTop > 0) {
-          if (window.matchMedia("(prefers-reduced-motion: reduce)").matches)
-            port.scrollTop = 0
-          else glideStop.current = glide(port, 0)
-        }
-        if (typeof debug === "function")
-          debug({
-            at: Math.round(at),
-            cut: "none",
-            dh: Math.round(dh),
-            scrollTop: Math.round(port.scrollTop),
-            opening: scroller,
-          })
-        return
-      }
-      // THE VIEWPORT HOLDS THE FOCUSED MESSAGE. The crop is its floor; a taller message
-      // grows it, within reason (half again the crop), so the message is seen whole;
-      // past that the message's START is what shows and the rest is a scroll away.
-      // Centring a message taller than the box showed its middle with both ends cut.
-      const base =
-        viewport === "container"
-          ? port.clientHeight
-          : port.clientWidth / ratioOf(cut)
-      const hero = focusBox(dev)
-      // WHAT THE EXCHANGE WILL BE, not what it is so far: the ghost holds every message
-      // complete, so the height decided here is the same on the cut's first frame as on
-      // its last, and a summary streaming in never resizes the page under the reader.
-      // A frameless device is its content and grows with it; its final height is the
-      // ghost thread's, so the ceiling holds still too.
-      const ghost = ghostRoot.current
-      const grown = ghost ? focusBox(ghost, ghosts) : null
-      const finalH = grown ? grown.h : hero ? hero.h : 0
-      const liveThread = thread.current?.firstElementChild as HTMLElement | null
-      const ghostThread = ghost?.firstElementChild as HTMLElement | null
-      if (
-        fit === "focus" &&
-        viewport === "container" &&
-        root.current &&
-        grown &&
-        ghostThread &&
-        base > 0 &&
-        dev.clientWidth > 0 &&
-        grown.h > 0
-      ) {
-        const tail =
-          Number.parseFloat(getComputedStyle(ghostThread).paddingBottom) +
-          dev.clientWidth * 0.025
-        const width = (base * 0.94 * dev.clientWidth) / (grown.h + tail)
-        const next = `min(100%, ${Math.floor(width)}px)`
-        // Layout measurements round to CSS pixels. Feeding a one-pixel correction
-        // back into container-sized text can alternate between adjacent widths
-        // forever. The fit already reserves 6% breathing room; let that last pixel
-        // settle instead of resizing the entire phone on every observer callback.
-        if (
-          root.current.style.width !== next &&
-          Math.abs(root.current.clientWidth - Math.floor(width)) > 1
-        )
-          root.current.style.width = next
-      }
-      const dhFinal =
-        liveThread && ghostThread
-          ? Math.max(
-              dh,
-              dh - liveThread.offsetHeight + ghostThread.offsetHeight,
-            )
-          : dh
-      const framing = frameChat({
-        deviceHeight: dh,
-        finalDeviceHeight: dhFinal,
-        baseHeight: base,
-        focus: hero ? { y: hero.y, height: hero.h, finalHeight: finalH } : null,
-        grow: viewport !== "container",
-        preserveFrame: frame === "phone",
-      })
-      const pad = framing.padding
-      // Focus padding is also the fade's budget: the fade must not wash over
-      // a message that fits inside the viewport's reserved reading area.
-      if (hero)
-        port.style.setProperty(
-          "--tg-fade",
-          `${Math.min(port.clientWidth * 0.09, pad)}px`,
-        )
-      else port.style.removeProperty("--tg-fade")
-      const vh = framing.height
-      setViewH(vh)
-      const top = framing.top
-      // THE TARGET STAYS PENDING UNTIL THE BOX CAN REACH IT. The height transitions:
-      // in the frame the crop turns on the viewport is still full height, a scroll has
-      // nowhere to go and the browser clamps it to 0, and a remembered "already there"
-      // then left the thread pinned at its top under a closing curtain. While the box is
-      // still too tall for the target, every resize tick re-aims (instantly, so the
-      // viewport closes down ONTO the message); once it can reach, the target is done.
-      const reach = dh - port.clientHeight
-      const same =
-        viewWant.current !== null && Math.abs(top - viewWant.current) < 1
-      if (same && !pendingScroll.current) return
-      const smooth =
-        !same &&
-        viewWant.current !== null &&
-        !window.matchMedia("(prefers-reduced-motion: reduce)").matches
-      viewWant.current = top
-      pendingScroll.current = top > reach + 1
-      glideStop.current()
-      if (smooth && !pendingScroll.current) glideStop.current = glide(port, top)
-      else port.scrollTop = top
-      if (debug)
-        trace.current = {
-          at: Math.round(at),
-          ceiling: Number(ceiling.toFixed(3)),
-          lift: Number(lift.toFixed(3)),
-          target,
-          landed: hero !== null,
-          cut,
-          vh: Math.round(vh),
-          dh: Math.round(dh),
-          top: Math.round(top),
-          reach: Math.round(reach),
-          pending: pendingScroll.current,
-          scrollTop: Math.round(port.scrollTop),
-        }
-      if (typeof debug === "function" && trace.current) debug(trace.current)
-    }
-    place()
-    const ready = requestAnimationFrame(() => {
-      if (root.current) root.current.dataset.ready = "true"
-    })
-    const ro = new ResizeObserver(place)
-    ro.observe(port)
-    ro.observe(dev)
-    // A hand on the wheel wins: a glide in flight yields to the reader's own scroll.
-    const yieldGlide = () => glideStop.current()
-    port.addEventListener("wheel", yieldGlide, { passive: true })
-    port.addEventListener("touchstart", yieldGlide, { passive: true })
-    // The glide is NOT stopped here: this effect re-runs on every beat of the story, and
-    // a glide cancelled on each re-run never arrived. It stops when a new target
-    // replaces it, when the reader takes the wheel, or when it lands.
-    return () => {
-      cancelAnimationFrame(ready)
-      ro.disconnect()
-      port.removeEventListener("wheel", yieldGlide)
-      port.removeEventListener("touchstart", yieldGlide)
-    }
-  }, [cut, focusKey, eff, aliveSec, frame, viewport, fit])
+  const { viewH, scroller, trace, showLatest, scrollToLatest } = useChatLayout({
+    elements: { root, thread, view, device, bubbles, ghosts, ghostRoot },
+    focused,
+    cut,
+    frame,
+    viewport,
+    fit,
+    completed,
+    position: eff,
+    aliveSec,
+    debug,
+    at,
+    ceiling,
+    lift,
+  })
 
   // Afterlife reactions across every message, in script order: staggered arrivals
   // with deterministic jitter, each pill lands at 1, climbs to its scripted count one
@@ -1683,16 +1268,7 @@ export function TelegramChat({
               <SlidersHorizontal />
             </TelegramGlass>
           )}
-          <div
-            className="tgchat-messages"
-            ref={thread}
-            onScroll={(event) => {
-              const el = event.currentTarget
-              setShowLatest(
-                el.scrollHeight - el.scrollTop - el.clientHeight > 40,
-              )
-            }}
-          >
+          <div className="tgchat-messages" ref={thread}>
             <div className="tgchat-thread">
               {/* Messages are positional by design: their order IS their identity,
                   and the array never reorders. */}
@@ -1809,10 +1385,7 @@ export function TelegramChat({
               tone={glassTone}
               className="absolute right-(--tg-control-inset) bottom-[calc(var(--tg-composer-h)+var(--tg-control-bottom)+2cqw)] z-3 size-[10cqw] bg-(--tg-glass) text-(--tg-text) [--glass-blur:1.35cqw] dark:bg-(--tg-glass)"
               aria-label="Jump to latest message"
-              onClick={() => {
-                const el = thread.current
-                if (el) el.scrollTop = el.scrollHeight
-              }}
+              onClick={scrollToLatest}
             >
               <ChevronDown className="size-[5.6cqw]" />
             </Glass>

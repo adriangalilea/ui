@@ -36,6 +36,19 @@ const script: ChatScript = {
   ],
 }
 const beats = [{ span: 1 }, { span: 1 }]
+const exchange: ChatScript = {
+  ...script,
+  messages: [
+    { from: "Adrian", text: "Earlier context" },
+    { from: "me", text: "@xtldrbot explain this link" },
+    {
+      from: "Adrian",
+      text: "A complete answer should remain readable as the viewport changes. ".repeat(
+        8,
+      ),
+    },
+  ],
+}
 const entry: Entry = {
   id: "ref-check",
   media: {
@@ -135,6 +148,19 @@ export function Checks() {
       </div>
       <div id="hidden-chat" className="hidden">
         <TelegramChat script={script} progress={1} />
+      </div>
+      <div
+        id="focus-fit"
+        className="flex h-[400px] w-full max-w-sm justify-center"
+      >
+        <TelegramChat
+          script={exchange}
+          frozen
+          focus={[1, 2]}
+          viewport="container"
+          fit="focus"
+          className="h-full max-w-none"
+        />
       </div>
       <button type="button" id="late-content" onClick={() => setLate(true)}>
         Grow scroll content

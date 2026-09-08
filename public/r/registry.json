@@ -292,6 +292,14 @@
           "type": "registry:ui"
         },
         {
+          "path": "registry/base-nova/ui/telegram-chat-layout.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/base-nova/ui/telegram-chat-scroll.ts",
+          "type": "registry:ui"
+        },
+        {
           "path": "registry/base-nova/ui/telegram-chat.css",
           "type": "registry:ui"
         }

@@ -166,6 +166,47 @@ try {
           Math.abs(viewport - 320) < 1,
           `Container height must win: ${viewport}`,
         )
+        for (const height of [320, 500, 400]) {
+          await page.locator("#focus-fit").evaluate((el, value) => {
+            el.style.height = `${value}px`
+          }, height)
+          await page.waitForFunction(() => {
+            const root = document.querySelector("#focus-fit")
+            const port = root
+              ?.querySelector(".tgchat-view")
+              ?.getBoundingClientRect()
+            const device = root
+              ?.querySelector(".device-frame")
+              ?.getBoundingClientRect()
+            const messages = [
+              ...(root?.querySelectorAll("[data-focused]") ?? []),
+            ].filter((el) => !el.closest(".tgchat-ghost"))
+            return (
+              port &&
+              device &&
+              messages.length === 2 &&
+              messages.every((el) => {
+                const box = el.getBoundingClientRect()
+                return box.top >= port.top - 1 && box.bottom <= port.bottom + 1
+              }) &&
+              Math.abs(device.bottom - port.bottom) < 2
+            )
+          })
+          const widths = await page
+            .locator("#focus-fit .tgchat")
+            .evaluate(async (el) => {
+              const samples: number[] = []
+              for (let i = 0; i < 30; i++) {
+                await new Promise(requestAnimationFrame)
+                if (i >= 15) samples.push(el.getBoundingClientRect().width)
+              }
+              return samples
+            })
+          assert.ok(
+            Math.max(...widths) - Math.min(...widths) <= 1,
+            `Focus fitting must settle after a height change: ${widths.join(", ")}`,
+          )
+        }
         assert.equal(
           await page
             .locator('#nested-scroll [data-edge="bottom"]')
@@ -253,6 +294,23 @@ try {
         assert.deepEqual(errors, [])
         await page.emulateMedia({ reducedMotion: "no-preference" })
         await page.locator("#start-playback").click()
+        await page.evaluate(() => {
+          Object.defineProperty(document, "hidden", {
+            configurable: true,
+            value: true,
+          })
+          document.dispatchEvent(new Event("visibilitychange"))
+        })
+        await page.waitForTimeout(1000)
+        assert.equal(
+          await page.locator("#autoplay-check .tgchat[data-settled]").count(),
+          0,
+          "Hidden tabs pause autoplay instead of consuming its remaining time",
+        )
+        await page.evaluate(() => {
+          Reflect.deleteProperty(document, "hidden")
+          document.dispatchEvent(new Event("visibilitychange"))
+        })
         await page.locator("#autoplay-check .tgchat[data-settled]").waitFor()
         await page.locator("#finish-progress").click()
         assert.match(

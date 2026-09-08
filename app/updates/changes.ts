@@ -10,7 +10,12 @@ export interface Change {
 // CHANGELOG.md is also the website's source. Its release format is deliberately
 // small: dated H2 headings, subject H3 headings, and wrapped bullet paragraphs.
 export async function readChanges(): Promise<Change[]> {
-  const markdown = await readFile(join(process.cwd(), "CHANGELOG.md"), "utf8")
+  return parseChanges(
+    await readFile(join(process.cwd(), "CHANGELOG.md"), "utf8"),
+  )
+}
+
+export function parseChanges(markdown: string): Change[] {
   const changes: Change[] = []
   let date = ""
   let change: Change | undefined

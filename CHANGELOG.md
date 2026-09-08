@@ -14,6 +14,9 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 ### telegram-chat
 
+- Fixed resize-observer feedback during focus fitting. Viewport scroll animations
+  now stop when the chat unmounts, and autoplay pauses while the browser tab is hidden.
+  No prop changes are required.
 - Breaking: removed the unused `scrub` and numeric `replay` props. Drive animation
   explicitly with `progress` for scroll-linked playback, including reverse movement.
   Omit `progress` for one-shot autoplay. Autoplay now runs at its configured pace;

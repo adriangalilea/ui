@@ -10,6 +10,18 @@ A public shadcn registry (`registry.json` at the root, items under `registry/bas
 
 ## Rules
 
+- **Release notes are edited, never dumped from commits.** Run `mise changes`
+  (or `mise changes --since <commit>`) to review registry changes since the last
+  changelog edit, including working-tree changes. `mise check` runs the same advisory
+  prompt. The baseline is a convenience, not a release marker or proof of coverage;
+  choose an earlier commit when reviewing a larger batch. Consolidate meaningful
+  consumer behavior changes into `CHANGELOG.md`, under exact registry item names,
+  with migration steps for breaking changes. Internal-only changes need no public
+  note; explain that decision in the commit. Dependency impact is listed for review,
+  not a demand for duplicate notes. New/edited unknown subjects fail the check;
+  unchanged historical notes may name retired items. The website and the reviewer
+  use the same parser. Do not add generated notes, a second ledger, or a PR workflow.
+
 - **Edit files with the `Read`, `Write` and `Edit` tools. Never with a script.** No
   `python3 - <<'PY'`, no `sed -i`, no `perl -pe`, no heredoc rewriting a source file.
   `Bash` is for things that are not edits: `git`, `mise check`, `rsvg-convert`, `open`,
