@@ -11,7 +11,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Registry changes
 
 Change shared components in `registry/base-nova/`, rebuild the registry, then install
-the affected items into consumers through `mise add` (see README). Do not manually
+the affected items into consumers through `mise add` (see CLAUDE.md). Do not manually
 patch the registry and consumer copies independently. Keep app-specific composition
 in the consumer. Review installer diffs, run the relevant consumer checks, and add
 meaningful public fixes or migration requirements to CHANGELOG.md before shipping.

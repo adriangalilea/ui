@@ -1,5 +1,11 @@
 # ui
 
+@README.md
+
+README.md owns public installation, updates, and usage documentation. Keep internal
+workflows, implementation decisions, and measurement notes here; reference the
+README instead of maintaining a second copy of public instructions.
+
 A public shadcn registry (`registry.json` at the root, items under `registry/base-nova/`, `shadcn build` → `public/r/*.json`) plus the Next demo site that serves it and is the lab for every primitive. Namespace `@ag`. Consumers copy items and own the copy; this repo is the source. The shape is shadcn's own `registry-template-v4`, on Base UI + Tailwind 4 + `base-nova`.
 
 ## Rules
@@ -68,7 +74,62 @@ SEE a moving interface are both better than they are.
 
 The site deploys on every push to main (Vercel project `ui`, team adriangalileas-projects, git-connected, deployment protection OFF so the registry is public) at `https://ui.adriangalilea.com` (DNS-only CNAME `ui` → cname.vercel-dns.com in the adriangalilea.com Cloudflare zone; `ui-adriangalileas-projects.vercel.app` is the same deployment), and consumers map `@ag` to `https://ui.adriangalilea.com/r/{name}.json`. `public/r/*.json` is COMMITTED as well (`shadcn build` runs inside `mise check` and inside the Vercel build), so `https://raw.githubusercontent.com/adriangalilea/ui/main/public/r/{name}.json` is the same registry before a deploy finishes. A stale build shows up as a diff. Vercel needs `ENABLE_EXPERIMENTAL_COREPACK=1` (set) to honour `packageManager` pnpm 11; without it the build ignores `allowBuilds` and `overrides`.
 
-`registry:file` items (tokens) need an explicit `target`; the consumer imports `app/tokens.css` from its globals.css once. `shadcn add --overwrite` does NOT rewrite a `registry:file` whose target exists, so a consumer's tokens copy silently ages while its components refresh; `scripts/add.ts` (`mise add`) writes those targets itself from the built item.
+`registry:file` items (tokens) need an explicit `target`; the consumer imports
+`app/tokens.css` from its globals.css once. The current shadcn CLI refreshes these
+targets with `--overwrite`, covered by `scripts/check-install.ts`. `scripts/add.ts`
+serves the built registry to shadcn; it does not copy or repair files itself.
+
+### Developing against garden
+
+Edit shared components in `registry/base-nova/`; keep garden-specific composition in
+garden. Install into the consumer instead of manually patching both copies:
+
+```bash
+mise add telegram-chat ../untitled/apps/garden
+mise add telegram-chat ../untitled/apps/garden diff
+mise add telegram-chat ../untitled/apps/garden overwrite
+git -C ../untitled diff
+pnpm --dir ../untitled/apps/garden check:ui
+```
+
+`mise add` builds and serves this checkout's registry to shadcn. Its dependencies
+come from the same checkout; the consumer's registry configuration is unchanged.
+The default is a real shadcn dry run. Run installs sequentially for apps sharing a
+workspace.
+
+`check:ui` builds garden and checks its production server in Chromium and WebKit.
+Before publishing registry changes, run `mise check`; this also exercises fresh
+installs and updates in standalone and workspace consumers. Add meaningful fixes
+and migration notes to the changelog.
+The website reads that file directly: use dated `## YYYY-MM-DD` headings, a `###`
+component name or general subject, and bullet paragraphs. Backticks render as inline
+code. There is no separate website release-note copy to maintain.
+
+### Reviewing usage
+
+Production website visits are collected in the project's
+[Vercel Analytics dashboard](https://vercel.com/adriangalileas-projects/ui/analytics).
+The script is excluded from local and preview deployments. It belongs to the
+website, never to the registry components installed into other projects.
+
+Review component-page visitors, referrers, and `/updates` visits monthly, comparing
+equal periods. These measure discovery and documentation interest, not adoption.
+Keep exports outside the public repository if you want a history beyond the
+provider's retention window.
+
+Registry delivery is visible separately in Vercel Observability's Edge Requests:
+filter production requests to `/r/*.json` and inspect component paths and response
+statuses. Count requests, not installs: shadcn previews, dependency resolution,
+updates, retries, and bots can all fetch the same file. A popular dependency is not
+necessarily a component people deliberately selected. The detailed metrics API
+currently requires Observability Plus for this project; no upgrade is enabled by
+this repository.
+
+Not yet instrumented: install-command copies, update-command copies, and durable
+per-component request history. These need a reporting destination. Successful
+installs, distinct consuming projects, and actual update adoption cannot be inferred
+from registry HTTP traffic. They would require explicit client reporting; copied
+components do not phone home.
 
 **Not published to esm.sh or npm, on purpose (asked for, 2026-09).** "Always the latest automatically" and "the API may change" are the same wish said from two sides, and a CDN import (`esm.sh/<pkg>@latest`) grants the first by breaking on the second: a consumer's page changes under them with no deploy of their own, plus a second React instance unless every peer is pinned external, and CSS + tokens that no ESM import carries. The registry is the opposite contract and the right one while items change weekly (`LightboxSolo` landed a day after `avatar`): the consumer OWNS the copy, refreshes it deliberately (`shadcn add --overwrite`) and reads the diff. The gold standard for "latest automatically" is semver on npm — a consumer pins `^1` and takes patches through their lockfile, majors by choice — and esm.sh mirrors every npm package for free, so publishing there needs nothing extra. Do that when an item's API has stopped moving, not before; a package published at v0 with weekly breaks is worse for the consumer than the registry.
 

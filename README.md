@@ -11,7 +11,7 @@ Adrian Galilea's web components, as a [shadcn registry](https://ui.shadcn.com/do
 npx shadcn add @ag/scroll-stage
 ```
 
-Items live in `registry/base-nova/`, a demo beside each one, played at `/<item>` on the site (`mise dev`). `mise check` asserts the registry; `mise build` emits `public/r/*.json`.
+Browse the components and their live examples at [ui.adriangalilea.com](https://ui.adriangalilea.com).
 
 ### Updating installed components
 
@@ -31,59 +31,6 @@ the relevant changes instead of overwriting your customization. Check the result
 Git diff and run your application's checks.
 The installer can change import ordering; apply your normal formatter before
 judging whether an apparent difference is a component change.
-
-### Reviewing usage
-
-Production website visits are collected in the project's
-[Vercel Analytics dashboard](https://vercel.com/adriangalileas-projects/ui/analytics).
-The script is excluded from local and preview deployments. It belongs to the
-website, never to the registry components installed into other projects.
-
-Review component-page visitors, referrers, and `/updates` visits monthly, comparing
-equal periods. These measure discovery and documentation interest, not adoption.
-Keep exports outside the public repository if you want a history beyond the
-provider's retention window.
-
-Registry delivery is visible separately in Vercel Observability's Edge Requests:
-filter production requests to `/r/*.json` and inspect component paths and response
-statuses. Count requests, not installs: shadcn previews, dependency resolution,
-updates, retries, and bots can all fetch the same file. A popular dependency is not
-necessarily a component people deliberately selected. The detailed metrics API
-currently requires Observability Plus for this project; no upgrade is enabled by
-this repository.
-
-Not yet instrumented: install-command copies, update-command copies, and durable
-per-component request history. These need a reporting destination. Successful
-installs, distinct consuming projects, and actual update adoption cannot be inferred
-from registry HTTP traffic. They would require explicit client reporting; copied
-components do not phone home.
-
-### Developing against garden
-
-Edit shared components in `registry/base-nova/`; keep garden-specific composition in
-garden. Install into the consumer instead of manually patching both copies:
-
-```bash
-mise add telegram-chat ../untitled/apps/garden
-mise add telegram-chat ../untitled/apps/garden diff
-mise add telegram-chat ../untitled/apps/garden overwrite
-git -C ../untitled diff
-pnpm --dir ../untitled/apps/garden check:ui
-```
-
-`mise add` builds and serves this checkout's registry to shadcn. Its dependencies
-come from the same checkout; the consumer's registry configuration is unchanged.
-The default is a real shadcn dry run. `overwrite` explicitly applies the update,
-including dependencies and styles. Run installs sequentially for apps sharing a
-workspace. The helper does not copy or repair files behind the installer.
-
-`check:ui` builds garden and checks its production server in Chromium and WebKit.
-Before publishing registry changes, run `mise check`; this also exercises fresh
-installs and updates in standalone and workspace consumers. Add meaningful fixes
-and migration notes to the changelog.
-The website reads that file directly: use dated `## YYYY-MM-DD` headings, a `###`
-component name or general subject, and bullet paragraphs. Backticks render as inline
-code. There is no separate website release-note copy to maintain.
 
 | item | what |
 |---|---|
