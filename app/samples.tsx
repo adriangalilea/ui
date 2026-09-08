@@ -44,10 +44,13 @@ type Tab = (typeof TABS)[number]
 export function Sample({
   name,
   label,
+  presentation = false,
   children,
 }: {
   name: string
   label?: React.ReactNode
+  /** Page-scale examples use the page itself as their canvas. */
+  presentation?: boolean
   /** Space-separated `// #region` names to include in the code. */
   with?: string
   children: React.ReactNode
@@ -69,9 +72,15 @@ export function Sample({
   return (
     <section
       data-slot="sample"
-      className="rounded-xl border border-border bg-foreground/[0.025]"
+      className={
+        presentation
+          ? "space-y-6"
+          : "rounded-xl border border-border bg-foreground/[0.025]"
+      }
     >
-      <div className="flex items-center justify-between gap-4 rounded-t-xl border-border border-b bg-foreground/[0.05] px-4 py-2">
+      <div
+        className={`flex items-center justify-between gap-4 border-border bg-foreground/[0.05] px-4 py-2 ${presentation ? "rounded-xl border" : "rounded-t-xl border-b"}`}
+      >
         <div className="min-w-0 truncate font-mono text-muted-foreground text-xs">
           {label}
         </div>
@@ -106,7 +115,9 @@ export function Sample({
         aria-labelledby={`${id}-${tab}`}
         className={
           tab === "preview"
-            ? "p-6"
+            ? presentation
+              ? ""
+              : "p-6"
             : "overflow-hidden rounded-b-xl [&>*]:rounded-none [&>*]:border-0"
         }
       >

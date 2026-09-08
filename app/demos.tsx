@@ -9,6 +9,7 @@ import TerminalSession from "@/registry/base-nova/lib/terminal-session.demo"
 import WebPreviewUnfurl from "@/registry/base-nova/lib/web-preview-unfurl.demo"
 import Tokens from "@/registry/base-nova/theme/tokens.demo"
 import Avatar from "@/registry/base-nova/ui/avatar.demo"
+import CardGallery from "@/registry/base-nova/ui/card-gallery.demo"
 import Code from "@/registry/base-nova/ui/code.demo"
 import Copy from "@/registry/base-nova/ui/copy.demo"
 import DeviceFrame from "@/registry/base-nova/ui/device-frame.demo"
@@ -25,6 +26,7 @@ import ThemeToggle from "@/registry/base-nova/ui/theme-toggle.demo"
 import WebPreview from "@/registry/base-nova/ui/web-preview.demo"
 
 export const DEMOS: Record<string, ComponentType> = {
+  "card-gallery": CardGallery,
   "preview-picker": PreviewPicker,
   tokens: Tokens,
   "quote-card": QuoteCard,

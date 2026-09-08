@@ -4,6 +4,19 @@
   "homepage": "https://ui.adriangalilea.com",
   "items": [
     {
+      "name": "card-gallery",
+      "type": "registry:ui",
+      "title": "card-gallery",
+      "description": "overflowing cards with a shared picker, keyboard and touch navigation; optionally driven by a scroll-stage timeline",
+      "registryDependencies": ["@ag/preview-picker"],
+      "files": [
+        {
+          "path": "registry/base-nova/ui/card-gallery.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
       "name": "preview-picker",
       "type": "registry:ui",
       "title": "preview-picker",
