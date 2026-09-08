@@ -17,6 +17,9 @@ import {
 import { SamplesProvider } from "../samples"
 import { extractSamples } from "../samples-extract"
 import { SourceLink } from "../source-link"
+import { ChangeNotes } from "../updates/change-notes"
+import { changeId, readChanges } from "../updates/changes"
+import { UpdateCommand } from "../updates/update-command"
 
 export function generateStaticParams() {
   return ITEMS.map((i) => ({ item: i.name }))
@@ -45,6 +48,7 @@ export default async function ItemPage({ params }: PageProps<"/[item]">) {
   if (!meta || !Demo) notFound()
   const src = await demoSource(meta)
   const install = `npx shadcn add @ag/${meta.name}`
+  const latest = (await readChanges()).find((change) => change.subject === name)
   // Every relation an item has, from THIS end. The other end says the reverse: what
   // `quote` lists under "uses", `avatar` lists under "used by". Derived, so the two
   // ends cannot disagree.
@@ -78,6 +82,42 @@ export default async function ItemPage({ params }: PageProps<"/[item]">) {
           {install}
         </Code>
       </div>
+      <details className="mt-3 max-w-prose text-sm">
+        <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+          Already installed? Preview an update
+        </summary>
+        <div className="mt-3 space-y-3">
+          <UpdateCommand item={meta.name} />
+          <p className="leading-relaxed text-muted-foreground">
+            Your installed source stays unchanged until you update it.{" "}
+            <Link
+              href="/updates"
+              className="text-foreground underline underline-offset-4"
+            >
+              How updates work
+            </Link>
+          </p>
+          {latest && (
+            <div className="space-y-2">
+              <Link
+                href={`/updates#${changeId(latest)}`}
+                className="font-mono text-xs underline underline-offset-4"
+              >
+                Latest changes · {latest.date}
+              </Link>
+              <ChangeNotes notes={latest.notes} />
+            </div>
+          )}
+        </div>
+      </details>
+      {latest && (
+        <Link
+          href={`/updates#${changeId(latest)}`}
+          className="mt-2 inline-block font-mono text-xs text-muted-foreground underline-offset-4 hover:underline"
+        >
+          Updated {latest.date} · release notes
+        </Link>
+      )}
       {relations
         .filter(([, items]) => items.length > 0)
         .map(([kind, items], n) => (

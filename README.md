@@ -16,7 +16,8 @@ Items live in `registry/base-nova/`, a demo beside each one, played at `/<item>`
 ### Updating installed components
 
 Installed source belongs to your project. Registry releases never change it automatically.
-Read [the changelog](CHANGELOG.md), preview an update, then decide which changes to adopt:
+Read [Updates](https://ui.adriangalilea.com/updates) (also available in
+[the changelog](CHANGELOG.md)), preview an update, then decide which changes to adopt:
 
 ```bash
 pnpm dlx shadcn@latest add @ag/telegram-chat --dry-run
@@ -54,6 +55,9 @@ workspace. The helper does not copy or repair files behind the installer.
 Before publishing registry changes, run `mise check`; this also exercises fresh
 installs and updates in standalone and workspace consumers. Add meaningful fixes
 and migration notes to the changelog.
+The website reads that file directly: use dated `## YYYY-MM-DD` headings, a `###`
+component name or general subject, and bullet paragraphs. Backticks render as inline
+code. There is no separate website release-note copy to maintain.
 
 | item | what |
 |---|---|

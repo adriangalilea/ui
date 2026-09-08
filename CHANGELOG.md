@@ -5,6 +5,11 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 ## 2026-09-08
 
+### Registry website
+
+- Added an Updates page and component-specific release notes next to installation
+  commands. Update instructions and previews are available on every component page.
+
 ### telegram-chat
 
 - Fixed focus-fit sizing oscillating between adjacent pixel widths at some viewport

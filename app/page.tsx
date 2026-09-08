@@ -47,7 +47,15 @@ export default function Home() {
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <div className="flex items-baseline justify-between gap-4">
         <h1 className="font-typewriter text-3xl">ui</h1>
-        <SourceLink href={REPO} />
+        <nav aria-label="Registry" className="flex items-center gap-5">
+          <Link
+            href="/updates"
+            className="font-mono text-xs text-muted-foreground hover:text-foreground"
+          >
+            updates
+          </Link>
+          <SourceLink href={REPO} />
+        </nav>
       </div>
       <p className="mt-2 text-[0.9375rem] text-foreground/70">
         web components as a shadcn registry. add one with{" "}
