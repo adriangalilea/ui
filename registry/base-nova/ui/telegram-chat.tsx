@@ -1201,7 +1201,15 @@ export function TelegramChat({
           dev.clientWidth * 0.025
         const width = (base * 0.94 * dev.clientWidth) / (grown.h + tail)
         const next = `min(100%, ${Math.floor(width)}px)`
-        if (root.current.style.width !== next) root.current.style.width = next
+        // Layout measurements round to CSS pixels. Feeding a one-pixel correction
+        // back into container-sized text can alternate between adjacent widths
+        // forever. The fit already reserves 6% breathing room; let that last pixel
+        // settle instead of resizing the entire phone on every observer callback.
+        if (
+          root.current.style.width !== next &&
+          Math.abs(root.current.clientWidth - Math.floor(width)) > 1
+        )
+          root.current.style.width = next
       }
       const dhFinal =
         liveThread && ghostThread
