@@ -88,6 +88,7 @@ export function IphoneFrame({
         {!bare && <IphoneStatusBar />}
         {children}
       </div>
+      {!bare && <span aria-hidden className="device-glass-edge" />}
     </div>
   )
 }

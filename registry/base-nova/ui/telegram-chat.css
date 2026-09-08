@@ -157,10 +157,6 @@
   /* The same Scrims used on the page, contained behind the floating controls. */
   .tgchat .tgchat-chrome-scrim {
     z-index: 2;
-    /* Overscan the backdrop surface; the screen owns the rounded clip. This
-       avoids an unfiltered pixel seam at fractional device sizes. */
-    left: -2px;
-    right: -2px;
     --scrim-color: var(--tg-screen);
     --scrim-top-height: calc(var(--tg-header-top) + 25cqw);
     --scrim-bottom-height: calc(var(--tg-composer-h) + var(--tg-control-inset));
@@ -172,7 +168,6 @@
   }
 
   .tgchat .tgchat-chrome-scrim[data-edge="top"] {
-    top: -2px;
     --scrim-blur: 0.35cqw;
     /* Protect the clock with tint, then let the thread reappear beneath the
        floating header. The blur stays subtle and is independent of the shade. */
@@ -180,10 +175,6 @@
     --scrim-start-stop: var(--tg-header-top);
     --scrim-mid-strength: 14%;
     --scrim-mid-stop: 70%;
-  }
-
-  .tgchat .tgchat-chrome-scrim[data-edge="bottom"] {
-    bottom: -2px;
   }
 
   .tgchat[data-managed] .tgchat-chrome-scrim {

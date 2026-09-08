@@ -259,6 +259,22 @@
       inset 0.08cqw 0 0.15cqw #c5c7c650;
     border-radius: 0.5cqw;
   }
+
+  /* Hardware above the display, outside its clipping/compositing group. The
+     extra pixel hides the antialiased edge of backdrop-filter layers beneath. */
+  .device-glass-edge {
+    position: absolute;
+    z-index: 7;
+    inset: 0;
+    padding: calc(2% + 1px);
+    border-radius: inherit;
+    background: #030404;
+    mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+  }
   .device-button.action {
     top: 20.5%;
     left: -0.65cqw;
@@ -289,6 +305,9 @@
     height: 100%;
     overflow: hidden;
     border-radius: 14.7cqw;
+    /* Clip backdrop-filter descendants and the screen background together.
+       Overflow's rounded antialiasing alone can leave an unfiltered bright rim. */
+    clip-path: inset(0 round 14.7cqw);
     background: var(--device-screen-background, #101214);
     color: var(--device-screen-ink, #eee);
   }
