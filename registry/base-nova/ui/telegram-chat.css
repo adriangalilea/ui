@@ -146,10 +146,10 @@
       2 +
       var(--device-island-height, 7.6cqw)
     );
-    --tg-control-bottom: var(--device-safe-gap, 4cqw);
+    --tg-control-bottom: var(--tg-control-inset);
     --tg-composer-h: 10.4cqw;
-    /* Keep the outer discs clear of the curved corners horizontally;
-       vertical spacing follows the shared device safe gap. */
+    /* Equal side and bottom insets place each disc on the rounded corner's
+       45-degree bisector, leaving more room below than around the island. */
     --tg-control-gap: 6cqw;
     --tg-control-inset: calc(
       (var(--tg-screen-radius) - var(--tg-composer-h) / 2) *
