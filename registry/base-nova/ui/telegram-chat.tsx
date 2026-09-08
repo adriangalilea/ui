@@ -178,6 +178,8 @@ export interface TelegramChatProps {
   frozen?: boolean
   /** Fill a definite parent height; focus pans within that measured viewport. */
   viewport?: "content" | "container"
+  /** In a fixed viewport, size the phone to the final focused exchange and chin. */
+  fit?: "focus"
   /** URL of Telegram's doodle pattern (telegram-tt's assets/pattern.svg), applied as
    *  a CSS mask tinted per theme, exactly like the client. */
   wallpaper?: string
@@ -726,6 +728,7 @@ export function TelegramChat({
   afterlifeDelay = 0,
   frozen = false,
   viewport = "content",
+  fit,
   wallpaper,
   theme = "page",
   frame = "phone",
@@ -1127,6 +1130,14 @@ export function TelegramChat({
   const scroller = cut !== undefined || opening
   /** What the cut decided, for the `debug` readout: the numbers, as they happened. */
   const trace = React.useRef<Record<string, unknown> | null>(null)
+  React.useLayoutEffect(() => {
+    const element = root.current
+    if (!element || fit !== "focus" || viewport !== "container") return
+    const previous = element.style.width
+    return () => {
+      element.style.width = previous
+    }
+  }, [fit, viewport])
   // biome-ignore lint/correctness/useExhaustiveDependencies: eff and aliveSec grow the thread and move the message
   React.useLayoutEffect(() => {
     const port = view.current
@@ -1175,6 +1186,23 @@ export function TelegramChat({
       const finalH = grown ? grown.h : hero ? hero.h : 0
       const liveThread = thread.current?.firstElementChild as HTMLElement | null
       const ghostThread = ghost?.firstElementChild as HTMLElement | null
+      if (
+        fit === "focus" &&
+        viewport === "container" &&
+        root.current &&
+        grown &&
+        ghostThread &&
+        base > 0 &&
+        dev.clientWidth > 0 &&
+        grown.h > 0
+      ) {
+        const tail =
+          Number.parseFloat(getComputedStyle(ghostThread).paddingBottom) +
+          dev.clientWidth * 0.025
+        const width = (base * 0.94 * dev.clientWidth) / (grown.h + tail)
+        const next = `min(100%, ${Math.floor(width)}px)`
+        if (root.current.style.width !== next) root.current.style.width = next
+      }
       const dhFinal =
         liveThread && ghostThread
           ? Math.max(
@@ -1258,7 +1286,7 @@ export function TelegramChat({
       port.removeEventListener("wheel", yieldGlide)
       port.removeEventListener("touchstart", yieldGlide)
     }
-  }, [cut, focusKey, eff, aliveSec, frame, viewport])
+  }, [cut, focusKey, eff, aliveSec, frame, viewport, fit])
 
   // Afterlife reactions across every message, in script order: staggered arrivals
   // with deterministic jitter, each pill lands at 1, climbs to its scripted count one
