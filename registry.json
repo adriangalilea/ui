@@ -4,6 +4,18 @@
   "homepage": "https://ui.adriangalilea.com",
   "items": [
     {
+      "name": "preview-picker",
+      "type": "registry:ui",
+      "title": "preview-picker",
+      "description": "a controlled selector for preview examples and languages, with optional icons, disabled choices and wrapping",
+      "files": [
+        {
+          "path": "registry/base-nova/ui/preview-picker.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
       "name": "tokens",
       "type": "registry:item",
       "title": "tokens",

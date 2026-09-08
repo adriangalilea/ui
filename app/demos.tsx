@@ -14,6 +14,7 @@ import Copy from "@/registry/base-nova/ui/copy.demo"
 import DeviceFrame from "@/registry/base-nova/ui/device-frame.demo"
 import Lightbox from "@/registry/base-nova/ui/lightbox.demo"
 import LiquidGlass from "@/registry/base-nova/ui/liquid-glass.demo"
+import PreviewPicker from "@/registry/base-nova/ui/preview-picker.demo"
 import Quote from "@/registry/base-nova/ui/quote.demo"
 import Reveal from "@/registry/base-nova/ui/reveal.demo"
 import Scrims from "@/registry/base-nova/ui/scrims.demo"
@@ -24,6 +25,7 @@ import ThemeToggle from "@/registry/base-nova/ui/theme-toggle.demo"
 import WebPreview from "@/registry/base-nova/ui/web-preview.demo"
 
 export const DEMOS: Record<string, ComponentType> = {
+  "preview-picker": PreviewPicker,
   tokens: Tokens,
   "quote-card": QuoteCard,
   "terminal-session": TerminalSession,
