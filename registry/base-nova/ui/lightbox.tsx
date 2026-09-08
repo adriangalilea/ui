@@ -336,6 +336,9 @@ export function Lightbox({
     "rail: renderRail and onRailChange come together",
   )
   const triggers = React.useRef(new Map<string, Trigger>())
+  const renditions = React.useRef(
+    new Map<string, { original: Entry; src: string; entry: Entry }>(),
+  )
   const [session, setSession] = React.useState<Session | null>(null)
   const [facts, setFacts] = React.useState<Facts | null>(null)
   const dispatchRef = React.useRef<Dispatch | null>(null)
@@ -392,6 +395,7 @@ export function Lightbox({
   }, [])
   const onClosed = React.useCallback(() => {
     dispatchRef.current = null
+    renditions.current.clear()
     setSession(null)
     setFacts(null)
     openChange.current?.(null)
@@ -411,6 +415,27 @@ export function Lightbox({
       entriesRef.current?.find((x) => x.id === id) ??
       triggers.current.get(id)?.entry
     assert(e, `no entry "${id}"`)
+    // A responsive image's actual pixels can differ from its fallback src.
+    // Start with that cache-hot rendition, without making Lightbox depend on Next.
+    const trigger = triggers.current.get(id)?.el
+    const img =
+      trigger?.querySelector<HTMLImageElement>('[data-slot="image-content"]') ??
+      trigger?.querySelector("img")
+    const src = img?.complete && img.naturalWidth ? img.currentSrc : undefined
+    if (src && e.media.kind !== "frame") {
+      const previous = renditions.current.get(id)
+      if (previous?.original === e && previous.src === src)
+        return previous.entry
+      const entry: Entry = {
+        ...e,
+        media:
+          e.media.kind === "video"
+            ? { ...e.media, poster: { ...e.media.poster, src } }
+            : { ...e.media, source: { ...e.media.source, src } },
+      }
+      renditions.current.set(id, { original: e, src, entry })
+      return entry
+    }
     return e
   }, [])
 

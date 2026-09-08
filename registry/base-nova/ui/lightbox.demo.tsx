@@ -1,7 +1,23 @@
 "use client"
 
+import { getImageProps, type StaticImageData } from "next/image"
 import * as React from "react"
 import { useDebug } from "@/app/debug"
+import { Sample } from "@/app/samples"
+// #region assets
+import card from "@/public/lightbox/card.jpg"
+import field from "@/public/lightbox/field.jpg"
+import lake from "@/public/lightbox/lake.jpg"
+import peaks from "@/public/lightbox/peaks.jpg"
+import prose from "@/public/lightbox/prose.jpg"
+import river from "@/public/lightbox/river.jpg"
+import shore from "@/public/lightbox/shore.jpg"
+import small from "@/public/lightbox/small.jpg"
+import square from "@/public/lightbox/square.jpg"
+import tall from "@/public/lightbox/tall.jpg"
+import wide from "@/public/lightbox/wide.jpg"
+// #endregion
+import { Image } from "@/registry/base-nova/ui/image"
 import {
   type Entry,
   type Facts,
@@ -11,23 +27,45 @@ import {
   type Source,
 } from "@/registry/base-nova/ui/lightbox"
 
-// picsum serves any id at any size: the page paints an 800-wide rendition, the
-// original is 2400 wide with a 1200 candidate between them.
-const picsum = (id: number, w: number, h: number): Source => ({
-  src: `https://picsum.photos/id/${id}/${Math.round(w / 3)}/${Math.round(h / 3)}`,
-  full: `https://picsum.photos/id/${id}/${w}/${h}`,
-  srcset: `https://picsum.photos/id/${id}/${Math.round(w / 2)}/${Math.round(h / 2)} ${Math.round(w / 2)}w, https://picsum.photos/id/${id}/${w}/${h} ${w}w`,
-  width: w,
-  height: h,
-  blur: "oklch(0.5 0 0)",
-})
+// #region photos
+// The same Picsum photographs, prepared locally: no redirect or remote origin
+// on the critical path. Next builds the blur and responsive candidates.
+const PHOTOS: Record<number, StaticImageData> = {
+  1015: river,
+  1024: peaks,
+  1016: shore,
+  1018: wide,
+  1020: square,
+  1035: field,
+  1036: tall,
+  1039: lake,
+  1043: card,
+  1044: prose,
+}
+const picsum = (id: number): Source => {
+  const photo = PHOTOS[id]
+  if (!photo) throw new Error(`Missing prepared photo ${id}`)
+  const { props } = getImageProps({ src: photo, alt: "", sizes: "100vw" })
+  return {
+    src: photo.src,
+    full: photo.src,
+    srcset: props.srcSet,
+    width: photo.width,
+    height: photo.height,
+    blur: `url(${JSON.stringify(photo.blurDataURL)})`,
+  }
+}
+const preview = (source: Source) =>
+  Object.values(PHOTOS).find((photo) => photo.src === source.src) ?? source.src
+// #endregion
 
+// #region grid
 const GRID: Entry[] = [
   {
     id: "river",
     media: {
       kind: "image",
-      source: picsum(1015, 2400, 1600),
+      source: picsum(1015),
       alt: "a river through a canyon",
     },
   },
@@ -35,7 +73,7 @@ const GRID: Entry[] = [
     id: "peaks",
     media: {
       kind: "image",
-      source: picsum(1024, 1600, 2400),
+      source: picsum(1024),
       alt: "peaks, portrait",
     },
   },
@@ -43,7 +81,7 @@ const GRID: Entry[] = [
     id: "shore",
     media: {
       kind: "image",
-      source: picsum(1016, 2400, 1800),
+      source: picsum(1016),
       alt: "a shoreline",
     },
   },
@@ -51,7 +89,7 @@ const GRID: Entry[] = [
     id: "wide",
     media: {
       kind: "image",
-      source: picsum(1018, 2400, 1350),
+      source: picsum(1018),
       alt: "a wide valley",
     },
   },
@@ -59,33 +97,36 @@ const GRID: Entry[] = [
     id: "square",
     media: {
       kind: "image",
-      source: picsum(1020, 2000, 2000),
+      source: picsum(1020),
       alt: "a bear, square",
     },
   },
   {
     id: "field",
-    media: { kind: "image", source: picsum(1035, 2400, 1600), alt: "a field" },
+    media: { kind: "image", source: picsum(1035), alt: "a field" },
   },
   {
     id: "tall",
     media: {
       kind: "image",
-      source: picsum(1036, 1600, 2400),
+      source: picsum(1036),
       alt: "a tall view",
     },
   },
   {
     id: "lake",
-    media: { kind: "image", source: picsum(1039, 2000, 2500), alt: "a lake" },
+    media: { kind: "image", source: picsum(1039), alt: "a lake" },
   },
 ]
 
+// #endregion
+
+// #region media
 const CARD: Entry = {
   id: "card",
   media: {
     kind: "image",
-    source: picsum(1043, 2400, 1600),
+    source: picsum(1043),
     alt: "a cover-cropped card",
   },
   caption:
@@ -130,6 +171,9 @@ const VIDEO: Entry = {
     "big buck bunny trailer (cc-by, blender foundation) · space plays · j / l seek 10 s · m mutes · the bar scrubs",
 }
 
+// #endregion
+
+// #region frames
 // One map tile is the picture the frame opens from (a single tile for a demo sits
 // inside openstreetmap's tile usage policy); the frame is the live map around it.
 const FRAME: Entry = {
@@ -150,8 +194,8 @@ const SMALL: Entry = {
   media: {
     kind: "image",
     source: {
-      src: "https://picsum.photos/id/1050/640/427",
-      full: "https://picsum.photos/id/1050/640/427",
+      src: small.src,
+      full: small.src,
       width: 640,
       height: 427,
     },
@@ -159,15 +203,21 @@ const SMALL: Entry = {
   },
 }
 
+// #endregion
+
+// #region prose
 const PROSE: Entry = {
   id: "prose",
   media: {
     kind: "image",
-    source: picsum(1044, 2400, 1600),
+    source: picsum(1044),
     alt: "a figure inside prose",
   },
 }
 
+// #endregion
+
+// #region solo
 /** A face in an attribution: the case that made `LightboxSolo` exist. This page is one
  *  reel, and a trigger placed anywhere in it would join that reel — which is exactly
  *  what happened to `avatar` when the quote page mounted one provider: three faces
@@ -188,6 +238,8 @@ const SOLO: Entry = {
   },
   caption: "Mark Twain",
 }
+
+// #endregion
 
 // The rail is the consumer's inspector beside the media (loom's rail, videoclub's
 // details): whatever a site knows about the item and can do with it. This one shows
@@ -277,10 +329,11 @@ export default function Demo() {
       renderRail={(e, f) => <Rail entry={e} facts={f} />}
     >
       <div className="space-y-16">
-        <section className="space-y-4">
-          <div className="font-mono text-xs text-muted-foreground">
-            01 · a justified grid
-          </div>
+        <Sample
+          name="grid"
+          with="assets photos grid"
+          label="a justified grid · responsive images with blur previews"
+        >
           <div className="flex flex-wrap gap-2">
             {GRID.map((e) => {
               const { source, alt } = e.media as { source: Source; alt: string }
@@ -301,13 +354,13 @@ export default function Demo() {
                       />
                     }
                   >
-                    {/* biome-ignore lint/performance/noImgElement: the page's rendition */}
-                    <img
-                      src={source.src}
+                    <Image
+                      src={preview(source)}
                       alt={alt}
                       width={source.width}
                       height={source.height}
-                      className="block h-auto w-full"
+                      sizes="(max-width: 640px) 50vw, 33vw"
+                      className="w-full"
                       style={{ aspectRatio: aspect }}
                       loading="lazy"
                     />
@@ -317,195 +370,219 @@ export default function Demo() {
             })}
             <div className="grow-[10]" />
           </div>
-        </section>
+        </Sample>
 
-        <section className="grid gap-8 sm:grid-cols-3">
-          <div className="space-y-4">
-            <div className="font-mono text-xs text-muted-foreground">
-              02 · a cover-cropped card
-            </div>
-            <LightboxTrigger
-              entry={CARD}
-              render={
-                <a
-                  href={(CARD.media as { source: Source }).source.full}
-                  className="block overflow-hidden rounded-2xl"
-                />
-              }
-            >
-              {/* biome-ignore lint/performance/noImgElement: the page's rendition */}
-              <img
-                src={(CARD.media as { source: Source }).source.src}
-                alt=""
-                className="block aspect-square w-full object-cover"
-              />
-            </LightboxTrigger>
-          </div>
-          <div className="space-y-4">
-            <div className="font-mono text-xs text-muted-foreground">
-              03 · a gif, never upgraded
-            </div>
-            <LightboxTrigger entry={GIF}>
-              {/* biome-ignore lint/performance/noImgElement: a gif is never optimized */}
-              <img
-                src={(GIF.media as { source: Source }).source.src}
-                alt=""
-                className="block aspect-square w-full rounded-lg"
-              />
-            </LightboxTrigger>
-          </div>
-          <div className="space-y-4">
-            <div className="font-mono text-xs text-muted-foreground">
-              04 · a video: its own frame flies, native controls inside
-            </div>
-            {/* The trigger wears data-lightbox-kind; the play glyph is drawn from
-                that attribute alone (two pseudo-elements: a wash and a triangle),
-                so any video trigger on the page says what it is. */}
-            <LightboxTrigger
-              entry={VIDEO}
-              render={
-                <a
-                  href={(VIDEO.media as { src: string }).src}
-                  className="relative block overflow-hidden rounded-lg data-[lightbox-kind=video]:before:absolute data-[lightbox-kind=video]:before:left-1/2 data-[lightbox-kind=video]:before:top-1/2 data-[lightbox-kind=video]:before:size-12 data-[lightbox-kind=video]:before:-translate-x-1/2 data-[lightbox-kind=video]:before:-translate-y-1/2 data-[lightbox-kind=video]:before:rounded-full data-[lightbox-kind=video]:before:bg-background/80 data-[lightbox-kind=video]:before:content-[''] data-[lightbox-kind=video]:after:absolute data-[lightbox-kind=video]:after:left-1/2 data-[lightbox-kind=video]:after:top-1/2 data-[lightbox-kind=video]:after:size-12 data-[lightbox-kind=video]:after:-translate-x-1/2 data-[lightbox-kind=video]:after:-translate-y-1/2 data-[lightbox-kind=video]:after:bg-foreground data-[lightbox-kind=video]:after:[clip-path:polygon(38%_28%,74%_50%,38%_72%)] data-[lightbox-kind=video]:after:content-['']"
-                />
-              }
-            >
-              {/* biome-ignore lint/performance/noImgElement: the poster */}
-              <img
-                src={(VIDEO.media as { poster: Source }).poster.src}
-                alt=""
-                width={1280}
-                height={720}
-                className="block aspect-video w-full"
-              />
-            </LightboxTrigger>
-          </div>
-        </section>
-
-        <section className="grid gap-8 sm:grid-cols-2">
-          <div className="space-y-4">
-            <div className="font-mono text-xs text-muted-foreground">
-              05 · a frame: opens from a picture, box and keyboard, no zoom
-            </div>
-            <figure className="space-y-2">
+        <Sample
+          name="media"
+          with="assets photos media"
+          label="a cropped image, an animation, and a video"
+        >
+          <div className="grid gap-8 sm:grid-cols-3">
+            <div className="space-y-4">
+              <div className="font-mono text-xs text-muted-foreground">
+                02 · a cover-cropped card
+              </div>
               <LightboxTrigger
-                entry={FRAME}
+                entry={CARD}
                 render={
                   <a
-                    href={(FRAME.media as { src: string }).src}
-                    className="block w-fit overflow-hidden rounded-lg"
+                    href={(CARD.media as { source: Source }).source.full}
+                    className="block overflow-hidden rounded-2xl"
                   />
                 }
               >
-                {/* biome-ignore lint/performance/noImgElement: one map tile */}
+                <Image
+                  src={card}
+                  alt="A mountain reflected in a lake"
+                  sizes="(max-width: 640px) 100vw, 33vw"
+                  className="aspect-square w-full"
+                />
+              </LightboxTrigger>
+            </div>
+            <div className="space-y-4">
+              <div className="font-mono text-xs text-muted-foreground">
+                03 · a gif, never upgraded
+              </div>
+              <LightboxTrigger entry={GIF}>
+                {/* biome-ignore lint/performance/noImgElement: a gif is never optimized */}
                 <img
-                  src={TILE}
+                  src={(GIF.media as { source: Source }).source.src}
+                  alt=""
+                  className="block aspect-square w-full rounded-lg"
+                />
+              </LightboxTrigger>
+            </div>
+            <div className="space-y-4">
+              <div className="font-mono text-xs text-muted-foreground">
+                04 · a video: its own frame flies, native controls inside
+              </div>
+              {/* The trigger wears data-lightbox-kind; the play glyph is drawn from
+                that attribute alone (two pseudo-elements: a wash and a triangle),
+                so any video trigger on the page says what it is. */}
+              <LightboxTrigger
+                entry={VIDEO}
+                render={
+                  <a
+                    href={(VIDEO.media as { src: string }).src}
+                    className="relative block overflow-hidden rounded-lg data-[lightbox-kind=video]:before:absolute data-[lightbox-kind=video]:before:left-1/2 data-[lightbox-kind=video]:before:top-1/2 data-[lightbox-kind=video]:before:size-12 data-[lightbox-kind=video]:before:-translate-x-1/2 data-[lightbox-kind=video]:before:-translate-y-1/2 data-[lightbox-kind=video]:before:rounded-full data-[lightbox-kind=video]:before:bg-background/80 data-[lightbox-kind=video]:before:content-[''] data-[lightbox-kind=video]:after:absolute data-[lightbox-kind=video]:after:left-1/2 data-[lightbox-kind=video]:after:top-1/2 data-[lightbox-kind=video]:after:size-12 data-[lightbox-kind=video]:after:-translate-x-1/2 data-[lightbox-kind=video]:after:-translate-y-1/2 data-[lightbox-kind=video]:after:bg-foreground data-[lightbox-kind=video]:after:[clip-path:polygon(38%_28%,74%_50%,38%_72%)] data-[lightbox-kind=video]:after:content-['']"
+                  />
+                }
+              >
+                <Image
+                  src={(VIDEO.media as { poster: Source }).poster.src}
+                  alt="Big Buck Bunny trailer"
+                  width={1280}
+                  height={720}
+                  sizes="(max-width: 640px) 100vw, 33vw"
+                  className="block aspect-video w-full"
+                />
+              </LightboxTrigger>
+            </div>
+          </div>
+        </Sample>
+
+        <Sample
+          name="frame"
+          with="assets frames"
+          label="an embedded map and a small original"
+        >
+          <div className="grid gap-8 sm:grid-cols-2">
+            <div className="space-y-4">
+              <div className="font-mono text-xs text-muted-foreground">
+                05 · a frame: opens from a picture, box and keyboard, no zoom
+              </div>
+              <figure className="space-y-2">
+                <LightboxTrigger
+                  entry={FRAME}
+                  render={
+                    <a
+                      href={(FRAME.media as { src: string }).src}
+                      className="block w-fit overflow-hidden rounded-lg"
+                    />
+                  }
+                >
+                  {/* biome-ignore lint/performance/noImgElement: one map tile */}
+                  <img
+                    src={TILE}
+                    alt=""
+                    width={256}
+                    height={256}
+                    className="block size-64"
+                  />
+                </LightboxTrigger>
+                <figcaption className="font-mono text-xs lowercase text-muted-foreground">
+                  {FRAME.media.kind === "frame" && FRAME.media.title} · ©
+                  openstreetmap contributors
+                </figcaption>
+              </figure>
+            </div>
+            <div className="space-y-4">
+              <div className="font-mono text-xs text-muted-foreground">
+                06 · a 640 px original: press + and read the bar
+              </div>
+              <LightboxTrigger entry={SMALL}>
+                <Image
+                  src={small}
+                  unoptimized
+                  alt="A small landscape photograph"
+                  width={640}
+                  height={427}
+                  className="block h-auto w-full rounded-lg"
+                />
+              </LightboxTrigger>
+            </div>
+          </div>
+        </Sample>
+
+        <Sample
+          name="prose"
+          with="assets photos prose"
+          label="a figure inside prose"
+        >
+          <div className="mx-auto max-w-prose space-y-4">
+            <div className="font-mono text-xs text-muted-foreground">
+              07 · a figure inside prose
+            </div>
+            <p className="text-[0.9375rem] leading-relaxed text-foreground/80">
+              The caption below is a plain figcaption. Nothing on the entry
+              names it; the lightbox reads the sibling once at open. Click the
+              image, then press ? for the keys that work right now, i for the
+              rail (the site's own inspector beside the media: details, actions,
+              a field), h to hide the chrome. While it is open the address
+              carries #lb=id: a reload lands on the same image, close strips it,
+              and Back leaves the page the way it always does.
+            </p>
+            <figure className="space-y-2">
+              <LightboxTrigger entry={PROSE}>
+                <Image
+                  src={prose}
+                  alt="A landscape inside prose"
+                  sizes="(max-width: 640px) 100vw, 640px"
+                  className="block aspect-[3/2] w-full rounded-lg"
+                />
+              </LightboxTrigger>
+              <figcaption className="text-sm text-foreground/55">
+                read once at open: the sibling figcaption is the caption
+              </figcaption>
+            </figure>
+            <p className="text-[0.9375rem] leading-relaxed text-foreground/80">
+              Every trigger is a link to the original, so the page works before
+              hydration and a middle click still opens the file.
+            </p>
+          </div>
+        </Sample>
+
+        <Sample
+          name="solo"
+          with="solo"
+          label="a picture that opens alone, inside the reel"
+        >
+          <div className="mx-auto max-w-prose space-y-4">
+            <div className="font-mono text-xs text-muted-foreground">
+              08 · a picture that opens alone, inside the reel
+            </div>
+            <p className="text-[0.9375rem] leading-relaxed text-foreground/80">
+              Everything above is one reel because it sits under one provider.
+              The face below sits under the same provider and is NOT in the
+              reel: no strip, no arrows, no counter, one picture. That is{" "}
+              <code className="font-mono text-xs">LightboxSolo</code>, a
+              provider around a single trigger, and the nearest provider wins.
+              It exists because the avatar in a quote&apos;s attribution once
+              joined the page reel and three faces became a three-slide gallery.
+              The caption is passed explicitly: the trigger sits inside a figure
+              whose figcaption is the attribution, and the fallback would have
+              read &ldquo;Mark Twain1876&rdquo;.
+            </p>
+            <figure className="flex items-center gap-3">
+              <LightboxSolo
+                entry={SOLO}
+                label="portrait"
+                render={
+                  <a
+                    href="/mark-twain.png"
+                    className="block size-10 shrink-0 overflow-hidden rounded-full"
+                    aria-label="Mark Twain"
+                  />
+                }
+              >
+                {/* biome-ignore lint/performance/noImgElement: a 256 px portrait */}
+                <img
+                  src="/mark-twain.png"
                   alt=""
                   width={256}
                   height={256}
-                  className="block size-64"
+                  className="block size-full object-cover"
                 />
-              </LightboxTrigger>
-              <figcaption className="font-mono text-xs lowercase text-muted-foreground">
-                {FRAME.media.kind === "frame" && FRAME.media.title} · ©
-                openstreetmap contributors
+              </LightboxSolo>
+              <figcaption className="flex items-baseline gap-2 text-sm">
+                <span>Mark Twain</span>
+                <span className="font-mono text-xs text-muted-foreground">
+                  1876
+                </span>
               </figcaption>
             </figure>
           </div>
-          <div className="space-y-4">
-            <div className="font-mono text-xs text-muted-foreground">
-              06 · a 640 px original: press + and read the bar
-            </div>
-            <LightboxTrigger entry={SMALL}>
-              {/* biome-ignore lint/performance/noImgElement: a 640 px original */}
-              <img
-                src={(SMALL.media as { source: Source }).source.src}
-                alt=""
-                width={640}
-                height={427}
-                className="block h-auto w-full rounded-lg"
-              />
-            </LightboxTrigger>
-          </div>
-        </section>
-
-        <section className="mx-auto max-w-prose space-y-4">
-          <div className="font-mono text-xs text-muted-foreground">
-            07 · a figure inside prose
-          </div>
-          <p className="text-[0.9375rem] leading-relaxed text-foreground/80">
-            The caption below is a plain figcaption. Nothing on the entry names
-            it; the lightbox reads the sibling once at open. Click the image,
-            then press ? for the keys that work right now, i for the rail (the
-            site's own inspector beside the media: details, actions, a field), h
-            to hide the chrome. While it is open the address carries #lb=id: a
-            reload lands on the same image, close strips it, and Back leaves the
-            page the way it always does.
-          </p>
-          <figure className="space-y-2">
-            <LightboxTrigger entry={PROSE}>
-              {/* biome-ignore lint/performance/noImgElement: the page's rendition */}
-              <img
-                src={(PROSE.media as { source: Source }).source.src}
-                alt=""
-                className="block aspect-[3/2] w-full rounded-lg"
-              />
-            </LightboxTrigger>
-            <figcaption className="text-sm text-foreground/55">
-              read once at open: the sibling figcaption is the caption
-            </figcaption>
-          </figure>
-          <p className="text-[0.9375rem] leading-relaxed text-foreground/80">
-            Every trigger is a link to the original, so the page works before
-            hydration and a middle click still opens the file.
-          </p>
-        </section>
-
-        <section className="mx-auto max-w-prose space-y-4">
-          <div className="font-mono text-xs text-muted-foreground">
-            08 · a picture that opens alone, inside the reel
-          </div>
-          <p className="text-[0.9375rem] leading-relaxed text-foreground/80">
-            Everything above is one reel because it sits under one provider. The
-            face below sits under the same provider and is NOT in the reel: no
-            strip, no arrows, no counter, one picture. That is{" "}
-            <code className="font-mono text-xs">LightboxSolo</code>, a provider
-            around a single trigger, and the nearest provider wins. It exists
-            because the avatar in a quote&apos;s attribution once joined the
-            page reel and three faces became a three-slide gallery. The caption
-            is passed explicitly: the trigger sits inside a figure whose
-            figcaption is the attribution, and the fallback would have read
-            &ldquo;Mark Twain1876&rdquo;.
-          </p>
-          <figure className="flex items-center gap-3">
-            <LightboxSolo
-              entry={SOLO}
-              label="portrait"
-              render={
-                <a
-                  href="/mark-twain.png"
-                  className="block size-10 shrink-0 overflow-hidden rounded-full"
-                  aria-label="Mark Twain"
-                />
-              }
-            >
-              {/* biome-ignore lint/performance/noImgElement: a 256 px portrait */}
-              <img
-                src="/mark-twain.png"
-                alt=""
-                width={256}
-                height={256}
-                className="block size-full object-cover"
-              />
-            </LightboxSolo>
-            <figcaption className="flex items-baseline gap-2 text-sm">
-              <span>Mark Twain</span>
-              <span className="font-mono text-xs text-muted-foreground">
-                1876
-              </span>
-            </figcaption>
-          </figure>
-        </section>
+        </Sample>
 
         <section className="space-y-4">
           <div className="font-mono text-xs text-muted-foreground">

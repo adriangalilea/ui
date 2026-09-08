@@ -4,6 +4,16 @@
   "homepage": "https://ui.adriangalilea.com",
   "items": [
     {
+      "name": "image",
+      "type": "registry:ui",
+      "title": "image",
+      "description": "Next.js images with reserved space and a decoded blur reveal; self-hostable optimization, prepared placeholders, reduced motion",
+      "dependencies": ["next"],
+      "files": [
+        { "path": "registry/base-nova/ui/image.tsx", "type": "registry:ui" }
+      ]
+    },
+    {
       "name": "card-gallery",
       "type": "registry:ui",
       "title": "card-gallery",

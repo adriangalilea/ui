@@ -1,0 +1,95 @@
+"use client"
+
+import NextImage, { type ImageProps as NextImageProps } from "next/image"
+import { type CSSProperties, type Ref, useState } from "react"
+import { cn } from "@/lib/utils"
+
+export type ImageProps = Omit<NextImageProps, "placeholder"> & {
+  /** Classes on the pixels, e.g. object-contain or object-top. className styles the frame. */
+  imageClassName?: string
+  ref?: Ref<HTMLImageElement>
+}
+
+/** Next.js optimization on any Next host. Supply dimensions (or a sized parent
+ * with fill); remote/public assets can supply a prepared blurDataURL. Static
+ * imports provide dimensions and a blur automatically. No fetch for a placeholder. */
+export function Image({ src, ...props }: ImageProps) {
+  const data =
+    typeof src === "object" ? ("default" in src ? src.default : src) : null
+  // A new source owns a new load lifecycle, including when the old request finishes late.
+  return <ImageResource key={data?.src ?? String(src)} src={src} {...props} />
+}
+
+function ImageResource({
+  src,
+  width,
+  height,
+  fill,
+  blurDataURL,
+  className,
+  imageClassName,
+  style,
+  onLoad,
+  onError,
+  ref,
+  ...props
+}: ImageProps) {
+  const [state, setState] = useState<"loading" | "ready" | "error">("loading")
+  const data =
+    typeof src === "object" ? ("default" in src ? src.default : src) : null
+  const w = width ?? data?.width
+  const h = height ?? data?.height
+  const blur = blurDataURL ?? data?.blurDataURL
+  return (
+    <span
+      data-slot="image"
+      data-state={state}
+      className={cn(
+        "group/image relative block overflow-hidden bg-foreground/4",
+        fill
+          ? "absolute inset-0"
+          : "w-(--image-width) max-w-full aspect-(--image-aspect)",
+        className,
+      )}
+      style={
+        {
+          "--image-width": `${w}px`,
+          "--image-aspect": `${w} / ${h}`,
+          ...style,
+        } as CSSProperties
+      }
+    >
+      {blur && (
+        <span
+          aria-hidden="true"
+          data-slot="image-placeholder"
+          className="absolute inset-0 bg-cover bg-center transition-opacity duration-300 motion-reduce:transition-none group-data-[state=ready]/image:opacity-0 group-data-[state=error]/image:opacity-0"
+          style={{ backgroundImage: `url(${JSON.stringify(blur)})` }}
+        />
+      )}
+      <NextImage
+        {...props}
+        src={src}
+        width={width}
+        height={height}
+        fill={fill}
+        ref={ref}
+        data-slot="image-content"
+        // Next's onLoad runs after decode(), including images cached before hydration.
+        onLoad={(event) => {
+          setState("ready")
+          onLoad?.(event)
+        }}
+        onError={(event) => {
+          setState("error")
+          onError?.(event)
+        }}
+        className={cn(
+          "relative block size-full object-cover transition-[opacity,filter] duration-300 ease-out motion-reduce:transition-none",
+          "[@media(scripting:enabled)]:group-data-[state=loading]/image:opacity-0 motion-safe:[@media(scripting:enabled)]:group-data-[state=loading]/image:blur-sm",
+          imageClassName,
+        )}
+      />
+    </span>
+  )
+}

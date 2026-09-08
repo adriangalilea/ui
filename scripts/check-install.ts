@@ -142,6 +142,7 @@ try {
           "add",
           "@ag/telegram-chat",
           "@ag/code",
+          "@ag/image",
           "--cwd",
           app,
           "--yes",
@@ -159,6 +160,7 @@ try {
       ? join(destination, "packages/ui/src/components")
       : join(app, "components/ui")
     const installed = [
+      join(components, "image.tsx"),
       join(components, "telegram-chat.tsx"),
       join(components, "device-frame.tsx"),
       join(components, "telegram-chat.css"),
@@ -186,7 +188,7 @@ try {
       )
     await run(
       "bun",
-      ["scripts/add.ts", "telegram-chat,code", app, "--dry-run"],
+      ["scripts/add.ts", "telegram-chat,code,image", app, "--dry-run"],
       root,
     )
     for (const path of installed)
@@ -197,7 +199,7 @@ try {
       )
     await run(
       "bun",
-      ["scripts/add.ts", "telegram-chat,code", app, "--overwrite"],
+      ["scripts/add.ts", "telegram-chat,code,image", app, "--overwrite"],
       root,
     )
     for (let i = 0; i < installed.length; i++)

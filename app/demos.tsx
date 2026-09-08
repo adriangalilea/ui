@@ -13,6 +13,7 @@ import CardGallery from "@/registry/base-nova/ui/card-gallery.demo"
 import Code from "@/registry/base-nova/ui/code.demo"
 import Copy from "@/registry/base-nova/ui/copy.demo"
 import DeviceFrame from "@/registry/base-nova/ui/device-frame.demo"
+import Image from "@/registry/base-nova/ui/image.demo"
 import Lightbox from "@/registry/base-nova/ui/lightbox.demo"
 import LiquidGlass from "@/registry/base-nova/ui/liquid-glass.demo"
 import PreviewPicker from "@/registry/base-nova/ui/preview-picker.demo"
@@ -26,6 +27,7 @@ import ThemeToggle from "@/registry/base-nova/ui/theme-toggle.demo"
 import WebPreview from "@/registry/base-nova/ui/web-preview.demo"
 
 export const DEMOS: Record<string, ComponentType> = {
+  image: Image,
   "card-gallery": CardGallery,
   "preview-picker": PreviewPicker,
   tokens: Tokens,

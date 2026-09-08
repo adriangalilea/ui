@@ -5,6 +5,19 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 ## 2026-09-08
 
+### image
+
+- Added a Next.js image component with reserved dimensions, prepared blur previews,
+  and a short reveal after decoding. It supports self-hosted Next optimization,
+  custom loaders, reduced motion, and rendering without JavaScript. `className`
+  styles the frame; `imageClassName` styles the pixels.
+
+### lightbox
+
+- Responsive images now open from their loaded `currentSrc`, avoiding a second
+  thumbnail download when the browser selected a different rendition. The photo
+  demo uses local originals and the new image loading treatment.
+
 ### Registry website
 
 - Connected production website visits to Vercel Web Analytics. Installed components
