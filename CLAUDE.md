@@ -125,11 +125,27 @@ necessarily a component people deliberately selected. The detailed metrics API
 currently requires Observability Plus for this project; no upgrade is enabled by
 this repository.
 
-Not yet instrumented: install-command copies, update-command copies, and durable
-per-component request history. These need a reporting destination. Successful
-installs, distinct consuming projects, and actual update adoption cannot be inferred
-from registry HTTP traffic. They would require explicit client reporting; copied
-components do not phone home.
+Production records successful install/update command copies and registry JSON GET
+requests in the dedicated Turso `metrics` database, project `ui`. Definitions in
+`lib/metrics.ts` own labels and bounded dimensions; shared `ts-utils/metrics`
+validation, SQLite storage, and CLI rendering use those definitions. New metrics
+are rows, not schema migrations or hand-maintained report panels.
+
+Run `pnpm kpi` for the last 30 UTC days, or add `--days 7`,
+`--component telegram-chat`, `--metric registryRequest`, `--daily`, or `--json`.
+The CLI loads `.env.local`: `METRICS_DATABASE_URL` and read-only
+`METRICS_READ_TOKEN`. Production uses `METRICS_AUTH_TOKEN`, limited to data
+read/add/update on the three metrics tables; schema changes use the Turso CLI.
+The shared package exports `METRICS_SCHEMA`; do not maintain a second SQL copy.
+
+Writes finish through Next `after`/`waitUntil` and fail without blocking usage.
+Counters are best-effort, not exactly-once. Only allowlisted component names and
+event types are stored, with a coarse known-bot/other request category; no IPs,
+user agents, or identities. Client events can be forged and bot classification
+is heuristic. Aggregates are retained until explicitly deleted; no raw events
+are kept. Successful installs, distinct consuming projects, and actual update
+adoption cannot be inferred from requests or copies. Installed components do not
+phone home.
 
 **Not published to esm.sh or npm, on purpose (asked for, 2026-09).** "Always the latest automatically" and "the API may change" are the same wish said from two sides, and a CDN import (`esm.sh/<pkg>@latest`) grants the first by breaking on the second: a consumer's page changes under them with no deploy of their own, plus a second React instance unless every peer is pinned external, and CSS + tokens that no ESM import carries. The registry is the opposite contract and the right one while items change weekly (`LightboxSolo` landed a day after `avatar`): the consumer OWNS the copy, refreshes it deliberately (`shadcn add --overwrite`) and reads the diff. The gold standard for "latest automatically" is semver on npm — a consumer pins `^1` and takes patches through their lockfile, majors by choice — and esm.sh mirrors every npm package for free, so publishing there needs nothing extra. Do that when an item's API has stopped moving, not before; a package published at v0 with weekly breaks is worse for the consumer than the registry.
 

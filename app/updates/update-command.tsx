@@ -1,4 +1,5 @@
 import { Code } from "@/registry/base-nova/ui/code"
+import { CommandCopy } from "../command-copy"
 
 export function UpdateCommand({
   item,
@@ -7,13 +8,21 @@ export function UpdateCommand({
   item: string
   overwrite?: boolean
 }) {
+  const command = `pnpm dlx shadcn@latest add @ag/${item} --${overwrite ? "overwrite" : "dry-run"}`
   return (
-    <Code
-      compact
-      lang="sh"
-      className="[&_code]:w-auto [&_pre]:whitespace-pre-wrap"
+    <CommandCopy
+      command={command}
+      component={item}
+      metric={overwrite ? "updateApplyCopy" : "updatePreviewCopy"}
     >
-      {`pnpm dlx shadcn@latest add @ag/${item} --${overwrite ? "overwrite" : "dry-run"}`}
-    </Code>
+      <Code
+        compact
+        copy={false}
+        lang="sh"
+        className="[&_code]:w-auto [&_pre]:whitespace-pre-wrap"
+      >
+        {command}
+      </Code>
+    </CommandCopy>
   )
 }

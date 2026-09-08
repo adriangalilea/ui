@@ -29,6 +29,44 @@ try {
       throw new Error(`Lab did not start: ${log}`)
     await new Promise((resolve) => setTimeout(resolve, 500))
   }
+  const metricRequest = (body: string, origin = base) =>
+    fetch(`${base}/api/metrics`, {
+      method: "POST",
+      headers: { origin, "content-type": "application/json" },
+      body,
+    })
+  assert.equal(
+    (
+      await metricRequest(
+        JSON.stringify({ metric: "installCopy", component: "telegram-chat" }),
+      )
+    ).status,
+    202,
+  )
+  assert.equal(
+    (
+      await metricRequest(
+        JSON.stringify({
+          metric: "registryRequest",
+          component: "telegram-chat",
+        }),
+      )
+    ).status,
+    400,
+  )
+  assert.equal(
+    (
+      await metricRequest(
+        JSON.stringify({ metric: "installCopy", component: "invented" }),
+      )
+    ).status,
+    400,
+  )
+  assert.equal(
+    (await metricRequest("{}", "https://foreign.example")).status,
+    403,
+  )
+  assert.equal((await metricRequest("x".repeat(513))).status, 413)
   for (const engine of [chromium, webkit]) {
     const chrome =
       process.env.BROWSER_EXECUTABLE ??
@@ -218,6 +256,47 @@ try {
         await page.setViewportSize({ width: 1440, height: 1000 })
         await page.emulateMedia({ reducedMotion: "reduce" })
         await page.goto(`${base}/telegram-chat`)
+        await page.evaluate(() =>
+          Object.defineProperty(navigator, "clipboard", {
+            configurable: true,
+            value: { writeText: async () => {} },
+          }),
+        )
+        const copyEvents: unknown[] = []
+        await page.route("**/api/metrics", async (route) => {
+          copyEvents.push(route.request().postDataJSON())
+          await route.fulfill({ status: 202 })
+        })
+        const copyButton = page.locator(
+          '[data-site-command="installCopy"] button',
+        )
+        const copied = page.waitForRequest("**/api/metrics")
+        await copyButton.click()
+        await copied
+        assert.deepEqual(copyEvents, [
+          { metric: "installCopy", component: "telegram-chat" },
+        ])
+        await page.evaluate(() =>
+          Object.defineProperty(navigator, "clipboard", {
+            configurable: true,
+            value: {
+              writeText: async () => {
+                throw new Error("denied")
+              },
+            },
+          }),
+        )
+        await copyButton.click()
+        await page
+          .locator(
+            '[data-site-command="installCopy"] button[aria-label="Copy failed. Try again"]',
+          )
+          .waitFor()
+        assert.equal(
+          copyEvents.length,
+          1,
+          "Failed clipboard writes must not count",
+        )
         const crop = page
           .locator('[data-slot="sample"]')
           .filter({ hasText: "04 · crop" })

@@ -3,6 +3,7 @@ import path from "node:path"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { Code } from "@/registry/base-nova/ui/code"
+import { CommandCopy } from "../command-copy"
 import { DEMOS } from "../demos"
 import {
   headOf,
@@ -78,9 +79,15 @@ export default async function ItemPage({ params }: PageProps<"/[item]">) {
         {meta.description}
       </p>
       <div className="mt-4">
-        <Code compact lang="sh" className="w-fit max-w-full">
-          {install}
-        </Code>
+        <CommandCopy
+          command={install}
+          component={meta.name}
+          metric="installCopy"
+        >
+          <Code compact copy={false} lang="sh" className="w-fit max-w-full">
+            {install}
+          </Code>
+        </CommandCopy>
       </div>
       <details className="mt-3 max-w-prose text-sm">
         <summary className="cursor-pointer text-muted-foreground hover:text-foreground">

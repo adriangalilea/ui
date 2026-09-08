@@ -3,11 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "kpi": "node --experimental-strip-types scripts/kpi.mts",
     "build": "shadcn build && next build",
     "start": "next start"
   },
   "dependencies": {
+    "@adriangalilea/utils": "3.0.0",
     "@base-ui/react": "^1.7.0",
+    "@libsql/client": "^0.17.4",
     "@shikijs/transformers": "^4.4.3",
     "@vercel/analytics": "^2.0.1",
     "class-variance-authority": "^0.7.1",
