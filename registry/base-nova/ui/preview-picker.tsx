@@ -1,6 +1,6 @@
 "use client"
 
-import type { ReactNode } from "react"
+import { type ReactNode, useId } from "react"
 import { cn } from "@/lib/utils"
 
 export interface PreviewPickerProps<T extends string | number> {
@@ -14,35 +14,53 @@ export interface PreviewPickerProps<T extends string | number> {
   }[]
   onChange: (value: T) => void
   className?: string
+  size?: "default" | "compact"
+  /** Keep each option's label accessible while showing only its icon. */
+  iconsOnly?: boolean
 }
 
-/** A controlled, wrapping selector for examples, languages and other previews. */
+/** A single-row selector; narrow containers scroll horizontally rather than wrap. */
 export function PreviewPicker<T extends string | number>({
   label,
   value,
   options,
   onChange,
   className,
+  size = "default",
+  iconsOnly = false,
 }: PreviewPickerProps<T>) {
+  const name = useId()
   return (
     <fieldset
       data-slot="preview-picker"
       aria-label={label}
       className={cn(
-        "inline-flex max-w-full flex-wrap gap-1 rounded-full bg-foreground/5 p-1",
+        "inline-flex min-w-0 max-w-full flex-nowrap gap-1 overflow-x-auto rounded-full bg-foreground/5 p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
         className,
       )}
     >
       {options.map((option) => (
-        <button
+        <label
           data-slot="preview-picker-option"
           key={option.value}
-          type="button"
-          aria-pressed={value === option.value}
-          disabled={option.disabled}
-          onClick={() => onChange(option.value)}
-          className="flex min-h-11 items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-muted-foreground transition-colors aria-pressed:bg-foreground/10 aria-pressed:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-40"
+          title={iconsOnly ? option.label : undefined}
+          data-selected={value === option.value || undefined}
+          data-disabled={option.disabled || undefined}
+          className={cn(
+            "relative flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-medium text-muted-foreground transition-colors hover:text-foreground data-selected:bg-foreground/10 data-selected:text-foreground has-focus-visible:outline-2 has-focus-visible:-outline-offset-2 has-focus-visible:outline-ring data-disabled:cursor-not-allowed data-disabled:opacity-40 motion-reduce:transition-none",
+            size === "compact" ? "min-h-8 px-3 py-1" : "min-h-11 px-4 py-2",
+            iconsOnly && (size === "compact" ? "size-8 p-0" : "size-11 p-0"),
+          )}
         >
+          <input
+            type="radio"
+            name={name}
+            value={option.value}
+            checked={value === option.value}
+            disabled={option.disabled}
+            onChange={() => onChange(option.value)}
+            className="sr-only"
+          />
           {option.icon != null && (
             <span
               data-slot="preview-picker-icon"
@@ -52,8 +70,10 @@ export function PreviewPicker<T extends string | number>({
               {option.icon}
             </span>
           )}
-          {option.label}
-        </button>
+          <span className={iconsOnly ? "sr-only" : undefined}>
+            {option.label}
+          </span>
+        </label>
       ))}
     </fieldset>
   )

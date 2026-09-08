@@ -27,13 +27,8 @@ export default function Demo() {
             : "Un poco más de contexto."}
         </p>
       </Sample>
-      <Sample
-        name="examples"
-        label="text, wrapping and disabled choices"
-        with="state"
-      >
+      <Sample name="examples" label="text and disabled choices" with="state">
         <PreviewPicker
-          className="max-w-64"
           label="Preview example"
           value={example}
           onChange={setExample}

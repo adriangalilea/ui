@@ -5,7 +5,7 @@
 
 import { Check, Clipboard } from "lucide-react"
 import * as React from "react"
-import "./copy.css"
+import { cn } from "@/lib/utils"
 
 /** How long the control admits it copied. Long enough to read at a glance, short
  *  enough that a second copy is never blocked by the first one's applause. */
@@ -42,17 +42,33 @@ export function Copy({ value, label = false, className, ...props }: CopyProps) {
   const { copied, copy } = useCopy(value)
   return (
     <button
+      data-slot="copy"
       type="button"
       onClick={copy}
       // The accessible name carries the state, because the icon swap alone is silent
       // to a screen reader and `aria-live` on a control this small is noise.
       aria-label={copied ? "Copied" : "Copy"}
       data-copied={copied ? "" : undefined}
-      className={`ag-copy${className ? ` ${className}` : ""}`}
+      className={cn(
+        "inline-flex h-8 shrink-0 cursor-pointer select-none items-center justify-center gap-1.5 rounded-md px-2 font-mono text-xs leading-none text-muted-foreground transition-colors hover:bg-foreground/6 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-40 data-copied:text-foreground",
+        !label && "w-8 px-0",
+        className,
+      )}
       {...props}
     >
-      {copied ? <Check size={14} /> : <Clipboard size={14} />}
-      {label && <span>{copied ? "copied" : "copy"}</span>}
+      {copied ? (
+        <Check size={14} aria-hidden />
+      ) : (
+        <Clipboard size={14} aria-hidden />
+      )}
+      {label && (
+        <span
+          data-slot="copy-label"
+          className="inline-block min-w-[6ch] text-left"
+        >
+          {copied ? "copied" : "copy"}
+        </span>
+      )}
     </button>
   )
 }

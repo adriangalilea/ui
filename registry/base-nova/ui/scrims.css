@@ -17,10 +17,9 @@
     /* A margin on a fixed box is part of where it lands: `top + margin + height +
      margin + bottom` has to equal the viewport, so a parent's `space-y-16` (which in
      Tailwind v4 is a margin-block-end on every child but the last) pushed the bottom
-     fog 64px UP off the edge, with the page showing underneath it. An overlay that
-     positions itself against the viewport takes no spacing from whatever it happens
-     to be nested in. */
-    margin: 0;
+     fog 64px UP off the edge, with the page showing underneath it. The component
+     resets margin inline so parent spacing utilities cannot override it across
+     cascade layers. */
     pointer-events: none;
     opacity: 0;
     -webkit-backdrop-filter: blur(var(--scrim-blur, 4px));

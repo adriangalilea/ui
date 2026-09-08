@@ -380,13 +380,13 @@
   .device-status {
     position: absolute;
     z-index: 4;
-    top: 0;
+    top: var(--device-safe-gap);
     right: 0;
     left: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 12.4cqw;
+    height: var(--device-island-height);
     padding: 0 9.8cqw 0 11.8cqw;
     color: var(--device-status-ink, #eee);
     font-size: 3.65cqw;

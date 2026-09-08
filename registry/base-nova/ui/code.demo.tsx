@@ -1,4 +1,6 @@
+import { Sample } from "@/app/samples"
 import { Code } from "@/registry/base-nova/ui/code"
+import { InlineCode } from "@/registry/base-nova/ui/code-inline"
 
 const PLAIN = `import { Scrims } from "@/components/ui/scrims"
 
@@ -51,6 +53,16 @@ const Note = ({ children }: { children: React.ReactNode }) => (
 export default function Demo() {
   return (
     <div className="space-y-12">
+      <Sample name="inline" label="inline code and copyable commands">
+        <div className="space-y-4">
+          <p className="text-sm text-foreground/80">
+            Run <InlineCode>pnpm build</InlineCode> from your project directory.
+          </p>
+          <Code compact lang="sh">
+            npx shadcn add @ag/code
+          </Code>
+        </div>
+      </Sample>
       <Code lang="tsx" filename="app/page.tsx">
         {PLAIN}
       </Code>

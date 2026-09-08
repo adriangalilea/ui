@@ -9,8 +9,7 @@
 // a provider would make the item unusable to anyone who already has one.
 
 import { Monitor, Moon, Sun } from "lucide-react"
-import * as React from "react"
-import "./theme-toggle.css"
+import { PreviewPicker } from "@/registry/base-nova/ui/preview-picker"
 
 export type Theme = "light" | "dark" | "system"
 
@@ -42,34 +41,19 @@ export function ThemeToggle({
   onChange,
   className,
 }: ThemeToggleProps) {
-  const shown = value ?? fallback
-  // Real radios in a real fieldset, not three buttons wearing radio roles. One
-  // setting with three values IS a radio group, and the browser then gives arrow-key
-  // movement, the roving tab stop and the grouped announcement for free, correctly,
-  // on every assistive technology rather than only the ones the ARIA was tested on.
-  const name = React.useId()
   return (
-    <fieldset className={`ag-theme-toggle${className ? ` ${className}` : ""}`}>
-      <legend className="ag-sr-only">Theme</legend>
-      {THEMES.map(({ value: v, label, Icon }) => (
-        <label
-          key={v}
-          data-on={shown === v ? "" : undefined}
-          title={label}
-          className="ag-theme-toggle-option"
-        >
-          <input
-            type="radio"
-            name={name}
-            value={v}
-            checked={shown === v}
-            onChange={() => onChange(v)}
-            className="ag-sr-only"
-          />
-          <Icon size={14} aria-hidden />
-          <span className="ag-sr-only">{label}</span>
-        </label>
-      ))}
-    </fieldset>
+    <PreviewPicker
+      label="Theme"
+      value={value ?? fallback}
+      onChange={onChange}
+      options={THEMES.map(({ value, label, Icon }) => ({
+        value,
+        label,
+        icon: <Icon aria-hidden />,
+      }))}
+      size="compact"
+      iconsOnly
+      className={className}
+    />
   )
 }

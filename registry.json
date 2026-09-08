@@ -7,7 +7,7 @@
       "name": "preview-picker",
       "type": "registry:ui",
       "title": "preview-picker",
-      "description": "a controlled selector for preview examples and languages, with optional icons, disabled choices and wrapping",
+      "description": "a single-row selector for preview examples and languages, with optional icons and disabled choices",
       "files": [
         {
           "path": "registry/base-nova/ui/preview-picker.tsx",
@@ -34,14 +34,10 @@
       "title": "theme-toggle",
       "description": "light, dark and follow-the-system as one radio group; provider-agnostic, so it takes a value and a setter rather than owning the theme",
       "dependencies": ["lucide-react"],
-      "registryDependencies": ["@ag/tokens"],
+      "registryDependencies": ["@ag/tokens", "@ag/preview-picker"],
       "files": [
         {
           "path": "registry/base-nova/ui/theme-toggle.tsx",
-          "type": "registry:ui"
-        },
-        {
-          "path": "registry/base-nova/ui/theme-toggle.css",
           "type": "registry:ui"
         }
       ]
@@ -56,6 +52,10 @@
       "files": [
         {
           "path": "registry/base-nova/ui/code.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/base-nova/ui/code-inline.tsx",
           "type": "registry:ui"
         },
         {
@@ -74,10 +74,6 @@
       "files": [
         {
           "path": "registry/base-nova/ui/copy.tsx",
-          "type": "registry:ui"
-        },
-        {
-          "path": "registry/base-nova/ui/copy.css",
           "type": "registry:ui"
         }
       ]

@@ -3,7 +3,6 @@ import path from "node:path"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { Code } from "@/registry/base-nova/ui/code"
-import { Copy } from "@/registry/base-nova/ui/copy"
 import { DEMOS } from "../demos"
 import {
   headOf,
@@ -74,9 +73,10 @@ export default async function ItemPage({ params }: PageProps<"/[item]">) {
       <p className="mt-2 max-w-prose text-[0.9375rem] text-foreground/70">
         {meta.description}
       </p>
-      <div className="mt-4 flex w-fit items-center gap-1 rounded-lg border border-border bg-sidebar py-1 pr-1 pl-3">
-        <code className="font-mono text-xs">{install}</code>
-        <Copy value={install} />
+      <div className="mt-4">
+        <Code compact lang="sh" className="w-fit max-w-full">
+          {install}
+        </Code>
       </div>
       {relations
         .filter(([, items]) => items.length > 0)

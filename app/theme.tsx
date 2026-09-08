@@ -36,25 +36,20 @@ export function SiteTheme() {
   const toggleDebug = () => setDebug(!debug)
   return (
     <div className="fixed right-4 bottom-4 z-40 flex items-center gap-2">
-      {/* The theme toggle's own track and option, not a lookalike. Two controls
-          sitting together in a design system have to be the same object at the same
-          size, and the only way that survives a change to either is for them to be
-          the same CSS. A crossed-out bug is off, a bug is on. */}
-      <div className="ag-theme-toggle">
+      <div className="rounded-full bg-foreground/5 p-1">
         <button
           type="button"
           onClick={toggleDebug}
           aria-pressed={debug}
-          data-on={debug ? "" : undefined}
           title="Engine trace on the stage"
-          className="ag-theme-toggle-option"
+          className="grid size-8 place-items-center rounded-full text-muted-foreground transition-colors hover:text-foreground aria-pressed:bg-foreground/10 aria-pressed:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
         >
           {debug ? (
             <Bug size={14} aria-hidden />
           ) : (
             <BugOff size={14} aria-hidden />
           )}
-          <span className="ag-sr-only">Debug trace</span>
+          <span className="sr-only">Debug trace</span>
         </button>
       </div>
       <ThemeToggle

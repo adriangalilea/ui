@@ -127,7 +127,7 @@ function Gallery({ tone }: { tone: "dark" | "light" }) {
           // biome-ignore lint/a11y/noNoninteractiveTabindex: keyboard users must be able to scroll this overflow region
           tabIndex={0}
           aria-label={`${tone} glass photo gallery`}
-          className="flex h-(--scene-height) snap-x snap-mandatory data-[playing=true]:snap-none overflow-x-auto overflow-y-hidden overscroll-contain [scrollbar-width:none] focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-white [&::-webkit-scrollbar]:hidden"
+          className="flex h-(--scene-height) snap-x snap-mandatory data-[playing=true]:snap-none overflow-x-auto overflow-y-hidden overscroll-x-contain [scrollbar-width:none] focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-white [&::-webkit-scrollbar]:hidden"
           onWheel={stop}
           onTouchStart={stop}
           onKeyDown={stop}

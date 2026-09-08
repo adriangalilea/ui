@@ -1,23 +1,28 @@
 "use client"
 
 import { useTheme } from "next-themes"
+import { Sample } from "@/app/samples"
 import { type Theme, ThemeToggle } from "@/registry/base-nova/ui/theme-toggle"
 
 export default function Demo() {
   // next-themes here, but the item does not know that: it takes a value and a setter,
   // so any provider, or none, drives it the same way. `theme` is the CHOICE (system
   // included); `resolvedTheme` is what that currently means.
+  // #region theme
   const { theme, resolvedTheme, setTheme } = useTheme()
+  // #endregion
   return (
     <div className="space-y-8">
-      <ThemeToggle
-        value={theme as Theme | undefined}
-        onChange={(t) => setTheme(t)}
-      />
-      <div className="space-y-2 font-mono text-xs text-muted-foreground">
-        <div>chosen · {theme ?? "…"}</div>
-        <div>resolves to · {resolvedTheme ?? "…"}</div>
-      </div>
+      <Sample name="theme" label="compact icon picker" with="theme">
+        <ThemeToggle
+          value={theme as Theme | undefined}
+          onChange={(t) => setTheme(t)}
+        />
+        <div className="space-y-2 font-mono text-xs text-muted-foreground">
+          <div>chosen · {theme ?? "…"}</div>
+          <div>resolves to · {resolvedTheme ?? "…"}</div>
+        </div>
+      </Sample>
       <p className="max-w-prose text-[0.9375rem] leading-relaxed text-foreground/70">
         Pick <span className="font-mono text-xs">system</span> and change the
         appearance in macOS System Settings with this page open: it follows,

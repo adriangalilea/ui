@@ -26,6 +26,19 @@
 .ag-code-scroll {
   overflow-x: auto;
 }
+/* Compact commands keep the same Shiki output and theme, with the copy control
+   outside the horizontal scroller so long commands never hide the action. */
+.ag-code[data-compact] {
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+  align-items: center;
+  gap: 0.5rem;
+}
+.ag-code[data-compact] > .ag-code-scroll {
+  flex: 1;
+  min-width: 0;
+}
 /* Shiki with `defaultColor: false` writes its palette as custom properties and sets
    no colour of its own, so the frame keeps its own surface with nothing to override. */
 .ag-code pre {
@@ -35,6 +48,9 @@
   font-size: 0.8125rem;
   line-height: 1.65;
   tab-size: 2;
+}
+.ag-code[data-compact] pre {
+  padding-block: 0.75rem;
 }
 .ag-code code {
   display: block;

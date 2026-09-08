@@ -22,6 +22,8 @@ export interface CodeProps {
   /** The source. Common leading indentation is removed, so a snippet can be written
    *  indented inside the code that renders it and still read flush. */
   children: string
+  /** A highlighted command row without a filename bar. Copy stays on the right. */
+  compact?: boolean
   /** A Shiki language id. `text` when it is not code, which skips the grammar. */
   lang?: BundledLanguage | "text"
   /** A path or a name for the tab. Without one the frame is bare. */
@@ -73,6 +75,7 @@ export function dedent(src: string): string {
 
 export async function Code({
   children,
+  compact = false,
   lang = "tsx",
   filename,
   copy = true,
@@ -111,18 +114,23 @@ export async function Code({
   })
   return (
     <div
+      data-slot="code"
+      data-compact={compact || undefined}
       className={`ag-code${lines ? " ag-code-numbered" : ""}${className ? ` ${className}` : ""}`}
     >
-      <div className="ag-code-bar">
-        <span className="ag-code-name">{filename ?? lang}</span>
-        {copy && <Copy value={source} label />}
-      </div>
+      {!compact && (
+        <div className="ag-code-bar">
+          <span className="ag-code-name">{filename ?? lang}</span>
+          {copy && <Copy value={source} label />}
+        </div>
+      )}
       {/* Shiki's own <pre><code>, styled by code.css. */}
       <div
         className="ag-code-scroll"
         // biome-ignore lint/security/noDangerouslySetInnerHtml: shiki's own output, built on the server from a string prop, never from anything a reader can reach
         dangerouslySetInnerHTML={{ __html: html }}
       />
+      {compact && copy && <Copy value={source} className="mr-2" />}
     </div>
   )
 }

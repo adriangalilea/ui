@@ -59,6 +59,7 @@ export function Scrims({
       {bottom && (
         <div
           ref={bottomRef}
+          style={{ margin: 0 }}
           aria-hidden
           data-position={position}
           data-mode={mode}
@@ -69,6 +70,7 @@ export function Scrims({
       {top && (
         <div
           ref={topRef}
+          style={{ margin: 0 }}
           aria-hidden
           data-position={position}
           data-mode={mode}
