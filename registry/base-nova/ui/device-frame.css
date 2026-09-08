@@ -301,6 +301,8 @@
   }
 
   .device-frame[data-device="iphone"] > .device-screen {
+    --device-safe-gap: 4cqw;
+    --device-island-height: 7.6cqw;
     position: relative;
     height: 100%;
     overflow: hidden;
@@ -314,10 +316,10 @@
   .device-island {
     position: absolute;
     z-index: 5;
-    top: 4cqw;
+    top: var(--device-safe-gap);
     left: 50%;
     width: 28cqw;
-    height: 7.6cqw;
+    height: var(--device-island-height);
     background: #000;
     border-radius: 4cqw;
     transform: translateX(-50%);

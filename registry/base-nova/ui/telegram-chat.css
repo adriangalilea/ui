@@ -141,10 +141,15 @@
     font-size: 3.8cqw;
     line-height: 1.15;
     --tg-screen-radius: 14.7cqw;
-    --tg-header-top: 11cqw;
+    --tg-header-top: calc(
+      var(--device-safe-gap, 4cqw) *
+      2 +
+      var(--device-island-height, 7.6cqw)
+    );
+    --tg-control-bottom: var(--device-safe-gap, 4cqw);
     --tg-composer-h: 10.4cqw;
-    /* Each disc sits on the corner's 45-degree bisector. The clearance is
-       measured to the curved edge, with identical side and bottom insets. */
+    /* Keep the outer discs clear of the curved corners horizontally;
+       vertical spacing follows the shared device safe gap. */
     --tg-control-gap: 6cqw;
     --tg-control-inset: calc(
       (var(--tg-screen-radius) - var(--tg-composer-h) / 2) *
@@ -159,7 +164,10 @@
     z-index: 2;
     --scrim-color: var(--tg-screen);
     --scrim-top-height: calc(var(--tg-header-top) + 25cqw);
-    --scrim-bottom-height: calc(var(--tg-composer-h) + var(--tg-control-inset));
+    --scrim-bottom-height: calc(
+      var(--tg-composer-h) +
+      var(--tg-control-bottom)
+    );
     --scrim-blur: 0.65cqw;
     --scrim-strength: 48%;
     --scrim-mid-strength: 20%;
@@ -190,7 +198,7 @@
     display: flex;
     align-items: center;
     gap: 2cqw;
-    padding: 0.5cqw 3.4cqw 2.2cqw;
+    padding: 0 3.4cqw 2.2cqw;
   }
   /* The shared Glass component owns the material. These rules only size chrome. */
   .tgchat-round {
@@ -773,7 +781,7 @@
     position: absolute;
     z-index: 3;
     right: 3.4cqw;
-    bottom: calc(var(--tg-composer-h) + var(--tg-control-inset) + 2cqw);
+    bottom: calc(var(--tg-composer-h) + var(--tg-control-bottom) + 2cqw);
     left: 3.4cqw;
     overflow: hidden;
     border-radius: 3cqw;
@@ -816,13 +824,13 @@
   }
   /* With a reply pending too, the popup sits above the reply bar. */
   .tgchat-options:has(+ .tgchat-replybar) {
-    bottom: calc(var(--tg-composer-h) + var(--tg-control-inset) + 14cqw);
+    bottom: calc(var(--tg-composer-h) + var(--tg-control-bottom) + 14cqw);
   }
   .tgchat-replybar {
     position: absolute;
     z-index: 3;
     right: 3.4cqw;
-    bottom: calc(var(--tg-composer-h) + var(--tg-control-inset) + 2cqw);
+    bottom: calc(var(--tg-composer-h) + var(--tg-control-bottom) + 2cqw);
     left: 3.4cqw;
     display: flex;
     align-items: center;
@@ -865,7 +873,7 @@
     position: absolute;
     z-index: 3;
     right: 0;
-    bottom: var(--tg-control-inset);
+    bottom: var(--tg-control-bottom);
     left: 0;
     display: flex;
     align-items: center;
