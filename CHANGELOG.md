@@ -7,6 +7,8 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 ### Registry website
 
+- Connected production website visits to Vercel Web Analytics. Installed components
+  contain no analytics; registry requests are not reported as completed installs.
 - Added an Updates page and component-specific release notes next to installation
   commands. Update instructions and previews are available on every component page.
 

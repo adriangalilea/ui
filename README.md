@@ -32,6 +32,32 @@ Git diff and run your application's checks.
 The installer can change import ordering; apply your normal formatter before
 judging whether an apparent difference is a component change.
 
+### Reviewing usage
+
+Production website visits are collected in the project's
+[Vercel Analytics dashboard](https://vercel.com/adriangalileas-projects/ui/analytics).
+The script is excluded from local and preview deployments. It belongs to the
+website, never to the registry components installed into other projects.
+
+Review component-page visitors, referrers, and `/updates` visits monthly, comparing
+equal periods. These measure discovery and documentation interest, not adoption.
+Keep exports outside the public repository if you want a history beyond the
+provider's retention window.
+
+Registry delivery is visible separately in Vercel Observability's Edge Requests:
+filter production requests to `/r/*.json` and inspect component paths and response
+statuses. Count requests, not installs: shadcn previews, dependency resolution,
+updates, retries, and bots can all fetch the same file. A popular dependency is not
+necessarily a component people deliberately selected. The detailed metrics API
+currently requires Observability Plus for this project; no upgrade is enabled by
+this repository.
+
+Not yet instrumented: install-command copies, update-command copies, and durable
+per-component request history. These need a reporting destination. Successful
+installs, distinct consuming projects, and actual update adoption cannot be inferred
+from registry HTTP traffic. They would require explicit client reporting; copied
+components do not phone home.
+
 ### Developing against garden
 
 Edit shared components in `registry/base-nova/`; keep garden-specific composition in

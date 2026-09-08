@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/next"
 import type { Metadata } from "next"
 import { Courier_Prime, Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           {children}
           <SiteTheme />
         </ThemeRoot>
+        {process.env.VERCEL_ENV === "production" && <Analytics />}
       </body>
     </html>
   )
