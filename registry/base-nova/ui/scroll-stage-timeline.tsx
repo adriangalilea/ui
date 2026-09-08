@@ -1,0 +1,209 @@
+"use client"
+
+import * as React from "react"
+import { useScrollStage } from "@/registry/base-nova/ui/scroll-stage"
+
+export interface ScrollBeat {
+  /** Relative scroll distance. A short finale might use .5. */
+  span: number
+  /** Fraction at which content finishes. Default .6. */
+  play?: number
+  /** Fraction at which the reading beat ends and transition starts. Default .85. */
+  hold?: number
+}
+
+/** Pure choreography: content, reading dwell and movement share one position. */
+export function scrollBeatFrame(
+  position: number,
+  beats: readonly ScrollBeat[],
+) {
+  let start = 0
+  let active = beats.length - 1
+  let offset = active
+  const progress = beats.map((beat, i) => {
+    const local = (position - start) / beat.span
+    if (local >= 0 && local < 1) {
+      active = i
+      const hold = beat.hold ?? 0.85
+      offset = Math.min(
+        beats.length - 1,
+        i + Math.max(0, (local - hold) / (1 - hold)),
+      )
+    }
+    start += beat.span
+    return Math.max(0, Math.min(1, local / (beat.play ?? 0.6)))
+  })
+  if (position <= 0) active = offset = 0
+  return { active, offset, progress }
+}
+
+const PINNED = "(min-width: 64rem) and (prefers-reduced-motion: no-preference)"
+
+/** Opt-in JS driver for renderers such as transcripts that need exact content
+ * progress. CSS-only scenes can keep using Act. No autoplay, no timed exit gates.
+ * Keep beats stable (declare them outside the component). */
+export function useScrollStageTimeline(
+  beats: readonly ScrollBeat[],
+  { top = 0, bottom = 0 }: { top?: number; bottom?: number } = {},
+) {
+  if (
+    !beats.length ||
+    beats.some(
+      (b) =>
+        !(b.span > 0) ||
+        (b.play ?? 0.6) <= 0 ||
+        (b.play ?? 0.6) > (b.hold ?? 0.85) ||
+        (b.hold ?? 0.85) >= 1,
+    )
+  )
+    throw new Error(
+      "Scroll beats require positive spans and 0 < play <= hold < 1",
+    )
+  const { track } = useScrollStage()
+  const span = beats.reduce((sum, beat) => sum + beat.span, 0)
+  const [position, setPosition] = React.useState(0)
+  const [ambient, setAmbient] = React.useState(0)
+
+  React.useEffect(() => {
+    const el = track.current
+    const stage = el?.querySelector<HTMLElement>(".ag-stage")
+    if (!el || !stage) return
+    const media = matchMedia(PINNED)
+    let frame = 0
+    let last = performance.now()
+    let destination = scrollY
+    let written = -1
+    const bounds = () => {
+      if (!media.matches) return null
+      const rect = el.getBoundingClientRect()
+      return {
+        start: scrollY + rect.top,
+        travel: Math.max(1, rect.height - innerHeight),
+      }
+    }
+    const fit = () => {
+      el.style.setProperty("--stage-min-height", "0px")
+      el.style.setProperty(
+        "--stage-top",
+        `${Math.max(top, (innerHeight - stage.offsetHeight + top - bottom) / 2)}px`,
+      )
+    }
+    const sample = () => {
+      const range = bounds()
+      if (!range) {
+        setPosition(span)
+        return
+      }
+      if (Math.abs(scrollY - written) > 1) destination = scrollY
+      setPosition(
+        Math.max(
+          0,
+          Math.min(span, ((scrollY - range.start) / range.travel) * span),
+        ),
+      )
+      // Keep decoration moving through the scene's complete departure.
+      const exit = scrollY + stage.getBoundingClientRect().bottom
+      setAmbient(
+        Math.max(
+          0,
+          ((Math.min(scrollY, exit) - range.start) / range.travel) * span,
+        ),
+      )
+    }
+    const tick = (now: number) => {
+      frame = 0
+      const range = bounds()
+      if (!range) return
+      const dt = Math.min(64, now - last)
+      last = now
+      const distance = destination - scrollY
+      const step =
+        Math.sign(distance) *
+        Math.max(1, Math.abs(distance) * (1 - Math.exp(-dt / 55)))
+      const limit = (range.travel / span) * 0.2
+      written = Math.round(
+        Math.abs(distance) < 1
+          ? destination
+          : scrollY + Math.max(-limit, Math.min(limit, step)),
+      )
+      window.scrollTo({ top: written, behavior: "instant" })
+      sample()
+      if (Math.abs(destination - written) >= 1)
+        frame = requestAnimationFrame(tick)
+    }
+    const wheel = (event: WheelEvent) => {
+      const range = bounds()
+      if (
+        !range ||
+        event.ctrlKey ||
+        Math.abs(event.deltaX) > Math.abs(event.deltaY)
+      )
+        return
+      const delta =
+        event.deltaY *
+        (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1)
+      if (
+        Math.max(scrollY, scrollY + delta) < range.start ||
+        Math.min(scrollY, scrollY + delta) > range.start + range.travel
+      )
+        return
+      event.preventDefault()
+      if ((destination - scrollY) * delta < 0) destination = scrollY
+      destination = Math.max(
+        0,
+        Math.min(
+          document.documentElement.scrollHeight - innerHeight,
+          destination + delta,
+        ),
+      )
+      if (!frame) {
+        last = performance.now()
+        frame = requestAnimationFrame(tick)
+      }
+    }
+    const resize = new ResizeObserver(fit)
+    resize.observe(stage)
+    const refresh = () => {
+      fit()
+      sample()
+    }
+    window.addEventListener("scroll", sample, { passive: true })
+    window.addEventListener("wheel", wheel, { passive: false })
+    window.addEventListener("resize", refresh)
+    media.addEventListener("change", refresh)
+    refresh()
+    return () => {
+      cancelAnimationFrame(frame)
+      resize.disconnect()
+      window.removeEventListener("scroll", sample)
+      window.removeEventListener("wheel", wheel)
+      window.removeEventListener("resize", refresh)
+      media.removeEventListener("change", refresh)
+      el.style.removeProperty("--stage-top")
+      el.style.removeProperty("--stage-min-height")
+    }
+  }, [track, span, top, bottom])
+
+  const seek = React.useCallback(
+    (index: number) => {
+      const beat = beats[index]
+      if (!beat) throw new Error(`Unknown scroll beat: ${index}`)
+      const el = track.current
+      if (!el || !matchMedia(PINNED).matches) return false
+      const rect = el.getBoundingClientRect()
+      const start = beats.slice(0, index).reduce((sum, b) => sum + b.span, 0)
+      const reading = ((beat.play ?? 0.6) + (beat.hold ?? 0.85)) / 2
+      window.scrollTo({
+        top:
+          scrollY +
+          rect.top +
+          ((rect.height - innerHeight) * (start + beat.span * reading)) / span,
+        behavior: "smooth",
+      })
+      return true
+    },
+    [beats, track, span],
+  )
+
+  return { ...scrollBeatFrame(position, beats), position, ambient, seek }
+}

@@ -1,6 +1,55 @@
 "use client"
 
-import { Act, ScrollStage, useAct } from "@/registry/base-nova/ui/scroll-stage"
+import {
+  Act,
+  ScrollStage,
+  useScrollStage,
+} from "@/registry/base-nova/ui/scroll-stage"
+import { useScrollStageTimeline } from "@/registry/base-nova/ui/scroll-stage-timeline"
+
+const BEATS = [
+  { id: "write", span: 1 },
+  { id: "read", span: 1 },
+  { id: "continue", span: 0.5 },
+]
+
+/** The same framework can drive non-CSS renderers, with reversible reading beats. */
+export function TimelineDemo() {
+  return (
+    <ScrollStage
+      acts={3}
+      pace="90svh"
+      stacked={<p>Write → read → continue.</p>}
+    >
+      <TimelineScene />
+    </ScrollStage>
+  )
+}
+
+function TimelineScene() {
+  const timeline = useScrollStageTimeline(BEATS, { top: 80, bottom: 80 })
+  return (
+    <div className="w-full space-y-8 p-8">
+      <h3 className="text-xl font-semibold">write. read. continue.</h3>
+      <p className="font-mono text-4xl">
+        {Math.round(timeline.progress[timeline.active] * 100)}%
+      </p>
+      <nav aria-label="Timeline beats" className="flex gap-3">
+        {BEATS.map((beat, i) => (
+          <button
+            key={beat.id}
+            type="button"
+            onClick={() => timeline.seek(i)}
+            aria-current={timeline.active === i ? "step" : undefined}
+            className="size-11 rounded-full border aria-[current]:bg-muted"
+          >
+            {i + 1}
+          </button>
+        ))}
+      </nav>
+    </div>
+  )
+}
 
 const ACTS = [
   {
@@ -18,7 +67,7 @@ const ACTS = [
 ]
 
 function Words() {
-  const active = useAct()
+  const { active, seek } = useScrollStage()
   return (
     <div className="space-y-8">
       {ACTS.map((a, i) => (
@@ -36,11 +85,34 @@ function Words() {
           </p>
         </div>
       ))}
+      <nav aria-label="story acts" className="flex gap-2">
+        {ACTS.map((act, index) => (
+          <button
+            key={act.title}
+            type="button"
+            onClick={() => seek(index)}
+            aria-label={`Go to ${act.title}`}
+            aria-current={active === index ? "step" : undefined}
+            className="size-11 rounded-full bg-foreground/5 text-sm aria-[current]:bg-foreground/15 focus-visible:outline-2 focus-visible:outline-ring"
+          >
+            {index + 1}
+          </button>
+        ))}
+      </nav>
     </div>
   )
 }
 
 export default function Demo() {
+  return (
+    <div className="space-y-16">
+      <CssDemo />
+      <TimelineDemo />
+    </div>
+  )
+}
+
+function CssDemo() {
   return (
     <ScrollStage
       acts={ACTS.length}

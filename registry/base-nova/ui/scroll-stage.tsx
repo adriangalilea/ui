@@ -7,6 +7,8 @@
 // frame. <Act> exposes --act-p (0..1 within its own window) and --act-on (1 while on
 // stage) as CSS, for opacity, transform, clip. State-shaped consumers (mount a phone
 // when its act begins) read useAct().
+// Renderers needing continuous JS progress opt into useScrollStageTimeline from
+// scroll-stage-timeline. Its weighted beats replace these equal checkpoints.
 //
 // Below lg or under prefers-reduced-motion nothing pins: the track is its natural
 // height, --stage-p is 1, and `stacked` (when given) renders instead of the stage.
@@ -17,7 +19,17 @@ import "./scroll-stage.css"
 const StageContext = React.createContext<{
   acts: number
   active: number
+  seek: (index: number) => boolean
+  track: React.RefObject<HTMLElement | null>
 } | null>(null)
+
+/** Navigate the pinned story using the same act boundaries as useAct().
+ * Returns false in stacked layouts, where the page provides its own navigation. */
+export function useScrollStage() {
+  const ctx = React.useContext(StageContext)
+  if (!ctx) throw new Error("useScrollStage() outside <ScrollStage>")
+  return ctx
+}
 
 /** The act on stage (0-based). Only valid inside <ScrollStage>. */
 export function useAct(): number {
@@ -133,7 +145,28 @@ export function ScrollStage({
     }
   }, [acts])
 
-  const ctx = React.useMemo(() => ({ acts, active }), [acts, active])
+  const seek = React.useCallback(
+    (index: number) => {
+      if (!Number.isInteger(index) || index < 0 || index >= acts)
+        throw new Error(`ScrollStage: act ${index} outside 0..${acts - 1}`)
+      const el = track.current
+      if (!el || !window.matchMedia(PINNED).matches) return false
+      const rect = el.getBoundingClientRect()
+      const travel = Math.max(0, rect.height - window.innerHeight)
+      // Aim inside the act, not at a rounding-sensitive boundary. rect + scrollY
+      // works in positioned wrappers where offsetTop is not a document coordinate.
+      window.scrollTo({
+        top: window.scrollY + rect.top + (travel * (index + 0.5)) / acts,
+        behavior: "smooth",
+      })
+      return true
+    },
+    [acts],
+  )
+  const ctx = React.useMemo(
+    () => ({ acts, active, seek, track }),
+    [acts, active, seek],
+  )
   return (
     <StageContext.Provider value={ctx}>
       {React.createElement(

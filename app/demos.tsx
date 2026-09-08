@@ -11,6 +11,7 @@ import Tokens from "@/registry/base-nova/theme/tokens.demo"
 import Avatar from "@/registry/base-nova/ui/avatar.demo"
 import Code from "@/registry/base-nova/ui/code.demo"
 import Copy from "@/registry/base-nova/ui/copy.demo"
+import DeviceFrame from "@/registry/base-nova/ui/device-frame.demo"
 import Lightbox from "@/registry/base-nova/ui/lightbox.demo"
 import LiquidGlass from "@/registry/base-nova/ui/liquid-glass.demo"
 import Quote from "@/registry/base-nova/ui/quote.demo"
@@ -32,6 +33,7 @@ export const DEMOS: Record<string, ComponentType> = {
   avatar: Avatar,
   code: Code,
   copy: Copy,
+  "device-frame": DeviceFrame,
   reveal: Reveal,
   scrims: Scrims,
   "liquid-glass": LiquidGlass,

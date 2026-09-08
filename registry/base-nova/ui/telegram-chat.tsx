@@ -38,6 +38,7 @@
 import { ChevronDown, SlidersHorizontal } from "lucide-react"
 import * as React from "react"
 import { cn } from "@/lib/utils"
+import { IphoneFrame } from "@/registry/base-nova/ui/device-frame"
 import { Glass, type GlassTone } from "@/registry/base-nova/ui/liquid-glass"
 import { Scrims } from "@/registry/base-nova/ui/scrims"
 import { WebPreview } from "@/registry/base-nova/ui/web-preview"
@@ -181,6 +182,8 @@ export interface TelegramChatProps {
    *  the container's width: no header or typing status, the
    *  composer stays visible to keep typing transitions stable. */
   frame?: "phone" | "none"
+  /** Hide the decorative input controls for message-only compositions. */
+  composer?: boolean
   /** Message indices that stay sharp and lift; the rest blur and step back (hover brings
    *  them back). In a phone the thread scrolls the first focused message into view. */
   focus?: number | readonly number[]
@@ -695,6 +698,7 @@ export function TelegramChat({
   wallpaper,
   theme = "page",
   frame = "phone",
+  composer = true,
   focus,
   crop,
   animatedEmoji = true,
@@ -1002,6 +1006,7 @@ export function TelegramChat({
   // clock re-runs this every second; re-setting the same scrollTop each tick yanked the
   // thread back from wherever the reader had scrolled it.
   const threadWant = React.useRef<number | null>(null)
+  const threadInitialized = React.useRef(false)
   // biome-ignore lint/correctness/useExhaustiveDependencies: eff/aliveSec are the beats that grow the thread
   React.useLayoutEffect(() => {
     const el = thread.current
@@ -1034,7 +1039,9 @@ export function TelegramChat({
     }
     threadWant.current = null
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40
-    if (!completed || atBottom) el.scrollTop = el.scrollHeight
+    if (!threadInitialized.current || !completed || atBottom)
+      el.scrollTop = el.scrollHeight
+    threadInitialized.current = true
   }, [completed, eff, aliveSec, focusKey])
 
   // THE CUT is a real scroller. The viewport takes the crop's height (a measured px
@@ -1557,290 +1564,227 @@ export function TelegramChat({
         }
       >
         {scroller && <div className="tgchat-scrim" data-edge="top" />}
-        <div ref={device} className="tgchat-phone">
+        <IphoneFrame
+          ref={device}
+          bare={frame !== "phone"}
+          className="tgchat-phone"
+          screenClassName="tgchat-screen"
+        >
           {frame === "phone" && (
-            <>
-              <span className="tgchat-btn action" />
-              <span className="tgchat-btn vol-up" />
-              <span className="tgchat-btn vol-down" />
-              <span className="tgchat-btn power" />
-            </>
+            <Scrims
+              position="absolute"
+              mode="static"
+              className="tgchat-chrome-scrim"
+            />
           )}
-          <div className="tgchat-screen">
-            {frame === "phone" && (
-              <Scrims
-                position="absolute"
-                mode="static"
-                className="tgchat-chrome-scrim"
-              />
-            )}
-            {wallpaper && (
-              <div
-                className="tgchat-wall"
-                style={{
-                  WebkitMaskImage: `url(${wallpaper})`,
-                  maskImage: `url(${wallpaper})`,
-                }}
-              />
-            )}
-            {frame === "phone" && (
-              <>
-                <div className="tgchat-island" />
-                <div className="tgchat-status">
-                  <span>9:41</span>
-                  <span className="radios">
-                    <svg
-                      aria-hidden="true"
-                      viewBox="0 0 17 11"
-                      width="17"
-                      height="11"
-                    >
-                      <g fill="currentColor">
-                        <rect x="0" y="7" width="3" height="4" rx="1" />
-                        <rect x="4.5" y="5" width="3" height="6" rx="1" />
-                        <rect x="9" y="2.5" width="3" height="8.5" rx="1" />
-                        <rect x="13.5" y="0" width="3" height="11" rx="1" />
-                      </g>
-                    </svg>
-                    <svg
-                      aria-hidden="true"
-                      viewBox="0 0 26 11"
-                      width="26"
-                      height="11"
-                    >
-                      <rect
-                        x="0.6"
-                        y="0.6"
-                        width="21"
-                        height="9.8"
-                        rx="2.8"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.2"
-                        opacity="0.5"
-                      />
-                      <rect
-                        x="23.4"
-                        y="3.6"
-                        width="2"
-                        height="3.8"
-                        rx="1"
-                        fill="currentColor"
-                        opacity="0.5"
-                      />
-                      <rect
-                        x="2.2"
-                        y="2.2"
-                        width="14"
-                        height="6.6"
-                        rx="1.6"
-                        fill="currentColor"
-                      />
-                    </svg>
-                  </span>
-                </div>
-              </>
-            )}
-            {/* The header is the PHONE's chrome. A bare canvas has none: a chat title
+          {wallpaper && (
+            <div
+              className="tgchat-wall"
+              style={{
+                WebkitMaskImage: `url(${wallpaper})`,
+                maskImage: `url(${wallpaper})`,
+              }}
+            />
+          )}
+
+          {/* The header is the PHONE's chrome. A bare canvas has none: a chat title
                 pinned over floating bubbles was the device's composition forced onto
                 the mode whose point is no device. What the header carried that is
                 story, the typing status, goes into the thread instead. */}
-            {frame === "phone" && (
-              <div className="tgchat-header" aria-hidden="true">
-                <TelegramGlass tone={glassTone} className="tgchat-round">
-                  <svg
-                    aria-hidden="true"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                  >
-                    <path d="M10 3 5 8l5 5" />
-                  </svg>
-                </TelegramGlass>
-                <TelegramGlass tone={glassTone} className="tgchat-card">
-                  <div className="tgchat-names">
-                    <strong>{nameOf(script.chatName)}</strong>
-                    {typingLabel ? (
-                      <span className="typing">
-                        <span className="tgchat-tdots">
-                          <i />
-                          <i />
-                          <i />
-                        </span>
-                        {typingLabel}
+          {frame === "phone" && (
+            <div className="tgchat-header" aria-hidden="true">
+              <TelegramGlass tone={glassTone} className="tgchat-round">
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                >
+                  <path d="M10 3 5 8l5 5" />
+                </svg>
+              </TelegramGlass>
+              <TelegramGlass tone={glassTone} className="tgchat-card">
+                <div className="tgchat-names">
+                  <strong>{nameOf(script.chatName)}</strong>
+                  {typingLabel ? (
+                    <span className="typing">
+                      <span className="tgchat-tdots">
+                        <i />
+                        <i />
+                        <i />
                       </span>
-                    ) : (
-                      chatTag && <span>{chatTag}</span>
-                    )}
-                  </div>
-                </TelegramGlass>
-                <TelegramGlass tone={glassTone} className="tgchat-profile">
-                  <Avatar
-                    className="tgchat-avatar"
-                    name={nameOf(script.chatName)}
-                    photo={script.avatar ?? header?.avatar}
-                    video={script.avatarVideo ?? header?.avatarVideo}
-                  />
-                </TelegramGlass>
-              </div>
-            )}
-            {frame === "phone" && script.managedBy && (
-              <TelegramGlass
-                tone={glassTone}
-                className="tgchat-manager absolute"
-                aria-hidden="true"
-              >
+                      {typingLabel}
+                    </span>
+                  ) : (
+                    chatTag && <span>{chatTag}</span>
+                  )}
+                </div>
+              </TelegramGlass>
+              <TelegramGlass tone={glassTone} className="tgchat-profile">
                 <Avatar
                   className="tgchat-avatar"
-                  name={nameOf(script.managedBy)}
-                  photo={manager?.avatar}
-                  video={manager?.avatarVideo}
+                  name={nameOf(script.chatName)}
+                  photo={script.avatar ?? header?.avatar}
+                  video={script.avatarVideo ?? header?.avatarVideo}
                 />
-                <div className="tgchat-manager-names">
-                  <strong>{nameOf(script.managedBy)}</strong>
-                  <span>bot manages this chat</span>
-                </div>
-                <span className="tgchat-manager-stop">STOP</span>
-                <SlidersHorizontal />
               </TelegramGlass>
-            )}
-            <div
-              className="tgchat-messages"
-              ref={thread}
-              onScroll={(event) => {
-                const el = event.currentTarget
-                setShowLatest(
-                  el.scrollHeight - el.scrollTop - el.clientHeight > 40,
-                )
-              }}
+            </div>
+          )}
+          {frame === "phone" && script.managedBy && (
+            <TelegramGlass
+              tone={glassTone}
+              className="tgchat-manager absolute"
+              aria-hidden="true"
             >
-              <div className="tgchat-thread">
-                {/* Messages are positional by design: their order IS their identity,
+              <Avatar
+                className="tgchat-avatar"
+                name={nameOf(script.managedBy)}
+                photo={manager?.avatar}
+                video={manager?.avatarVideo}
+              />
+              <div className="tgchat-manager-names">
+                <strong>{nameOf(script.managedBy)}</strong>
+                <span>bot manages this chat</span>
+              </div>
+              <span className="tgchat-manager-stop">STOP</span>
+              <SlidersHorizontal />
+            </TelegramGlass>
+          )}
+          <div
+            className="tgchat-messages"
+            ref={thread}
+            onScroll={(event) => {
+              const el = event.currentTarget
+              setShowLatest(
+                el.scrollHeight - el.scrollTop - el.clientHeight > 40,
+              )
+            }}
+          >
+            <div className="tgchat-thread">
+              {/* Messages are positional by design: their order IS their identity,
                   and the array never reorders. */}
-                {script.messages.map((m, i) =>
-                  renderMessage(m, i, at, bubbles),
-                )}
-                {/* THE FINAL STATE, hidden, for measuring: how tall the focused messages
+              {script.messages.map((m, i) => renderMessage(m, i, at, bubbles))}
+              {/* THE FINAL STATE, hidden, for measuring: how tall the focused messages
                     WILL be once they have landed. The cut sizes its viewport from this
                     instead of from the growing live bubble, so a summary streaming in
                     never resizes the page under the reader. Only while a cut has a
                     focus, the one consumer of the number; zero height and clipped, so it
                     adds nothing to the thread's scroll range. */}
-                {focused.length > 0 && (
-                  <div className="tgchat-ghost" aria-hidden ref={ghostRoot}>
-                    <div className="tgchat-thread">
-                      {script.messages.map((m, i) =>
-                        renderMessage(m, i, Number.POSITIVE_INFINITY, ghosts),
-                      )}
-                    </div>
+              {focused.length > 0 && (
+                <div className="tgchat-ghost" aria-hidden ref={ghostRoot}>
+                  <div className="tgchat-thread">
+                    {script.messages.map((m, i) =>
+                      renderMessage(m, i, Number.POSITIVE_INFINITY, ghosts),
+                    )}
                   </div>
-                )}
-                {/* A late message is a left bubble like any other: in a group it
+                </div>
+              )}
+              {/* A late message is a left bubble like any other: in a group it
                     carries its sender's label and mini avatar (a gradient initial
                     when there is no photo), the same row every scripted message
                     gets. Its own photo, or video, rides on the afterlife block. */}
-                {script.afterlife?.messages
-                  .filter((late) => aliveSec >= afterlifeDelay + late.at)
-                  .map((late) => {
-                    const who = script.afterlife?.from ?? script.chatName
-                    const bubble = (
-                      <div className="tgchat-bubble bot">
-                        {senderLabel(who)}
-                        {linkify(late.text)}
-                      </div>
-                    )
-                    if (
-                      !isGroup &&
-                      !script.afterlife?.avatar &&
-                      !profileOf(who)?.avatar
-                    )
-                      return (
-                        <React.Fragment key={late.at}>{bubble}</React.Fragment>
-                      )
+              {script.afterlife?.messages
+                .filter((late) => aliveSec >= afterlifeDelay + late.at)
+                .map((late) => {
+                  const who = script.afterlife?.from ?? script.chatName
+                  const bubble = (
+                    <div className="tgchat-bubble bot">
+                      {senderLabel(who)}
+                      {linkify(late.text)}
+                    </div>
+                  )
+                  if (
+                    !isGroup &&
+                    !script.afterlife?.avatar &&
+                    !profileOf(who)?.avatar
+                  )
                     return (
-                      <div className="tgchat-rowline" key={late.at}>
-                        <Avatar
-                          className="tgchat-mini"
-                          name={nameOf(who)}
-                          photo={
-                            script.afterlife?.avatar ?? profileOf(who)?.avatar
-                          }
-                          video={
-                            script.afterlife?.avatarVideo ??
-                            profileOf(who)?.avatarVideo
-                          }
-                        />
-                        {bubble}
-                      </div>
+                      <React.Fragment key={late.at}>{bubble}</React.Fragment>
                     )
-                  })}
-              </div>
+                  return (
+                    <div className="tgchat-rowline" key={late.at}>
+                      <Avatar
+                        className="tgchat-mini"
+                        name={nameOf(who)}
+                        photo={
+                          script.afterlife?.avatar ?? profileOf(who)?.avatar
+                        }
+                        video={
+                          script.afterlife?.avatarVideo ??
+                          profileOf(who)?.avatarVideo
+                        }
+                      />
+                      {bubble}
+                    </div>
+                  )
+                })}
             </div>
-            {/* Telegram's inline-results popup: what the client shows over the composer
+          </div>
+          {/* Telegram's inline-results popup: what the client shows over the composer
                 once you have typed `@bot `. Here it carries the choices the emphasis
                 token was picked from; the pick lights before it fills the line. */}
-            {choosing && (
-              // Story chrome like the rest of the mockup (the figure's alt tells the
-              // story), not a control: nothing here is for choosing.
-              <TelegramGlass
-                tone={glassTone}
-                className="tgchat-options absolute"
-                aria-hidden="true"
-              >
-                {choosing.options.map((o) => (
-                  <div
-                    key={o}
-                    data-pick={
-                      (choosing.picked && o === composing?.emphasis) ||
-                      undefined
-                    }
-                  >
-                    {o}
-                  </div>
-                ))}
-              </TelegramGlass>
-            )}
-            {composing?.reply && composerChars > 0 && (
-              <TelegramGlass
-                tone={glassTone}
-                className="tgchat-replybar absolute [.tgchat[data-frame=none]_&]:relative"
-                aria-hidden="true"
-              >
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+          {composer && choosing && (
+            // Story chrome like the rest of the mockup (the figure's alt tells the
+            // story), not a control: nothing here is for choosing.
+            <TelegramGlass
+              tone={glassTone}
+              className="tgchat-options absolute"
+              aria-hidden="true"
+            >
+              {choosing.options.map((o) => (
+                <div
+                  key={o}
+                  data-pick={
+                    (choosing.picked && o === composing?.emphasis) || undefined
+                  }
                 >
-                  <path d="M9 17l-5-5 5-5" />
-                  <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
-                </svg>
-                <div>
-                  <strong>Reply to {nameOf(composing.reply.from)}</strong>
-                  <span>{composing.reply.text}</span>
+                  {o}
                 </div>
-              </TelegramGlass>
-            )}
-            {frame === "phone" && completed && scrollable && showLatest && (
-              <Glass
-                as="button"
-                shape="circle"
-                tone={glassTone}
-                className="absolute right-(--tg-control-inset) bottom-[calc(var(--tg-composer-h)+var(--tg-control-inset)+2cqw)] z-3 size-[10cqw] bg-(--tg-glass) text-(--tg-text) [--glass-blur:1.35cqw] dark:bg-(--tg-glass)"
-                aria-label="Jump to latest message"
-                onClick={() => {
-                  const el = thread.current
-                  if (el) el.scrollTop = el.scrollHeight
-                }}
+              ))}
+            </TelegramGlass>
+          )}
+          {composer && composing?.reply && composerChars > 0 && (
+            <TelegramGlass
+              tone={glassTone}
+              className="tgchat-replybar absolute [.tgchat[data-frame=none]_&]:relative"
+              aria-hidden="true"
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               >
-                <ChevronDown className="size-[5.6cqw]" />
-              </Glass>
-            )}
+                <path d="M9 17l-5-5 5-5" />
+                <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+              </svg>
+              <div>
+                <strong>Reply to {nameOf(composing.reply.from)}</strong>
+                <span>{composing.reply.text}</span>
+              </div>
+            </TelegramGlass>
+          )}
+          {frame === "phone" && completed && scrollable && showLatest && (
+            <Glass
+              as="button"
+              shape="circle"
+              tone={glassTone}
+              className="absolute right-(--tg-control-inset) bottom-[calc(var(--tg-composer-h)+var(--tg-control-inset)+2cqw)] z-3 size-[10cqw] bg-(--tg-glass) text-(--tg-text) [--glass-blur:1.35cqw] dark:bg-(--tg-glass)"
+              aria-label="Jump to latest message"
+              onClick={() => {
+                const el = thread.current
+                if (el) el.scrollTop = el.scrollHeight
+              }}
+            >
+              <ChevronDown className="size-[5.6cqw]" />
+            </Glass>
+          )}
+          {composer && (
             <div
               className="tgchat-composer"
               aria-hidden="true"
@@ -1919,8 +1863,8 @@ export function TelegramChat({
                 </svg>
               </TelegramGlass>
             </div>
-          </div>
-        </div>
+          )}
+        </IphoneFrame>
         {scroller && <div className="tgchat-scrim" data-edge="bottom" />}
       </div>
       {debug && trace.current && (

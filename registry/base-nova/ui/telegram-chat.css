@@ -126,61 +126,6 @@
     --tg-glass: rgba(16, 16, 18, 0.54);
   }
 
-  /* iPhone shell: titanium band, polished chamfer, ~5px uniform bezel, side buttons
-   standing proud of the frame (never negative z-index — that paints them behind the
-   page background). Height follows width, so the component sizes to its container. */
-  .tgchat-phone {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 356 / 730;
-    padding: 5px;
-    background: var(--tg-phone);
-    border-radius: 16cqw;
-    box-shadow: var(--tg-lift), var(--tg-phone-band);
-  }
-
-  .tgchat-phone::after {
-    position: absolute;
-    z-index: 1;
-    inset: 0;
-    border-radius: inherit;
-    box-shadow: var(--tg-phone-chamfer);
-    content: "";
-    pointer-events: none;
-  }
-
-  .tgchat-btn {
-    position: absolute;
-    z-index: 0;
-    width: 3px;
-    background: var(--tg-phone-button);
-    border-radius: 2px;
-  }
-  .tgchat-btn.action {
-    top: 31%;
-    left: -3px;
-    height: 4%;
-    border-radius: 2px 0 0 2px;
-  }
-  .tgchat-btn.vol-up {
-    top: 22%;
-    left: -3px;
-    height: 8%;
-    border-radius: 2px 0 0 2px;
-  }
-  .tgchat-btn.vol-down {
-    top: 32%;
-    left: -3px;
-    height: 8%;
-    border-radius: 2px 0 0 2px;
-  }
-  .tgchat-btn.power {
-    top: 27%;
-    right: -3px;
-    height: 12.6%;
-    border-radius: 0 2px 2px 0;
-  }
-
   .tgchat-screen {
     position: relative;
     display: flex;
@@ -192,7 +137,7 @@
     color: var(--tg-text);
     font-size: 3.8cqw;
     line-height: 1.15;
-    --tg-screen-radius: 14.6cqw;
+    --tg-screen-radius: 14.7cqw;
     --tg-header-top: 11cqw;
     --tg-composer-h: 10.4cqw;
     /* Each disc sits on the corner's 45-degree bisector. The clearance is
@@ -209,6 +154,10 @@
   /* The same Scrims used on the page, contained behind the floating controls. */
   .tgchat .tgchat-chrome-scrim {
     z-index: 2;
+    /* Overscan the backdrop surface; the screen owns the rounded clip. This
+       avoids an unfiltered pixel seam at fractional device sizes. */
+    left: -2px;
+    right: -2px;
     --scrim-color: var(--tg-screen);
     --scrim-top-height: calc(var(--tg-header-top) + 25cqw);
     --scrim-bottom-height: calc(var(--tg-composer-h) + var(--tg-control-inset));
@@ -220,6 +169,7 @@
   }
 
   .tgchat .tgchat-chrome-scrim[data-edge="top"] {
+    top: -2px;
     --scrim-blur: 0.35cqw;
     /* Protect the clock with tint, then let the thread reappear beneath the
        floating header. The blur stays subtle and is independent of the shade. */
@@ -229,48 +179,12 @@
     --scrim-mid-stop: 70%;
   }
 
+  .tgchat .tgchat-chrome-scrim[data-edge="bottom"] {
+    bottom: -2px;
+  }
+
   .tgchat[data-managed] .tgchat-chrome-scrim {
     --scrim-top-height: calc(var(--tg-header-top) + 37cqw);
-  }
-
-  .tgchat-island {
-    position: absolute;
-    z-index: 5;
-    top: 2.5cqw;
-    left: 50%;
-    width: 26cqw;
-    height: 7.6cqw;
-    background: var(--tg-island);
-    border-radius: 4cqw;
-    transform: translateX(-50%);
-  }
-
-  .tgchat-status {
-    position: absolute;
-    z-index: 4;
-    top: 0;
-    right: 0;
-    left: 0;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 12.4cqw;
-    padding: 0 9.8cqw 0 11.8cqw;
-    color: var(--tg-status-ink);
-    font-size: 3.65cqw;
-    font-variant-numeric: tabular-nums;
-    font-weight: 600;
-    letter-spacing: 0.01em;
-  }
-  .tgchat-status svg {
-    display: block;
-    height: 3.1cqw;
-    width: auto;
-  }
-  .tgchat-status .radios {
-    display: flex;
-    align-items: center;
-    gap: 1.4cqw;
   }
 
   .tgchat-header {

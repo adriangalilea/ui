@@ -84,6 +84,10 @@
         {
           "path": "registry/base-nova/ui/scroll-stage.css",
           "type": "registry:ui"
+        },
+        {
+          "path": "registry/base-nova/ui/scroll-stage-timeline.tsx",
+          "type": "registry:ui"
         }
       ]
     },
@@ -224,6 +228,23 @@
       ]
     },
     {
+      "name": "device-frame",
+      "type": "registry:ui",
+      "title": "device-frame",
+      "description": "Responsive iPhone, MacBook and Studio Display hardware frames for any app content.",
+      "registryDependencies": ["@ag/tokens"],
+      "files": [
+        {
+          "path": "registry/base-nova/ui/device-frame.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/base-nova/ui/device-frame.css",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
       "name": "telegram-chat",
       "type": "registry:ui",
       "title": "telegram-chat",
@@ -232,6 +253,7 @@
       "registryDependencies": [
         "@ag/tokens",
         "@ag/web-preview",
+        "@ag/device-frame",
         "@ag/liquid-glass",
         "@ag/scrims"
       ],
