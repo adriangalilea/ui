@@ -133,27 +133,79 @@ try {
     await writeFile(utils, scaffoldUtils)
     await run("pnpm", ["install", "--ignore-scripts"], destination)
     // Exercise the exact public command, served from the just-built registry.
-    await run(
-      "pnpm",
-      [
-        "exec",
-        "shadcn",
-        "add",
-        "@ag/telegram-chat",
-        "@ag/code",
-        "--cwd",
-        app,
-        "--yes",
-        "--overwrite",
-      ],
-      root,
-    )
+    const publicInstall = () =>
+      run(
+        "pnpm",
+        [
+          "exec",
+          "shadcn",
+          "add",
+          "@ag/telegram-chat",
+          "@ag/code",
+          "--cwd",
+          app,
+          "--yes",
+          "--overwrite",
+        ],
+        root,
+      )
+    await publicInstall()
     assert.equal(
       await readFile(utils, "utf8"),
       scaffoldUtils,
       "Public installation preserves consumer cn",
     )
-    await run("bun", ["scripts/add.ts", "telegram-chat,code", app], root)
+    const components = workspace
+      ? join(destination, "packages/ui/src/components")
+      : join(app, "components/ui")
+    const installed = [
+      join(components, "telegram-chat.tsx"),
+      join(components, "device-frame.tsx"),
+      join(components, "telegram-chat.css"),
+      join(app, "app/tokens.css"),
+    ]
+    const before = await Promise.all(
+      installed.map((path) => readFile(path, "utf8")),
+    )
+    for (let i = 0; i < installed.length; i++)
+      await writeFile(
+        installed[i],
+        `${before[i]}\n/* install-check: public stale copy */\n`,
+      )
+    await publicInstall()
+    for (let i = 0; i < installed.length; i++)
+      assert.equal(
+        await readFile(installed[i], "utf8"),
+        before[i],
+        `Public update refreshes ${installed[i]}`,
+      )
+    for (let i = 0; i < installed.length; i++)
+      await writeFile(
+        installed[i],
+        `${before[i]}\n/* install-check: stale copy */\n`,
+      )
+    await run(
+      "bun",
+      ["scripts/add.ts", "telegram-chat,code", app, "--dry-run"],
+      root,
+    )
+    for (const path of installed)
+      assert.match(
+        await readFile(path, "utf8"),
+        /install-check: stale copy/,
+        "Preview must not write files",
+      )
+    await run(
+      "bun",
+      ["scripts/add.ts", "telegram-chat,code", app, "--overwrite"],
+      root,
+    )
+    for (let i = 0; i < installed.length; i++)
+      assert.equal(
+        await readFile(installed[i], "utf8"),
+        before[i],
+        `Update refreshes ${installed[i]}`,
+      )
     assert.equal(
       await readFile(utils, "utf8"),
       scaffoldUtils,
@@ -163,9 +215,6 @@ try {
       await readFile(join(app, "app/tokens.css"), "utf8"),
       /--alpha-wash/,
     )
-    const components = workspace
-      ? join(destination, "packages/ui/src/components")
-      : join(app, "components/ui")
     assert.match(
       await readFile(join(components, "telegram-chat.tsx"), "utf8"),
       /useChatAfterlife/,

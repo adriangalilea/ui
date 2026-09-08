@@ -13,6 +13,48 @@ npx shadcn add @ag/scroll-stage
 
 Items live in `registry/base-nova/`, a demo beside each one, played at `/<item>` on the site (`mise dev`). `mise check` asserts the registry; `mise build` emits `public/r/*.json`.
 
+### Updating installed components
+
+Installed source belongs to your project. Registry releases never change it automatically.
+Read [the changelog](CHANGELOG.md), preview an update, then decide which changes to adopt:
+
+```bash
+pnpm dlx shadcn@latest add @ag/telegram-chat --dry-run
+pnpm dlx shadcn@latest add @ag/telegram-chat --diff
+# Replace the installed files when you want the registry version:
+pnpm dlx shadcn@latest add @ag/telegram-chat --overwrite
+```
+
+Review the dependency and CSS changes too. If you customized a component, merge
+the relevant changes instead of overwriting your customization. Check the resulting
+Git diff and run your application's checks.
+The installer can change import ordering; apply your normal formatter before
+judging whether an apparent difference is a component change.
+
+### Developing against garden
+
+Edit shared components in `registry/base-nova/`; keep garden-specific composition in
+garden. Install into the consumer instead of manually patching both copies:
+
+```bash
+mise add telegram-chat ../untitled/apps/garden
+mise add telegram-chat ../untitled/apps/garden diff
+mise add telegram-chat ../untitled/apps/garden overwrite
+git -C ../untitled diff
+pnpm --dir ../untitled/apps/garden check:ui
+```
+
+`mise add` builds and serves this checkout's registry to shadcn. Its dependencies
+come from the same checkout; the consumer's registry configuration is unchanged.
+The default is a real shadcn dry run. `overwrite` explicitly applies the update,
+including dependencies and styles. Run installs sequentially for apps sharing a
+workspace. The helper does not copy or repair files behind the installer.
+
+`check:ui` builds garden and checks its production server in Chromium and WebKit.
+Before publishing registry changes, run `mise check`; this also exercises fresh
+installs and updates in standalone and workspace consumers. Add meaningful fixes
+and migration notes to the changelog.
+
 | item | what |
 |---|---|
 | `tokens` | the studio's voice over shadcn's neutral theme: type voices, tones, the alpha ladder, motion |

@@ -73,9 +73,10 @@ arg "<url>" help="the link"
 run = 'bun scripts/unfurl.ts {{arg(name="url")}}'
 
 [tasks.add]
-description = "build, then copy one item AND every item it depends on into a consumer, all from this checkout (default: the garden). shadcn resolves @ag deps against the deployed registry, which lags; re-adding them locally afterwards is what keeps a consumer from holding a stale file"
+description = "preview, diff, or install local registry items through shadcn (default: preview)"
 usage = '''
-arg "<item>" help="registry item name"
-arg "[dir]" help="consumer directory" default="/Users/adrian/Developer/untitled/apps/garden"
+arg "<item>" help="registry item names, comma-separated"
+arg "[dir]" help="consumer directory" default="../untitled/apps/garden"
+arg "[mode]" help="dry-run, diff, or overwrite" default="dry-run"
 '''
-run = 'pnpm shadcn build && bun scripts/add.ts {{arg(name="item")}} "{{arg(name="dir")}}"'
+run = 'pnpm shadcn build && bun scripts/add.ts "$usage_item" "$usage_dir" "--$usage_mode"'
