@@ -25,6 +25,9 @@
 
 @layer components {
   .tgchat {
+    --device-screen-background: var(--tg-wallpaper), var(--tg-screen);
+    --device-screen-ink: var(--tg-text);
+    --device-status-ink: var(--tg-status-ink);
     margin: 0;
     container-type: inline-size;
     width: 100%;

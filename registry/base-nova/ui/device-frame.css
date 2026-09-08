@@ -289,8 +289,8 @@
     height: 100%;
     overflow: hidden;
     border-radius: 14.7cqw;
-    background: #101214;
-    color: #eee;
+    background: var(--device-screen-background, #101214);
+    color: var(--device-screen-ink, #eee);
   }
   .device-island {
     position: absolute;
