@@ -46,7 +46,11 @@ run(
 )
 console.log(`installed ${VARIABLE} in Vercel production`)
 
-const latest = run("vercel", ["ls", "ui", "--scope", SCOPE])
+// The deployment table is printed on stderr; the newest Ready row is production.
+const listing = spawnSync("vercel", ["ls", "ui", "--scope", SCOPE], {
+  encoding: "utf8",
+})
+const latest = `${listing.stdout}\n${listing.stderr}`
   .split("\n")
   .find((line) => line.includes("Ready"))
   ?.match(/https:\/\/\S+/)?.[0]
