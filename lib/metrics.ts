@@ -1,7 +1,6 @@
 import "server-only"
 import { defineMetrics } from "@adriangalilea/utils/metrics"
-import { libsqlDriver } from "@adriangalilea/utils/metrics/libsql"
-import { metricsStore } from "@adriangalilea/utils/metrics/sqlite"
+import { libsqlStore } from "@adriangalilea/utils/metrics/libsql"
 import { createClient } from "@libsql/client"
 import registry from "@/registry.json"
 
@@ -19,7 +18,13 @@ function createStore(project: string) {
   const url = process.env.METRICS_DATABASE_URL
   const authToken = process.env.METRICS_AUTH_TOKEN
   if (!url || !authToken) throw new Error("Metrics database is not configured")
-  return metricsStore(libsqlDriver(createClient({ url, authToken })), project)
+  return libsqlStore(createClient({ url, authToken }), project)
+}
+
+/** Declare at server start (instrumentation.ts) instead of at the first sample. */
+export function declareMetrics() {
+  instance ??= createMetrics()
+  return instance.declare()
 }
 
 /** Strict write probe: errors propagate and synthetic counts never enter UI KPIs. */
