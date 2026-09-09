@@ -1,25 +1,24 @@
+import type { RegistryItem } from "shadcn/schema"
 import registry from "@/registry.json"
 
-export interface Item {
-  name: string
-  type: string
-  title: string
-  description: string
-  registryDependencies?: string[]
-  /** The item's own files. The first one locates the demo beside it. */
-  files?: { path: string; type: string }[]
-}
+/** ONE declaration of what a registry item is, for the site and for the scripts that
+ *  read `registry.json`. The shape is shadcn's own, because shadcn is what parses the
+ *  built file; `title`, `description` and `files` are required on top of it because
+ *  `scripts/validate-registry.ts` fails any item missing one, so nothing downstream
+ *  carries a branch for an item with no title to show or no source to read. That
+ *  validator and `shadcn build` both run in `mise check`, and they are what the cast
+ *  below stands on. */
+export type Item = RegistryItem &
+  Required<Pick<RegistryItem, "title" | "description" | "files">>
 
 export const REPO = "https://github.com/adriangalilea/ui"
 
 /** An item's source on GitHub. The point of a registry is that you own the copy, so
  *  reading the thing BEFORE installing it should not take a clone. */
-export const sourceUrl = (i: Item): string => {
-  const file = i.files?.[0]?.path
-  return file ? `${REPO}/blob/main/${file}` : REPO
-}
+export const sourceUrl = (i: Item): string =>
+  `${REPO}/blob/main/${i.files[0].path}`
 
-export const ITEMS: Item[] = registry.items
+export const ITEMS = registry.items as Item[]
 export const item = (name: string): Item | undefined =>
   ITEMS.find((i) => i.name === name)
 

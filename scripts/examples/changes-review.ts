@@ -10,17 +10,18 @@ import {
   review,
 } from "../changes"
 
+const file = (path: string) => [{ path, type: "registry:lib" as const }]
 const registry: Registry = {
   items: [
-    { name: "part", files: [{ path: "part.ts" }] },
+    { name: "part", files: file("part.ts") },
     {
       name: "parent",
-      files: [{ path: "parent.ts" }],
+      files: file("parent.ts"),
       registryDependencies: ["@ag/part"],
     },
     {
       name: "consumer",
-      files: [{ path: "consumer.ts" }],
+      files: file("consumer.ts"),
       registryDependencies: ["@ag/parent"],
     },
   ],

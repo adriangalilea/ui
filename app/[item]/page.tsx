@@ -35,10 +35,8 @@ export function generateStaticParams() {
  *  guessing silently dropped the code block from those pages. The validator
  *  guarantees a `<name>.demo.tsx` sits beside the source, which is the whole rule. */
 async function demoSource(meta: Item) {
-  const source = meta.files?.[0]?.path
-  if (!source) return null
   const name = `${meta.name}.demo.tsx`
-  const file = path.join(process.cwd(), path.dirname(source), name)
+  const file = path.join(process.cwd(), path.dirname(meta.files[0].path), name)
   return { code: await readFile(file, "utf8"), file: name }
 }
 
@@ -152,33 +150,29 @@ export default async function ItemPage({ params }: PageProps<"/[item]">) {
       <div className="mt-16">
         <SamplesProvider
           samples={Object.fromEntries(
-            Object.entries(src ? extractSamples(src.code) : {}).map(
-              ([name, code]) => [
-                name,
-                <Code key={name} lang="tsx" notations={false}>
-                  {code}
-                </Code>,
-              ],
-            ),
+            Object.entries(extractSamples(src.code)).map(([name, code]) => [
+              name,
+              <Code key={name} lang="tsx" notations={false}>
+                {code}
+              </Code>,
+            ]),
           )}
         >
           <Demo />
         </SamplesProvider>
       </div>
 
-      {src && (
-        <section className="mt-24 space-y-4">
-          <h2 className="font-mono text-xs text-muted-foreground">
-            the demo above, verbatim
-          </h2>
-          {/* notations OFF: this file is being shown as itself, and a demo that
-              writes `[!code ...]` inside a string would have it eaten out of its own
-              listing, which is the one thing "verbatim" may not do. */}
-          <Code lang="tsx" filename={src.file} notations={false}>
-            {src.code}
-          </Code>
-        </section>
-      )}
+      <section className="mt-24 space-y-4">
+        <h2 className="font-mono text-xs text-muted-foreground">
+          the demo above, verbatim
+        </h2>
+        {/* notations OFF: this file is being shown as itself, and a demo that
+            writes `[!code ...]` inside a string would have it eaten out of its own
+            listing, which is the one thing "verbatim" may not do. */}
+        <Code lang="tsx" filename={src.file} notations={false}>
+          {src.code}
+        </Code>
+      </section>
     </main>
   )
 }

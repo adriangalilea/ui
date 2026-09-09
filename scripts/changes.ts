@@ -3,14 +3,13 @@ import { execFileSync } from "node:child_process"
 import { readFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { parseArgs } from "node:util"
+import type { Item } from "../app/registry"
 import { parseChanges } from "../app/updates/changes"
 
+/** What a review reads off `registry.json`, at two revisions. The fields come from the
+ *  one item declaration, so this cannot drift from what shadcn builds. */
 export interface Registry {
-  items: {
-    name: string
-    files: { path: string }[]
-    registryDependencies?: string[]
-  }[]
+  items: Pick<Item, "name" | "files" | "registryDependencies">[]
 }
 
 export function affectedItems(

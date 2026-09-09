@@ -2,19 +2,12 @@
 // registry.json is asserted here; a broken item fails `mise check`, never a consumer.
 import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
+import type { Item } from "../app/registry"
 
 const root = join(import.meta.dirname, "..")
 const registry = JSON.parse(
   readFileSync(join(root, "registry.json"), "utf8"),
-) as {
-  name: string
-  items: {
-    name: string
-    type: string
-    files: { path: string; type: string; target?: string }[]
-    registryDependencies?: string[]
-  }[]
-}
+) as { name: string; items: Item[] }
 const names = new Set(registry.items.map((i) => i.name))
 const demos = readFileSync(join(root, "app/demos.tsx"), "utf8")
 const failures: string[] = []
@@ -23,7 +16,11 @@ const fail = (msg: string) => failures.push(msg)
 for (const item of registry.items) {
   if (item.name !== item.name.toLowerCase())
     fail(`${item.name}: names are lowercase`)
-  if (item.files.length === 0) fail(`${item.name}: no files`)
+  // What `Item` in app/registry.ts requires on top of shadcn's shape: the site renders
+  // all three unconditionally.
+  if (!item.title) fail(`${item.name}: no title`)
+  if (!item.description) fail(`${item.name}: no description`)
+  if (!item.files?.length) fail(`${item.name}: no files`)
   for (const f of item.files) {
     const abs = join(root, f.path)
     if (!existsSync(abs)) fail(`${item.name}: missing file ${f.path}`)
@@ -45,8 +42,7 @@ for (const item of registry.items) {
         )
     }
   }
-  const main = item.files[0] as { path: string }
-  const demo = main.path.replace(/\.(tsx?|css)$/, ".demo.tsx")
+  const demo = item.files[0].path.replace(/\.(tsx?|css)$/, ".demo.tsx")
   if (!existsSync(join(root, demo)))
     fail(`${item.name}: no demo beside the source (${demo})`)
   if (!new RegExp(`(^|[\\s{,])["']?${item.name}["']?\\s*:`, "m").test(demos))
