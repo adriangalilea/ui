@@ -78,7 +78,7 @@ description = "mint the collector's Turso ingestion token from METRICS_TABLES (r
 run = "bun scripts/metrics-token.ts"
 
 [tasks.unfurl]
-description = "the five facts of a link (site, title, description, image, icon) as JSON, to paste beside the link as data. the one place a preview touches the network: here, once"
+description = "the six facts of a link (url, site, title, description, image, icon) as JSON, to paste beside the link as data. the one place a preview touches the network: here, once"
 usage = '''
 arg "<url>" help="the link"
 '''

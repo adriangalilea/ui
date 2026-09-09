@@ -535,7 +535,7 @@ post without the widget script.
 
 ### web-preview: shipped; what is left
 
-`web-preview` draws a link's unfurl from five facts (`Unfurl` in `web-preview-unfurl`:
+`web-preview` draws a link's unfurl from six facts (`Unfurl` in `web-preview-unfurl`:
 url, site, title, description, image, icon) in three styles, `card` (ours, default),
 `telegram` (the client's tinted card with the rule; `telegram-chat` draws its previews
 with it, colouring it through `--wp-ink/text/muted/wash` set on the bubble) and `x`
