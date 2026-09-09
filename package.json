@@ -7,7 +7,7 @@
     "build": "shadcn build && next build"
   },
   "dependencies": {
-    "@adriangalilea/utils": "7.1.0",
+    "@adriangalilea/utils": "8.0.0",
     "@base-ui/react": "^1.7.0",
     "@libsql/client": "^0.17.4",
     "@shikijs/transformers": "^4.4.3",

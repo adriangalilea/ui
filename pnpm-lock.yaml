@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@adriangalilea/utils':
-        specifier: 7.1.0
-        version: 7.1.0(zod@3.25.76)
+        specifier: 8.0.0
+        version: 8.0.0(zod@3.25.76)
       '@base-ui/react':
         specifier: ^1.7.0
         version: 1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -87,8 +87,8 @@ importers:
 
 packages:
 
-  '@adriangalilea/utils@7.1.0':
-    resolution: {integrity: sha512-D5+bXKSYBAfjRciLFQeKoDpQ5BPf/EV+pcY9LY03H5GO0R8ZK7xfQkbDkDCozhwNiJ6gt43lcfcK3GJTQxOGnQ==}
+  '@adriangalilea/utils@8.0.0':
+    resolution: {integrity: sha512-hbSfD7derDE9R3+xyVyLRpX3dw3laK4cL+xI0lz2tVDwpFkZT+M6SkPNVaeSyA4mMnt3+od6XNoWLYqfwbJvrA==}
     peerDependencies:
       '@ai-sdk/anthropic': ^4.0.0
       '@ai-sdk/openai-compatible': ^3.0.0
@@ -99,7 +99,6 @@ packages:
       '@openrouter/ai-sdk-provider': ^3.0.0
       ai: ^7.0.0
       gramio: ^0.14.0
-      marked: '>=12'
       zod: '>=3.22'
     peerDependenciesMeta:
       '@ai-sdk/anthropic':
@@ -119,8 +118,6 @@ packages:
       ai:
         optional: true
       gramio:
-        optional: true
-      marked:
         optional: true
       zod:
         optional: true
@@ -2308,7 +2305,7 @@ packages:
 
 snapshots:
 
-  '@adriangalilea/utils@7.1.0(zod@3.25.76)':
+  '@adriangalilea/utils@8.0.0(zod@3.25.76)':
     dependencies:
       linkifyjs: 4.3.3
     optionalDependencies:
