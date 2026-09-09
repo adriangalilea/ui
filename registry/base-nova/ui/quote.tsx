@@ -178,9 +178,9 @@ export function Quote({
   //
   // ONE STEP UP IN SIZE from the page's type. A serif set at the body size reads smaller
   // than the sans around it (a lower x-height, finer strokes), and a display serif on a
-  // dark ground reads smaller still; the step the words get is what the old markdown
-  // blockquote had, and what made the quote legible in an article. The mark, sized in
-  // em, scales with it; the attribution is metadata and keeps the metadata size.
+  // dark ground reads smaller still, so one step up is what keeps the quote legible in
+  // an article. The mark, sized in em, scales with it; the attribution is metadata and
+  // keeps the metadata size.
   if (variant === "prose")
     return (
       <figure

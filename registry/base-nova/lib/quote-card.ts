@@ -43,9 +43,9 @@ export function assert(cond: unknown, msg: string): asserts cond {
  *  IT IS A PROPERTY OF THE FACE, and whoever names the face passes it. Measured with
  *  fontTools over letter frequencies: Instrument Serif 0.333, Georgia 0.434, Geist 0.459,
  *  Geist Mono 0.600. The one constant here is the default for a caller who names no face,
- *  and it sits where a generic serif or sans lands. It was 0.52 for every face once, and
- *  that overestimate set the type a third too small under a condensed serif — the words
- *  came out as a haiku in a corner of the frame — and a sixth too small under Georgia.
+ *  and it sits where a generic serif or sans lands. One number for every face cannot
+ *  work: 0.52 overestimates a condensed serif by a third, which sets its type small
+ *  enough to read as a haiku in a corner of the frame, and Georgia by a sixth.
  *
  *  The still has no way to measure text, so it needs the number; a browser measures for
  *  itself, so the web card states the measure in real `ch` and only uses this to choose
@@ -61,11 +61,11 @@ const QUOTE_LIGHT = 65
 
 /** THE LADDER IS IN CHARACTERS PER LINE, NOT IN PIXELS, and the size falls out of it.
  *
- *  It was pixels once — a share of the FRAME's width per bucket of quote length — and
- *  that ladder had no idea how wide the column actually was. The words are set in 646 of
- *  a 1200px frame, so a size chosen against 1200 came out too big for where it landed
- *  and broke plain sentences into stubs: four lines of nineteen characters for a
- *  seventy-six-character quote, three of twenty for a fifty-nine.
+ *  A ladder in pixels, a share of the FRAME's width per bucket of quote length, knows
+ *  nothing about how wide the column actually is. The words are set in 646 of a 1200px
+ *  frame, so a size chosen against 1200 lands too big for its column and breaks plain
+ *  sentences into stubs: four lines of nineteen characters for a seventy-six-character
+ *  quote, three of twenty for a fifty-nine.
  *
  *  A measure is what a reader feels and it is the thing being got wrong, so it is the
  *  thing to state. Say how many characters a line should carry, divide the column by it,
@@ -73,7 +73,7 @@ const QUOTE_LIGHT = 65
  *  component alike, with nothing to retune when either changes.
  *
  *  Short quotes take a narrow measure, which is display type; long ones widen, which is
- *  reading type. Same intent as the old buckets, in the unit that decides. */
+ *  reading type. */
 export const MEASURE_STEPS: readonly { under: number; ch: number }[] = [
   { under: 40, ch: 24 },
   { under: 90, ch: 30 },
@@ -135,9 +135,9 @@ export interface QuoteSet {
  *  comes from the measure, and then the block has to fit the room it is given.
  *
  *  NOTHING IS EVER CUT. It steps DOWN until the words fit, and throws if they never do.
- *  The ladder used to stop and hand what was left to an ellipsis, which is the one thing
- *  a quote must not do: an author made to trail off mid-sentence, and a reader told the
- *  card ran out of room rather than the thinking. A quote too long for a preview is a
+ *  What the ladder must never do is stop and hand the rest to an ellipsis: that is an
+ *  author made to trail off mid-sentence, and a reader told the card ran out of room
+ *  rather than the thinking. A quote too long for a preview is a
  *  decision for whoever wrote it, taken with the whole sentence in front of them. */
 export interface QuoteFit {
   /** The room the block must fit in. Unbounded on a page, the band on a card. */
@@ -310,11 +310,10 @@ export const DATE_EM = 0.024
  *  share of the frame so it survives any size: `unit` is 8 px on a 1200 px card, and
  *  the rungs are 1, 2, 4, 8, 16 — 8, 16, 32, 64, 128.
  *
- *  This exists because the alternative was what came before it: 0.4 of a margin here,
- *  3.5 there, 1.2 somewhere else. Every one of those was a number chosen by eye, so
- *  every one of them had to be argued about separately and none of them could be
- *  derived from any other. A scale means an indent is not an opinion, it is a rung,
- *  and the only question left is which one. */
+ *  The alternative is a spread of numbers chosen by eye, 0.4 of a margin here, 3.5
+ *  there, 1.2 somewhere else: each one has to be argued about on its own and none of
+ *  them can be derived from any other. A scale means an indent is not an opinion, it
+ *  is a rung, and the only question left is which one. */
 const unitOf = (width: number): number => width / 150
 
 /** MARGIN is the card's own edge, and the mark and the attribution hang from it.
@@ -342,25 +341,18 @@ export const INDENT = 4
  *  have put them. */
 export const BLOCK_AT = 0.5
 
-/** STACKING THE WORDS OVER THE MARK IS THE POINT — it is what gives the card depth,
- *  and holding them apart is what made every earlier version read as two pictures side
- *  by side. What stacking costs is contrast: near-white type over the mark's pale grey
- *  is the one place on this card where the ratio fails.
+/** STACKING THE WORDS OVER THE MARK IS THE POINT: it is what gives the card depth, and
+ *  holding the two apart reads as two pictures side by side. What stacking costs is
+ *  contrast: near-white type over the mark's pale grey is the one place on this card
+ *  where the ratio fails.
  *
- *  So the words carry a scrim, and it is a RADIAL GRADIENT rather than a blurred
- *  shape. A blurred rectangle was tried and it still reads as a panel: 47 px of blur
- *  on a 728 px box softens the boundary and does not remove it, so the card grows a
- *  rounded slab behind the text. A gradient has no edge to soften — it is opaque where
- *  the words are and transparent by the time it reaches anything, which is
- *  edgelessness by construction and not by tuning.
- *
- *  THERE IS NO SCRIM UNDER THE WORDS, and there must not be one. It belonged to a card
- *  whose ground was a blurred photograph and whose lines ran out over the picture, and
- *  neither is true now: the words stop at the golden line, where the picture has no
- *  strength yet, and the mark sits at a tenth of an opacity. A darkening laid over a FLAT
- *  ground has nothing to hide in — it reads as a stain in the middle of the frame. If
- *  type ever stops being legible here, the ground is wrong or the column is, and a wash
- *  over the top would only be covering for it. */
+ *  THERE IS NO SCRIM UNDER THE WORDS, and there must not be one. The words stop at the
+ *  golden line, where the picture has no strength yet, and the mark sits at a tenth of
+ *  an opacity, so a darkening laid over this FLAT ground has nothing to hide in: it
+ *  reads as a stain in the middle of the frame. A blurred shape is no better, since 47
+ *  px of blur on a 728 px box softens a boundary without removing it and the card grows
+ *  a rounded slab behind the text. If type ever stops being legible here, the ground is
+ *  wrong or the column is, and a wash over the top would only be covering for it. */
 
 /** Cap height and descender as shares of the em, for Geist and near enough for any
  *  humanist sans. The still has no way to measure text, so a block is composed from
@@ -531,20 +523,20 @@ export function assertFonts(
  *  with a dissolve between them. Nothing is blurred underneath and nothing happens in
  *  the corners.
  *
- *  It was a blurred copy of the portrait once, so the ground would carry the picture's
- *  colour with no decoder involved. That is a smear, not a colour: it is lighter in one
- *  corner than another, it darkens at every edge where the gaussian runs off the image,
- *  and a card with weather in its corners reads as an effect rather than as a ground.
+ *  A blurred copy of the portrait would carry the picture's colour with no decoder
+ *  involved, and it is a smear rather than a colour: lighter in one corner than
+ *  another, darkening at every edge where the gaussian runs off the image. A card with
+ *  weather in its corners reads as an effect rather than as a ground.
  *
  *  A flat ground cannot be derived here — this module has no runtime and cannot open a
  *  PNG. It does not need to. Whoever draws the card HAS the pixels, so the colour is an
  *  argument, and `groundFrom` is the rule for turning those pixels into one. */
 /** Dark enough that near-white type sits on it without a thought, and NOT so dark that
- *  the colour in it is a rumour. Lightness 5 with saturation capped at a quarter was
- *  the first attempt and it rendered every picture, salmon drawing included, as black:
- *  a tint nobody can see is not a tint. Capped at forty it went the other way — a rosy
- *  drawing gave a maroon slab. Twenty-four, judged on a rosy drawing, a warm oil and a
- *  modern photograph at once: the ground is warm or cool, never a colour of its own. */
+ *  the colour in it is a rumour. Lightness 5 with saturation capped at a quarter renders
+ *  every picture, salmon drawing included, as black, and a tint nobody can see is not a
+ *  tint; capped at forty it goes the other way, a rosy drawing giving a maroon slab.
+ *  Eighteen, judged on a rosy drawing, a warm oil and a modern photograph at once: the
+ *  ground is warm or cool, never a colour of its own. */
 const GROUND_SAT = 18
 export const GROUND_LIGHT = 9
 export function quoteGround(hue: number, sat = GROUND_SAT): string {
@@ -598,8 +590,8 @@ export function toneFrom(r: number, g: number, b: number): QuoteTone {
 /** What a card stands on when nobody passed a colour and there is no picture to take one
  *  from: EXACTLY the ground a grey picture gives. One rule for the ground, not two — a
  *  card without a portrait and a card with a monochrome one are indistinguishable
- *  underneath, and near-white type on it sits at roughly 16:1. It was a hand-typed
- *  near-black with a hint of blue in it, which came from nowhere and matched nothing. */
+ *  underneath, and near-white type on it sits at roughly 16:1. A hand-typed near-black
+ *  with a hint of blue in it comes from nowhere and matches nothing. */
 export const GROUND = quoteGround(0, 0)
 
 /** A LIGHT ON THE GROUND, always. The ground is never a flat slab: the same colour, four
@@ -781,12 +773,12 @@ export function renderQuoteSvg(
   // THE PICTURE IS NEVER CROPPED SIDEWAYS, and it is not aligned either — it is SLID so
   // that its subject lands in the band that survives the dissolve.
   //
-  // Cropping it into a narrow slot was the first attempt, and then the alignment decides
-  // whose face lives: centred, a subject in the middle of the source falls in the fade
-  // and appears bitten; aligned left, the right of the source is cut away and a portrait
-  // framed to that side loses its head. Both are one mistake, asking a crop to do a
-  // fade's job. Sliding a square drawn at full height cuts nothing and works for a face
-  // on the left, in the middle or on the right — but only because it is TOLD which.
+  // Crop it into a narrow slot and the alignment decides whose face lives: centred, a
+  // subject in the middle of the source falls in the fade and appears bitten; aligned
+  // left, the right of the source is cut away and a portrait framed to that side loses
+  // its head. Both are one mistake, asking a crop to do a fade's job. Sliding a square
+  // drawn at full height cuts nothing and works for a face on the left, in the middle
+  // or on the right, but only because it is TOLD which.
   //
   // The travel is bounded at both ends: never so far left that ground shows past the
   // right edge, never so far right that the fade has no picture in it.
@@ -833,7 +825,7 @@ export function renderQuoteSvg(
   // composition's ceiling — the rung the mark starts at — to the attribution, and the
   // block is centred in it.
   //
-  // Hanging them off the mark instead made the air depend on the LENGTH of the quote:
+  // Hanging them off the mark instead makes the air depend on the LENGTH of the quote:
   // measured on Einstein, 223px above the words and 79 below.
   //
   // The band is also what the size is settled against, which is why it is known before

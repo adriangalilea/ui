@@ -9,6 +9,8 @@ import {
 } from "@/registry/base-nova/lib/lightbox-motion"
 
 export const INSET_Y = 48
+/** The rail beside the media at lg (px), and under it below (a share of the stage).
+ *  The css reads both from the root (--lb-rail-w, --lb-rail-h). */
 export const RAIL_W = 288
 export const RAIL_H = 0.4
 
@@ -25,11 +27,12 @@ export function rectOf(el: HTMLElement): Rect {
 
 export function measureBand(rail: boolean): Band {
   const vv = window.visualViewport
+  assert(vv, "visualViewport")
   const base: Band = {
-    top: vv?.offsetTop ?? 0,
-    left: vv?.offsetLeft ?? 0,
-    w: vv?.width ?? innerWidth,
-    h: vv?.height ?? innerHeight,
+    top: vv.offsetTop,
+    left: vv.offsetLeft,
+    w: vv.width,
+    h: vv.height,
   }
   const blocks: Obstruction[] = []
   for (const el of document.querySelectorAll<HTMLElement>("[data-obstructs]")) {

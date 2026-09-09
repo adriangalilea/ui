@@ -5,8 +5,7 @@ import { Scrims } from "@/registry/base-nova/ui/scrims"
 
 // A fog is the colour of the page, so it can only be SEEN over something that is not:
 // photographs run to the viewport edges here, and the blur under the fog is the tell.
-// Over flat panels the whole component is invisible and looks broken, which is what
-// the first version of this demo showed.
+// Over flat panels the whole component is invisible and looks broken.
 const SHOTS = [1015, 1016, 1018, 1021, 1024, 1039] as const
 const shot = (id: number) => `https://picsum.photos/id/${id}/1200/700`
 

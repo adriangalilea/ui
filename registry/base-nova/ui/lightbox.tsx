@@ -235,8 +235,6 @@ const TRACE_LINES = 60
 /** Module scope on purpose: the trace survives the dialog it came from. */
 let TRACE: string[] = []
 const FRAME_GUTTER = 32
-/** The rail beside the media at lg (px), under it below (share of the stage). The
- *  css reads both from the root (--lb-rail-w, --lb-rail-h). */
 /** The two elements the browser activates from the keyboard: a `render` that is
  *  merely focusable opens by pointer only. */
 const ACTIVATABLE = "a[href], button"
@@ -629,6 +627,9 @@ function Stage(props: StageProps) {
   const [strip, setStrip] = React.useState(count > 1)
   const stripOn = strip && count > 1
   const [band, setBand] = React.useState<Band>(() => measureBand(rail))
+  /** The engine's own `S.ph` decides everything; this React copy exists to publish it
+   *  as `data-phase`, a declared TEST HOOK. The browser rig waits on
+   *  `.ag-lb[data-phase="idle"]` to know a flight has landed. No CSS reads it. */
   const [phase, setPhase] = React.useState<Phase>(rest ? "idle" : "enter")
   const [zoom, setZoom] = React.useState(1)
   const [chrome, setChrome] = React.useState(true)
@@ -656,9 +657,8 @@ function Stage(props: StageProps) {
       ...logRef.current.slice(-TRACE_LINES),
       `${(performance.now() / 1000).toFixed(2)} ${m}`,
     ]
-    // The buffer OUTLIVES the stage. It used to die with the dialog, which is the
-    // one moment someone is reaching for it: a bug is reproduced, the lightbox
-    // closes, and the evidence goes with it.
+    // The buffer OUTLIVES the stage, module-scoped: a bug is reproduced, the
+    // lightbox closes, and the evidence has to still be there.
     TRACE = logRef.current
     if (logRaf.current === 0)
       logRaf.current = requestAnimationFrame(() => {
@@ -684,8 +684,8 @@ function Stage(props: StageProps) {
   }, [])
 
   // How big each picture already WAS on the page, read once at open from its trigger:
-  // the fit never opens a picture smaller than that (`fit`'s floor). A 320 px gif a post
-  // renders 1300 px wide opened at 320 px before this — a lightbox that shrank.
+  // the fit never opens a picture smaller than that (`fit`'s floor), so a lightbox can
+  // never shrink the picture it was asked to enlarge.
   const floors = React.useMemo(() => {
     const m = new Map<string, Size>()
     for (const lid of ids) {
@@ -749,8 +749,8 @@ function Stage(props: StageProps) {
   // a frame — and its control shows dimmed, because it says where you are and it comes
   // back. Absent can never happen in this session: a rail nobody provided, arrows and a
   // strip on a reel of one, fullscreen where the browser has none. A control with nothing
-  // behind it does not appear, in the bar or in the `?` sheet; a lightbox around one
-  // portrait drew two dead arrows and a dead "i" before this distinction existed.
+  // behind it does not appear, in the bar or in the `?` sheet: a lightbox around one
+  // portrait must draw no arrows and no "i" at all.
   const absent = React.useMemo(() => {
     const u = new Set<ActionId>()
     if (!renderRail) u.add("rail")
@@ -988,11 +988,11 @@ function Stage(props: StageProps) {
       writePose()
       writeP()
     }
-    // ---- the track: a scroll container the browser owns. Every slide is mounted and
-    // one fills the screen, so the scroll offset IS the index. Gestures are entirely
-    // the platform's; only a KEY, a button or a thumbnail is animated here, because
-    // `scroll-behavior: smooth` has no duration and reads as a crawl next to the rest
-    // of this thing. The same spring the pose uses, so a step feels like a step.
+    // ---- the track: a real scroll container the ENGINE drives, for every input. Every
+    // slide is mounted and one fills the screen, so the scroll offset IS the index. A
+    // KEY, a button or a thumbnail is animated on the same spring the pose uses, so a
+    // step feels like a step; `scroll-behavior: smooth` has no duration and reads as a
+    // crawl next to the rest of this thing.
     /** A slide's pitch, CACHED. `clientWidth` is a layout read, and this is asked for
      *  four or five times per wheel event, each one interleaved with a `scrollLeft`
      *  write — which is a forced synchronous layout, per event, over every mounted
@@ -1027,10 +1027,7 @@ function Stage(props: StageProps) {
      *  the hand's live offset from it, in px, and it is zero whenever no hand is on
      *  the track. Everything writes their sum.
      *
-     *  Splitting them is what lets a commit be seamless. The old shape had the hand
-     *  drive scrollLeft directly until a slide was chosen and the glide take it over
-     *  after, so one motion was two different things and a re-aim mid-flight was the
-     *  hand and the machine writing the same number. Here a commit re-bases: the glide
+     *  Splitting them is what lets a commit be seamless. A commit re-bases: the glide
      *  is aimed at the new slide FROM WHERE THE PICTURES ARE, the hand's offset resets
      *  to zero, their sum does not move a pixel, and the fingers keep being felt for
      *  the whole flight. */
@@ -1818,11 +1815,9 @@ function Stage(props: StageProps) {
         }
       }
     }
-    /** `pointercancel` is a real interruption now, and always ends the gesture — a
-     *  system edge swipe, a call, a palm. It used to also mean the SCROLLER claiming
-     *  the pan, which is not the reader ending anything, and a sideways gesture had to
-     *  be dropped on the floor instead. With `touch-action: none` the browser never
-     *  claims it, so there is nothing left here to special-case. */
+    /** `pointercancel` is a real interruption, and always ends the gesture: a system
+     *  edge swipe, a call, a palm. With `touch-action: none` the scroller never claims
+     *  a pan, so there is nothing else it can mean and nothing to special-case. */
     const onCancel = (e: PointerEvent) => {
       trace(`cancel ${e.pointerType} #${e.pointerId}`)
       onUp(e)
@@ -1890,13 +1885,8 @@ function Stage(props: StageProps) {
      *  slide it is ANCHORED to, and every SWIPE_COMMIT px of finger buys the next one:
      *  the anchor moves, the offset goes back to zero, and the pictures glide the rest
      *  of the way while the hand keeps steering. Same price for the first slide, the
-     *  fifth, and the one straight back the way it came.
-     *
-     *  What it replaced was a slide read off the TOTAL travel since the stream opened.
-     *  That is an absolute map wearing a threshold's clothes, and it is asymmetric:
-     *  measured, continuing cost a whole slide of finger where reversing cost 7 px, so
-     *  one direction crawled and the other fired instantly, and a hand that wobbled 7
-     *  px mid-drag had the slide it just bought taken back off it.
+     *  fifth, and the one straight back the way it came. Why it is not read off the
+     *  TOTAL travel since the stream opened: `SWIPE_COMMIT` in `lightbox-motion`.
      *
      *  Nothing here detects a release. The hand stops paying the moment the device
      *  starts coasting, which is a thing the phase detector CAN see, and being wrong
@@ -2914,9 +2904,7 @@ function Debug({
         {/* The registry's own copy control, not a second one written here: an item
             that hand-rolls what it already ships is how two behaviours diverge. */}
         <Copy value={text} label />
-        {/* The buffer is the reader's, and only they say when it goes. It used to
-            clear itself when the lightbox closed, which is exactly when someone is
-            reaching for it. */}
+        {/* The buffer is the reader's, and only they say when it goes. */}
         <button type="button" className="ag-lb-debug-btn" onClick={onClear}>
           clear
         </button>

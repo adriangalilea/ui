@@ -13,7 +13,7 @@ import { Sample } from "@/app/samples"
 import { Glass, type GlassTone } from "@/registry/base-nova/ui/liquid-glass"
 
 // #region photos
-// Local copies of the river, shore, and valley photographs used by the lightbox demo (Lorem Picsum).
+// Local copies of the river, mountains and valley photographs (Lorem Picsum).
 const PHOTOS = [
   {
     src: "/glass-river.jpg",

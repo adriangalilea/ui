@@ -57,7 +57,7 @@ export async function checkMediaBrowser(browser: Browser, base: string) {
   assert.equal(
     await video.evaluate((v) => (v as HTMLVideoElement).paused),
     false,
-    "rapid reentry must not be paused by an old callback",
+    "rapid reentry keeps playing",
   )
   await page.getByRole("button", { name: "Pause test preview" }).click()
   await page.waitForTimeout(100)

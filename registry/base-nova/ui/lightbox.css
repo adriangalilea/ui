@@ -65,15 +65,14 @@
     -webkit-user-select: none;
     -webkit-touch-callout: none;
   }
-  /* The track is a REAL scroll container, and the browser owns the whole gesture: the
-   drag, the momentum, the rubber band, where it lands and the animation that lands
-   it. Only it knows when the fingers left the trackpad (macOS reports a momentum
-   phase to the engine; the web exposes no equivalent to page JS), so any landing we
-   compute here is inferred from wheel deltas, and that inference is what a reader
-   feels as a lottery. `mandatory` is why an image can never be parked between two
-   locks; `scroll-snap-stop: always` is why one gesture is one slide however hard it
-   is thrown, enforced on the compositor by both engines. The engine only reads where
-   the track went. Full rationale and the numbers behind it: CLAUDE.md.
+  /* The track is a REAL scroll container, and the ENGINE drives it for every input.
+   The snap properties are there to land what the engine leaves: `mandatory` is why an
+   image can never be parked between two locks; `scroll-snap-stop: always` is why one
+   gesture is one slide however hard it is thrown, enforced on the compositor by both
+   engines. Nothing here infers a release, because the web exposes no gesture phase to
+   page JS (macOS reports a momentum phase to the browser engine, not to us) and an
+   inference off wheel deltas is what a reader feels as a lottery. Full rationale and
+   the numbers behind it: CLAUDE.md.
 
    Every slide is mounted, so the scroll offset IS the index and chaining costs
    nothing: no window to shift, nothing to put back under the reader mid-throw. */
@@ -105,8 +104,8 @@
    included. Handing the pan to the browser with `pan-x` cost the dismiss: the moment
    it claimed the touch, `pointercancel` ended our gesture with the finger still down,
    so a reader swiping through pictures could not then swipe up to leave without
-   lifting first. The engine drives the track for every pointer now, so there is no
-   second mover to fight. The snap properties still land what the ENGINE leaves. */
+   lifting first. The engine drives the track for every pointer, so there is no second
+   mover to fight, and the snap properties land what the ENGINE leaves. */
   .ag-lb-slot {
     position: relative;
     flex: none;

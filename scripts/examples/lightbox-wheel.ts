@@ -168,9 +168,9 @@ console.log("the track's when trackable, and only once the travel has said so")
     `stiff past the ceiling: ${over.ctx.pose.s}`,
   )
   // Pinching IN from fit is the dismiss on a trackpad exactly as it is under two
-  // fingers on glass. A reader who learns the gesture on a phone is owed it on a Mac,
-  // and this used to rubber against a floor and spring back instead, which is an
-  // inconsistency between two devices running the same component.
+  // fingers on glass. A reader who learns the gesture on a phone is owed it on a Mac:
+  // it must not rubber against a floor and spring back on one device and leave on the
+  // other.
   const out = run(
     Array.from({ length: 30 }, (_, i) => tick(0, 5, i * 8, true)),
     ctx(),

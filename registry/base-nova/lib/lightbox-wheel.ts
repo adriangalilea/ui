@@ -3,10 +3,9 @@
 // pose the hand found (`grab`) and lets silence decide where it lands, which is safe
 // because each springs back to a resting place, so a mistimed release costs nothing.
 //
-// There is no horizontal axis. Sideways wheel belongs to the track, and the track is
-// a real scroll container: the browser knows when the fingers left the trackpad and
-// we do not, so it owns the momentum and the snap. The binder simply does not
-// preventDefault a sideways wheel at fit.
+// There is no horizontal axis here: sideways wheel belongs to the track. `wheelAxisOf`
+// and `wheelIsTrackable` say when a tick is the track's, and the binder hands those
+// ticks to the track's own swipe rather than opening a session for them.
 //
 // `last` is the accepted tick the velocity span is measured against; `at` the last
 // cursor; `live` whether a vertical session ever passed the inertia guard. Ticks in,
@@ -67,8 +66,8 @@ export type WheelSession = {
   samples: readonly Sample[]
   last: number
   at: Point
-  /** Hand or coast. The dismiss drag reads it to decide the moment the hand lets go
-   *  instead of waiting out the tail. */
+  /** Hand or coast, carried across the session's ticks. The binder reads `endsIn` off
+   *  it to time the silence that ends a session; no landing is decided on it. */
   phase: Phase
 }
 
