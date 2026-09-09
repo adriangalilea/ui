@@ -2,9 +2,9 @@ allowBuilds:
   esbuild: true
   sharp: false
   unrs-resolver: false
-# Our reviewed metrics release; keep the package-age policy for other versions.
+# Own package, trusted publisher: releases are adopted the day they ship.
 minimumReleaseAgeExclude:
-  - '@adriangalilea/utils@4.1.1'
+  - '@adriangalilea/utils'
   # Same reviewed editor version already used in Garden; fixes toolbar form submission.
   - 'wordgard@0.5.2'
 # fastq 1.20.2 shipped without provenance (1.20.1 and 1.20.3 both carry SLSA provenance);

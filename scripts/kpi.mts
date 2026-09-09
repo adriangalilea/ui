@@ -9,6 +9,7 @@ import {
   metricWindows,
   summarizeMetrics,
 } from "@adriangalilea/utils/metrics/report"
+import { libsqlDriver } from "@adriangalilea/utils/metrics/libsql"
 import { readMetrics } from "@adriangalilea/utils/metrics/sqlite"
 import { createClient } from "@libsql/client"
 
@@ -46,7 +47,8 @@ if (!url || !authToken)
   throw new Error(
     "Set METRICS_DATABASE_URL and METRICS_READ_TOKEN (read-only).",
   )
-const db = createClient({ url, authToken })
+const client = createClient({ url, authToken })
+const db = libsqlDriver(client)
 try {
   // This tests the deployed writer separately from the read-only report connection.
   // No token means unknown health, never a false claim of healthy collection.
@@ -155,5 +157,5 @@ try {
     )
   }
 } finally {
-  db.close()
+  client.close()
 }

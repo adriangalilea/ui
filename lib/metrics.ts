@@ -1,6 +1,7 @@
 import "server-only"
 import { defineMetrics } from "@adriangalilea/utils/metrics"
-import { sqliteMetricsWriter } from "@adriangalilea/utils/metrics/sqlite"
+import { libsqlDriver } from "@adriangalilea/utils/metrics/libsql"
+import { metricsWriter } from "@adriangalilea/utils/metrics/sqlite"
 import { createClient } from "@libsql/client"
 import registry from "@/registry.json"
 
@@ -18,7 +19,7 @@ function createWriter(project: string) {
   const url = process.env.METRICS_DATABASE_URL
   const authToken = process.env.METRICS_AUTH_TOKEN
   if (!url || !authToken) throw new Error("Metrics database is not configured")
-  return sqliteMetricsWriter(createClient({ url, authToken }), project)
+  return metricsWriter(libsqlDriver(createClient({ url, authToken })), project)
 }
 
 /** Strict write probe: errors propagate and synthetic counts never enter UI KPIs. */
