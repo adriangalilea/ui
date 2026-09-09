@@ -89,7 +89,7 @@ try {
     )
     // Match this repository's exact reviewed exception; keep the global age policy intact.
     const releasePolicy =
-      'minimumReleaseAgeExclude:\n  - "wordgard@0.5.2"\n  - "@adriangalilea/utils@4.1.0"\noverrides:\n  fastq: 1.20.1\nallowBuilds:\n  esbuild: true\n  sharp: false\n'
+      'minimumReleaseAgeExclude:\n  - "wordgard@0.5.2"\n  - "@adriangalilea/utils@4.1.1"\noverrides:\n  fastq: 1.20.1\nallowBuilds:\n  esbuild: true\n  sharp: false\n'
     await writeFile(join(destination, "pnpm-workspace.yaml"), releasePolicy)
     let utils = join(app, "lib/utils.ts")
     if (workspace) {
