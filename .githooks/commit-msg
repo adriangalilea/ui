@@ -1,0 +1,10 @@
+#!/bin/sh
+# Conventional commits only: the changelog review reads the type, a sentence is invisible to it.
+# Wired per clone with: git config core.hooksPath .githooks
+subject=$(grep -v '^#' "$1" | grep -m1 .)
+case "$subject" in
+  "Merge "*|"Revert "*|"fixup! "*|"squash! "*|genesis) exit 0 ;;
+esac
+printf '%s\n' "$subject" | grep -Eq '^(feat|fix|docs|chore|refactor|test|perf|style|ci|build|revert)(\([^)]+\))?!?: [^ ]' && exit 0
+printf 'commit-msg: not a conventional commit: "%s"\n  expected type(scope): description, see CLAUDE.md\n' "$subject" >&2
+exit 1
