@@ -65,6 +65,10 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 - Toolbar uploads share paste/drop pending-upload protection, retry and
   cancellation. Publishing cannot race a newly started upload.
 
+- A file that is not an image is refused before it uploads, as a job error with
+  the file's name. A cancelled toolbar upload rejects Wordgard's promise instead
+  of handing the dialog an empty URL.
+
 - Added a Wordgard editor with scoped styles, HTML in/out and an injected uploader.
   Paste/drop uploads follow document edits, preserve batch order, offer retry/cancel,
   and prevent publishing pending uploads. Set `images={false}` for text-only formats.

@@ -32,8 +32,11 @@ type Job = EditorJob & {
   to: number
   controller: AbortController
   files: File[]
-  /** Toolbar uploads populate its URL field; paste/drop insert mapped nodes. */
-  resolve?: (src: string) => void
+  /** A toolbar upload is Wordgard's own promise: it resolves with the URL for the
+   *  dialog's field, or rejects when the job is cancelled or the editor goes away, so
+   *  the dialog never receives an empty string as a picture. Paste and drop have no
+   *  promise; they insert mapped nodes. */
+  settle?: { resolve: (src: string) => void; reject: (error: Error) => void }
   onProgress?: (percent: number) => void
 }
 
@@ -62,6 +65,14 @@ export function mountEditor(
     job.controller = controller
     job.error = undefined
     job.progress = 0
+    // The gate is the file, before a byte moves: a video dropped into an image slot is
+    // refused here, not after it has been uploaded and turned away.
+    const wrong = job.files.find((file) => !file.type.startsWith("image/"))
+    if (wrong) {
+      job.error = `${wrong.name} is not an image`
+      notify()
+      return
+    }
     notify()
     try {
       const progress = job.files.map(() => 0)
@@ -91,12 +102,13 @@ export function mountEditor(
         ),
       )
       if (!alive || controller.signal.aborted || !jobs.has(job.id)) return
+      // The server's contract, not the file's: an image went up, an image comes back.
       if (assets.some((asset) => asset.kind === "video"))
         throw new Error("Image uploads must return an image or animation")
       const first = assets[0]
       if (!first) throw new Error("No image was uploaded")
       jobs.delete(job.id)
-      if (job.resolve) job.resolve(first.src)
+      if (job.settle) job.settle.resolve(first.src)
       else
         wg.dispatch({
           changes: {
@@ -122,6 +134,7 @@ export function mountEditor(
     to = from,
     toolbar?: {
       resolve: (src: string) => void
+      reject: (error: Error) => void
       progress: (percent: number) => void
     },
   ) => {
@@ -129,7 +142,7 @@ export function mountEditor(
     const job: Job = {
       id,
       files,
-      resolve: toolbar?.resolve,
+      settle: toolbar && { resolve: toolbar.resolve, reject: toolbar.reject },
       onProgress: toolbar?.progress,
       name: files.map((file) => file.name).join(", "),
       from,
@@ -140,7 +153,7 @@ export function mountEditor(
       cancel: () => {
         job.controller.abort()
         jobs.delete(id)
-        job.resolve?.("")
+        job.settle?.reject(new Error("Upload cancelled"))
         notify()
       },
     }
@@ -199,15 +212,15 @@ export function mountEditor(
             GardState.prec.highest([paste, drop]),
             image.uploader.of(
               (file, wg, progress) =>
-                new Promise<string>((resolve) => {
-                  enqueue([file], wg, 0, 0, { resolve, progress })
+                new Promise<string>((resolve, reject) => {
+                  enqueue([file], wg, 0, 0, { resolve, reject, progress })
                 }),
             ),
           ]
         : []),
       Wordgard.updateListener.of((update) => {
         for (const job of jobs.values()) {
-          if (job.resolve) continue
+          if (job.settle) continue
           const collapsed = job.from === job.to
           job.from = update.changes.mapPos(job.from, collapsed ? -1 : 1)
           job.to = collapsed
@@ -226,7 +239,7 @@ export function mountEditor(
     alive = false
     for (const job of jobs.values()) {
       job.controller.abort()
-      job.resolve?.("")
+      job.settle?.reject(new Error("Editor closed"))
     }
     jobs.clear()
     editor.dom.remove()
