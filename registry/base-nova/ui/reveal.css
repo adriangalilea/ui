@@ -30,8 +30,8 @@
       opacity: 0;
       transform: translateY(var(--reveal-y));
       transition:
-        opacity var(--dur-3, 500ms) var(--ease-out, ease-out),
-        transform var(--dur-3, 500ms) var(--ease-out, ease-out);
+        opacity var(--dur-3) var(--ease-out),
+        transform var(--dur-3) var(--ease-out);
     }
     .ag-reveal[data-mode="once"]:not([data-stagger])[data-in] {
       opacity: 1;
@@ -43,8 +43,8 @@
       opacity: 0;
       transform: translateY(var(--reveal-y));
       transition:
-        opacity var(--dur-3, 500ms) var(--ease-out, ease-out),
-        transform var(--dur-3, 500ms) var(--ease-out, ease-out);
+        opacity var(--dur-3) var(--ease-out),
+        transform var(--dur-3) var(--ease-out);
       transition-delay: calc(var(--i, 0) * var(--stagger));
     }
     .ag-reveal[data-mode="once"][data-stagger][data-in] > * {

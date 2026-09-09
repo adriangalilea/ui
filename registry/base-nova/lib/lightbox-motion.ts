@@ -29,8 +29,6 @@ export function assert(cond: unknown, msg: string): asserts cond {
 export const MACHINE: Tuning = { zeta: 1, f: 4.5 }
 /** Hand releases: dismiss cancel, slide commit. A little weight. */
 export const HAND: Tuning = { zeta: 0.82, f: 4.5 }
-/** A key step: brisk, the reader already knows where they are going. */
-export const QUICK: Tuning = { zeta: 1, f: 7 }
 /** Reduced motion: the target is assumed at once. */
 export const STILL: Tuning = { zeta: 1, f: Infinity }
 
@@ -490,7 +488,7 @@ const tuningOf = <K extends string>(t: Tunings<K>, k: K): Tuning =>
  *  oscillator, exact at any frame period, so a device holding 30 fps gets the same
  *  curve as one at 120. MAX_DT is a per-frame progress cap, not a stability limit.
  *  Pure. */
-export function springStep<K extends string>(
+function springStep<K extends string>(
   value: Axes<K>,
   vel: Axes<K>,
   target: Axes<K>,
@@ -533,7 +531,7 @@ export function springStep<K extends string>(
   return { value: nx as Axes<K>, vel: nv as Axes<K> }
 }
 
-export function settled<K extends string>(
+function settled<K extends string>(
   value: Axes<K>,
   vel: Axes<K>,
   target: Axes<K>,

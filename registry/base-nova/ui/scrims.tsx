@@ -20,8 +20,6 @@ export interface ScrimsProps {
   className?: string
   /** Explicit scroll owner, independent of where the overlays are painted. */
   scrollRef?: React.RefObject<HTMLElement | null>
-  topProps?: React.ComponentPropsWithRef<"div">
-  bottomProps?: React.ComponentPropsWithRef<"div">
 }
 
 export function Scrims({
@@ -31,8 +29,6 @@ export function Scrims({
   mode = "scroll",
   className,
   scrollRef,
-  topProps,
-  bottomProps,
 }: ScrimsProps) {
   const topRef = React.useRef<HTMLDivElement>(null)
   const bottomRef = React.useRef<HTMLDivElement>(null)
@@ -90,44 +86,25 @@ export function Scrims({
     <>
       {bottom && (
         <div
-          {...bottomProps}
-          ref={(node) => {
-            bottomRef.current = node
-            if (typeof bottomProps?.ref === "function")
-              return bottomProps.ref(node)
-            if (bottomProps?.ref) bottomProps.ref.current = node
-          }}
+          ref={bottomRef}
           data-slot="scrim-bottom"
-          style={{
-            ...bottomProps?.style,
-            margin: 0,
-            animation: scrollRef ? "none" : undefined,
-          }}
+          style={{ margin: 0, animation: scrollRef ? "none" : undefined }}
           aria-hidden
           data-position={position}
           data-mode={mode}
-          className={cn("ag-scrim", className, bottomProps?.className)}
+          className={cn("ag-scrim", className)}
           data-edge="bottom"
         />
       )}
       {top && (
         <div
-          {...topProps}
-          ref={(node) => {
-            topRef.current = node
-            if (typeof topProps?.ref === "function") return topProps.ref(node)
-            if (topProps?.ref) topProps.ref.current = node
-          }}
+          ref={topRef}
           data-slot="scrim-top"
-          style={{
-            ...topProps?.style,
-            margin: 0,
-            animation: scrollRef ? "none" : undefined,
-          }}
+          style={{ margin: 0, animation: scrollRef ? "none" : undefined }}
           aria-hidden
           data-position={position}
           data-mode={mode}
-          className={cn("ag-scrim", className, topProps?.className)}
+          className={cn("ag-scrim", className)}
           data-edge="top"
         />
       )}

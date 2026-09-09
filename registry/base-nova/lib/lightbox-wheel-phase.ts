@@ -59,8 +59,6 @@ export type Phase = {
 export type PhaseRead = {
   /** A stream opened here: the first event, or the hand cutting momentum short. */
   start: boolean
-  /** The hand let go ON THIS EVENT. The one moment worth deciding anything at. */
-  released: boolean
   /** The device is coasting: this delta is not a person and must move nothing. */
   momentum: boolean
   /** Momentum was interrupted by the hand coming back. */
@@ -136,7 +134,6 @@ export function phaseFeed(
     merging: [...s.merging, { dx: delta.x, dy: delta.y, t: e.t }],
   }
 
-  let released = false
   if (s.merging.length === MERGE) {
     // A merged point: the pair's total travel at the pair's mean time.
     const sum = s.merging.reduce<Point>(
@@ -157,7 +154,6 @@ export function phaseFeed(
       }
       const accelerations = [...s.accelerations, acceleration].slice(-ANALYZE)
       const momentum = s.momentum || coasting(accelerations)
-      released = momentum && !s.momentum
       next = {
         ...s,
         velocity,
@@ -180,7 +176,6 @@ export function phaseFeed(
     phase: s,
     read: {
       start,
-      released,
       momentum: s.momentum,
       interrupted,
       velocity: s.velocity,

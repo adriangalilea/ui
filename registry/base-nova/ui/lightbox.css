@@ -196,9 +196,6 @@
   .ag-lb[data-gesture] iframe {
     pointer-events: none;
   }
-  .ag-lb-base {
-    object-fit: fill;
-  }
   /* The original cross-fades over the page's pixels once decoded. */
   .ag-lb-up,
   .ag-lb-video {

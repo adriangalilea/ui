@@ -8,7 +8,7 @@ export function UpdateCommand({
   item: string
   overwrite?: boolean
 }) {
-  const command = `pnpm dlx shadcn@latest add @ag/${item} --${overwrite ? "overwrite" : "dry-run"}`
+  const command = `npx shadcn add @ag/${item} --${overwrite ? "overwrite" : "dry-run"}`
   return (
     <CommandCopy
       command={command}

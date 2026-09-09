@@ -16,7 +16,7 @@ import {
 
 export type Theme = "light" | "dark" | "system"
 
-export const THEMES: { value: Theme; label: string; Icon: typeof Sun }[] = [
+const THEMES: { value: Theme; label: string; Icon: typeof Sun }[] = [
   { value: "light", label: "light", Icon: Sun },
   { value: "system", label: "system", Icon: Monitor },
   { value: "dark", label: "dark", Icon: Moon },
@@ -29,19 +29,16 @@ export interface ThemeToggleProps
    *  choose, and the next press then reads as a no-op.
    *
    *  Undefined while a provider is still resolving, which is a real render on every
-   *  load: it falls back to `fallback` rather than showing nothing, because a
-   *  three-way control with no option marked reads as broken, and a reader cannot
+   *  load: it shows `system`, the provider's own default, rather than nothing, because
+   *  a three-way control with no option marked reads as broken, and a reader cannot
    *  tell it apart from one whose selected state is invisible. */
   value: Theme | undefined
-  /** What an unresolved control shows. The provider's own default. */
-  fallback?: Theme
   onChange: (theme: Theme) => void
   className?: string
 }
 
 export function ThemeToggle({
   value,
-  fallback = "system",
   onChange,
   className,
   ...props
@@ -50,7 +47,7 @@ export function ThemeToggle({
     <PreviewPicker
       {...props}
       label="Theme"
-      value={value ?? fallback}
+      value={value ?? "system"}
       onChange={onChange}
       options={THEMES.map(({ value, label, Icon }) => ({
         value,

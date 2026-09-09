@@ -37,7 +37,7 @@ export interface CardGalleryProps
   >
 }
 
-/** Card presentation only. A scroll-stage timeline can own at/offset/onSeek;
+/** Card presentation only. A scroll-stage timeline can own `offset` and `seek`;
  * otherwise the same gallery is a keyboard and touch driven carousel. */
 export function CardGallery({
   items,

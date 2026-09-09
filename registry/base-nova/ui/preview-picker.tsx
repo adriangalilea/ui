@@ -18,7 +18,6 @@ export interface PreviewPickerProps<T extends string | number>
   size?: "default" | "compact"
   /** Keep each option's label accessible while showing only its icon. */
   iconsOnly?: boolean
-  optionClassName?: string
 }
 
 /** A single-row selector; narrow containers scroll horizontally rather than wrap. */
@@ -31,7 +30,6 @@ export function PreviewPicker<T extends string | number>({
   size = "default",
   iconsOnly = false,
   name: providedName,
-  optionClassName,
   ...props
 }: PreviewPickerProps<T>) {
   const generatedName = useId()
@@ -57,7 +55,6 @@ export function PreviewPicker<T extends string | number>({
             "relative flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-medium text-muted-foreground transition-colors hover:text-foreground data-selected:bg-foreground/10 data-selected:text-foreground has-focus-visible:outline-2 has-focus-visible:-outline-offset-2 has-focus-visible:outline-ring data-disabled:cursor-not-allowed data-disabled:opacity-40 motion-reduce:transition-none",
             size === "compact" ? "min-h-8 px-3 py-1" : "min-h-11 px-4 py-2",
             iconsOnly && (size === "compact" ? "size-8 p-0" : "size-11 p-0"),
-            optionClassName,
           )}
         >
           <input

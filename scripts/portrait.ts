@@ -100,7 +100,7 @@ const SALIENT_KEEP = 0.55
 
 /** The square to cut, in top-left pixels. Vision measures from the BOTTOM left, so
  *  every box arrives flipped and is turned the right way up here, once. */
-export function portraitBox(found: Found): {
+function portraitBox(found: Found): {
   x: number
   y: number
   side: number

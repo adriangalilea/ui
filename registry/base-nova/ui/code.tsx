@@ -47,7 +47,7 @@ export interface CodeProps {
 }
 
 /** `"1,4-6"` to the set {1,4,5,6}. Screams rather than silently marking nothing. */
-export function parseLines(spec: string): Set<number> {
+function parseLines(spec: string): Set<number> {
   const out = new Set<number>()
   for (const part of spec.split(",")) {
     const range = part.trim()
@@ -62,7 +62,7 @@ export function parseLines(spec: string): Set<number> {
 
 /** Strip the shortest indentation any non-blank line has, and the blank first and
  *  last lines a template literal always brings. */
-export function dedent(src: string): string {
+function dedent(src: string): string {
   const lines = src.replace(/\t/g, "  ").split("\n")
   while (lines.length && !lines[0]?.trim()) lines.shift()
   while (lines.length && !lines[lines.length - 1]?.trim()) lines.pop()

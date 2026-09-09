@@ -43,6 +43,22 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
   reach the collector; the lab pages are marked noindex; the home page states that
   visits are counted with Vercel Web Analytics.
 
+### Removed surface nothing used
+
+- `scrims`: the `topProps` and `bottomProps` props. Style the overlays through
+  `className` and the `scrim-top` / `scrim-bottom` slots.
+- `preview-picker`: `optionClassName`; `theme-toggle`: the `fallback` prop (an
+  unresolved control shows `system`) and the `THEMES` export.
+- `quote-card`: the `faceShare`, `faceFeather` and `blockAt` still options; the
+  fusion and the block position are the module's constants, as the card's own
+  geometry requires.
+- `lightbox-motion`: the `QUICK` tuning; `lightbox-motion`'s `springStep` and
+  `settled` and `lightbox-wheel-phase`'s `released` read are internal now, the
+  binder never decides on a release.
+- `terminal-session`: `mix`, `BLACK`, `WHITE`, `LAND_MS`, `BLANK_MS` are internal.
+- `tokens`: `--dur-4`; three durations remain. `reveal` now declares its
+  dependency on `tokens` instead of carrying literal fallbacks.
+
 ## 2026-09-08
 
 ### image

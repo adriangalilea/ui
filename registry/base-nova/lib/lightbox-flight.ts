@@ -15,7 +15,7 @@ import {
 } from "@/registry/base-nova/lib/lightbox-motion"
 
 /** What a Web Animation looks like from here: a clock in ms. */
-export type Clock = { readonly currentTime: unknown }
+type Clock = { readonly currentTime: unknown }
 
 export type Flight<K extends string> = {
   frames: Frame<K>[]

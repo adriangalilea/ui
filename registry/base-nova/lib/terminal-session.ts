@@ -43,7 +43,7 @@ export function parseSession(source: string): SessionLine[] {
 }
 
 /** One accent, tiers by mixing: one hue, intensity is the only variable. */
-export function mix(
+function mix(
   hex: string,
   toward: readonly [number, number, number],
   t: number,
@@ -58,8 +58,8 @@ export function mix(
     .join("")}`
 }
 
-export const BLACK = [0, 0, 0] as const
-export const WHITE = [255, 255, 255] as const
+const BLACK = [0, 0, 0] as const
+const WHITE = [255, 255, 255] as const
 
 export interface TerminalPalette {
   accent: string
@@ -96,8 +96,8 @@ export const LINE_HEIGHT = 1.68
 // script's natural duration is the sum, and `progress` (0..1) scrubs it.
 
 export const TYPE_MS = 28
-export const LAND_MS = 140
-export const BLANK_MS = 90
+const LAND_MS = 140
+const BLANK_MS = 90
 
 export interface SessionTimeline {
   lines: SessionLine[]

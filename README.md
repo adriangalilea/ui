@@ -24,10 +24,10 @@ Read [Updates](https://ui.adriangalilea.com/updates) (also available in
 [the changelog](CHANGELOG.md)), preview an update, then decide which changes to adopt:
 
 ```bash
-pnpm dlx shadcn@latest add @ag/telegram-chat --dry-run
-pnpm dlx shadcn@latest add @ag/telegram-chat --diff
+npx shadcn add @ag/telegram-chat --dry-run
+npx shadcn add @ag/telegram-chat --diff
 # Replace the installed files when you want the registry version:
-pnpm dlx shadcn@latest add @ag/telegram-chat --overwrite
+npx shadcn add @ag/telegram-chat --overwrite
 ```
 
 Review the dependency and CSS changes too. If you customized a component, merge

@@ -216,11 +216,11 @@ export interface TelegramChatProps {
 /** Noto Animated Emoji (Google, Apache 2.0): the emoji's codepoints, hex, joined by
  *  `_`, as one animated WebP at 512 px. Telegram's own animated set is TGS behind its
  *  API and its own IP; this is the open equivalent every browser plays with no player. */
-export function animatedEmojiUrl(emoji: string): string {
+function animatedEmojiUrl(emoji: string): string {
   return `https://fonts.gstatic.com/s/e/notoemoji/latest/${emojiCodes(emoji)}/512.webp`
 }
 /** The same emoji's still, from the same set: what a pill shows between plays. */
-export function stillEmojiUrl(emoji: string): string {
+function stillEmojiUrl(emoji: string): string {
   return `https://fonts.gstatic.com/s/e/notoemoji/latest/${emojiCodes(emoji)}/emoji.svg`
 }
 function emojiCodes(emoji: string): string {
@@ -231,7 +231,7 @@ function emojiCodes(emoji: string): string {
 
 /** The frameless canvas's default viewport: a landing message slides the thread up
  *  inside it instead of growing the page under the reader. */
-export const FRAMELESS_CROP = "4 / 3"
+const FRAMELESS_CROP = "4 / 3"
 
 // Telegram's sender palette: label colors and the matching avatar gradients. A name
 // hashes to a stable index so a sender keeps one identity everywhere.

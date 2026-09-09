@@ -851,7 +851,6 @@ function Stage(props: StageProps) {
     type Flight = MotionFlight<keyof Pose> & { anims: Animation[] }
     const S = {
       raf: 0,
-      last: 0,
       flight: null as Flight | null,
       aim: "free" as Aim,
       pending: null as { target: Pose; tuning: Tunings<keyof Pose> } | null,
@@ -1156,8 +1155,7 @@ function Stage(props: StageProps) {
       writePose()
       for (const a of f.anims) a.cancel()
     }
-    const tick = (t: number) => {
-      S.last = t
+    const tick = () => {
       if (S.flight) {
         const { frame, done } = readFlight(S.flight)
         pose.value = frame.value
@@ -1168,13 +1166,11 @@ function Stage(props: StageProps) {
       if (S.flight) S.raf = requestAnimationFrame(tick)
       else {
         S.raf = 0
-        S.last = 0
         if (!S.gesture) layerEl().style.willChange = ""
       }
     }
     const start = () => {
       if (S.raf) return
-      S.last = 0
       S.raf = requestAnimationFrame(tick)
     }
     // One flight at a time: a running one is read and cancelled first, so the new
@@ -1264,7 +1260,6 @@ function Stage(props: StageProps) {
       pose.vel = ZERO
       if (S.raf) cancelAnimationFrame(S.raf)
       S.raf = 0
-      S.last = 0
     }
     const resume = () => {
       if (S.pending) fly(S.pending.target, S.pending.tuning, S.heldVel, true)

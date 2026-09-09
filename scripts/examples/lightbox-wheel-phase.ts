@@ -44,8 +44,8 @@ const feed = (
   const { phase, reads } = feed(hand(40, 30))
   assert(!phase.momentum, "an even hand never reads as momentum")
   assert(
-    reads.every((r) => !r.released),
-    "and nothing is ever released",
+    reads.every((r) => !r.momentum),
+    "and no event of it is the device",
   )
   assert(reads[0]?.start === true, "the first event opens the stream")
   assert(
@@ -53,23 +53,21 @@ const feed = (
     `travel is the sum of the hand: ${phase.movement.x}`,
   )
 }
-// A hand that lifts: the coast behind it is recognised, exactly once, and every
-// event after it still reads as momentum.
+// A hand that lifts: the coast behind it is recognised, and from that event on every
+// read is the device.
 {
   const swipe = hand(10, 30)
   const { phase, reads } = feed([...swipe, ...coast(30, 10 * HZ)])
   assert(phase.momentum, "the coast is recognised")
-  const released = reads.filter((r) => r.released)
-  assert(released.length === 1, `released fires once: ${released.length}`)
-  const at = reads.indexOf(released[0] as PhaseRead)
+  const at = reads.findIndex((r) => r.momentum)
   assert(at >= swipe.length, "and never before the fingers lifted")
   assert(
     reads.slice(at).every((r) => r.momentum),
     "everything after it is the device",
   )
   assert(
-    (released[0] as PhaseRead).velocity.x > 0,
-    "the release carries the direction it was thrown",
+    (reads[at] as PhaseRead).velocity.x > 0,
+    "the coast carries the direction it was thrown",
   )
 }
 console.log(

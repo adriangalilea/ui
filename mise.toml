@@ -1,5 +1,5 @@
-# The repo's verbs. package.json keeps `build` only because Vercel runs it; it is the
-# same command as `mise build`.
+# The repo's verbs. package.json keeps `build` because Vercel runs it (the same command
+# as `mise build`) and `kpi` because the report runs under node, not bun.
 
 [tasks.dev]
 description = "demo site on :3100 (also serves the registry at /r/<name>.json)"
@@ -49,9 +49,9 @@ description = "review registry changes for handwritten release notes (optional -
 run = "bun scripts/changes.ts"
 
 [tasks.still]
-description = "render the quote card into .renders/ (never opened: judge it on the demo page). `ground` and `share` sweep the fusion with the quote body stripped"
+description = "render the quote card into .renders/ (never opened: judge it on the demo page)"
 usage = '''
-arg "[mode]" help="corpus | faces | ground | share | block" default=""
+arg "[mode]" help="corpus | faces" default=""
 arg "[n]" help="how many, for corpus" default="12"
 '''
 run = 'bun scripts/quote-still.ts {{arg(name="mode")}} {{arg(name="n")}}'

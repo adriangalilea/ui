@@ -24,7 +24,7 @@ A public shadcn registry (`registry.json` at the root, items under `registry/bas
 
 - **Edit files with the `Read`, `Write` and `Edit` tools. Never with a script.** No
   `python3 - <<'PY'`, no `sed -i`, no `perl -pe`, no heredoc rewriting a source file.
-  `Bash` is for things that are not edits: `git`, `mise check`, `rsvg-convert`, `open`,
+  `Bash` is for things that are not edits: `git`, `mise check`, `rsvg-convert`,
   `curl`. A scripted edit is unreviewable, silently rewrites whole regions (it has
   reformatted `registry.json` and deleted a block of constants in this repo), and its
   diff cannot be read before it lands.
@@ -42,7 +42,7 @@ A public shadcn registry (`registry.json` at the root, items under `registry/bas
   1. **Fixed values are Tailwind utilities in the JSX**, merged with `cn()` from `@/lib/utils`, consumer `className` last. Padding, radius, the step surface (`bg-foreground/4`), gaps, the type voices (`font-serif` / `font-sans` / `font-mono`, theme vars the consumer names), colours at alpha (`text-foreground/75`). Every `@ag` consumer has Tailwind because shadcn is Tailwind; a `.css` of static rules made `className` a fight with a stylesheet. Group the recurring sets as named constants at the top of the file (`STEP`, `WORDS`, `META`) so a rule has one home and a name.
   2. **Computed values are custom properties on `style`, consumed by `-(--…)` utilities.** Everything derived from a module's constants — `cqw` sizes, shares of a frame, a focus gradient, a dissolve mask — is arithmetic in TS and lands as `w-(--ag-quote-column)`, `text-(length:--ag-quote-size)`, `mask-(--ag-quote-dissolve)`, `object-(--ag-avatar-focus)`. The property is the seam between the arithmetic and the CSS; the class says which property each number drives; nothing is typed twice, and nothing is `calc()`'d in CSS that TS could have computed (the feature's half-height mark is `FEATURE_MARK` in TS, not a `calc` on a var). A variable holds the WHOLE value the class consumes (`"35.2% 50%"`, not a number the CSS finishes).
   3. **A `.css` beside an item survives only for what no utility can express**: keyframes, `@property` registration, vendor pseudo-elements with state, a `::before` layer with a computed background. Every rule in it says in a comment why it is not a utility. It is imported relatively (`./x.css`) and ships as a second `registry:ui` file. **Its rules live inside `@layer components`**, with Tailwind's order declared first (`@layer theme, base, components, utilities;`) so the file is correct whichever stylesheet the consumer loads first; `@property` registrations stay outside the layer. Unlayered CSS beats every utility regardless of specificity, so an unlayered `.tgchat { max-width }` silently won over the consumer's `className` and no amount of `!` or ordering fixed it.
-  Every part carries `data-slot="<item>-<part>"` (`quote-body`, `avatar-image`), shadcn's convention: the DOM says what a node is, a consumer styles a part from outside without a class name to know, and nothing on the page depends on an `ag-*` class. `@tailwindcss/typography` is not part of any of this: `prose` is for markdown bodies, not for a composition. The older items (`copy`, `code`, `lightbox`, `reveal`, `scrims`, `scroll-stage`, `telegram-chat`, `theme-toggle`) still carry tier-1 rules in their `.css`; they move to the pattern the next time each is touched, not as a sweep.
+  Every part carries `data-slot="<item>-<part>"` (`quote-body`, `avatar-image`), shadcn's convention: the DOM says what a node is, a consumer styles a part from outside without a class name to know, and nothing on the page depends on an `ag-*` class. `@tailwindcss/typography` is not part of any of this: `prose` is for markdown bodies, not for a composition. The older items (`code`, `lightbox`, `reveal`, `scrims`, `scroll-stage`, `telegram-chat`) still carry tier-1 rules in their `.css`; they move to the pattern the next time each is touched, not as a sweep.
 - Motion is CSS-first: scroll-driven animations drive visual properties. Transcript timelines explicitly opt into frame-coalesced React progress for streamed content. Reduced motion renders the completed state; decorative clocks run only while visible and stop at their scheduled end.
 - Brand rules from `untitled/CLAUDE.md` bind: lowercase names, three type voices, 8px doubling rhythm, monochrome alpha ladder, no em dashes, nothing animates forever.
 - No Radix. Base UI has no `asChild`; use `render={<a />}`.
@@ -191,7 +191,7 @@ phone home.
 
 ## Lightbox
 
-`ui/lightbox.tsx` is the binder. The framework-free libs, each proven by its `scripts/examples/lightbox-*.ts` (run by `mise check`): `lib/lightbox-motion.ts` (fit, source view, zoom, rubber, springs, flight sampling, `frameAt`), `lib/lightbox-flight.ts` (the flight as a table plus a `Clock`: plan, read, landing rule), `lib/lightbox-hold.ts` (held keys to a view per frame), `lib/lightbox-wheel.ts` (the wheel session as a reducer: ticks in, session and effects out; the binder owns the silence timer and the track's own swipe state), `lib/lightbox-gesture.ts` (the pointer state machine as a reducer, plus the tap ladder), `lib/lightbox-actions.ts` (the key table: keys, layers, `resolve`, the escape ladder, `sheet()`). The motion libs ship as one registry item, `lightbox-motion`. Every pose move is a Web Animation sampled from the spring (compositor properties only: transform, and the cover crop as two counter-scaled transforms); a gesture reads the animation's clock and takes over. React state changes on checkpoints.
+`ui/lightbox.tsx` is the binder. The framework-free libs, each proven by its `scripts/examples/lightbox-*.ts` (run by `mise check`): `lib/lightbox-motion.ts` (fit, source view, zoom, rubber, springs, flight sampling, `frameAt`), `lib/lightbox-flight.ts` (the flight as a table plus a `Clock`: plan, read, landing rule), `lib/lightbox-hold.ts` (held keys to a view per frame), `lib/lightbox-wheel.ts` (the wheel session as a reducer: ticks in, session and effects out; the binder owns the silence timer and the track's own swipe state), `lib/lightbox-wheel-phase.ts` (hand or device: the acceleration ratio that tells a coasting trackpad from a finger, read per event by the wheel reducer and the binder), `lib/lightbox-gesture.ts` (the pointer state machine as a reducer, plus the tap ladder), `lib/lightbox-actions.ts` (the key table: keys, layers, `resolve`, the escape ladder, `sheet()`). The motion libs ship as one registry item, `lightbox-motion`. Every pose move is a Web Animation sampled from the spring (compositor properties only: transform, and the cover crop as two counter-scaled transforms); a gesture reads the animation's clock and takes over. React state changes on checkpoints.
 
 - **WebKit hands `Animation.currentTime` back a hair under the duration** (seconds in, milliseconds out): a frame table indexed by time treats anything within `TIME_EPS` of the last frame as the last frame, or every flight on iOS fails to land and the frame loop dies. `frameAt` clamps its index and screams on a non-finite time.
 - `debug` prop (demo: `?debug`) draws the engine's trace on the stage: pointer, gesture and dispatch decisions with the live pose, the layer's computed matrix, the live animation count, and page errors with a stack. This is how iOS bugs get diagnosed; production source maps are on for the same reason. **Instrumentation must never read the DOM per event.** `getComputedStyle` and `getAnimations` on the layer a gesture is writing to force a style recalc that flushes the write, a hundred times a second on a trackpad, and the trace becomes the thing it is measuring: the screen's truth is read ONCE a frame, in the rAF that batches the lines.
@@ -201,7 +201,6 @@ phone home.
 - History is replace-only (`#lb=id`); pushState made the iOS edge swipe double-animate a close. Android Back closes via CloseWatcher.
 - Only a HOLD settles the zoom state on keyup (`releasePan` checks the key was held). A tapped + or - lifts while its spring is a few frames in; settling there recorded a mid-flight zoom, so `-` to fit left the chrome in zoomed mode.
 - Headless Chrome over CDP (bun scripts, `/tmp/lb-*.ts` shape) is the regression rig: drive the demo with `?debug`, read the trace and the active layer's computed matrix, run the same script against the deployed site to diff behavior. A CDP keyup lands the same ms as the keydown, which is how the settle bug surfaced.
-- The architecture debt and the extraction plan are in the todo below; do them before adopting the item in a site.
 
 ### The slide track
 
@@ -382,7 +381,7 @@ that started them, and an open-reason overwritten by the NEXT gesture's.
 
 ## Supply chain
 
-pnpm's 7-day quarantine and no-downgrade trust policy apply. `pnpm-workspace.yaml` pins `fastq` to 1.20.1 because 1.20.2 shipped without provenance; drop the override once 1.20.3 clears quarantine (`deps overrides --removable`). The shadcn CLI version is whatever the quarantine admits, not `latest`. shadcn 4.19 wants the npm package `cn` (a name shadcn took over on 2026-09-01); under the quarantine that resolves to the 2013 Chuck Norris jokes CLI, so `lib/utils.ts` is the classic clsx + tailwind-merge `cn` and the package is not a dependency.
+pnpm's 7-day quarantine and no-downgrade trust policy apply (`deps overrides --removable` lists any pin that has outlived its reason). The shadcn CLI version is whatever the quarantine admits, not `latest`. shadcn 4.19 wants the npm package `cn` (a name shadcn took over on 2026-09-01); under the quarantine that resolves to the 2013 Chuck Norris jokes CLI, so `lib/utils.ts` is the classic clsx + tailwind-merge `cn` and the package is not a dependency.
 
 ## todo
 
@@ -412,13 +411,10 @@ The mark ships as an outline (`MARK_PATH`), taken from Instrument Serif under th
 OFL. Times New Roman is the shape Adrian actually picked and it CANNOT be shipped:
 Monotype's licence forbids redistributing its outlines.
 
-**Pending: Tinos and Liberation Serif.** Both are open (Apache 2.0 and OFL) and both
-are drawn to be metrically compatible with Times, so their opening quote should be the
-shape he chose, legally. Downloading them failed on the day (`curl` exit 56 on both
-GitHub and the Google Fonts mirror, which looks like the Cloudflare range blocking
-already diagnosed in `~/Developer/_smarthome/network/`). Retry, extract the glyph the
-same way, and put them in the comparison sheet against the current one before
-swapping.
+**Pending: the mark's glyph from Tinos.** Tinos (Apache 2.0, metrically compatible
+with Times) is installed and is the site's `--font-quote`; what is still open is
+extracting its opening quote the same way as the current `MARK_PATH` and putting the
+two in the comparison sheet before swapping.
 
 **Portraits carry a SIDECAR, and that is where the pixels end.** `avatar.png` has an
 `avatar.json` beside it — `{ focus, average }` — written by `mise portrait` when it crops
@@ -442,11 +438,6 @@ a frame, a face in profile at the edge — and the sidecar is the override: edit
 and nothing ever overwrites it. `mise still` reads sidecars too and computes in memory
 only for portraits that lack one, saying so.
 
-**Next, by leverage: adopt the pair in adriangalilea.com.** Its `components/quote.tsx`
-and the quote half of its `lib/og.tsx` are hand-rolled and share nothing with the module
-the corpus tooling was tuned against; wiring them onto `quote` + `renderQuoteSvg` is the
-payoff of the whole build, and it closes the site's own gap where notes without a quote
-ancestor generate no OG image at all.
 
 ### lightbox
 

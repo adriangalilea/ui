@@ -111,13 +111,4 @@
       animation-range: calc(100% - 140px) 100%;
     }
   }
-
-  /* Without scroll-driven animations the component toggles these from a scroll
-   listener; still no transition, for the same reason. */
-  @supports not (animation-timeline: scroll()) {
-    .ag-scrim[data-mode="scroll"][data-edge="top"][data-on],
-    .ag-scrim[data-mode="scroll"][data-edge="bottom"][data-on] {
-      opacity: 1;
-    }
-  }
 }

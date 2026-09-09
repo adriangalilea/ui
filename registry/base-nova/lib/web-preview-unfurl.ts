@@ -1,5 +1,5 @@
 // THE FACTS OF A LINK, and the one tool that fetches them. A web preview is drawn from
-// five facts: the url, the site, a title, a description, an image. This module owns the
+// six facts: the url, the site, a title, a description, an image, an icon. This module owns the
 // type and the fetch (`unfurl`), and nothing else in the family fetches: the card is a
 // pure function of the facts.
 //

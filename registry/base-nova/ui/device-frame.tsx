@@ -93,7 +93,7 @@ export function IphoneFrame({
   )
 }
 
-export function IphoneStatusBar() {
+function IphoneStatusBar() {
   return (
     <div aria-hidden="true">
       <div className="device-island">

@@ -544,7 +544,7 @@
     max-inline-size: min(94%, 24ch);
     overflow-wrap: anywhere;
   }
-  .tgchat-bubble.link:has(.tgchat-preview) {
+  .tgchat-bubble.link:has([data-slot="web-preview"]) {
     max-inline-size: 84%;
   }
 

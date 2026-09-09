@@ -21,10 +21,12 @@ function createStore(project: string) {
   return libsqlStore(createClient({ url, authToken }), project)
 }
 
+/** One metrics registry per process, built on first use by whichever comes first. */
+const metrics = () => (instance ??= createMetrics())
+
 /** Declare at server start (instrumentation.ts) instead of at the first sample. */
 export function declareMetrics() {
-  instance ??= createMetrics()
-  return instance.declare()
+  return metrics().declare()
 }
 
 /** Strict write probe: errors propagate and synthetic counts never enter UI KPIs. */
@@ -91,8 +93,7 @@ export async function recordMetric(
   // Local and preview sessions never contribute to production counts.
   if (process.env.VERCEL_ENV !== "production") return
   try {
-    instance ??= createMetrics()
-    await instance[key].bump({
+    await metrics()[key].bump({
       dimensions: { component, ...(traffic ? { traffic } : {}) },
     })
   } catch {

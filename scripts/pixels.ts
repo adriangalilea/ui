@@ -35,7 +35,7 @@ export interface Sidecar {
 }
 
 /** The sidecar's path for a portrait: the same name, `.json`. */
-export const sidecarOf = (png: string) => png.replace(/\.[^.]+$/, ".json")
+const sidecarOf = (png: string) => png.replace(/\.[^.]+$/, ".json")
 
 const run = (cmd: string, args: string[]): Promise<number> =>
   new Promise((ok) => {

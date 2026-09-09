@@ -56,8 +56,8 @@ export const QUOTE_CH = 0.45
 /** The mark's ink: the picture's hue, light, and capped at one and a half times the
  *  ground's cap so the two stay coupled — a ground that loses colour takes its mark's
  *  colour down with it. */
-export const QUOTE_SAT = 27
-export const QUOTE_LIGHT = 65
+const QUOTE_SAT = 27
+const QUOTE_LIGHT = 65
 
 /** THE LADDER IS IN CHARACTERS PER LINE, NOT IN PIXELS, and the size falls out of it.
  *
@@ -213,7 +213,7 @@ export function quoteSet(
  *  It does NOT divide the vertical. Tried against three lengths at once it puts a long
  *  quote's first line straight through the middle of the mark, which is an overlap that
  *  reads as an accident. See BLOCK_AT. */
-export const GOLDEN_MINOR = 0.382
+const GOLDEN_MINOR = 0.382
 
 /** Past about half the frame the picture's slot turns wider than a square source, the
  *  scaling flips to the width, and the crop starts eating the top and the bottom — which
@@ -315,7 +315,7 @@ export const DATE_EM = 0.024
  *  every one of them had to be argued about separately and none of them could be
  *  derived from any other. A scale means an indent is not an opinion, it is a rung,
  *  and the only question left is which one. */
-export const unitOf = (width: number): number => width / 150
+const unitOf = (width: number): number => width / 150
 
 /** MARGIN is the card's own edge, and the mark and the attribution hang from it.
  *  EDGE is how far the mark is from the ceiling and the attribution from the floor —
@@ -476,7 +476,7 @@ export const QUOTE_MONO = "monospace"
 
 /** The families a renderer resolves without being told anything. Naming anything else
  *  is a promise the caller has to keep. */
-export const GENERIC_FAMILIES = [
+const GENERIC_FAMILIES = [
   "serif",
   "sans-serif",
   "monospace",
@@ -491,7 +491,7 @@ export const GENERIC_FAMILIES = [
 ]
 
 /** The first family of a stack, unquoted. */
-export function firstFamily(stack: string): string {
+function firstFamily(stack: string): string {
   return (stack.split(",")[0] ?? "").trim().replace(/^["']|["']$/g, "")
 }
 
@@ -545,7 +545,7 @@ export function assertFonts(
  *  a tint nobody can see is not a tint. Capped at forty it went the other way — a rosy
  *  drawing gave a maroon slab. Twenty-four, judged on a rosy drawing, a warm oil and a
  *  modern photograph at once: the ground is warm or cool, never a colour of its own. */
-export const GROUND_SAT = 18
+const GROUND_SAT = 18
 export const GROUND_LIGHT = 9
 export function quoteGround(hue: number, sat = GROUND_SAT): string {
   return `hsl(${hue}, ${sat}%, ${GROUND_LIGHT}%)`
@@ -614,7 +614,7 @@ export const GROUND = quoteGround(0, 0)
  *  two conventions mean the same ellipse. Contrast is untouched by construction: nothing
  *  lifts the ground past GLOW_LIFT. */
 export const GLOW = { cx: 0.15, cy: 0.2, r: 0.8 }
-export const GLOW_LIFT = 4
+const GLOW_LIFT = 4
 
 /** GRAIN, because a four-point glow across six hundred pixels is ten RGB levels in eight
  *  bits, and neither a rasterizer nor a browser dithers: the glow came out as concentric
@@ -628,10 +628,10 @@ export const GLOW_LIFT = 4
 /** Strong enough to survive a platform's JPEG: a link preview is recompressed by whoever
  *  unfurls it, and a grain too fine and too faint is the first thing the encoder throws
  *  away — the rings came straight back in Telegram. */
-export const GRAIN = { frequency: 1.6, octaves: 1, alpha: 0.07, tile: 256 }
+const GRAIN = { frequency: 1.6, octaves: 1, alpha: 0.07, tile: 256 }
 
 /** The grain as SVG filter markup, for a `<filter id="grain">` in either emitter. */
-export function grainFilter(): string {
+function grainFilter(): string {
   return `<feTurbulence type="fractalNoise" baseFrequency="${GRAIN.frequency}" numOctaves="${GRAIN.octaves}" stitchTiles="stitch" result="noise"/><feColorMatrix in="noise" type="saturate" values="0" result="grey"/><feComponentTransfer in="grey"><feFuncA type="table" tableValues="0 ${GRAIN.alpha}"/></feComponentTransfer>`
 }
 
@@ -715,18 +715,9 @@ export interface QuoteStillOptions {
   fonts?: readonly string[]
   /** Accept whatever the renderer substitutes. Deliberate, and it says so. */
   systemFonts?: boolean
-  /** THE FUSION, and the one part of this card that legitimately depends on the
-   *  picture: how much frame the portrait takes, and how far it dissolves into the
-   *  ground. The defaults suit a portrait; a wide painting or a near-white photograph
-   *  are the cases worth overriding for. */
-  faceShare?: number
-  faceFeather?: number
   /** Where the subject sits across the picture, 0 to 1. Defaults to the middle; pass the
    *  real one and a face on either side of its own frame survives. */
   focus?: number
-  /** Where the block of words sits in the band between the ceiling and the attribution,
-   *  as the share of the slack that goes ABOVE it. Defaults to BLOCK_AT. */
-  blockAt?: number
   /** Scales the whole measure ladder: above 1 the lines carry more characters and the
    *  type is smaller, below 1 the reverse. For trying a different measure, not for
    *  tuning one card. */
@@ -766,10 +757,7 @@ export function renderQuoteSvg(
     dateFamily = QUOTE_MONO,
     fonts = [],
     systemFonts = false,
-    faceShare = FACE_SHARE,
-    faceFeather = FACE_FEATHER,
     focus = FOCUS,
-    blockAt = BLOCK_AT,
     measure = 1,
     ch = QUOTE_CH,
   }: QuoteStillOptions = {},
@@ -802,8 +790,8 @@ export function renderQuoteSvg(
   //
   // The travel is bounded at both ends: never so far left that ground shows past the
   // right edge, never so far right that the fade has no picture in it.
-  const faceX = width - Math.round(width * faceShare)
-  const featherX = faceX + Math.round((width - faceX) * faceFeather)
+  const faceX = width - Math.round(width * FACE_SHARE)
+  const featherX = faceX + Math.round((width - faceX) * FACE_FEATHER)
   const slotX = Math.round(
     Math.max(
       width - height,
@@ -859,7 +847,7 @@ export function renderQuoteSvg(
   })
   const step = Math.round(size * LINE)
   const textH = (lines.length - 1) * step + (CAP + DESC) * size
-  const top = Math.round(markY + (attrTop - markY - textH) * blockAt)
+  const top = Math.round(markY + (attrTop - markY - textH) * BLOCK_AT)
   const mark = `<path d="${MARK_PATH}" transform="translate(${pad} ${markY}) scale(${markK.toFixed(4)})" fill="${ink}" opacity="${MARK_OPACITY}" filter="url(#soften)"/>`
 
   const y = top + CAP * size
