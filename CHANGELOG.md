@@ -5,6 +5,11 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 ## 2026-09-09
 
+### prepare-media
+
+- Breaking: the `prepare-media-cli.ts` file is no longer part of the item; call
+  `prepareMedia` from your own script. `tsx` leaves the item's dependencies with it.
+
 ### telegram-chat
 
 - Breaking: the `options` message field and the inline-results popup it drew are

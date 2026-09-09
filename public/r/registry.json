@@ -35,16 +35,12 @@
       "name": "prepare-media",
       "type": "registry:lib",
       "title": "prepare-media",
-      "description": "Node image preparation and opt-in FFmpeg video preparation; dimensions, transparent previews, posters, content-addressed files and a CLI, with no storage dependency",
-      "dependencies": ["sharp", "tsx"],
+      "description": "Node image preparation and opt-in FFmpeg video preparation; dimensions, transparent previews, posters and content-addressed files, with no storage dependency",
+      "dependencies": ["sharp"],
       "registryDependencies": ["@ag/media-asset"],
       "files": [
         {
           "path": "registry/base-nova/lib/prepare-media.ts",
-          "type": "registry:lib"
-        },
-        {
-          "path": "registry/base-nova/lib/prepare-media-cli.ts",
           "type": "registry:lib"
         }
       ]
@@ -201,7 +197,7 @@
       "type": "registry:ui",
       "title": "reveal",
       "description": "content that arrives as it enters the viewport, once or scroll-tied, with optional stagger",
-      "registryDependencies": [],
+      "registryDependencies": ["@ag/tokens"],
       "files": [
         {
           "path": "registry/base-nova/ui/reveal.tsx",

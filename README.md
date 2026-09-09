@@ -51,7 +51,7 @@ a second copy. Start with [glass](https://ui.adriangalilea.com/liquid-glass),
 
 ## Media pipeline
 
-[Preparation](https://ui.adriangalilea.com/prepare-media) runs in Node or a CLI and
+[Preparation](https://ui.adriangalilea.com/prepare-media) runs in Node and
 returns files plus [asset metadata](https://ui.adriangalilea.com/media-asset).
 Your application writes the files to its own storage before publishing the metadata.
 [Upload](https://ui.adriangalilea.com/upload) supplies transport and progress state;

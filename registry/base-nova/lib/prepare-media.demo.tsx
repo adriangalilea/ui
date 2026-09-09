@@ -26,9 +26,6 @@ export default async function Demo() {
         explicit video option. Run heavy video work in a worker, not an edge
         request.
       </p>
-      <p className="font-mono text-xs">
-        pnpm exec tsx lib/prepare-media-cli.ts input.jpg public/media /media
-      </p>
       <p className="text-sm text-muted-foreground">
         For a deliberate boomerang, add --boomerang to a GIF or video input.
         Preparation renders a silent forward/reverse MP4, ready for Video with
