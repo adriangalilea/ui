@@ -18,12 +18,7 @@ export function useChatPlayback(
     if (controlled) return
     const el = root.current
     if (!el) return
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      played.current = ceiling
-      lastCeiling.current = ceiling
-      setPosition(ceiling)
-      return
-    }
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)")
     // Unseen context lands whole, but a story already playing keeps its position.
     // Strict Mode or a duration change must not be mistaken for a new act.
     if (lastCeiling.current === null) {
@@ -55,6 +50,11 @@ export function useChatPlayback(
     const update = () => {
       cancelAnimationFrame(frame)
       frame = 0
+      if (motion.matches) {
+        played.current = ceiling
+        setPosition(ceiling)
+        return
+      }
       if (visible && !document.hidden && played.current !== ceiling) {
         last = performance.now()
         frame = requestAnimationFrame(tick)
@@ -69,9 +69,12 @@ export function useChatPlayback(
     )
     observer.observe(el)
     document.addEventListener("visibilitychange", update)
+    motion.addEventListener("change", update)
+    update()
     return () => {
       observer.disconnect()
       document.removeEventListener("visibilitychange", update)
+      motion.removeEventListener("change", update)
       cancelAnimationFrame(frame)
     }
   }, [root, controlled, duration, ceiling, lift])

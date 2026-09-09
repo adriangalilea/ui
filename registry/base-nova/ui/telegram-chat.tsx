@@ -65,8 +65,8 @@ export interface ChatReaction {
   /** Shown when supplied; groups also show the default count of one. */
   count?: number
   /** "timeline": pops one beat after the message lands, scrubbable. "afterlife"
-   *  (default): wall-clock, starts seconds after the story completes, dribbles in,
-   *  counts keep creeping up forever; scrubbing cannot summon or rewind it. */
+   *  (default): visible-time clock after the story completes. Counts grow to the
+   *  declared total, then stop; scrubbing cannot summon or rewind it. */
   when?: "timeline" | "afterlife"
 }
 
@@ -820,7 +820,7 @@ export function TelegramChat({
   // with deterministic jitter, each pill lands at 1, climbs to its scripted count one
   // press at a time, stopping at the scripted count.
   let afterlifeIndex = 0
-  const arriveAt = (i: number) => afterlifeDelay + 3 + i * 6 + ((i * 7) % 7)
+  const arriveAt = (i: number) => afterlifeDelay + 3 + i * 6
   // Pills are BUTTONS: Telegram's reactions are pressable, and the demo's are too. A
   // pill you pressed is drawn as the client draws your own (filled in the accent) and
   // counts you; pressing again takes you off it. What the script and the afterlife clock

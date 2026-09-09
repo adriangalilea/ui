@@ -316,6 +316,12 @@ try {
           document.dispatchEvent(new Event("visibilitychange"))
         })
         await page.locator("#autoplay-check .tgchat[data-settled]").waitFor()
+        // Preference changes must settle an already mounted, unfinished story.
+        await page.reload()
+        await page.locator("#start-playback").click()
+        await page.emulateMedia({ reducedMotion: "reduce" })
+        await page.locator("#autoplay-check .tgchat[data-settled]").waitFor()
+        await page.emulateMedia({ reducedMotion: "no-preference" })
         await page.locator("#finish-progress").click()
         assert.match(
           await page
