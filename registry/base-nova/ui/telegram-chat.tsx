@@ -505,8 +505,8 @@ function Avatar({
 const EMOJI_PLAY_MS = 2600
 
 /** An emoji as Telegram paints a reaction: it PLAYS ONCE when the pill first comes into
- *  view, and again on a press, and rests as a still otherwise; a pill that looped
- *  forever was a page that never stopped moving. The still and the animation are the
+ *  view, and again on a press, and rests as a still otherwise; a pill that loops forever
+ *  is a page that never stops moving. The still and the animation are the
  *  same set's two files; a fresh element restarts the animation from its first frame.
  *  The glyph when the set has neither (the request 404s and the image hands back). */
 function Emoji({
@@ -1139,9 +1139,9 @@ export function TelegramChat({
           )}
 
           {/* The header is the PHONE's chrome. A bare canvas has none: a chat title
-                pinned over floating bubbles was the device's composition forced onto
-                the mode whose point is no device. What the header carried that is
-                story, the typing status, goes into the thread instead. */}
+                pinned over floating bubbles is the device's composition forced onto the
+                mode whose point is no device, so the typing status it carries is dropped
+                with it. */}
           {frame === "phone" && (
             <div className="tgchat-header" aria-hidden="true">
               <TelegramGlass tone={glassTone} className="tgchat-round">

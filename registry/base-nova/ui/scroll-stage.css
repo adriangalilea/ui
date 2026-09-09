@@ -58,7 +58,7 @@
       top: var(--stage-top, 0px);
       display: flex;
       min-height: var(--stage-min-height, 100svh);
-      align-items: var(--stage-align, center);
+      align-items: center;
     }
     .ag-stage-track[data-stacked] > .ag-stage-stacked {
       display: none;
@@ -89,7 +89,7 @@
       top: var(--stage-top, 0px);
       display: flex;
       min-height: var(--stage-min-height, 100svh);
-      align-items: var(--stage-align, center);
+      align-items: center;
     }
     .ag-stage-track[data-pin="all"] > .ag-stage-stacked {
       display: none;

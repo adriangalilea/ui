@@ -58,14 +58,6 @@
 
   .tgchat[data-theme="light"],
   .tgchat[data-theme="page"] {
-    --tg-phone: #a2a6ad;
-    --tg-phone-band: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
-    --tg-phone-chamfer:
-      inset 0 1px 1px rgba(255, 255, 255, 0.5),
-      inset 0 -1px 1px rgba(255, 255, 255, 0.24);
-    --tg-phone-button: linear-gradient(180deg, #b3b7bd, #8c9097);
-    --tg-lift:
-      0 24px 60px rgba(27, 29, 30, 0.22), 0 4px 14px rgba(27, 29, 30, 0.1);
     --tg-screen: #c3d7ab;
     --tg-wallpaper:
       radial-gradient(ellipse at 12% 8%, #8fb995 0%, transparent 58%),
@@ -73,12 +65,10 @@
       radial-gradient(ellipse at 12% 88%, #d5d88f 0%, transparent 55%),
       linear-gradient(145deg, #b6d1ac, #93bda6);
     --tg-outgoing-reply: #568d48;
-    --tg-island: #16181a;
     --tg-status-ink: #1c1c1a;
     --tg-bot-bubble: #ffffff;
     --tg-user-bubble: #e4ffc7;
     --tg-on-accent: #192619;
-    --tg-border: #e4e4e2;
     --tg-text: #1c1c1a;
     --tg-muted: #69675f;
     --tg-composer-icon: #55534c;
@@ -95,29 +85,13 @@
    look like Telegram's own theme whatever the page around it is doing. */
   .tgchat[data-theme="dark"],
   .dark .tgchat[data-theme="page"] {
-    --tg-phone: linear-gradient(
-      160deg,
-      #6c7075 0%,
-      #4a4e54 22%,
-      #595e65 50%,
-      #43474d 78%,
-      #676c72 100%
-    );
-    --tg-phone-band: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
-    --tg-phone-chamfer:
-      inset 0 1px 1px rgba(255, 255, 255, 0.4),
-      inset 0 -1px 1px rgba(255, 255, 255, 0.16);
-    --tg-phone-button: linear-gradient(180deg, #5c6167, #43474d);
-    --tg-lift: 0 24px 60px rgba(0, 0, 0, 0.45), 0 4px 14px rgba(0, 0, 0, 0.3);
     --tg-screen: #101315;
     --tg-wallpaper: none;
     --tg-outgoing-reply: var(--tg-on-accent);
-    --tg-island: #000000;
     --tg-status-ink: #e8e6e1;
     --tg-bot-bubble: #1e2227;
     --tg-user-bubble: #246fae;
     --tg-on-accent: #ffffff;
-    --tg-border: #2b3036;
     --tg-text: #e8e6e1;
     --tg-muted: #a0a29e;
     --tg-composer-icon: #c3c6c9;
@@ -148,6 +122,7 @@
     );
     --tg-control-bottom: var(--tg-control-inset);
     --tg-composer-h: 10.4cqw;
+    --tg-message-gap: 3.4cqw;
     /* Equal side and bottom insets place each disc on the rounded corner's
        45-degree bisector, leaving more room below than around the island. */
     --tg-control-gap: 6cqw;
@@ -369,7 +344,7 @@
     min-height: 100%;
     flex-direction: column;
     justify-content: flex-end;
-    gap: var(--tg-message-gap, 3.4cqw);
+    gap: var(--tg-message-gap);
     padding: calc(var(--tg-header-top) + 16cqw) 4cqw
       calc(var(--tg-composer-h) + 11.8cqw);
   }
@@ -434,7 +409,7 @@
   }
   .tgchat-thread > .tgchat-bubble[data-continued],
   .tgchat-thread > .tgchat-rowline:has(> .tgchat-bubble[data-continued]) {
-    margin-top: calc(var(--tg-message-gap, 3.4cqw) / -2);
+    margin-top: calc(var(--tg-message-gap) / -2);
   }
   /* Reaction pills, as Telegram draws them: rounded chips at the bubble's foot,
    emoji + count, popping in with a small scale. */
@@ -1116,16 +1091,6 @@
   .tgchat[data-frame="none"] {
     max-width: 640px;
   }
-  .tgchat[data-frame="none"] .tgchat-phone {
-    aspect-ratio: auto;
-    padding: 0;
-    background: none;
-    border-radius: 0;
-    box-shadow: none;
-  }
-  .tgchat[data-frame="none"] .tgchat-phone::after {
-    content: none;
-  }
   .tgchat[data-frame="none"] .tgchat-screen {
     height: auto;
     overflow: visible;
@@ -1134,14 +1099,11 @@
     --tg-header-top: 0px;
     --tg-composer-h: 0px;
   }
-  .tgchat[data-frame="none"] .tgchat-screen::before,
-  .tgchat[data-frame="none"] .tgchat-screen::after {
-    content: none;
-  }
   .tgchat[data-frame="none"] .tgchat-wall {
     border-radius: 1rem;
   }
-  /* Header typing status is omitted with the phone chrome. */
+  /* A bare canvas has no screen to fill, so the thread grows to its content instead of
+   scrolling inside one. */
   .tgchat[data-frame="none"] .tgchat-messages {
     flex: none;
     overflow: visible;
