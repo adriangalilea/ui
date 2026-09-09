@@ -8,7 +8,7 @@
 // derives its ground and its mark from the picture's own colour, and it shows the whole
 // height of whatever it is handed. Both of those are only as good as the crop. A badly
 // framed source does not look like a badly framed source on the card, it looks like a
-// broken card — which is exactly how a decapitated Confucius got shipped and stayed.
+// broken card, and a decapitated Confucius ships as one.
 //
 // THE BUG THIS EXISTS TO KILL is the centre crop. Scaling a tall picture to a square by
 // cutting equal amounts off the top and the bottom is the obvious implementation and it
@@ -19,13 +19,12 @@
 // macOS only, and that is a property of the tooling, never of the component: the card
 // takes whatever pixels it is given.
 
-import { spawn } from "node:child_process"
 import { readFile, unlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { assert, IMAGE_MAGIC } from "../registry/base-nova/lib/quote-card"
-import { annotate } from "./pixels"
+import { annotate, capture } from "./pixels"
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const SIZE = 256
@@ -43,17 +42,6 @@ interface Found {
   face?: Box
   salient?: Box
 }
-
-const run = (cmd: string, args: string[]): Promise<[number, string]> =>
-  new Promise((ok) => {
-    const p = spawn(cmd, args)
-    let out = ""
-    p.stdout.on("data", (d) => {
-      out += d
-    })
-    p.stderr.on("data", (d) => process.stderr.write(d))
-    p.on("close", (code) => ok([code ?? 1, out]))
-  })
 
 /** Wikipedia's own choice of lead image, which is the picture a reader of that article
  *  sees first and therefore the one most likely to be a portrait. The original, not the
@@ -150,7 +138,7 @@ const portrait = async (
   const source = src.startsWith("wikipedia:")
     ? await fromWikipedia(src.slice("wikipedia:".length))
     : src
-  const [code, json] = await run("swift", [
+  const [code, json] = await capture("swift", [
     join(HERE, "portrait.swift"),
     source,
   ])
@@ -165,9 +153,9 @@ const portrait = async (
   const bytes = await readFile(source)
   // The mime comes from the BYTES, never from the name: a Wikipedia download lands in a
   // tmp file with no extension at all, and librsvg draws NOTHING — silently, exit 0 —
-  // for a data URI whose declared type disagrees with its payload. Guessing jpeg wrote
+  // for a data URI whose declared type disagrees with its payload. Guessing jpeg writes
   // fully transparent avatars for every PNG original, and the never-overwrite rule then
-  // protected the blanks forever.
+  // protects the blanks forever.
   const b64 = bytes.toString("base64")
   const mime = Object.entries(IMAGE_MAGIC).find(([, magic]) =>
     b64.startsWith(magic),
@@ -186,7 +174,7 @@ const portrait = async (
   )
   assert(
     (
-      await run("rsvg-convert", [
+      await capture("rsvg-convert", [
         "-w",
         String(size),
         "-h",

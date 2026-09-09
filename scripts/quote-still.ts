@@ -7,7 +7,6 @@
 // Rasterizing needs `rsvg-convert` (librsvg); without it the SVGs are still written
 // and it says so, because a missing tool is not a broken card.
 
-import { spawn } from "node:child_process"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -17,7 +16,7 @@ import {
   renderQuoteSvg,
   toneFrom,
 } from "../registry/base-nova/lib/quote-card"
-import { readSidecar } from "./pixels"
+import { readSidecar, run } from "./pixels"
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const OUT = join(HERE, "..", ".renders")
@@ -53,11 +52,6 @@ const look = async (path: string): Promise<QuoteStillOptions> => {
     focus: side.focus,
   }
 }
-
-const run = (cmd: string, args: string[]): Promise<number> =>
-  new Promise((ok) => {
-    spawn(cmd, args, { stdio: "ignore" }).on("close", (code) => ok(code ?? 1))
-  })
 
 /** `mise still corpus` draws REAL quotes with REAL portraits, read out of
  *  adriangalilea.com's own content. Three invented cards cannot show what a set of

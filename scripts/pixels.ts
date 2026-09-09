@@ -37,12 +37,18 @@ export interface Sidecar {
 /** The sidecar's path for a portrait: the same name, `.json`. */
 const sidecarOf = (png: string) => png.replace(/\.[^.]+$/, ".json")
 
-const run = (cmd: string, args: string[]): Promise<number> =>
+/** Every script here shells out to the Mac's own tools; these two are the whole of it,
+ *  in one place, so `portrait` and `quote-still` do not each grow their own. */
+export const run = (cmd: string, args: string[]): Promise<number> =>
   new Promise((ok) => {
     spawn(cmd, args, { stdio: "ignore" }).on("close", (code) => ok(code ?? 1))
   })
 
-const capture = (cmd: string, args: string[]): Promise<[number, string]> =>
+/** The same, with stdout collected: `[exit code, stdout]`. */
+export const capture = (
+  cmd: string,
+  args: string[],
+): Promise<[number, string]> =>
   new Promise((ok) => {
     const p = spawn(cmd, args)
     let out = ""
