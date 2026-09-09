@@ -30,6 +30,14 @@ await once(server, "listening")
 const address = server.address()
 assert.ok(address && typeof address !== "string")
 const registry = `http://127.0.0.1:${address.port}/{name}.json`
+// The consumer installs under this repository's own release policy (quarantine
+// exceptions, overrides, build allowances), read from the file so the two cannot drift.
+const releasePolicy = await readFile(join(root, "pnpm-workspace.yaml"), "utf8")
+assert.doesNotMatch(
+  releasePolicy,
+  /^packages:/m,
+  "pnpm-workspace.yaml is policy only; the workspace consumer adds its own packages",
+)
 const config = (workspace: boolean) => ({
   $schema: "https://ui.shadcn.com/schema.json",
   style: "base-nova",
@@ -87,9 +95,6 @@ try {
       join(app, "app/globals.css"),
       '@import "tailwindcss";\n@import "./tokens.css";\n',
     )
-    // Match this repository's exact reviewed exception; keep the global age policy intact.
-    const releasePolicy =
-      'minimumReleaseAgeExclude:\n  - "wordgard@0.5.2"\n  - "@adriangalilea/utils@4.1.1"\noverrides:\n  fastq: 1.20.1\nallowBuilds:\n  esbuild: true\n  sharp: false\n'
     await writeFile(join(destination, "pnpm-workspace.yaml"), releasePolicy)
     let utils = join(app, "lib/utils.ts")
     if (workspace) {
