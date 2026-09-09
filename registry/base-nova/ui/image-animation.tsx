@@ -45,6 +45,7 @@ function AnimationSource({
   return (
     <div
       ref={frame}
+      tabIndex={interactionRef || controls ? undefined : 0}
       data-slot="image-animation"
       data-playing={active}
       className={cn("not-prose relative max-w-full overflow-hidden", className)}

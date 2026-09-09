@@ -4,6 +4,7 @@ import {
   type ComponentProps,
   type RefObject,
   useEffect,
+  useImperativeHandle,
   useRef,
   useState,
 } from "react"
@@ -26,6 +27,8 @@ export type VideoProps = Omit<
   playOn?: "intent" | "visible" | "visible-once"
   label: string
   blurDataURL?: string
+  /** Responsive poster width, using the same sizes syntax as Image. */
+  sizes?: string
   className?: string
   videoClassName?: string
   /** Explicitly share hover/focus with a containing card, without CSS ancestor discovery. */
@@ -42,6 +45,7 @@ function VideoSource({
   height,
   poster,
   blurDataURL,
+  sizes = "100vw",
   mode = "player",
   controls = mode === "player",
   playOn = "intent",
@@ -54,10 +58,12 @@ function VideoSource({
   onPause,
   onEnded,
   onError,
+  ref,
   ...props
 }: VideoProps) {
   const frame = useRef<HTMLDivElement>(null)
   const video = useRef<HTMLVideoElement>(null)
+  useImperativeHandle(ref, () => video.current as HTMLVideoElement, [])
   const wanted = useRef(false)
   const intent = useMediaIntent(frame, interactionRef)
   const { setManual } = intent
@@ -123,7 +129,7 @@ function VideoSource({
           src={poster}
           alt=""
           fill
-          sizes="(max-width: 768px) 100vw, 800px"
+          sizes={sizes}
           blurDataURL={blurDataURL}
           className="pointer-events-none absolute inset-0"
           imageClassName={cn("object-cover", videoClassName)}

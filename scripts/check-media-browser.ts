@@ -33,6 +33,9 @@ export async function checkMediaBrowser(browser: Browser, base: string) {
   )
   await page.goto(`${base}/lab/media`)
   const video = page.locator('video[aria-label="test preview"]')
+  await page.waitForFunction(() =>
+    document.querySelector('video[data-forwarded-ref="yes"]'),
+  )
   const preview = page.locator('[data-slot="video"]').filter({ has: video })
   assert.equal(
     await page
@@ -189,6 +192,45 @@ export async function checkMediaBrowser(browser: Browser, base: string) {
   )
   await page.getByRole("button", { name: "publish" }).click()
   assert.equal(await page.locator("#submits").textContent(), "2")
+  await page.unroute("**/media-upload-test")
+  let finishToolbar!: () => void
+  await page.route("**/media-upload-test", async (route) => {
+    await new Promise<void>((resolve) => {
+      finishToolbar = resolve
+    })
+    await route.fulfill({
+      json: {
+        src: "/image-test.jpg",
+        kind: "image",
+        width: 800,
+        height: 533,
+        mime: "image/jpeg",
+        bytes: 10,
+      },
+    })
+  })
+  await editor.focus()
+  await page.keyboard.press("Control+Meta+i")
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "toolbar.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("fixture"),
+  })
+  await page.getByRole("list", { name: "Image uploads" }).waitFor()
+  await page.getByRole("button", { name: "publish", exact: true }).click()
+  assert.equal(
+    await page.locator("#submits").textContent(),
+    "2",
+    "toolbar upload also blocks publishing",
+  )
+  finishToolbar()
+  await page
+    .getByRole("list", { name: "Image uploads" })
+    .waitFor({ state: "detached" })
+  assert.equal(
+    await page.locator('input[name="src"]').inputValue(),
+    "/image-test.jpg",
+  )
   assert.deepEqual(errors, [])
   await page.close()
   const reduced = await browser.newPage({ reducedMotion: "reduce" })
@@ -282,6 +324,15 @@ export async function checkMediaBrowser(browser: Browser, base: string) {
       await playback.locator("#card-clicks").textContent(),
       clicks,
       "dismiss must not activate the containing card",
+    )
+    const animation = playback.locator('[data-slot="image-animation"]')
+    await animation.scrollIntoViewIfNeeded()
+    await animation.focus()
+    await playback.waitForFunction(
+      () =>
+        document
+          .querySelector('[data-slot="image-animation"]')
+          ?.getAttribute("data-playing") === "true",
     )
   } finally {
     await playback.close()

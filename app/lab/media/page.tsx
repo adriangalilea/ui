@@ -2,6 +2,7 @@
 import { useState } from "react"
 import { Editor } from "@/registry/base-nova/ui/editor"
 import { Image } from "@/registry/base-nova/ui/image"
+import { AnimatedImage } from "@/registry/base-nova/ui/image-animation"
 import { LightboxSolo } from "@/registry/base-nova/ui/lightbox"
 import { multipartUploader } from "@/registry/base-nova/ui/upload"
 import { Video } from "@/registry/base-nova/ui/video"
@@ -18,6 +19,9 @@ export default function Page() {
         height={720}
         poster="/video-poster.jpg"
         label="test preview"
+        ref={(node) => {
+          node?.setAttribute("data-forwarded-ref", "yes")
+        }}
         mode="preview"
         controls
       />
@@ -85,6 +89,13 @@ export default function Page() {
         </LightboxSolo>
       </div>
       <output id="card-clicks">{cardClicks}</output>
+      <AnimatedImage
+        src="/preview-animation.gif"
+        poster="/video-poster.jpg"
+        width={320}
+        height={180}
+        alt="keyboard animation"
+      />
     </main>
   )
 }
