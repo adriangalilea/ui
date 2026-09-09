@@ -45,11 +45,6 @@ export type GlassShape = NonNullable<
   VariantProps<typeof glassVariants>["shape"]
 >
 
-/** Apply the material to an existing element. Merge overrides with cn(). */
-export function glass(shape: GlassShape = "card", tone: GlassTone = "auto") {
-  return cn(glassVariants({ shape, tone }))
-}
-
 /** Optional CSS controls; they can also be inherited from a parent or set in Tailwind. */
 export type GlassStyle = React.CSSProperties & {
   "--glass-blur"?: string
