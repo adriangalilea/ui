@@ -92,6 +92,11 @@ export function useChatAfterlife(
   const [seconds, setSeconds] = useState(0)
   const finished = seconds >= end
   useEffect(() => {
+    // A scrub back below completion rewinds the afterlife with it: the reactions and
+    // late messages land again when the story completes again.
+    if (!enabled) setSeconds(0)
+  }, [enabled])
+  useEffect(() => {
     const element = root.current
     if (!element || !enabled || frozen || finished) return
     let visible = false

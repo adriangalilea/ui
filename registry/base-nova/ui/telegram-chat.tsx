@@ -104,12 +104,6 @@ export interface ChatMessage {
   typed?: boolean
   /** A token of `text` spotlit after sending, until the next message lands. */
   emphasis?: string
-  /** The choices the `emphasis` token was picked from, shown while typing as Telegram's
-   *  inline-results popup over the composer: the text is typed up to the token, the
-   *  popup opens with every option, the story dwells on it, the chosen one lights and
-   *  fills the line, and the rest types on. Requires `typed` and `emphasis`; the
-   *  emphasis must be one of the options. */
-  options?: string[]
   /** "instant": blocks land whole instead of streaming. */
   pace?: "stream" | "instant"
   reactions?: ChatReaction[]
@@ -287,11 +281,6 @@ const BEAT = {
   typing: 90,
   react: 60,
   meta: 70,
-  /** The inline-results popup stays open this long before the pick lights: long
-   *  enough to READ three options, which is the whole point of showing them. */
-  choose: 700,
-  /** …and this long more with the pick lit, before it fills the line. */
-  pick: 250,
 } as const
 
 interface Beat {
@@ -300,13 +289,6 @@ interface Beat {
   /** Composer typing window (typed only). */
   typeStart: number
   typedEnd: number
-  /** The options popup is open (typed with `options` only): the prefix has been typed,
-   *  the story dwells, the pick lights at `pickAt`, the line fills at `chooseEnd`. */
-  chooseStart: number
-  pickAt: number
-  chooseEnd: number
-  /** How many characters the composer holds while the popup is open. */
-  prefixChars: number
   /** The bubble is on screen from here. */
   land: number
   /** Blocks complete here, cumulatively. */
@@ -330,37 +312,12 @@ function buildTimeline(script: ChatScript): Timeline {
     if (m.typing) at += BEAT.typing
     let typeStart = at
     let typedEnd = at
-    let chooseStart = at
-    let pickAt = at
-    let chooseEnd = at
-    let prefixChars = 0
     if (m.typed) {
       if (m.from !== "me")
         throw new Error('telegram-chat: only a message from "me" can be typed')
       const text = m.text ?? ""
       typeStart = at + BEAT.digest
-      if (m.options) {
-        if (!m.emphasis || !m.options.includes(m.emphasis))
-          throw new Error(
-            "telegram-chat: `options` needs an `emphasis` that is one of them",
-          )
-        const idx = text.indexOf(m.emphasis)
-        if (idx < 0)
-          throw new Error(
-            `telegram-chat: emphasis "${m.emphasis}" is not in "${text}"`,
-          )
-        // Type up to the token, open the popup, dwell, light the pick, fill the token
-        // whole (a pick is a tap, not typing), type whatever follows.
-        prefixChars = idx
-        chooseStart = typeStart + idx * BEAT.typeChar
-        pickAt = chooseStart + BEAT.choose
-        chooseEnd = pickAt + BEAT.pick
-        typedEnd =
-          chooseEnd + (text.length - idx - m.emphasis.length) * BEAT.typeChar
-      } else {
-        typedEnd = typeStart + text.length * BEAT.typeChar
-        chooseStart = pickAt = chooseEnd = typedEnd
-      }
+      typedEnd = typeStart + text.length * BEAT.typeChar
       at = typedEnd + BEAT.send
     } else {
       at += BEAT.land
@@ -382,10 +339,6 @@ function buildTimeline(script: ChatScript): Timeline {
       start,
       typeStart,
       typedEnd,
-      chooseStart,
-      pickAt,
-      chooseEnd,
-      prefixChars,
       land,
       blockEnds,
       metaAt,
@@ -492,7 +445,7 @@ function AvatarVideo({
     let visible = false
     const update = () => {
       if (motion.matches || !visible || document.hidden) video.pause()
-      else if (!video.ended) void video.play().catch(() => {})
+      else void video.play().catch(() => {})
     }
     const observer = new IntersectionObserver(([entry]) => {
       visible = !!entry?.isIntersecting
@@ -508,6 +461,8 @@ function AvatarVideo({
       document.removeEventListener("visibilitychange", update)
     }
   }, [])
+  // Telegram loops a profile video for as long as it is on screen; this is the client's
+  // behaviour, not decoration, so it is the one thing here that never stops on its own.
   return (
     <video
       ref={ref}
@@ -515,6 +470,7 @@ function AvatarVideo({
       src={src}
       poster={poster}
       muted
+      loop
       playsInline
       tabIndex={-1}
     />
@@ -734,7 +690,7 @@ export function TelegramChat({
           return beat.start / timeline.total
         })()
   // ~6ms per weighted char, no ceiling: a cap squeezed every structural beat of a long
-  // script (the options popup lasted a second under a three-summary story).
+  // script (a typed line went by in a second under a three-summary story).
   const autoDuration =
     duration ?? Math.max(4000, (1 - floor) * timeline.total * 6)
 
@@ -982,29 +938,14 @@ export function TelegramChat({
     typingIndex >= 0 ? (script.messages[typingIndex] as ChatMessage) : null
   const composingBeat =
     typingIndex >= 0 ? (timeline.beats[typingIndex] as Beat) : null
-  // Characters in the composer: typed one by one, held at the prefix while the options
-  // popup is open, the token dropped in whole at the pick, typed on after.
-  const composerChars = (() => {
-    if (!composing || !composingBeat) return 0
-    const len = (composing.text ?? "").length
-    const b = composingBeat
-    if (!composing.options || at < b.chooseStart)
-      return Math.min(Math.ceil((at - b.typeStart) / BEAT.typeChar), len)
-    if (at < b.chooseEnd) return b.prefixChars
-    const token = (composing.emphasis as string).length
-    return Math.min(
-      b.prefixChars + token + Math.ceil((at - b.chooseEnd) / BEAT.typeChar),
-      len,
-    )
-  })()
-  // The popup: open from the prefix to the fill, the pick lit for its last stretch.
-  const choosing =
-    composing?.options &&
-    composingBeat &&
-    at >= composingBeat.chooseStart &&
-    at < composingBeat.chooseEnd
-      ? { options: composing.options, picked: at >= composingBeat.pickAt }
-      : null
+  // Characters in the composer, typed one by one.
+  const composerChars =
+    composing && composingBeat
+      ? Math.min(
+          Math.ceil((at - composingBeat.typeStart) / BEAT.typeChar),
+          (composing.text ?? "").length,
+        )
+      : 0
 
   /** One message at a moment of the story: nothing before it lands, its blocks up to
    *  the clock, the partial one mid-stream. The live thread renders it at `at`; the
@@ -1153,10 +1094,8 @@ export function TelegramChat({
       }
       data-cut={scroller ? "" : undefined}
       data-settled={(completed && scrollable) || undefined}
-      // A line is being typed / the options popup is open: a page may zoom the device
-      // onto its composer for the beat.
+      // A line is being typed: a page may zoom the device onto its composer for the beat.
       data-typing={composing && composerChars > 0 ? "" : undefined}
-      data-choosing={choosing ? "" : undefined}
       aria-label={script.alt}
     >
       {/* The viewport: what the reader sees of the device. Cut to an aspect, it is a
@@ -1331,29 +1270,6 @@ export function TelegramChat({
                 })}
             </div>
           </div>
-          {/* Telegram's inline-results popup: what the client shows over the composer
-                once you have typed `@bot `. Here it carries the choices the emphasis
-                token was picked from; the pick lights before it fills the line. */}
-          {composer && choosing && (
-            // Story chrome like the rest of the mockup (the figure's alt tells the
-            // story), not a control: nothing here is for choosing.
-            <TelegramGlass
-              tone={glassTone}
-              className="tgchat-options absolute"
-              aria-hidden="true"
-            >
-              {choosing.options.map((o) => (
-                <div
-                  key={o}
-                  data-pick={
-                    (choosing.picked && o === composing?.emphasis) || undefined
-                  }
-                >
-                  {o}
-                </div>
-              ))}
-            </TelegramGlass>
-          )}
           {composer && composing?.reply && composerChars > 0 && (
             <TelegramGlass
               tone={glassTone}

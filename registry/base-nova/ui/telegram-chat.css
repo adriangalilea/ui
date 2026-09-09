@@ -774,58 +774,6 @@
 
   /* The reply bar Telegram shows above the composer while you answer a message:
    arrow, "Reply to <who>", one truncated line of what is quoted. */
-  /* Telegram's inline-results popup, over the composer: a sheet of rows, the client's
-   own list once `@bot ` is typed. The picked row lights in the accent before the line
-   fills, so the choice is seen being made. */
-  .tgchat-options {
-    position: absolute;
-    z-index: 3;
-    right: 3.4cqw;
-    bottom: calc(var(--tg-composer-h) + var(--tg-control-bottom) + 2cqw);
-    left: 3.4cqw;
-    overflow: hidden;
-    border-radius: 3cqw;
-    animation: tgchat-bubble-in 250ms var(--tg-ease) both;
-  }
-  /* Rows, not buttons: text with a quiet leading mark, the way a results list reads.
-   The pick is told by weight and a soft wash of the text colour, never the accent. */
-  .tgchat-options div {
-    display: flex;
-    align-items: center;
-    gap: 2.4cqw;
-    padding: 2.6cqw 4cqw;
-    border-top: 1px solid var(--tg-border);
-    color: var(--tg-text);
-    font-size: 3.8cqw;
-    transition:
-      background 400ms var(--tg-ease),
-      color 400ms var(--tg-ease);
-  }
-  .tgchat-options div::before {
-    content: "";
-    width: 1.6cqw;
-    height: 1.6cqw;
-    flex: none;
-    border-radius: 50%;
-    background: var(--tg-muted);
-    opacity: 0.6;
-    transition: background 400ms var(--tg-ease);
-  }
-  .tgchat-options div:first-child {
-    border-top: 0;
-  }
-  .tgchat-options div[data-pick] {
-    background: color-mix(in srgb, var(--tg-text) 10%, transparent);
-    font-weight: 600;
-  }
-  .tgchat-options div[data-pick]::before {
-    background: var(--tg-text);
-    opacity: 1;
-  }
-  /* With a reply pending too, the popup sits above the reply bar. */
-  .tgchat-options:has(+ .tgchat-replybar) {
-    bottom: calc(var(--tg-composer-h) + var(--tg-control-bottom) + 14cqw);
-  }
   .tgchat-replybar {
     position: absolute;
     z-index: 3;
