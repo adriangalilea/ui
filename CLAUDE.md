@@ -500,6 +500,28 @@ so a single bubble shown alone (the three ways of asking on the xtldr card) is n
 the message it claims to be. One rule for all bubbles, then the meta row that the
 summary already carries joins it instead of being its own footer.
 
+### editor: video in the document
+
+The editor's slot is an image. The gate is the file's type, so a GIF is in (Wordgard
+inserts it as an image, the browser plays it, the upload keeps the original bytes as
+an `animation`) and a video is refused before a byte moves. Small videos need three
+things that do not exist, and they come together or not at all:
+
+- A video node in Wordgard: the schema ships an image node and an uploader that
+  returns a URI for a picture. A video is a new node, its toolbar affordance, HTML in
+  and out.
+- A wire form. The garden's bodies are markdown; `![]()` cannot carry a video, and the
+  renderer paints CDN images only. The same rule that drops a foreign image has to
+  learn the new form.
+- Preparation with FFmpeg somewhere that has it. Vercel functions do not, which is why
+  the upload route never passes `video` to `prepare-media`. A poster, dimensions and
+  the boomerang come from a worker or the Mac server, after the original is up.
+
+Shape when it is wanted: accept `video/*` at the gate under a small byte cap, upload
+the original, prepare out of band, insert the node when the asset comes back prepared.
+The same path gives a GIF its finite play-once or boomerang, since that turns it into a
+video asset too.
+
 ### twitter / x
 
 A post as a component, the way `telegram-chat` is a chat: author, handle, verified
