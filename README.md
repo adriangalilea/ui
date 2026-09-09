@@ -32,24 +32,8 @@ Git diff and run your application's checks.
 The installer can change import ordering; apply your normal formatter before
 judging whether an apparent difference is a component change.
 
-| item | what |
-|---|---|
-| `image` | proportional or cropped images, matched blur previews, and optional native GIF hover covers |
-| `video` | native player or poster-first hover/focus preview, with touch and reduced-motion behavior |
-| `media-asset` | validated asset metadata shared between preparation, upload and rendering |
-| `prepare-media` | Node preparation and a CLI; original images, measured dimensions, previews, posters and opt-in FFmpeg video |
-| `upload` | application-owned upload transport and UI state: progress, preparation, cancel and retry |
-| `editor` | Wordgard rich text with HTML in/out and an injected media uploader |
-| `tokens` | the studio's voice over shadcn's neutral theme: type voices, tones, the alpha ladder, motion |
-| `scroll-stage` | the pinned stage: a tall track, a sticky stage, `--stage-p` from a CSS scroll-driven animation, acts as checkpoints |
-| `reveal` | content that arrives as it enters the viewport |
-| `scrims` | viewport fogs, scroll-linked or static inside a positioned container |
-| `liquid-glass` | translucent surfaces with typed shapes, tones, native elements, and Tailwind overrides |
-| `terminal-session` | the terminal-session script: parse, palette, timeline, SVG still |
-| `terminal` | a phosphor terminal playing a session live |
-| `telegram-chat` | a Telegram chat on an iPhone as a pure function of `{messages, progress}` |
-| `telegram-summary` | a link-summary bot's conversation on top of `telegram-chat` |
-| `lightbox` | one interruptible spring over a view: the image leaves the page under its chrome, gestures, every key in a table, deep links; `lightbox-motion` (the math) and `lightbox-actions` (the key table) beneath it |
+The [component index](https://ui.adriangalilea.com) is the list of items, derived
+from `registry.json` at build time; this README keeps no copy of it.
 
 Base UI + Tailwind 4 + Next 16. MIT.
 
