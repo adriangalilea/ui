@@ -307,7 +307,7 @@
       "name": "web-preview-unfurl",
       "type": "registry:lib",
       "title": "web-preview-unfurl",
-      "description": "the six facts of a link (url, site, title, description, image, icon) and the one fetch that readsthem from a page; framework-free, run once at authoring time and shipped as data",
+      "description": "the six facts of a link (url, site, title, description, image, icon) and the one fetch that reads them from a page; framework-free, run once at authoring time and shipped as data",
       "files": [
         {
           "path": "registry/base-nova/lib/web-preview-unfurl.ts",
@@ -319,7 +319,7 @@
       "name": "web-preview",
       "type": "registry:ui",
       "title": "web-preview",
-      "description": "a link's unfurl as a card, a pure function of its six facts, in three styles: ours (image atits aspect, title at reading size, domain as metadata), telegram's tinted card with the rule, x's large-image card",
+      "description": "a link's unfurl as a card, a pure function of its six facts, in three styles: ours (image at its aspect, title at reading size, domain as metadata), telegram's tinted card with the rule, x's large-image card",
       "registryDependencies": ["@ag/web-preview-unfurl"],
       "files": [
         {

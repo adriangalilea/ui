@@ -118,13 +118,10 @@ export async function unfurl(url: string): Promise<Unfurl> {
   })
   if (!res.ok) throw new Error(`unfurl ${href}: HTTP ${res.status}`)
   const html = (await res.text()).slice(0, 512 * 1024)
+  const tag = /<title[^>]*>([^<]*)<\/title>/i.exec(html)?.[1]
   const title =
     meta(html, ["og:title", "twitter:title"]) ??
-    (/<title[^>]*>([^<]*)<\/title>/i.exec(html)?.[1]
-      ? decode(
-          (/<title[^>]*>([^<]*)<\/title>/i.exec(html) as string[])[1] as string,
-        ).trim()
-      : undefined)
+    (tag ? decode(tag).trim() : undefined)
   if (!title) throw new Error(`unfurl ${href}: the page has no title`)
   const image = meta(html, ["og:image", "og:image:url", "twitter:image"])
   return {

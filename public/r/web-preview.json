@@ -2,7 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "web-preview",
   "title": "web-preview",
-  "description": "a link's unfurl as a card, a pure function of its six facts, in three styles: ours (image atits aspect, title at reading size, domain as metadata), telegram's tinted card with the rule, x's large-image card",
+  "description": "a link's unfurl as a card, a pure function of its six facts, in three styles: ours (image at its aspect, title at reading size, domain as metadata), telegram's tinted card with the rule, x's large-image card",
   "registryDependencies": [
     "@ag/web-preview-unfurl"
   ],
