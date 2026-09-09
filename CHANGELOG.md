@@ -7,6 +7,9 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 ### image
 
+- Standalone `AnimatedImage` previews receive keyboard focus without requiring an
+  overlay control.
+
 - Added a Next.js image component with reserved dimensions, prepared blur previews,
   and a short reveal after decoding. It supports self-hosted Next optimization,
   custom loaders, reduced motion, and rendering without JavaScript. `className`
@@ -22,6 +25,9 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 ### video
 
+- Forwards its native video element ref. `sizes` describes responsive poster width
+  instead of assuming every video occupies an 800px column.
+
 - Added native playback and silent cover previews with posters, explicit pause,
   visibility handling and race-safe hover changes. `playOn="visible"` supports
   article covers; normal players retain browser controls, sound and caption tracks.
@@ -34,6 +40,11 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 ### media-asset
 
 - Added a storage-independent metadata contract and response validator.
+
+### liquid-glass
+
+- Removed the unused `glass(shape, tone)` alias. Use
+  `glassVariants({ shape, tone })` when applying glass styles without `Glass`.
 
 ### prepare-media
 
@@ -50,6 +61,9 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
   cancellation, retries, progress, preparation status and local preview cleanup.
 
 ### editor
+
+- Toolbar uploads share paste/drop pending-upload protection, retry and
+  cancellation. Publishing cannot race a newly started upload.
 
 - Added a Wordgard editor with scoped styles, HTML in/out and an injected uploader.
   Paste/drop uploads follow document edits, preserve batch order, offer retry/cancel,
@@ -70,6 +84,8 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
   commands. Update instructions and previews are available on every component page.
 
 ### telegram-chat
+
+- Playback responds when reduced-motion preferences change while mounted.
 
 - Fixed resize-observer feedback during focus fitting. Viewport scroll animations
   now stop when the chat unmounts, and autoplay pauses while the browser tab is hidden.

@@ -53,71 +53,24 @@ judging whether an apparent difference is a component change.
 
 Base UI + Tailwind 4 + Next 16. MIT.
 
-### Glass
+## Examples and composition
 
-```tsx
-import { Glass } from "@/components/ui/liquid-glass"
+Each component page shows runnable examples and the exact source that rendered
+them. Use those examples for props and composition; the README does not maintain
+a second copy. Start with [glass](https://ui.adriangalilea.com/liquid-glass),
+[Telegram stories](https://ui.adriangalilea.com/telegram-chat), or the
+[component index](https://ui.adriangalilea.com).
 
-<Glass as="button" shape="pill" tone="dark" onClick={openPanel}>
-  Open panel
-</Glass>
+## Media pipeline
 
-<Glass
-  tone="light"
-  className="max-w-sm rounded-2xl p-6"
-  style={{ "--glass-blur": "8px" }}
->
-  Panel content
-</Glass>
-```
+[Preparation](https://ui.adriangalilea.com/prepare-media) runs in Node or a CLI and
+returns files plus [asset metadata](https://ui.adriangalilea.com/media-asset).
+Your application writes the files to its own storage before publishing the metadata.
+[Upload](https://ui.adriangalilea.com/upload) supplies transport and progress state;
+[Editor](https://ui.adriangalilea.com/editor) accepts that same uploader.
 
-`as` accepts native elements or a component that forwards `className` and `ref`.
-Native props and refs pass through; buttons default to `type="button"`.
-Shapes are `circle`, `pill`, `bar`, `card`, and `surface` (material with no sizing).
-Tones are `auto` (the page theme), `light`, and `dark`.
-`--glass-blur` and `--glass-tint` can be inherited, set with Tailwind, or passed
-through the typed `style` prop. `glassVariants({ shape, tone })` and `glass()`
-provide the classes for existing elements; merge overrides with `cn()`.
-
-The `/liquid-glass` showcase uses the lightbox demo's photograph IDs, served locally.
-It glides horizontally between photos, snaps during manual navigation, and pauses
-offscreen. Reduced-motion users start with a still gallery.
-
-## Telegram storyboard
-
-```tsx
-import { TelegramChat, type ChatScript } from "@/components/ui/telegram-chat"
-
-const adrian = { name: "Adrian", handle: "@adriangalilea" }
-const script = {
-  kind: "peer",
-  chatName: adrian,
-  chatTag: "online",
-  alt: "Adrian and me planning a keyboard meetup.",
-  messages: [
-    { from: adrian, text: "Come over and try it." },
-    { from: adrian, text: "Bring your old keyboard too." },
-    { from: "me", text: "Saturday?" },
-  ],
-} satisfies ChatScript
-
-<TelegramChat script={script} theme="page" />
-```
-
-Reuse a profile object, or put profiles in `script.people` and use their keys.
-`"me"` means outgoing. Consecutive messages from the same account use half the
-normal gap; only the last visible message gets a tail. Display names alone do not
-merge different profiles.
-
-Omit `progress` for autoplay when visible; use `progress={1}` for a finished still,
-or pass a value from 0 to 1 to scrub. `frame="none"` presents the conversation
-without a phone. This is a storyboard, not a messaging client: header and composer
-chrome are decorative; links, scrolling, and reactions are interactive.
-Autoplay runs at its configured pace and pauses offscreen. For scroll-linked
-playback, let a scroll timeline own `progress`; decreasing it reverses the story.
-
-`theme` accepts `page`, `light`, or `dark`. The `wallpaper` prop is a doodle **mask
-URL**, not a photograph. Tailwind classes on the root can override inherited CSS
-variables, for example `className="[--tg-message-gap:4cqw]"`. The grouped gap stays
-half that value. Light mode uses a colored wallpaper beneath translucent controls;
-`--tg-wallpaper` controls that CSS background and `--tg-screen` its scrim tint.
+[Image](https://ui.adriangalilea.com/image) uses Next.js optimization on any Next
+host, or your own loader. [Video](https://ui.adriangalilea.com/video) presents native
+players and cover previews. GIFs stay intact unless you explicitly request a
+boomerang rendition; GIF and video boomerangs both produce a video asset. FFmpeg
+preparation belongs in a Node worker or CLI, not an edge request.
