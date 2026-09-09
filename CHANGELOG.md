@@ -9,12 +9,21 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 - Breaking: the `prepare-media-cli.ts` file is no longer part of the item; call
   `prepareMedia` from your own script. `tsx` leaves the item's dependencies with it.
+- Breaking: `playback` takes only `"boomerang"`. `"forward"` named the default and
+  chose nothing; leave the option unset for a video prepared as it plays.
 
 ### telegram-chat
 
 - Breaking: the `options` message field and the inline-results popup it drew are
   removed. A choice is shown as sent messages, one per form, the way the language
   gallery does; remove `options` from scripts when updating.
+- `frame="none"` no longer carries reset rules for phone chrome. A bare frame draws
+  no shell, so there was nothing for them to undo.
+- Removed, nothing read them: the `--tg-phone`, `--tg-phone-band`,
+  `--tg-phone-chamfer`, `--tg-phone-button`, `--tg-lift`, `--tg-island` and
+  `--tg-border` custom properties. `device-frame` draws the phone and owns those
+  colours. `--tg-message-gap` is internal now: the gap between messages is the
+  client's geometry, not a knob.
 - A story scrubbed back below completion rewinds its afterlife with it: reactions
   and late messages land again when it completes again.
 - A profile video loops while on screen, as the client does; it had stopped after
@@ -25,6 +34,8 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 - Once mounted, only the live layout stays mounted: the pinned stage below `lg` or
   under reduced motion, the `stacked` alternative above it, is unmounted instead of
   hidden, so a hidden stage's phones, observers and timers no longer run.
+- Removed, nothing set it: the `--stage-align` custom property. A pinned stage
+  centres its scene.
 
 ### card-gallery
 
@@ -35,6 +46,12 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 - The lightbox trigger carries its anchor-content lint exemption in the source, so
   a consumer's copy no longer diverges to add it.
+
+### editor
+
+- Breaking: the `upload` prop is read once, at mount, alongside the document and the
+  schema. Changing it on a mounted editor no longer takes effect; give the editor a
+  new `key` to remount it with a different uploader.
 
 ### Installation and updates
 
