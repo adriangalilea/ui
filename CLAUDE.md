@@ -470,67 +470,35 @@ Left on the item:
 1. The garden's feature stills, videoclub. (adriangalilea.com is fully on it: figures, covers, card expand buttons and avatars, its own copy retired.)
 2. `scrollspy` (scroll-intent stand-down), `page-exit` / `page-enter` (the faked cross-origin morph: exit animation, Speculation Rules prerender with `Supports-Loading-Mode: credentialed-prerender` on the subdomain, entrance), `keymap` + `cursor-list` / `cursor-grid` (swift-utils Keymap; the lightbox's action table is the first client).
 3. `charts` + `chart-frame` (adriangalilea.com's wrappers are the taste anchor), `particle-charts` as the opt-in playful voice, `narrated` (Sonoscript: real times only, click to seek, opt-in follow).
-4. A frameless `telegram`, `checklist`, `kanban`, `code-scrolly`.
-5. The garden landing (a static grid under a fog that promises content), then later: cover-image with blur and grain, `magic-input`, the media-library kit for videoclub and lore.
+4. `checklist`, `kanban`, `code-scrolly`. Frameless Telegram is already a `telegram-chat` mode.
+5. `magic-input`, the media-library kit for videoclub and lore. Garden's landing
+   composition and the shared image/video preparation and cover primitives are shipped.
 
 ### telegram: the phone is a mode
 
-`telegram-chat` has four orthogonal knobs on one script (`/telegram-chat`, sections
-02-06). `until` is the autoplay's CEILING (play to the end of message k and wait; raise
-it and it resumes): a storyboard paces the chat with it, one act at a time, because a
-chat that played whole in act one left acts two and three pointing back at messages
-already watched. **An act's story is "message k lands now"**: everything before k is
-context and lands whole (`lift`, the start of k's beat), so a reader who skips two acts
-or reloads mid-scrolly gets the act's own beat, never a blurred replay at normal speed;
-the focus blur waits for the focused message to exist. **People** (`ChatProfile`, `Who`): define a person or a bot once and use the PROFILE
-ITSELF wherever a chat names someone, `from: ADRIAN` in a group, `chatName: ADRIAN` for a
-private chat with him, the afterlife; label, mini avatar, header, handle all come from
-the one definition (a bot's handle is its default sub-line). A script may instead carry
-a `people` map and name them by key. **The cut waits for its target**: a phone cropped to
-a message that has not landed showed the bottom of a thread with nothing to show, so the
-viewport closes down only once the focused message exists; frameless is always cut
-because there the viewport is the container. **And the scroll target stays PENDING until
-the box can reach it**: the height transitions, so in the frame a crop turns on the
-viewport is still full height, a scroll has nowhere to go and is clamped to 0, and a
-remembered "already there" left the thread pinned at its top under a closing curtain
-(the blurred header region in a crop after scrolling up and down). Every resize tick
-re-aims while the box is too tall for the target. `debug` (`?debug` on the demo) prints
-the cut's numbers under the chat, story position through scroll asked and got, for
-sign-off by hand. In `scroll-stage`, JS and CSS now share
-ONE rule for which act is on (past i/acts of the TRAVEL, `--stage-p`'s number): counting
-paces in JS while the CSS counted travel lit an act's words before the stage switched
-whenever a tail lengthened the track; and the first act is on from the top of the
-track. **Reactions are
-buttons**: press one and you count, drawn as the client draws your own; the emoji are
-Noto Animated Emoji as animated WebP (Google, Apache 2.0, no player, lazy, 150-300 KB
-each, so reactions only; Telegram's set is TGS behind its API and its own IP), text
-glyph when the set lacks one. **Nothing happens on hover**: Telegram messages do not,
-and a bubble that moved under the pointer read as a control. Then `frame="none"` (bubbles on a bare canvas at the container's width; NO header, a
-bare canvas has no chrome and a title pinned over floating bubbles, tried sticky on the
-page's colour, was the phone's composition forced onto it; the typing status is a line
-in the thread; the composer shows only while typing), `focus` (indices that lift, the rest blur and
-return on hover, the code item's rule; a phone thread centres the focused message) and
-`crop` (a viewport of a given aspect: the device keeps its FULL WIDTH and is cut in
-height only, scrolled to the focused message or to the latest; the message's place is
-MEASURED in layout coordinates with the thread's scroll subtracted). The cut is a REAL
-SCROLLER, not a transform: the reader scrolls it once the story settles, the phone
-thread's own rule, and the scroll is smooth so a landing message slides the thread up
-and a scrolly glides between messages. Its height is set in px so a change of crop
-transitions, which is what lets the effects chain (whole phone → one message lifted →
-the viewport cut down onto it). The edge scrims are scroll-driven in CSS on two
-registered numbers, so a scrim exists only where something is hidden: at the bottom of
-the thread the last message is never blurred by a band with nothing to hide, and a
-browser without scroll timelines gets a clean cut rather than a wrong scrim. Frameless
-crops to `FRAMELESS_CROP` by default, because a canvas that grew as messages landed
-reflowed the page under the reader. **Judged on the demo:** scaling the device into a bubble
-cut the width and lost the phone; an unscaled phone panned vertically is what still
-reads as Telegram, so there is no scale knob. Bare canvas for copy that must be read,
-the cut phone for copy that must still look like a phone.
+The public API and runnable compositions live on `/telegram-chat`; maintain those
+examples instead of a second API guide here.
 
-Left: **Telegram Desktop's layout** (wider column, different bubble geometry, a
-sidebar), deferred. **The styling pattern**: this item's 880-line `.css` predates the
-utilities rule; the modes were added in it rather than half-converting mid-feature.
-The conversion is the next touch on the item, on its own.
+Ownership is split across `telegram-chat-playback.tsx` (visible-time clocks),
+`telegram-chat-layout.tsx` (measurement and framing), and `telegram-chat-scroll.ts`
+(scroll targeting). `telegram-chat.tsx` composes them and renders the conversation.
+Framing must preserve the focused messages and composer, shrinking the device when
+needed rather than eagerly clipping its bottom. Measurements use layout coordinates;
+transformed screen coordinates must not feed back into device sizing.
+
+Keep these invariants when changing the implementation: focus waits for its target;
+unseen context lands whole; hidden stories pause; completed stories stay complete;
+pending scroll targets are retried as the viewport resizes. Browser checks exercise
+these behaviors alongside the pure framing and scroll examples.
+
+Telegram Desktop remains deferred. The component's scoped CSS expresses the chat
+geometry; moving it into utilities alone is not a reason to rewrite it.
+
+Left: the time and the ticks at the foot of every bubble. The client draws `18:51 ✓✓`
+inside each sent bubble and the time inside each received one; the mock draws neither,
+so a single bubble shown alone (the three ways of asking on the xtldr card) is not yet
+the message it claims to be. One rule for all bubbles, then the meta row that the
+summary already carries joins it instead of being its own footer.
 
 ### twitter / x
 
