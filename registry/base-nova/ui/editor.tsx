@@ -47,14 +47,9 @@ export function Editor({
           placeholder,
           label,
           images,
-          upload: callbacks.current.upload
-            ? (file, options) => {
-                const handler = callbacks.current.upload
-                if (!handler)
-                  return Promise.reject(new Error("No uploader configured"))
-                return handler(file, options)
-              }
-            : undefined,
+          // Read once, like the document and the schema: whether the editor offers
+          // images at all is a mount-time decision.
+          upload: callbacks.current.upload,
           onChange: (html) => callbacks.current.onChange?.(html),
           onJobs: (next) => {
             pendingJobs.current = next

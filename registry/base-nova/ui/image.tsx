@@ -10,14 +10,23 @@ export type ImageProps = Omit<NextImageProps, "placeholder"> & {
   ref?: Ref<HTMLImageElement>
 }
 
+/** What a static import carries with it: dimensions and a blur, for free. `null` for a
+ *  URL string, which carries nothing. */
+const staticOf = (src: ImageProps["src"]) =>
+  typeof src === "object" ? ("default" in src ? src.default : src) : null
+
 /** Next.js optimization on any Next host. Supply dimensions (or a sized parent
  * with fill); remote/public assets can supply a prepared blurDataURL. Static
  * imports provide dimensions and a blur automatically. No fetch for a placeholder. */
 export function Image({ src, ...props }: ImageProps) {
-  const data =
-    typeof src === "object" ? ("default" in src ? src.default : src) : null
   // A new source owns a new load lifecycle, including when the old request finishes late.
-  return <ImageResource key={data?.src ?? String(src)} src={src} {...props} />
+  return (
+    <ImageResource
+      key={staticOf(src)?.src ?? String(src)}
+      src={src}
+      {...props}
+    />
+  )
 }
 
 function ImageResource({
@@ -35,8 +44,7 @@ function ImageResource({
   ...props
 }: ImageProps) {
   const [state, setState] = useState<"loading" | "ready" | "error">("loading")
-  const data =
-    typeof src === "object" ? ("default" in src ? src.default : src) : null
+  const data = staticOf(src)
   const w = width ?? data?.width
   const h = height ?? data?.height
   const blur = blurDataURL ?? data?.blurDataURL

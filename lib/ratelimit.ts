@@ -6,7 +6,9 @@
 const windows = new Map<string, number[]>()
 const WINDOW_MS = 60_000
 
-/** True when this address may make one more write in the current minute. */
+/** True when this address may make one more write in the current minute. Production
+ *  always carries `x-forwarded-for`; `"unknown"` is the local dev server, where every
+ *  request shares one bucket, which is the right answer for one machine. */
 export function allowWrite(request: Request, perMinute: number): boolean {
   const address =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||

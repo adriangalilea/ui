@@ -28,8 +28,9 @@ export type PrepareOptions = {
   /** A chosen video poster time, clamped to the clip duration. */
   posterTime?: number
   /** Prepare a silent forward/reverse video from a GIF or video up to 10 seconds.
-   * Explicitly enables FFmpeg processing; ordinary images remain untouched. */
-  playback?: "forward" | "boomerang"
+   * Explicitly enables FFmpeg processing; ordinary images remain untouched. Left
+   * unset, a video is prepared as it plays. */
+  playback?: "boomerang"
   signal?: AbortSignal
 }
 

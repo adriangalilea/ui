@@ -296,7 +296,6 @@ try {
           "Timeline must not steal unrelated wheel input",
         )
         assert.deepEqual(errors, [])
-        await page.emulateMedia({ reducedMotion: "no-preference" })
         await page.locator("#start-playback").click()
         await page.evaluate(() => {
           Object.defineProperty(document, "hidden", {
