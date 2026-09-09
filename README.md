@@ -8,8 +8,12 @@ Adrian Galilea's web components, as a [shadcn registry](https://ui.shadcn.com/do
 ```
 
 ```bash
-npx shadcn add @ag/scroll-stage
+npx shadcn add @ag/tokens @ag/scroll-stage
 ```
+
+`@ag/tokens` is the studio's theme over shadcn's neutral one, installed once and
+imported from your globals.css; items that draw with those tokens (`code`, `reveal`,
+`quote`, `lightbox`) pull it in themselves, the rest render on shadcn's own variables.
 
 Browse the components and their live examples at [ui.adriangalilea.com](https://ui.adriangalilea.com).
 

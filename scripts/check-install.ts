@@ -149,6 +149,7 @@ try {
           "exec",
           "shadcn",
           "add",
+          "@ag/tokens",
           "@ag/telegram-chat",
           "@ag/code",
           "@ag/image",
@@ -207,7 +208,7 @@ try {
       "bun",
       [
         "scripts/add.ts",
-        "telegram-chat,code,image,video,editor,prepare-media",
+        "tokens,telegram-chat,code,image,video,editor,prepare-media",
         app,
         "--dry-run",
       ],
@@ -223,7 +224,7 @@ try {
       "bun",
       [
         "scripts/add.ts",
-        "telegram-chat,code,image,video,editor,prepare-media",
+        "tokens,telegram-chat,code,image,video,editor,prepare-media",
         app,
         "--overwrite",
       ],

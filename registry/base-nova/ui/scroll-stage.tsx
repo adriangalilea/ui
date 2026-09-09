@@ -83,6 +83,12 @@ export function ScrollStage({
   const paceEl = React.useRef<HTMLDivElement>(null)
   const [active, setActive] = React.useState(0)
   const [engine, setEngine] = React.useState<"css" | "js">("css")
+  // The server cannot know the viewport, so it renders the stage AND the stacked
+  // alternative and CSS shows one. Once mounted, only the live one stays mounted: a
+  // hidden stage's phones, observers and timers cost as much as the visible one's.
+  const [layout, setLayout] = React.useState<"both" | "pinned" | "stacked">(
+    "both",
+  )
   const onActRef = React.useRef(onAct)
   onActRef.current = onAct
 
@@ -144,11 +150,15 @@ export function ScrollStage({
     })
     io.observe(el)
     pinned.addEventListener("change", queue)
+    const settle = () => setLayout(pinned.matches ? "pinned" : "stacked")
+    pinned.addEventListener("change", settle)
+    settle()
     sample()
     return () => {
       io.disconnect()
       listen(false)
       pinned.removeEventListener("change", queue)
+      pinned.removeEventListener("change", settle)
       cancelAnimationFrame(frame)
     }
   }, [acts, pinnedQuery])
@@ -194,8 +204,10 @@ export function ScrollStage({
           ...rest,
         },
         <div ref={paceEl} className="ag-stage-pace" aria-hidden />,
-        <div className="ag-stage">{children}</div>,
-        stacked !== undefined && (
+        (stacked === undefined || layout !== "stacked") && (
+          <div className="ag-stage">{children}</div>
+        ),
+        stacked !== undefined && layout !== "pinned" && (
           <div className="ag-stage-stacked">{stacked}</div>
         ),
       )}

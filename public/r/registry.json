@@ -131,7 +131,7 @@
       "title": "theme-toggle",
       "description": "light, dark and follow-the-system as one radio group; provider-agnostic, so it takes a value and a setter rather than owning the theme",
       "dependencies": ["lucide-react"],
-      "registryDependencies": ["@ag/tokens", "@ag/preview-picker"],
+      "registryDependencies": ["@ag/preview-picker"],
       "files": [
         {
           "path": "registry/base-nova/ui/theme-toggle.tsx",
@@ -167,7 +167,7 @@
       "title": "copy",
       "description": "copy to the clipboard, confirmed in place and never with a toast; a button, or the hook behind any control you like",
       "dependencies": ["lucide-react"],
-      "registryDependencies": ["@ag/tokens"],
+      "registryDependencies": [],
       "files": [
         {
           "path": "registry/base-nova/ui/copy.tsx",
@@ -180,7 +180,7 @@
       "type": "registry:ui",
       "title": "scroll-stage",
       "description": "the pinned stage: a tall track, a sticky stage, --stage-p driven by CSS scroll-driven animation, acts as checkpoints",
-      "registryDependencies": ["@ag/tokens"],
+      "registryDependencies": [],
       "files": [
         {
           "path": "registry/base-nova/ui/scroll-stage.tsx",
@@ -201,7 +201,7 @@
       "type": "registry:ui",
       "title": "reveal",
       "description": "content that arrives as it enters the viewport, once or scroll-tied, with optional stagger",
-      "registryDependencies": ["@ag/tokens"],
+      "registryDependencies": [],
       "files": [
         {
           "path": "registry/base-nova/ui/reveal.tsx",
@@ -218,7 +218,7 @@
       "type": "registry:ui",
       "title": "scrims",
       "description": "viewport fogs at top and bottom, scroll-linked, never transitioned",
-      "registryDependencies": ["@ag/tokens"],
+      "registryDependencies": [],
       "files": [
         {
           "path": "registry/base-nova/ui/scrims.tsx",
@@ -249,7 +249,7 @@
       "type": "registry:ui",
       "title": "avatar",
       "description": "a person's face, the same object everywhere it appears: one round crop on the studio's rungs, positioned on the subject from the portrait's sidecar, ringed in the picture's own colour, and opening the full portrait alone in a lightbox of its own when it is worth a look",
-      "registryDependencies": ["@ag/tokens", "@ag/lightbox"],
+      "registryDependencies": ["@ag/lightbox"],
       "files": [
         {
           "path": "registry/base-nova/ui/avatar.tsx",
@@ -287,7 +287,7 @@
       "type": "registry:ui",
       "title": "terminal",
       "description": "a phosphor terminal that plays a session script live; the still renderer in terminal-session draws the same frame",
-      "registryDependencies": ["@ag/tokens", "@ag/terminal-session"],
+      "registryDependencies": ["@ag/terminal-session"],
       "files": [
         {
           "path": "registry/base-nova/ui/terminal.tsx",
@@ -324,7 +324,7 @@
       "type": "registry:ui",
       "title": "web-preview",
       "description": "a link's unfurl as a card, a pure function of its five facts, in three styles: ours (image at its aspect, title at reading size, domain as metadata), telegram's tinted card with the rule, x's large-image card",
-      "registryDependencies": ["@ag/tokens", "@ag/web-preview-unfurl"],
+      "registryDependencies": ["@ag/web-preview-unfurl"],
       "files": [
         {
           "path": "registry/base-nova/ui/web-preview.tsx",
@@ -337,7 +337,7 @@
       "type": "registry:ui",
       "title": "device-frame",
       "description": "Responsive iPhone, MacBook and Studio Display hardware frames for any app content.",
-      "registryDependencies": ["@ag/tokens"],
+      "registryDependencies": [],
       "files": [
         {
           "path": "registry/base-nova/ui/device-frame.tsx",
@@ -356,7 +356,6 @@
       "description": "a Telegram chat as a pure function of {messages, progress}: peer, bot and group shapes, people defined once, streaming bodies, pressable reactions with animated emoji, afterlife. on an iPhone, or frameless at the container's width; focus lifts a message and blurs the rest; crop cuts the phone to a viewport, for a scrolly",
       "dependencies": ["lucide-react"],
       "registryDependencies": [
-        "@ag/tokens",
         "@ag/web-preview",
         "@ag/device-frame",
         "@ag/liquid-glass",

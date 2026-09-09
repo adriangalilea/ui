@@ -3,9 +3,7 @@
   "name": "scrims",
   "title": "scrims",
   "description": "viewport fogs at top and bottom, scroll-linked, never transitioned",
-  "registryDependencies": [
-    "@ag/tokens"
-  ],
+  "registryDependencies": [],
   "files": [
     {
       "path": "registry/base-nova/ui/scrims.tsx",

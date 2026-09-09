@@ -4,7 +4,6 @@
   "title": "terminal",
   "description": "a phosphor terminal that plays a session script live; the still renderer in terminal-session draws the same frame",
   "registryDependencies": [
-    "@ag/tokens",
     "@ag/terminal-session"
   ],
   "files": [

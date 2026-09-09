@@ -4,12 +4,12 @@ import {
   renderMetricComparison,
   renderMetrics,
 } from "@adriangalilea/utils/metrics/cli"
+import { libsqlDriver } from "@adriangalilea/utils/metrics/libsql"
 import {
   compareMetrics,
   metricWindows,
   summarizeMetrics,
 } from "@adriangalilea/utils/metrics/report"
-import { libsqlDriver } from "@adriangalilea/utils/metrics/libsql"
 import { readMetrics } from "@adriangalilea/utils/metrics/sqlite"
 import { createClient } from "@libsql/client"
 

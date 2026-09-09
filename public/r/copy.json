@@ -6,9 +6,7 @@
   "dependencies": [
     "lucide-react"
   ],
-  "registryDependencies": [
-    "@ag/tokens"
-  ],
+  "registryDependencies": [],
   "files": [
     {
       "path": "registry/base-nova/ui/copy.tsx",

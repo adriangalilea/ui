@@ -3,9 +3,7 @@
   "name": "device-frame",
   "title": "device-frame",
   "description": "Responsive iPhone, MacBook and Studio Display hardware frames for any app content.",
-  "registryDependencies": [
-    "@ag/tokens"
-  ],
+  "registryDependencies": [],
   "files": [
     {
       "path": "registry/base-nova/ui/device-frame.tsx",

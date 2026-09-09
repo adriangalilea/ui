@@ -3,6 +3,46 @@
 Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 --dry-run` or `--diff`; use `--overwrite` only when replacing your installed copy.
 
+## 2026-09-09
+
+### telegram-chat
+
+- Breaking: the `options` message field and the inline-results popup it drew are
+  removed. A choice is shown as sent messages, one per form, the way the language
+  gallery does; remove `options` from scripts when updating.
+- A story scrubbed back below completion rewinds its afterlife with it: reactions
+  and late messages land again when it completes again.
+- A profile video loops while on screen, as the client does; it had stopped after
+  one play.
+
+### scroll-stage
+
+- Once mounted, only the live layout stays mounted: the pinned stage below `lg` or
+  under reduced motion, the `stacked` alternative above it, is unmounted instead of
+  hidden, so a hidden stage's phones, observers and timers no longer run.
+
+### card-gallery
+
+- The bleed fade is as wide as the reserved rail, capped at 2rem, so a rail that
+  resolves to zero (a custom property below its breakpoint) fades nothing.
+
+### avatar
+
+- The lightbox trigger carries its anchor-content lint exemption in the source, so
+  a consumer's copy no longer diverges to add it.
+
+### Installation and updates
+
+- Only the items that draw with the studio tokens (`code`, `reveal`, `quote`,
+  `lightbox`) depend on `@ag/tokens`. Install it explicitly once; the README's
+  first command does.
+
+### Registry website
+
+- Registry requests and command copies are rate limited per address before they
+  reach the collector; the lab pages are marked noindex; the home page states that
+  visits are counted with Vercel Web Analytics.
+
 ## 2026-09-08
 
 ### image

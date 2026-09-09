@@ -4,7 +4,6 @@
   "title": "avatar",
   "description": "a person's face, the same object everywhere it appears: one round crop on the studio's rungs, positioned on the subject from the portrait's sidecar, ringed in the picture's own colour, and opening the full portrait alone in a lightbox of its own when it is worth a look",
   "registryDependencies": [
-    "@ag/tokens",
     "@ag/lightbox"
   ],
   "files": [

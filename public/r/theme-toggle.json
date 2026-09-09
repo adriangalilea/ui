@@ -7,7 +7,6 @@
     "lucide-react"
   ],
   "registryDependencies": [
-    "@ag/tokens",
     "@ag/preview-picker"
   ],
   "files": [

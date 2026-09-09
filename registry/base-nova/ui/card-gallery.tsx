@@ -166,10 +166,10 @@ export function CardGallery({
               ? {
                   marginLeft: "calc(-1 * var(--gallery-left, 0px))",
                   width: `calc(var(--gallery-window, 100%) - ${insetInlineEnd})`,
-                  maskImage:
-                    insetInlineEnd !== "0px"
-                      ? "linear-gradient(to right, black calc(100% - 2rem), transparent)"
-                      : undefined,
+                  // The fade is as wide as the reserved rail, capped at 2rem: a rail
+                  // that resolves to 0px (a custom property below its breakpoint)
+                  // fades nothing, which a string comparison could never know.
+                  maskImage: `linear-gradient(to right, black calc(100% - min(2rem, ${insetInlineEnd})), transparent)`,
                 }
               : undefined
           }

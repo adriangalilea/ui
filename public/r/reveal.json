@@ -3,9 +3,7 @@
   "name": "reveal",
   "title": "reveal",
   "description": "content that arrives as it enters the viewport, once or scroll-tied, with optional stagger",
-  "registryDependencies": [
-    "@ag/tokens"
-  ],
+  "registryDependencies": [],
   "files": [
     {
       "path": "registry/base-nova/ui/reveal.tsx",

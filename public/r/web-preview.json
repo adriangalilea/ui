@@ -4,7 +4,6 @@
   "title": "web-preview",
   "description": "a link's unfurl as a card, a pure function of its five facts, in three styles: ours (image at its aspect, title at reading size, domain as metadata), telegram's tinted card with the rule, x's large-image card",
   "registryDependencies": [
-    "@ag/tokens",
     "@ag/web-preview-unfurl"
   ],
   "files": [
