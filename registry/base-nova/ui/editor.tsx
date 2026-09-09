@@ -31,6 +31,7 @@ export function Editor({
   const callbacks = useRef({ onChange, upload })
   callbacks.current = { onChange, upload }
   const [jobs, setJobs] = useState<EditorJob[]>([])
+  const pendingJobs = useRef<EditorJob[]>([])
   const [error, setError] = useState("")
   const [submitBlocked, setSubmitBlocked] = useState(false)
   // Initial document/schema are intentionally read once. Changing the key mounts another document.
@@ -55,7 +56,10 @@ export function Editor({
               }
             : undefined,
           onChange: (html) => callbacks.current.onChange?.(html),
-          onJobs: setJobs,
+          onJobs: (next) => {
+            pendingJobs.current = next
+            setJobs(next)
+          },
         })
       })
       .catch((e) => {
@@ -69,7 +73,7 @@ export function Editor({
   useEffect(() => {
     const form = host.current?.closest("form")
     const prevent = (event: Event) => {
-      if (jobs.length) {
+      if (pendingJobs.current.length) {
         event.preventDefault()
         event.stopPropagation()
         setSubmitBlocked(true)
@@ -77,7 +81,7 @@ export function Editor({
     }
     form?.addEventListener("submit", prevent, true)
     return () => form?.removeEventListener("submit", prevent, true)
-  }, [jobs])
+  }, [])
   return (
     <div data-slot="editor" className={cn("not-prose space-y-2", className)}>
       <div ref={host} />

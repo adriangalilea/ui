@@ -32,6 +32,9 @@ type Job = EditorJob & {
   to: number
   controller: AbortController
   files: File[]
+  /** Toolbar uploads populate its URL field; paste/drop insert mapped nodes. */
+  resolve?: (src: string) => void
+  onProgress?: (percent: number) => void
 }
 
 export function mountEditor(
@@ -75,6 +78,12 @@ export function mountEditor(
                 progress[index] = value
                 job.progress =
                   progress.reduce((a, b) => a + b, 0) / progress.length
+                // Wordgard creates its progress element after invoking the uploader.
+                const percent = job.progress * 100
+                queueMicrotask(() => {
+                  if (alive && !controller.signal.aborted)
+                    job.onProgress?.(percent)
+                })
                 notify()
               }
             },
@@ -82,16 +91,22 @@ export function mountEditor(
         ),
       )
       if (!alive || controller.signal.aborted || !jobs.has(job.id)) return
+      if (assets.some((asset) => asset.kind === "video"))
+        throw new Error("Image uploads must return an image or animation")
+      const first = assets[0]
+      if (!first) throw new Error("No image was uploaded")
       jobs.delete(job.id)
-      wg.dispatch({
-        changes: {
-          from: job.from,
-          to: job.to,
-          insert: assets.map((asset) => ImageNode.of(asset.src)),
-          fit: true,
-        },
-        userEvent: "input.image",
-      })
+      if (job.resolve) job.resolve(first.src)
+      else
+        wg.dispatch({
+          changes: {
+            from: job.from,
+            to: job.to,
+            insert: assets.map((asset) => ImageNode.of(asset.src)),
+            fit: true,
+          },
+          userEvent: "input.image",
+        })
       notify()
     } catch (error) {
       if (!alive || controller.signal.aborted) return
@@ -100,11 +115,22 @@ export function mountEditor(
       notify()
     }
   }
-  const enqueue = (files: File[], wg: Wordgard, from: number, to = from) => {
+  const enqueue = (
+    files: File[],
+    wg: Wordgard,
+    from: number,
+    to = from,
+    toolbar?: {
+      resolve: (src: string) => void
+      progress: (percent: number) => void
+    },
+  ) => {
     const id = crypto.randomUUID()
     const job: Job = {
       id,
       files,
+      resolve: toolbar?.resolve,
+      onProgress: toolbar?.progress,
       name: files.map((file) => file.name).join(", "),
       from,
       to,
@@ -114,6 +140,7 @@ export function mountEditor(
       cancel: () => {
         job.controller.abort()
         jobs.delete(id)
+        job.resolve?.("")
         notify()
       },
     }
@@ -147,7 +174,6 @@ export function mountEditor(
     )
     return true
   })
-  const transfers = new Set<AbortController>()
   const editor = Wordgard.create({
     doc: opts.defaultValue,
     parent: host,
@@ -168,28 +194,20 @@ export function mountEditor(
       Wordgard.colorScheme.of(host.closest(".dark") ? "dark" : "light"),
       ...(opts.placeholder ? [placeholder(opts.placeholder)] : []),
       ...(opts.images ? [image()] : []),
-      ...(opts.upload
+      ...(opts.images && opts.upload
         ? [
             GardState.prec.highest([paste, drop]),
-            image.uploader.of(async (file, _wg, progress) => {
-              const controller = new AbortController()
-              transfers.add(controller)
-              try {
-                const uploader = opts.upload
-                if (!uploader) throw new Error("No uploader configured")
-                const asset = await uploader(file, {
-                  signal: controller.signal,
-                  onProgress: (n) => progress(n * 100),
-                })
-                return asset.src
-              } finally {
-                transfers.delete(controller)
-              }
-            }),
+            image.uploader.of(
+              (file, wg, progress) =>
+                new Promise<string>((resolve) => {
+                  enqueue([file], wg, 0, 0, { resolve, progress })
+                }),
+            ),
           ]
         : []),
       Wordgard.updateListener.of((update) => {
         for (const job of jobs.values()) {
+          if (job.resolve) continue
           const collapsed = job.from === job.to
           job.from = update.changes.mapPos(job.from, collapsed ? -1 : 1)
           job.to = collapsed
@@ -206,8 +224,10 @@ export function mountEditor(
     ?.setAttribute("aria-label", opts.label)
   return () => {
     alive = false
-    for (const job of jobs.values()) job.controller.abort()
-    for (const controller of transfers) controller.abort()
+    for (const job of jobs.values()) {
+      job.controller.abort()
+      job.resolve?.("")
+    }
     jobs.clear()
     editor.dom.remove()
   }
