@@ -160,7 +160,13 @@ failure banner cannot be appended to stdout. New collection has no historical
 baseline; don't interpret missing observations as proof of zero demand.
 The CLI loads `.env.local`: `METRICS_DATABASE_URL` and read-only
 `METRICS_READ_TOKEN`. Production uses `METRICS_AUTH_TOKEN`, limited to data
-read/add/update on the three metrics tables; schema changes use the Turso CLI.
+read/add/update on the four metrics tables; schema changes use the Turso CLI.
+Mint it with `turso db tokens create metrics -p <table>:data_read,data_add,data_update`
+once per table (`metric_definition`, `metric_project`, `metric_daily`,
+`metric_user_daily`); the CLI's own help spells the add action `data_insert`, which
+the server rejects with HTTP 400. A new table in `METRICS_SCHEMA` needs a new token,
+and the store never deletes, so the token never grants `data_delete`. It lives in
+Vercel as a sensitive variable and binds on the next deployment (`vercel redeploy`).
 The shared package exports `METRICS_SCHEMA`; do not maintain a second SQL copy.
 
 `pnpm kpi` also checks the deployed writer through authenticated
