@@ -136,16 +136,16 @@ export default function Demo() {
   // both surfaces default to; naming Geist here once drew the still in a sans under a
   // card in a serif, which is the drift this page exists to show is absent.
   const faces = { nameFamily: FACE, fonts: [FACE] }
-  const stills = CASES.map(([label, q, x]) => [
+  const stills = CASES.map(([label, q, x]) => ({
     label,
-    renderQuoteSvg(q, {
+    svg: renderQuoteSvg(q, {
       ...faces,
       background: x.tone?.ground,
       accent: x.tone?.accent,
       focus: x.focus,
       avatar: q.author?.avatar ? dataUri(q.author.avatar) : undefined,
     }),
-  ])
+  }))
   return (
     <div className="space-y-16">
       {WEIGHTS.map(([variant, what]) => (
@@ -177,7 +177,7 @@ export default function Demo() {
           visible on this page before it was visible on a shared link.
         </p>
         <div className="grid gap-4">
-          {stills.map(([label, svg]) => (
+          {stills.map(({ label, svg }) => (
             <div key={label} className="space-y-2">
               <div className="font-mono text-muted-foreground/60 text-xs lowercase">
                 {label}

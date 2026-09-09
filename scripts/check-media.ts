@@ -20,19 +20,32 @@ const transparent = await sharp({
 })
   .png()
   .toBuffer()
+/** The first of a list the test knows is nonempty; screams otherwise. */
+const only = <T>(xs: readonly T[], what: string): T => {
+  const x = xs[0]
+  if (x === undefined) throw new Error(`expected ${what}`)
+  return x
+}
 const prepared = await prepareMedia(transparent)
 assert.equal(prepared.asset.width, 80)
 assert.equal(prepared.asset.height, 40)
-assert.deepEqual(prepared.files[0].data, transparent, "preserve originals")
+assert.deepEqual(
+  only(prepared.files, "a prepared file").data,
+  transparent,
+  "preserve originals",
+)
 assert.ok(prepared.asset.blurDataURL)
-const tiny = Buffer.from(prepared.asset.blurDataURL.split(",")[1], "base64")
+const tiny = Buffer.from(
+  only(prepared.asset.blurDataURL.split(",").slice(1), "a base64 payload"),
+  "base64",
+)
 assert.equal((await sharp(tiny).metadata()).hasAlpha, true)
 assert.ok(tiny.length < 2048, "small inline placeholder")
 assert.ok(isMediaAsset(mediaAsset(prepared, (name) => `/media/${name}`)))
 assert.ok(!isMediaAsset({ width: 0 }))
 const avif = await prepareMedia(await sharp(transparent).avif().toBuffer())
 assert.equal(avif.asset.mime, "image/avif")
-assert.ok(avif.files[0].name.endsWith(".avif"))
+assert.ok(only(avif.files, "an avif file").name.endsWith(".avif"))
 await assert.rejects(prepareMedia(Buffer.from("not an image")))
 await assert.rejects(prepareMedia(transparent, { maxBytes: 2 }))
 await assert.rejects(prepareMedia(transparent, { maxPixels: 10 }))
@@ -72,14 +85,14 @@ try {
   const bytes = await readFile(gif)
   const animation = await prepareMedia(bytes)
   assert.equal(animation.asset.kind, "animation")
-  assert.deepEqual(animation.files[0].data, bytes)
+  assert.deepEqual(only(animation.files, "the animation").data, bytes)
   for (const input of [await readFile(clip), bytes]) {
     const bounce = await prepareMedia(input, { playback: "boomerang" })
     assert.equal(bounce.asset.kind, "video")
     assert.equal(bounce.asset.mime, "video/mp4")
     assert.ok(bounce.asset.duration && bounce.asset.duration > 0.7)
     const output = join(dir, "bounce.mp4")
-    await writeFile(output, bounce.files[0].data)
+    await writeFile(output, only(bounce.files, "the boomerang").data)
     const probe = JSON.parse(
       execFileSync(
         "ffprobe",
@@ -102,14 +115,19 @@ try {
     ])
     const frameSize = bounce.asset.width * bounce.asset.height
     const count = frames.length / frameSize
+    const px = (i: number): number => {
+      const v = frames[i]
+      if (v === undefined) throw new Error(`no pixel at ${i}`)
+      return v
+    }
     assert.ok(count >= 4)
     // Every interior frame in the forward half has a matching reversed frame.
     for (let frame = 1; frame < count / 2; frame++) {
       let difference = 0
       for (let pixel = 0; pixel < frameSize; pixel++)
         difference += Math.abs(
-          frames[frame * frameSize + pixel] -
-            frames[(count - frame) * frameSize + pixel],
+          px(frame * frameSize + pixel) -
+            px((count - frame) * frameSize + pixel),
         )
       assert.ok(
         difference / frameSize < 8,

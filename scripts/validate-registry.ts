@@ -2,7 +2,7 @@
 // registry.json is asserted here; a broken item fails `mise check`, never a consumer.
 import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
-import type { Item } from "../app/registry"
+import { type Item, sourcePath } from "../app/registry"
 
 const root = join(import.meta.dirname, "..")
 const registry = JSON.parse(
@@ -42,7 +42,7 @@ for (const item of registry.items) {
         )
     }
   }
-  const demo = item.files[0].path.replace(/\.(tsx?|css)$/, ".demo.tsx")
+  const demo = sourcePath(item).replace(/\.(tsx?|css)$/, ".demo.tsx")
   if (!existsSync(join(root, demo)))
     fail(`${item.name}: no demo beside the source (${demo})`)
   if (!new RegExp(`(^|[\\s{,])["']?${item.name}["']?\\s*:`, "m").test(demos))

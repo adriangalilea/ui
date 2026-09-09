@@ -184,26 +184,26 @@ try {
       join(components, "telegram-chat.css"),
       join(app, "app/tokens.css"),
     ]
-    const before = await Promise.all(
-      installed.map((path) => readFile(path, "utf8")),
+    const copies = await Promise.all(
+      installed.map(async (path) => ({
+        path,
+        before: await readFile(path, "utf8"),
+      })),
     )
-    for (let i = 0; i < installed.length; i++)
+    for (const c of copies)
       await writeFile(
-        installed[i],
-        `${before[i]}\n/* install-check: public stale copy */\n`,
+        c.path,
+        `${c.before}\n/* install-check: public stale copy */\n`,
       )
     await publicInstall()
-    for (let i = 0; i < installed.length; i++)
+    for (const c of copies)
       assert.equal(
-        await readFile(installed[i], "utf8"),
-        before[i],
-        `Public update refreshes ${installed[i]}`,
+        await readFile(c.path, "utf8"),
+        c.before,
+        `Public update refreshes ${c.path}`,
       )
-    for (let i = 0; i < installed.length; i++)
-      await writeFile(
-        installed[i],
-        `${before[i]}\n/* install-check: stale copy */\n`,
-      )
+    for (const c of copies)
+      await writeFile(c.path, `${c.before}\n/* install-check: stale copy */\n`)
     await run(
       "bun",
       [
@@ -230,11 +230,11 @@ try {
       ],
       root,
     )
-    for (let i = 0; i < installed.length; i++)
+    for (const c of copies)
       assert.equal(
-        await readFile(installed[i], "utf8"),
-        before[i],
-        `Update refreshes ${installed[i]}`,
+        await readFile(c.path, "utf8"),
+        c.before,
+        `Update refreshes ${c.path}`,
       )
     assert.equal(
       await readFile(utils, "utf8"),

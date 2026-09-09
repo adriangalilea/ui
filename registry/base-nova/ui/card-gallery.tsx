@@ -54,12 +54,15 @@ export function CardGallery({
   onKeyDown,
   ...props
 }: CardGalleryProps) {
-  if (
-    !items.length ||
-    new Set(items.map((item) => item.id)).size !== items.length
-  )
+  const first = items[0]
+  if (!first || new Set(items.map((item) => item.id)).size !== items.length)
     throw new Error("CardGallery needs nonempty items with unique IDs")
-  const [local, setLocal] = useState(defaultValue ?? items[0].id)
+  const at = (i: number): (typeof items)[number] => {
+    const item = items[i]
+    if (!item) throw new Error(`CardGallery: no item at ${i}`)
+    return item
+  }
+  const [local, setLocal] = useState(defaultValue ?? first.id)
   const offset = timeline
     ? Math.max(0, Math.min(items.length - 1, timeline.offset))
     : undefined
@@ -72,7 +75,7 @@ export function CardGallery({
         )
   const seek = (next: number) => {
     const index = Math.max(0, Math.min(items.length - 1, next))
-    const id = items[index].id
+    const id = at(index).id
     if (timeline) timeline.seek(index)
     else if (value === undefined) setLocal(id)
     onValueChange?.(id)

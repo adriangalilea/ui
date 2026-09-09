@@ -11,6 +11,7 @@ import {
   type Item,
   item,
   partsOf,
+  sourcePath,
   sourceUrl,
   usedBy,
   usesOf,
@@ -36,7 +37,7 @@ export function generateStaticParams() {
  *  guarantees a `<name>.demo.tsx` sits beside the source, which is the whole rule. */
 async function demoSource(meta: Item) {
   const name = `${meta.name}.demo.tsx`
-  const file = path.join(process.cwd(), path.dirname(meta.files[0].path), name)
+  const file = path.join(process.cwd(), path.dirname(sourcePath(meta)), name)
   return { code: await readFile(file, "utf8"), file: name }
 }
 

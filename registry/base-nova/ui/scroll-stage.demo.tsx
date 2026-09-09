@@ -28,12 +28,13 @@ export function TimelineDemo() {
 
 function TimelineScene() {
   const timeline = useScrollStageTimeline(BEATS, { top: 80, bottom: 80 })
+  const progress = timeline.progress[timeline.active]
+  if (progress === undefined)
+    throw new Error(`no progress for beat ${timeline.active}`)
   return (
     <div className="w-full space-y-8 p-8">
       <h3 className="text-xl font-semibold">write. read. continue.</h3>
-      <p className="font-mono text-4xl">
-        {Math.round(timeline.progress[timeline.active] * 100)}%
-      </p>
+      <p className="font-mono text-4xl">{Math.round(progress * 100)}%</p>
       <nav aria-label="Timeline beats" className="flex gap-3">
         {BEATS.map((beat, i) => (
           <button

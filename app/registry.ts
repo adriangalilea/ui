@@ -15,8 +15,16 @@ export const REPO = "https://github.com/adriangalilea/ui"
 
 /** An item's source on GitHub. The point of a registry is that you own the copy, so
  *  reading the thing BEFORE installing it should not take a clone. */
+/** The file an item is read from: the first of its files, which the validator
+ *  guarantees exists. */
+export const sourcePath = (i: Item): string => {
+  const first = i.files[0]
+  if (!first) throw new Error(`${i.name}: item has no files`)
+  return first.path
+}
+
 export const sourceUrl = (i: Item): string =>
-  `${REPO}/blob/main/${i.files[0].path}`
+  `${REPO}/blob/main/${sourcePath(i)}`
 
 export const ITEMS = registry.items as Item[]
 export const item = (name: string): Item | undefined =>

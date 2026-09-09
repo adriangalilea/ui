@@ -58,8 +58,12 @@ export function useMediaIntent(
     target.addEventListener("focusin", focusIn)
     target.addEventListener("focusout", focusOut)
     const observer = new IntersectionObserver(
-      ([entry]) =>
-        setVisible(entry.isIntersecting && entry.intersectionRatio >= 0.5),
+      (entries) => {
+        const entry = entries[0]
+        if (!entry)
+          throw new Error("IntersectionObserver fired without an entry")
+        setVisible(entry.isIntersecting && entry.intersectionRatio >= 0.5)
+      },
       { threshold: [0, 0.5] },
     )
     observer.observe(root)
