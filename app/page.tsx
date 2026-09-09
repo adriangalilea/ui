@@ -63,6 +63,10 @@ export default function Home() {
           npx shadcn add @ag/&lt;item&gt;
         </code>
       </p>
+      <p className="mt-2 font-mono text-xs text-muted-foreground">
+        this site counts visits with vercel web analytics, cookieless. installed
+        components carry no analytics.
+      </p>
       <ul className="mt-16 divide-y divide-border">
         {FAMILIES.map(({ head, parts }) => (
           <li key={head.name}>

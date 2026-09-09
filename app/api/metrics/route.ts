@@ -5,10 +5,16 @@ import {
   componentNames,
   recordMetric,
 } from "@/lib/metrics"
+import { allowWrite } from "@/lib/ratelimit"
+
+// A person copies a command a handful of times; a page cannot legitimately need more.
+const COPIES_PER_MINUTE = 20
 
 export async function POST(request: Request) {
   if (request.headers.get("origin") !== new URL(request.url).origin)
     return new Response(null, { status: 403 })
+  if (!allowWrite(request, COPIES_PER_MINUTE))
+    return new Response(null, { status: 429 })
   if (request.headers.get("content-type") !== "application/json")
     return new Response(null, { status: 415 })
   // Fixed, tiny envelope; no arbitrary metric names, dimensions, identities or values.
