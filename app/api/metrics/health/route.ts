@@ -20,8 +20,9 @@ export async function POST(request: Request) {
       { status: "healthy", checkedAt },
       { headers: { "Cache-Control": "no-store" } },
     )
-  } catch {
-    console.warn("metrics: collection health probe failed")
+  } catch (error) {
+    // The cause goes to the function log; the response stays a bare status.
+    console.error("metrics: collection health probe failed", error)
     return Response.json({ status: "unavailable" }, { status: 503 })
   }
 }
