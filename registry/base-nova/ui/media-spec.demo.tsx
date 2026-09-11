@@ -70,8 +70,8 @@ const SMALL = {
 const EMPHASIS_FOR = {
   rumoured: "ghost",
   stated: "plain",
-  checked: "washed",
-  playing: "ringed",
+  checked: "lit",
+  playing: "vivid",
 } as const satisfies Record<string, Emphasis>
 // #endregion
 
@@ -299,7 +299,7 @@ export default function Demo() {
 
       <Sample
         name="emphasis"
-        label="emphasis · a ladder named for its look: ghost, plain, washed, ringed"
+        label="emphasis · light, never geometry: ghost, plain, lit, vivid"
       >
         <div className="space-y-3">
           {EMPHASES.map((emphasis) => (
@@ -365,8 +365,8 @@ export default function Demo() {
             </span>
           </div>
           <div className="space-y-1">
-            <Kicker>the small one · ringed</Kicker>
-            <MediaSpec {...SMALL} emphasis="ringed" />
+            <Kicker>the small one · vivid</Kicker>
+            <MediaSpec {...SMALL} emphasis="vivid" />
           </div>
           <div className="space-y-1">
             <Kicker>
@@ -376,7 +376,7 @@ export default function Demo() {
             <MediaSpec {...DISC} emphasis="ghost" tone="brand" />
             <MediaSpec
               {...DISC}
-              emphasis="washed"
+              emphasis="lit"
               tone="brand"
               omit={["lang", "cut"]}
             />
@@ -452,16 +452,16 @@ export default function Demo() {
           </div>
           <div className="space-y-1.5">
             <Kicker>
-              a poster corner · the two marks that matter, over a scrim
+              a poster corner · two marks over art: the sticker and one symbol
             </Kicker>
-            <div className="relative aspect-[2/3] w-32 overflow-hidden rounded-lg bg-[linear-gradient(200deg,#e9d8a6,#1b263b_60%,#0d1b2a)]">
-              <div className="absolute top-1.5 left-1.5 flex gap-1">
+            <div className="relative aspect-[2/3] w-32 overflow-hidden rounded-lg bg-[radial-gradient(ellipse_at_70%_30%,rgb(255_255_255/.22),transparent_45%),linear-gradient(160deg,#5a1f4a,#1a1030_55%,#08070c)]">
+              <div className="absolute inset-x-0 top-0 h-14 bg-[linear-gradient(to_bottom,rgb(0_0_0/.6),transparent)]" />
+              <div className="absolute top-1.5 left-1.5 flex items-center gap-1">
                 <PictureChip
                   resolution="2160p"
                   range="dolby-vision"
                   size="sm"
                 />
-                <SoundChip audio={SOUNDS[0] as Audio} size="sm" />
               </div>
             </div>
           </div>
@@ -487,7 +487,7 @@ export default function Demo() {
           <MediaSpec {...DISC} tone="gold" omit={["lang", "cut"]} />
           <Kicker>sm · flat mid gold: a gradient at 8px is noise</Kicker>
           <MediaSpec {...DISC} tone="gold" size="sm" omit={["lang", "cut"]} />
-          <Kicker>the ladder in gold · ghost, plain, washed, ringed</Kicker>
+          <Kicker>the ladder in gold · ghost, plain, lit, vivid</Kicker>
           {EMPHASES.map((emphasis) => (
             <MediaSpec
               key={emphasis}

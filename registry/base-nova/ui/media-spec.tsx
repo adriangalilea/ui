@@ -17,9 +17,13 @@
 // family: the sticker, "4K" over an inverted "ULTRA HD" band. The HDR10 / HDR10+
 // and tabler badge artwork stays in the references and in MARKS, not wired.
 //
-// EMPHASIS is a visual ladder named for its look alone: `ghost` is the mark at 55%,
-// `plain` is full ink on no ground, `washed` is full ink over a soft wash pill,
-// `ringed` is the wash plus a ring. What a step means is the consumer's to decide.
+// EMPHASIS IS LIGHT, NEVER GEOMETRY: a ladder named for its look alone, and no step
+// adds a shape to a badge that already has its frame. `ghost` is the chip at 55%;
+// `plain` is resting; `lit` is a soft glow behind the chip in the badge ink (a box
+// shadow on a drawn badge, a drop shadow that follows the artwork's silhouette on a
+// mark); `vivid` is the stronger glow with the chip at full brightness (white under
+// ink and brand, the metal's highlight under gold). What a step means is the
+// consumer's to decide.
 //
 // AN AXIS IS A GROUP of one to three chips: picture is [resolution] [range], sound is
 // [object] [codec] [channels], tier is [disc] [Remux], lang is [flag] [name]. The
@@ -125,7 +129,7 @@ export const CUTS = [
 /** A known cut, or any label the catalogue names (rendered verbatim). */
 export type Cut = (typeof CUTS)[number] | (string & {})
 
-export const EMPHASES = ["ghost", "plain", "washed", "ringed"] as const
+export const EMPHASES = ["ghost", "plain", "lit", "vivid"] as const
 export type Emphasis = (typeof EMPHASES)[number]
 
 export const KINDS = ["picture", "sound", "tier", "lang", "cut"] as const
@@ -406,14 +410,16 @@ function Sticker({
   secondary,
   size,
   gold,
+  paint,
 }: {
   primary: string
   secondary: string
   size: Size
   gold: boolean
+  /** the metal under gold (the highlight alone when vivid) */
+  paint: string
 }) {
   const g = STICKER[size]
-  const paint = GOLD_PAINT[size]
   const column = (
     <span
       data-slot={gold ? undefined : "media-sticker"}
@@ -479,12 +485,32 @@ function Sticker({
   )
 }
 /** The emphasis ladder, named for its look. */
+/** The glow, per emphasis: radius in em and share of the ink. */
+const GLOW: Record<Emphasis, [radius: string, share: number] | null> = {
+  ghost: null,
+  plain: null,
+  lit: ["0.25em", 45],
+  vivid: ["0.45em", 70],
+}
+/** The light a chip stands in. A drawn badge glows from its box; a mark glows from
+ *  its silhouette (a drop shadow follows the artwork, a box shadow would draw the
+ *  bounding rectangle a frameless mark exists to avoid). */
+function emphasisStyle(
+  emphasis: Emphasis,
+  isMark: boolean,
+): React.CSSProperties | undefined {
+  const glow = GLOW[emphasis]
+  if (!glow) return undefined
+  const colour = `color-mix(in srgb, var(--ag-media-ink) ${glow[1]}%, transparent)`
+  return isMark
+    ? { filter: `drop-shadow(0 0 ${glow[0]} ${colour})` }
+    : { boxShadow: `0 0 ${glow[0]} ${colour}` }
+}
 const EMPHASIS: Record<Emphasis, string> = {
   ghost: "opacity-55",
   plain: "",
-  washed: "rounded bg-(--ag-media-ink)/12 px-0.5",
-  ringed:
-    "rounded bg-(--ag-media-ink)/12 px-0.5 ring-1 ring-(--ag-media-ink)/45",
+  lit: "",
+  vivid: "",
 }
 /** A drawn badge on the poster rung sits on art: a scrim under it so it survives a
  *  white sky. Artwork carries its own weight. */
@@ -552,12 +578,17 @@ function Chip({
   onClick,
 }: ChipRenderProps) {
   const gold = tone === "gold"
+  const vivid = emphasis === "vivid"
+  // Vivid brings the chip to full brightness while the glow keeps the badge ink:
+  // white under ink and brand, the metal's highlight under gold.
+  const paint = gold ? (vivid ? GOLD_HI : GOLD_PAINT[size]) : undefined
+  const isMark = "mark" in atom
   const style = {
     // The fallback chain, written once: the kind's ink or the surrounding text colour;
-    // under gold, the metal's mid tone, so the wash and the ring are gold too.
+    // under gold, the metal's mid tone, so the light is gold too.
     "--ag-media-ink": gold ? GOLD_MID : `var(--ag-media-${kind}, currentColor)`,
+    ...emphasisStyle(emphasis, isMark),
   } as React.CSSProperties
-  const isMark = "mark" in atom
   const form = size === "sm" ? "symbol" : "lockup"
   // A mark drawn inside a grid with margins (tabler's badges) scales its BOX to the
   // badge height; the art states the factor, so the grid never sets the size.
@@ -569,12 +600,13 @@ function Chip({
     // radius kept (a padding-box fill over a border-box gradient behind a
     // transparent border).
     style.borderColor = "transparent"
-    style.backgroundImage = `linear-gradient(${GOLD_GROUND}, ${GOLD_GROUND}), ${GOLD_PAINT[size]}`
+    style.backgroundImage = `linear-gradient(${GOLD_GROUND}, ${GOLD_GROUND}), ${paint}`
     style.backgroundOrigin = "border-box"
     style.backgroundClip = "padding-box, border-box"
   }
   const classes = cn(
-    "inline-flex shrink-0 items-center align-middle leading-none text-(--ag-media-ink)",
+    "inline-flex shrink-0 items-center align-middle leading-none",
+    vivid && !gold ? "text-white" : "text-(--ag-media-ink)",
     isMark
       ? grid === 1 && MARK_H[size][BOX_OF[atom.mark] ?? form]
       : sticker
@@ -590,9 +622,9 @@ function Chip({
     onClick && BUTTON,
   )
   // The metal on the letters: clipped from the same paint the marks are cut from.
-  const metal: React.CSSProperties | undefined = gold
+  const metal: React.CSSProperties | undefined = paint
     ? {
-        backgroundImage: GOLD_PAINT[size],
+        backgroundImage: paint,
         WebkitBackgroundClip: "text",
         backgroundClip: "text",
         color: "transparent",
@@ -620,7 +652,13 @@ function Chip({
       fill
     />
   ) : atom.sub !== undefined ? (
-    <Sticker primary={atom.word} secondary={atom.sub} size={size} gold={gold} />
+    <Sticker
+      primary={atom.word}
+      secondary={atom.sub}
+      size={size}
+      gold={gold}
+      paint={paint ?? GOLD_PAINT[size]}
+    />
   ) : metal ? (
     <span style={metal}>{atom.word}</span>
   ) : (

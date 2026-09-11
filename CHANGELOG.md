@@ -22,7 +22,9 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
   three chips ([resolution] [range], [object] [codec] [channels], [disc]
   [Remux], [flag] [name]); at `md` the lockups, at `sm` the brand symbols and
   the small badges. `emphasis` is a
-  visual ladder named for its look (`ghost · plain · washed · ringed`),
+  ladder of light named for its look (`ghost · plain · lit · vivid`: opacity,
+  resting, a soft glow in the badge ink, a stronger glow at full brightness; a
+  step never adds a shape),
   `trailing` is a slot after an axis and `adornments` fills it per axis on the
   strip; what either means is the consumer's. `langLabel(tag, locale)` names a
   language: a small variety table first (`es-ES` Castilian, `es-419` Latin

@@ -197,7 +197,7 @@
   },
   "composition": {
     "law": "ARTWORK FIRST. A chip is one mark standing FRAMELESS (the artwork is the chip: lockups keep their shape, symbols their glyph); a drawn badge (rounded box + word, HDR10-badge geometry) only for a value with no artwork; the resolution badge is the disc-case badge drawn in that family ('4K' over 'ULTRA HD').",
-    "emphasis": "on the mark itself, a visual ladder named for its look: ghost (55% ink) · plain (full ink) · washed (full ink on a soft wash pill) · ringed (wash + ring).",
+    "emphasis": "light, never geometry: ghost (55%) · plain (resting) · lit (a soft glow in the badge ink: box shadow on a drawn badge, drop shadow on a mark's silhouette) · vivid (a stronger glow, the chip at full brightness). No wash, no ring, no added shape.",
     "axes": "picture = [resolution] [range] (SDR omitted); sound = [object] [codec] [channels] (beside an object mark the codec is drawn); tier = [disc] [Remux]; lang = [flag] [name]; cut = [mark or drawn].",
     "rungs": "sm = brand symbols and drawn badges; md = lockups. Strip groups per axis: tight gap within an axis, wider between axes.",
     "trailing": "a consumer's node after an axis's last chip."
