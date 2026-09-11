@@ -28,8 +28,13 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
   language: a small variety table first (`es-ES` Castilian, `es-419` Latin
   American Spanish), else the language subtag's display name through
   `Intl.DisplayNames` with the region left to the flag, else the tag; `LangChip`
-  takes a `label` override. `tone="brand"` paints only marks, in their official colour; a
-  near-black brand keeps the ink. `TierChip` takes `resolution` so a 2160p disc
+  takes a `label` override. `tone="brand"` paints only marks, in their official
+  colour; a near-black brand keeps the ink. `tone="gold"` is the disc-case
+  sticker: near-black boxes with a metallic gradient on stroke and letters and
+  every mark cut from the same metal (flat mid gold at `sm`); the metal is
+  retuned through `--ag-media-gold-hi`, `-mid`, `-lo` and `-glint`. `Mark` takes
+  a `paint` (any CSS background, applied through a mask). `TierChip` takes
+  `resolution` so a 2160p disc
   wears the Ultra HD Blu-ray mark. No dependencies: with nothing set every chip
   is monochrome in the surrounding text colour; a consumer colours it through
   `--ag-media-picture`, `-sound`, `-tier`, `-lang`, `-cut` and `-scrim`. Every

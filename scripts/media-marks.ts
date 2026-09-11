@@ -185,6 +185,7 @@ const entries = marks.map(([id, m]) => {
     title: ${JSON.stringify(m.title)},
     brand: ${m.brand ? JSON.stringify(`#${m.brand}`) : "null"},
     luminance: ${m.brand ? luminance(m.brand).toFixed(3) : "null"},
+    intrinsic: ${m.intrinsic_colours ? "true" : "false"},
     symbol: ${symbol ? art(symbol, SYMBOL_EM) : "null"},
     lockup: ${lockup ? art(lockup, lockupEm(lockup.aspect)) : "null"},
   },`
@@ -204,7 +205,9 @@ import { cn } from "@/lib/utils"
 export type MarkId =
 ${marks.map(([id]) => `  | ${JSON.stringify(id)}`).join("\n")}
 export type MarkForm = "symbol" | "lockup"
-export type MarkTone = "ink" | "brand"
+/** ink = the surrounding colour; brand = the official hex; gold = the disc-case sticker's
+ *  metal (a paint the chip hands the mark, see \`paint\`) */
+export type MarkTone = "ink" | "brand" | "gold"
 
 export interface MarkArt {
   viewBox: string
@@ -223,6 +226,8 @@ export interface MarkEntry {
   brand: string | null
   /** relative luminance of \`brand\` (0 black … 1 white), null when there is none */
   luminance: number | null
+  /** the mark keeps its own colours whatever the tone or paint (the flag) */
+  intrinsic: boolean
   symbol: MarkArt | null
   lockup: MarkArt | null
 }
@@ -240,6 +245,9 @@ export interface MarkProps {
   em?: number
   /** fill the parent's height instead (a chip's content box); width follows the aspect */
   fill?: boolean
+  /** a CSS background (a gradient, a colour) the mark is cut out of through a mask;
+   *  wins over \`tone\`; an intrinsic-colour mark ignores it */
+  paint?: string
   className?: string
   style?: React.CSSProperties
 }
@@ -265,6 +273,7 @@ export function Mark({
   tone = "ink",
   em,
   fill = false,
+  paint,
   className,
   style,
 }: MarkProps) {
@@ -275,13 +284,42 @@ export function Mark({
   const size: React.CSSProperties = fill
     ? { height: "100%", width: "auto", aspectRatio: art.aspect }
     : { height: \`\${height}em\`, width: \`\${height * art.aspect}em\` }
+  const formOf = entry[form] ? form : art === entry.lockup ? "lockup" : "symbol"
+  if (paint && !entry.intrinsic) {
+    // Cut out of the paint: the artwork becomes a mask over any CSS background, so a
+    // gradient a fill attribute could never hold reaches every stroke and glyph.
+    const mask = \`url("data:image/svg+xml,\${encodeURIComponent(
+      \`<svg xmlns="http://www.w3.org/2000/svg" viewBox="\${art.viewBox}" fill="#fff">\${art.body.replaceAll("currentColor", "#fff")}</svg>\`,
+    )}")\`
+    return (
+      <span
+        aria-hidden="true"
+        data-slot="media-mark"
+        data-mark={id}
+        data-form={formOf}
+        data-paint=""
+        className={cn("inline-block shrink-0 align-middle", className)}
+        style={{
+          ...size,
+          background: paint,
+          maskImage: mask,
+          WebkitMaskImage: mask,
+          maskSize: "100% 100%",
+          WebkitMaskSize: "100% 100%",
+          maskRepeat: "no-repeat",
+          WebkitMaskRepeat: "no-repeat",
+          ...style,
+        }}
+      />
+    )
+  }
   return (
     <svg
       viewBox={art.viewBox}
       aria-hidden="true"
       data-slot="media-mark"
       data-mark={id}
-      data-form={entry[form] ? form : art === entry.lockup ? "lockup" : "symbol"}
+      data-form={formOf}
       fill={markFill(entry, tone)}
       className={cn("inline-block shrink-0 align-middle", className)}
       style={{ ...size, ...style }}

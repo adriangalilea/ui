@@ -465,6 +465,38 @@ export default function Demo() {
               </div>
             </div>
           </div>
+          <div className="space-y-1.5">
+            <Kicker>a premium shelf · the gold tone, on a dark ground</Kicker>
+            <div className="rounded-lg bg-[#151515] px-4 py-3">
+              <MediaSpec {...DISC} tone="gold" omit={["lang", "cut"]} />
+            </div>
+          </div>
+        </div>
+      </Sample>
+
+      <Sample
+        name="gold"
+        label="gold · the disc-case sticker: near-black boxes, a metallic stroke and letters, every mark in the metal"
+      >
+        <div className="space-y-4 rounded-lg bg-[#151515] px-5 py-4 text-[#e6e4ee]">
+          <Kicker>
+            md · the metal is a 135° gradient, the stroke 1.5 × the hairline
+          </Kicker>
+          <MediaSpec {...DISC} tone="gold" omit={["lang", "cut"]} />
+          <Kicker>sm · flat mid gold: a gradient at 8px is noise</Kicker>
+          <MediaSpec {...DISC} tone="gold" size="sm" omit={["lang", "cut"]} />
+          <Kicker>the ladder in gold · ghost, plain, washed, ringed</Kicker>
+          {EMPHASES.map((emphasis) => (
+            <MediaSpec
+              key={emphasis}
+              {...DISC}
+              tone="gold"
+              emphasis={emphasis}
+              omit={["lang", "cut"]}
+            />
+          ))}
+          <Kicker>the flag stays itself</Kicker>
+          <MediaSpec {...DUB} tone="gold" />
         </div>
       </Sample>
 

@@ -36,10 +36,14 @@
 //   --ag-media-cut     the ink per kind (fallback: currentColor)
 //   --ag-media-scrim   the ground under the poster rung's drawn badges (fallback:
 //                      rgb(0 0 0 / .65))
-// `tone` picks a mark's ink: "ink" (default) draws it like the words; "brand" draws it
-// in the official hex, and only where that hex is a colour (a near-black brand such as
-// Dolby stays ink: black on a dark surface is a missing logo, not a brand statement;
-// `markFill` in media-spec-marks.tsx). Drawn badges never take a brand.
+// `tone` picks the ink: "ink" (default) draws every mark like the words; "brand" draws
+// a mark in its official hex, and only where that hex is a colour (a near-black brand
+// such as Dolby stays ink: black on a dark surface is a missing logo, not a brand
+// statement; `markFill` in media-spec-marks.tsx), and drawn badges keep the ink;
+// "gold" is the disc-case sticker: the drawn box filled near-black with a metallic
+// gradient on its stroke and letters, every mark cut from the same metal, the flag
+// itself. A consumer retunes the metal through --ag-media-gold-hi / -mid / -lo /
+// -glint (defaults #FFF1A8 · #E6B422 · #9C7A1B · #FFE680).
 // Every chip carries data-slot="media-chip", data-kind (the AXIS: picture | sound |
 // tier | lang | cut), data-facet (resolution | range | object | codec | channels | tier
 // | edition | lang | cut), data-emphasis, data-size, and data-mark when it is artwork,
@@ -374,6 +378,27 @@ const EMPHASIS: Record<Emphasis, string> = {
 /** A drawn badge on the poster rung sits on art: a scrim under it so it survives a
  *  white sky. Artwork carries its own weight. */
 const SCRIM = "bg-(--ag-media-scrim) backdrop-blur-sm"
+// ── GOLD: the disc-case metallic sticker. ONE mechanism for words and marks: a CSS
+// background that the letters are clipped from (`background-clip: text`) and the
+// artwork is cut from (a mask, `Mark`'s `paint`). The drawn box fills near-black and
+// wears the same metal on its stroke through the two-layer background trick (a
+// padding-box fill over a border-box gradient behind a transparent border), so the
+// radius survives. The stroke is 1.5 × the hairline. At sm the metal is a flat mid
+// gold: a gradient at 8px is noise. A consumer retunes the metal through
+// --ag-media-gold-hi / -mid / -lo / -glint.
+const GOLD_HI = "var(--ag-media-gold-hi, #FFF1A8)"
+const GOLD_MID = "var(--ag-media-gold-mid, #E6B422)"
+const GOLD_LO = "var(--ag-media-gold-lo, #9C7A1B)"
+const GOLD_GLINT = "var(--ag-media-gold-glint, #FFE680)"
+const GOLD_GROUND = "#0b0b0b"
+const GOLD_METAL = `linear-gradient(135deg, ${GOLD_HI} 0%, ${GOLD_MID} 45%, ${GOLD_LO} 84%, ${GOLD_GLINT} 97%, ${GOLD_LO} 100%)`
+/** The paint a rung's gold is drawn with. */
+const GOLD_PAINT: Record<Size, string> = { sm: GOLD_MID, md: GOLD_METAL }
+/** The gold drawn badge's stroke (1.5 × the hairline) and its metal-clipped text. */
+const GOLD_WORD: Record<Size, string> = {
+  sm: "border-[1.2px]",
+  md: "border-[1.5px]",
+}
 const BUTTON =
   "cursor-pointer hover:brightness-110 focus-visible:outline-2 focus-visible:outline-(--ag-media-ink)/60 focus-visible:outline-offset-1"
 const GAP_WITHIN: Record<Size, string> = { sm: "gap-0.5", md: "gap-1" }
@@ -414,9 +439,11 @@ function Chip({
   tone,
   onClick,
 }: ChipRenderProps) {
+  const gold = tone === "gold"
   const style = {
-    // The fallback chain, written once: the kind's ink or the surrounding text colour.
-    "--ag-media-ink": `var(--ag-media-${kind}, currentColor)`,
+    // The fallback chain, written once: the kind's ink or the surrounding text colour;
+    // under gold, the metal's mid tone, so the wash and the ring are gold too.
+    "--ag-media-ink": gold ? GOLD_MID : `var(--ag-media-${kind}, currentColor)`,
   } as React.CSSProperties
   const isMark = "mark" in atom
   const form = size === "sm" ? "symbol" : "lockup"
@@ -424,18 +451,35 @@ function Chip({
   // badge height; the art states the factor, so the grid never sets the size.
   const grid = isMark ? (MARKS[atom.mark][form]?.box ?? 1) : 1
   if (grid !== 1) style.height = `${BADGE_PX[size] * grid}px`
+  if (gold && !isMark) {
+    // The sticker's box: near-black inside, the metal on the stroke, the radius kept.
+    style.borderColor = "transparent"
+    style.backgroundImage = `linear-gradient(${GOLD_GROUND}, ${GOLD_GROUND}), ${GOLD_PAINT[size]}`
+    style.backgroundOrigin = "border-box"
+    style.backgroundClip = "padding-box, border-box"
+  }
   const classes = cn(
     "inline-flex shrink-0 items-center align-middle leading-none text-(--ag-media-ink)",
     isMark
       ? grid === 1 && MARK_H[size][BOX_OF[atom.mark] ?? form]
       : cn(
           atom.sub ? WORD2[size][0] : WORD[size],
-          "border-current font-semibold tracking-tight whitespace-nowrap",
-          size === "sm" && SCRIM,
+          "font-semibold tracking-tight whitespace-nowrap",
+          gold ? GOLD_WORD[size] : "border-current",
+          size === "sm" && !gold && SCRIM,
         ),
     EMPHASIS[emphasis],
     onClick && BUTTON,
   )
+  // The metal on the letters: clipped from the same paint the marks are cut from.
+  const metal: React.CSSProperties | undefined = gold
+    ? {
+        backgroundImage: GOLD_PAINT[size],
+        WebkitBackgroundClip: "text",
+        backgroundClip: "text",
+        color: "transparent",
+      }
+    : undefined
   const attrs = {
     "data-slot": "media-chip",
     "data-kind": kind,
@@ -453,13 +497,16 @@ function Chip({
       id={atom.mark}
       form={size === "sm" ? "symbol" : "lockup"}
       tone={tone}
+      paint={gold ? GOLD_PAINT[size] : undefined}
       fill
     />
   ) : atom.sub ? (
-    <span className="flex flex-col items-center leading-none">
+    <span className="flex flex-col items-center leading-none" style={metal}>
       <span className={WORD2[size][1]}>{atom.word}</span>
       <span className={WORD2[size][2]}>{atom.sub}</span>
     </span>
+  ) : metal ? (
+    <span style={metal}>{atom.word}</span>
   ) : (
     atom.word
   )

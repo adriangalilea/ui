@@ -33,7 +33,9 @@ export type MarkId =
   | "badge-hd"
   | "badge-sd"
 export type MarkForm = "symbol" | "lockup"
-export type MarkTone = "ink" | "brand"
+/** ink = the surrounding colour; brand = the official hex; gold = the disc-case sticker's
+ *  metal (a paint the chip hands the mark, see `paint`) */
+export type MarkTone = "ink" | "brand" | "gold"
 
 export interface MarkArt {
   viewBox: string
@@ -52,6 +54,8 @@ export interface MarkEntry {
   brand: string | null
   /** relative luminance of `brand` (0 black … 1 white), null when there is none */
   luminance: number | null
+  /** the mark keeps its own colours whatever the tone or paint (the flag) */
+  intrinsic: boolean
   symbol: MarkArt | null
   lockup: MarkArt | null
 }
@@ -61,6 +65,7 @@ export const MARKS: Record<MarkId, MarkEntry> = {
     title: "Dolby",
     brand: "#000000",
     luminance: 0.0,
+    intrinsic: false,
     symbol: {
       viewBox: "0 0 24 24",
       aspect: 1.0,
@@ -74,6 +79,7 @@ export const MARKS: Record<MarkId, MarkEntry> = {
     title: "Dolby Vision",
     brand: "#000000",
     luminance: 0.0,
+    intrinsic: false,
     symbol: {
       viewBox: "0 0 24 24",
       aspect: 1.0,
@@ -93,6 +99,7 @@ export const MARKS: Record<MarkId, MarkEntry> = {
     title: "Dolby Atmos",
     brand: "#000000",
     luminance: 0.0,
+    intrinsic: false,
     symbol: {
       viewBox: "0 0 24 24",
       aspect: 1.0,
@@ -112,6 +119,7 @@ export const MARKS: Record<MarkId, MarkEntry> = {
     title: "Dolby TrueHD",
     brand: "#000000",
     luminance: 0.0,
+    intrinsic: false,
     symbol: {
       viewBox: "0 0 24 24",
       aspect: 1.0,
@@ -131,6 +139,7 @@ export const MARKS: Record<MarkId, MarkEntry> = {
     title: "Dolby Digital Plus",
     brand: "#000000",
     luminance: 0.0,
+    intrinsic: false,
     symbol: {
       viewBox: "0 0 24 24",
       aspect: 1.0,
@@ -150,6 +159,7 @@ export const MARKS: Record<MarkId, MarkEntry> = {
     title: "Dolby Digital",
     brand: "#000000",
     luminance: 0.0,
+    intrinsic: false,
     symbol: {
       viewBox: "0 0 24 24",
       aspect: 1.0,
@@ -169,6 +179,7 @@ export const MARKS: Record<MarkId, MarkEntry> = {
     title: "DTS",
     brand: "#F98B2B",
     luminance: 0.61,
+    intrinsic: false,
     symbol: {
       viewBox: "0 0 24 24",
       aspect: 1.0,
@@ -188,6 +199,7 @@ export const MARKS: Record<MarkId, MarkEntry> = {
     title: "DTS-HD Master Audio",
     brand: "#F98B2B",
     luminance: 0.61,
+    intrinsic: false,
     symbol: {
       viewBox: "0 0 24 24",
       aspect: 1.0,
@@ -207,6 +219,7 @@ export const MARKS: Record<MarkId, MarkEntry> = {
     title: "HDR10",
     brand: "#000000",
     luminance: 0.0,
+    intrinsic: false,
     symbol: {
       viewBox: "0 0 288 102.7",
       aspect: 2.8043,
@@ -226,6 +239,7 @@ export const MARKS: Record<MarkId, MarkEntry> = {
     title: "HDR10+",
     brand: "#000000",
     luminance: 0.0,
+    intrinsic: false,
     symbol: {
       viewBox: "0 0 288 102.7",
       aspect: 2.8043,
@@ -245,6 +259,7 @@ export const MARKS: Record<MarkId, MarkEntry> = {
     title: "Ultra HD",
     brand: "#221E1F",
     luminance: 0.121,
+    intrinsic: false,
     symbol: null,
     lockup: {
       viewBox: "0 0 23 4",
@@ -258,6 +273,7 @@ export const MARKS: Record<MarkId, MarkEntry> = {
     title: "FLAC",
     brand: "#000000",
     luminance: 0.0,
+    intrinsic: false,
     symbol: null,
     lockup: {
       viewBox: "0 0 262 130",
@@ -271,6 +287,7 @@ export const MARKS: Record<MarkId, MarkEntry> = {
     title: "Opus",
     brand: "#000000",
     luminance: 0.0,
+    intrinsic: false,
     symbol: null,
     lockup: {
       viewBox: "0 0 477.8 271.4",
@@ -284,6 +301,7 @@ export const MARKS: Record<MarkId, MarkEntry> = {
     title: "Blu-ray Disc",
     brand: "#0095D5",
     luminance: 0.478,
+    intrinsic: false,
     symbol: {
       viewBox: "69.03 105.72 274.49 120.77",
       aspect: 2.2728,
@@ -303,6 +321,7 @@ export const MARKS: Record<MarkId, MarkEntry> = {
     title: "Ultra HD Blu-ray",
     brand: "#007DC5",
     luminance: 0.406,
+    intrinsic: false,
     symbol: {
       viewBox: "69.03 105.72 274.49 120.77",
       aspect: 2.2728,
@@ -322,6 +341,7 @@ export const MARKS: Record<MarkId, MarkEntry> = {
     title: "DVD",
     brand: "#000000",
     luminance: 0.0,
+    intrinsic: false,
     symbol: {
       viewBox: "0 0 1058.4 465.84",
       aspect: 2.272,
@@ -341,6 +361,7 @@ export const MARKS: Record<MarkId, MarkEntry> = {
     title: "IMAX",
     brand: "#0072CE",
     luminance: 0.378,
+    intrinsic: false,
     symbol: {
       viewBox: "0 0 500 94.727",
       aspect: 5.2783,
@@ -360,6 +381,7 @@ export const MARKS: Record<MarkId, MarkEntry> = {
     title: "Spain",
     brand: null,
     luminance: null,
+    intrinsic: true,
     symbol: {
       viewBox: "0 0 750 500",
       aspect: 1.5,
@@ -379,6 +401,7 @@ export const MARKS: Record<MarkId, MarkEntry> = {
     title: "4K",
     brand: null,
     luminance: null,
+    intrinsic: false,
     symbol: {
       viewBox: "0 0 24 24",
       aspect: 1.0,
@@ -398,6 +421,7 @@ export const MARKS: Record<MarkId, MarkEntry> = {
     title: "8K",
     brand: null,
     luminance: null,
+    intrinsic: false,
     symbol: {
       viewBox: "0 0 24 24",
       aspect: 1.0,
@@ -417,6 +441,7 @@ export const MARKS: Record<MarkId, MarkEntry> = {
     title: "HD",
     brand: null,
     luminance: null,
+    intrinsic: false,
     symbol: {
       viewBox: "0 0 24 24",
       aspect: 1.0,
@@ -436,6 +461,7 @@ export const MARKS: Record<MarkId, MarkEntry> = {
     title: "SD",
     brand: null,
     luminance: null,
+    intrinsic: false,
     symbol: {
       viewBox: "0 0 24 24",
       aspect: 1.0,
@@ -462,6 +488,9 @@ export interface MarkProps {
   em?: number
   /** fill the parent's height instead (a chip's content box); width follows the aspect */
   fill?: boolean
+  /** a CSS background (a gradient, a colour) the mark is cut out of through a mask;
+   *  wins over `tone`; an intrinsic-colour mark ignores it */
+  paint?: string
   className?: string
   style?: React.CSSProperties
 }
@@ -487,6 +516,7 @@ export function Mark({
   tone = "ink",
   em,
   fill = false,
+  paint,
   className,
   style,
 }: MarkProps) {
@@ -497,15 +527,42 @@ export function Mark({
   const size: React.CSSProperties = fill
     ? { height: "100%", width: "auto", aspectRatio: art.aspect }
     : { height: `${height}em`, width: `${height * art.aspect}em` }
+  const formOf = entry[form] ? form : art === entry.lockup ? "lockup" : "symbol"
+  if (paint && !entry.intrinsic) {
+    // Cut out of the paint: the artwork becomes a mask over any CSS background, so a
+    // gradient a fill attribute could never hold reaches every stroke and glyph.
+    const mask = `url("data:image/svg+xml,${encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${art.viewBox}" fill="#fff">${art.body.replaceAll("currentColor", "#fff")}</svg>`,
+    )}")`
+    return (
+      <span
+        aria-hidden="true"
+        data-slot="media-mark"
+        data-mark={id}
+        data-form={formOf}
+        data-paint=""
+        className={cn("inline-block shrink-0 align-middle", className)}
+        style={{
+          ...size,
+          background: paint,
+          maskImage: mask,
+          WebkitMaskImage: mask,
+          maskSize: "100% 100%",
+          WebkitMaskSize: "100% 100%",
+          maskRepeat: "no-repeat",
+          WebkitMaskRepeat: "no-repeat",
+          ...style,
+        }}
+      />
+    )
+  }
   return (
     <svg
       viewBox={art.viewBox}
       aria-hidden="true"
       data-slot="media-mark"
       data-mark={id}
-      data-form={
-        entry[form] ? form : art === entry.lockup ? "lockup" : "symbol"
-      }
+      data-form={formOf}
       fill={markFill(entry, tone)}
       className={cn("inline-block shrink-0 align-middle", className)}
       style={{ ...size, ...style }}
