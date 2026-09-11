@@ -151,8 +151,11 @@ export type Facet = (typeof FACETS)[number]
 export type Size = "sm" | "md"
 export type Tone = MarkTone
 
+/** A track's format. The codec is optional for a CLAIM that names only the object
+ *  layer (a disc case, a release name saying "Atmos" and nothing about its carrier);
+ *  a described track always names one. At least one of codec / object is set. */
 export interface Audio {
-  codec: AudioCodec
+  codec?: AudioCodec
   channels?: Channels
   object?: ObjectAudio
 }
@@ -239,7 +242,7 @@ export function pictureLabel(
 
 /** "TrueHD Atmos 7.1" at md; the one word that matters at sm ("Atmos", else "TrueHD"). */
 export function soundLabel(audio: Audio, size: Size = "md"): string {
-  const codec = CODEC_LABEL[audio.codec]
+  const codec = audio.codec ? CODEC_LABEL[audio.codec] : ""
   const object = audio.object ? OBJECT_LABEL[audio.object] : ""
   if (size === "sm") return object || codec
   return [codec, object, audio.channels ?? ""].filter(Boolean).join(" ")
@@ -765,7 +768,6 @@ export function PictureChip({
 export function SoundChip({ audio, ...chip }: ChipProps & { audio: Audio }) {
   const size = chip.size ?? "md"
   const atoms: [Facet, Atom][] = []
-  const codec = CODEC_LABEL[audio.codec]
   if (audio.object === "atmos") {
     const id = markAt("dolby-atmos", size)
     atoms.push(["object", id ? mark(id, "Dolby Atmos") : word("Atmos")])
@@ -774,8 +776,12 @@ export function SoundChip({ audio, ...chip }: ChipProps & { audio: Audio }) {
     atoms.push(["object", word(OBJECT_LABEL["dts-x"])])
   }
   // Beside an object mark the codec is a word: two Dolby lockups in a row is heavy.
-  const id = audio.object ? undefined : markAt(CODEC_MARK[audio.codec], size)
-  atoms.push(["codec", id ? mark(id, codec) : word(codec)])
+  // An unnamed carrier (a claim) draws nothing: the object mark is the whole claim.
+  if (audio.codec) {
+    const codec = CODEC_LABEL[audio.codec]
+    const id = audio.object ? undefined : markAt(CODEC_MARK[audio.codec], size)
+    atoms.push(["codec", id ? mark(id, codec) : word(codec)])
+  }
   if (audio.channels) atoms.push(["channels", word(audio.channels)])
   return (
     <Axis
