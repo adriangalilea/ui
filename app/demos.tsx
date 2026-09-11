@@ -19,6 +19,7 @@ import Editor from "@/registry/base-nova/ui/editor.demo"
 import Image from "@/registry/base-nova/ui/image.demo"
 import Lightbox from "@/registry/base-nova/ui/lightbox.demo"
 import LiquidGlass from "@/registry/base-nova/ui/liquid-glass.demo"
+import MediaSpec from "@/registry/base-nova/ui/media-spec.demo"
 import PreviewPicker from "@/registry/base-nova/ui/preview-picker.demo"
 import Quote from "@/registry/base-nova/ui/quote.demo"
 import Reveal from "@/registry/base-nova/ui/reveal.demo"
@@ -53,6 +54,7 @@ export const DEMOS: Record<string, ComponentType> = {
   reveal: Reveal,
   scrims: Scrims,
   "liquid-glass": LiquidGlass,
+  "media-spec": MediaSpec,
   quote: Quote,
   terminal: Terminal,
   "theme-toggle": ThemeToggle,

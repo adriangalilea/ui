@@ -241,6 +241,20 @@
       ]
     },
     {
+      "name": "media-spec",
+      "type": "registry:ui",
+      "title": "media-spec",
+      "description": "the media format vocabulary as typed chips: picture (resolution × dynamic range), sound (codec × object audio × channels), source tier, language and cut, each with a provenance fill ladder (claim · verified · measured · delivered) and an optional delta; values in, labels owned by the chip, monochrome on any palette until a consumer sets its inks",
+      "dependencies": [],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/base-nova/ui/media-spec.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
       "name": "avatar",
       "type": "registry:ui",
       "title": "avatar",

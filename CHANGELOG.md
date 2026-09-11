@@ -3,6 +3,22 @@
 Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 --dry-run` or `--diff`; use `--overwrite` only when replacing your installed copy.
 
+## 2026-09-11
+
+### media-spec
+
+- New: the media format vocabulary as typed chips. `PictureChip`, `SoundChip`,
+  `TierChip`, `LangChip`, `CutChip` and the composed `MediaSpec` strip take
+  values (`resolution`, `range`, `audio`, `tier`, `lang`, `cut`), never label
+  strings; the chip owns the words ("4K · Dolby Vision", "TrueHD Atmos 7.1",
+  "castellano"). Provenance is a fill ladder, `claim · verified · measured ·
+  delivered`, and `delta` adds a ▲ = ▼ glyph for a candidate row. No
+  dependencies: with nothing set every chip is monochrome in the surrounding
+  text colour; a consumer colours them through `--ag-media-picture`, `-sound`,
+  `-tier`, `-lang`, `-cut`, `-better`, `-worse`, `-on-ink` and `-scrim`. The
+  label functions (`pictureLabel`, `soundLabel`, `tierLabel`, `langLabel`,
+  `cutLabel`, `isLossless`) and the vocabulary tuples are exported.
+
 ## 2026-09-09
 
 ### prepare-media
