@@ -295,7 +295,8 @@ export function cutLabel(cut: Cut): string {
 // The resolution badge is the disc-case sticker, DRAWN (`Sticker`): "4K" on the ground
 // panel over an inverted "ULTRA HD" band, in the family's stroke and radius. No free
 // vector of it exists and it is typography below the originality threshold. SD and
-// 720p are one-panel badges; the three with a band keep the row level by centring.
+// 720p are one-panel badges; the three with a band keep the row level by centring;
+// at sm every resolution is its primary alone (the band cannot be read at 18px).
 // tabler's badge-* artwork stays in MARKS and the references, not wired.
 const RESOLUTION_BADGE: Record<
   Resolution,
@@ -797,7 +798,9 @@ export function PictureChip({
   const size = chip.size ?? "md"
   const atoms: [Facet, Atom][] = []
   const [primary, secondary] = RESOLUTION_BADGE[resolution]
-  atoms.push(["resolution", word(primary, secondary)])
+  // At sm the sticker collapses to its primary ("4K") as a one-line badge: an 18px
+  // sticker's 5px band is not readable, only a smaller frame in a smaller row.
+  atoms.push(["resolution", word(primary, size === "sm" ? undefined : secondary)])
   if (range !== "sdr") {
     const rng = markAt(RANGE_MARK[range], formOf(chip))
     atoms.push([
