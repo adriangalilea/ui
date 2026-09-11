@@ -11,7 +11,7 @@
 //   mise marks --check   fail when the committed file is stale (runs in `mise check`)
 
 import { execFileSync } from "node:child_process"
-import { readFileSync, unlinkSync, writeFileSync } from "node:fs"
+import { readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 const root = join(import.meta.dirname, "..")
@@ -170,6 +170,56 @@ function luminance(hex: string): number {
   const g = ((v >> 8) & 0xff) / 255
   const b = (v & 0xff) / 255
   return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+// ---- the references are strict XML ----
+//
+// Every SVG in the folder, vendored or kept for the record, must parse as a strict
+// document: balanced tags and no element or attribute prefix that no xmlns declares.
+// An editor's leftover `inkscape:` on a file that dropped its xmlns is exactly the
+// error a browser forgives and an XML tool refuses, so it is caught here, not later.
+function strictXML(file: string): string[] {
+  const s = readFileSync(join(src, file), "utf8")
+    .replace(/<\?xml[^>]*\?>/g, "")
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<!DOCTYPE[^>]*>/g, "")
+  const errors: string[] = []
+  const declared = new Set<string>(["xml"])
+  for (const m of s.matchAll(/\sxmlns:([\w.-]+)=/g))
+    declared.add(m[1] as string)
+  const open: string[] = []
+  for (const m of s.matchAll(/<(\/?)([\w.:-]+)([^>]*?)(\/?)>/g)) {
+    const [, closing, name, attrs, selfClosing] = m as unknown as string[]
+    const prefix = (name as string).includes(":")
+      ? (name as string).split(":")[0]
+      : null
+    if (prefix && !declared.has(prefix))
+      errors.push(`undefined prefix <${name}>`)
+    if (closing) {
+      const last = open.pop()
+      if (last !== name) errors.push(`</${name}> closes <${last ?? "nothing"}>`)
+      continue
+    }
+    for (const a of (attrs as string).matchAll(/([\w.:-]+)="[^"]*"/g)) {
+      const attr = a[1] as string
+      if (attr.includes(":")) {
+        const p = attr.split(":")[0] as string
+        if (p !== "xmlns" && !declared.has(p))
+          errors.push(`undefined prefix ${attr} on <${name}>`)
+      }
+    }
+    if (!selfClosing) open.push(name as string)
+  }
+  if (open.length) errors.push(`unclosed <${open[open.length - 1]}>`)
+  return errors
+}
+
+const svgs = readdirSync(src).filter((f) => f.endsWith(".svg"))
+const xmlErrors = svgs.flatMap((f) => strictXML(f).map((e) => `${f}: ${e}`))
+if (xmlErrors.length) {
+  console.error(`media-marks: ${xmlErrors.length} reference SVG problem(s)`)
+  for (const e of xmlErrors) console.error(`  ${e}`)
+  process.exit(1)
 }
 
 const marks = Object.entries(manifest.marks)
