@@ -194,7 +194,7 @@ export default function Demo() {
             {["es-ES", "es-419", "en", "fr-CA", "ja"].map((lang) => (
               <LangChip key={lang} lang={lang} />
             ))}
-            <LangChip lang="es-ES" locale="es" />
+            <LangChip lang="fr" locale="fr" />
           </div>
           <div className="flex flex-wrap items-center gap-2.5">
             {(

@@ -23,8 +23,10 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
   visual ladder named for its look (`ghost · plain · washed · ringed`),
   `trailing` is a slot after an axis and `adornments` fills it per axis on the
   strip; what either means is the consumer's. `langLabel(tag, locale)` names a
-  language through `Intl.DisplayNames`, and `LangChip` takes a `label`
-  override. `tone="brand"` paints only marks, in their official colour; a
+  language: a small variety table first (`es-ES` Castilian, `es-419` Latin
+  American Spanish), else the language subtag's display name through
+  `Intl.DisplayNames` with the region left to the flag, else the tag; `LangChip`
+  takes a `label` override. `tone="brand"` paints only marks, in their official colour; a
   near-black brand keeps the ink. `TierChip` takes `resolution` so a 2160p disc
   wears the Ultra HD Blu-ray mark. No dependencies: with nothing set every chip
   is monochrome in the surrounding text colour; a consumer colours it through

@@ -236,11 +236,27 @@ export function tierLabel(tier: Tier): string {
   return TIER_LABEL[tier]
 }
 
-/** The language's display name in `locale` (default English) through Intl; a tag
- *  Intl cannot name renders as itself. */
+/** The two varieties Intl names badly ("European Spanish"); a consumer extends
+ *  this through `LangChip`'s `label`. */
+const VARIETY_LABEL: Record<string, string> = {
+  "es-ES": "Castilian",
+  "es-419": "Latin American Spanish",
+}
+
+/** The language's name: a variety from the small table when it has one, else the
+ *  LANGUAGE subtag's display name in `locale` (default English) through Intl, the
+ *  region left to the flag ("Spanish", "French"); a tag Intl cannot name renders as
+ *  itself. */
 export function langLabel(tag: string, locale = "en"): string {
+  const variety = VARIETY_LABEL[tag]
+  if (variety) return variety
+  const language = tag.split("-")[0] ?? tag
   try {
-    return new Intl.DisplayNames([locale], { type: "language" }).of(tag) ?? tag
+    const name = new Intl.DisplayNames([locale], { type: "language" }).of(
+      language,
+    )
+    // Intl echoes a subtag it cannot name; the whole tag is the honest fallback.
+    return name && name !== language ? name : tag
   } catch {
     return tag
   }
