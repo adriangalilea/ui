@@ -8,14 +8,14 @@
 //
 // ARTWORK FIRST. A chip is ONE MARK standing FRAMELESS: the artwork is the chip. A
 // brand lockup keeps its shape, a symbol its glyph, the flag its colours, and nothing
-// draws a frame around any of them, so there is never a box in a box. SD, HD, 4K and
-// 8K are tabler's badges, their stroke matched to the drawn family. Every other BOXED
-// value (HDR10, HDR10+, 720p, HLG, channels, Remux, WEB-DL, DTS:X, a codec named
-// beside its object mark, AAC and the other plain codecs, a language, every cut but
-// IMAX) is the ONE drawn badge: a rounded box with the word set in the surrounding
+// draws a frame around any of them, so there is never a box in a box. Every BOXED
+// value (a resolution, HDR10, HDR10+, HLG, channels, Remux, WEB-DL, DTS:X, a codec
+// named beside its object mark, AAC and the other plain codecs, a language, every cut
+// but IMAX) is the ONE drawn badge: a rounded box with the word set in the surrounding
 // sans, semibold, to the HDR10 badge's proportions, so the whole boxed family has one
-// weight at each rung. The HDR10 and HDR10+ artwork stays in the references as the
-// geometry reference and is not wired.
+// weight at each rung. The resolution badge is the disc-case badge drawn in that
+// family: "4K" over "ULTRA HD", twice the lines in the same box. The HDR10 / HDR10+
+// and tabler badge artwork stays in the references and in MARKS, not wired.
 //
 // EMPHASIS is a visual ladder named for its look alone: `ghost` is the mark at 55%,
 // `plain` is full ink on no ground, `washed` is full ink over a soft wash pill,
@@ -48,6 +48,7 @@
 
 import { cn } from "@/lib/utils"
 import {
+  MARKS,
   Mark,
   type MarkId,
   type MarkTone,
@@ -269,14 +270,20 @@ export function cutLabel(cut: Cut): string {
 // ── Which mark a value wears. The mapping is the vocabulary's, stated once here; the
 // artwork is media-spec-marks.tsx. A value absent from a table is a drawn badge.
 
-// SD, HD, 4K and 8K are tabler's badges: their letterforms are what tells 4K from 8K,
-// and their stroke is normalised (2 → 1.12 on the 24-grid, .08 of the drawn box) so
-// they weigh exactly what the drawn badge weighs.
-const RESOLUTION_MARK: Partial<Record<Resolution, MarkId>> = {
-  sd: "badge-sd",
-  "1080p": "badge-hd",
-  "2160p": "badge-4k",
-  "4320p": "badge-8k",
+// The resolution badge is the disc-case badge, DRAWN: a big line over a small line
+// ("4K" over "ULTRA HD") in the same box, stroke and radius as the one-line badge.
+// No free vector of it exists and it is typography below the originality threshold.
+// SD and 720p are one line; the three that carry a second line keep the row level by
+// centring. tabler's badge-* artwork stays in MARKS and the references, not wired.
+const RESOLUTION_BADGE: Record<
+  Resolution,
+  [primary: string, secondary?: string]
+> = {
+  sd: ["SD"],
+  "720p": ["HD"],
+  "1080p": ["1080p", "FULL HD"],
+  "2160p": ["4K", "ULTRA HD"],
+  "4320p": ["8K", "ULTRA HD"],
 }
 const RANGE_MARK: Partial<Record<DynamicRange, MarkId>> = {
   "dolby-vision": "dolby-vision",
@@ -314,39 +321,47 @@ const HAS_SYMBOL: ReadonlySet<MarkId> = new Set<MarkId>([
   "dvd",
   "imax",
   "flag-es",
-  "badge-4k",
-  "badge-8k",
-  "badge-hd",
-  "badge-sd",
 ])
 
 // ── The rungs. ONE badge geometry for every boxed value, so the boxed family has one
 // weight at each rung: box height B, corners B / 4, a hairline of B / 12, the word in
 // the surrounding sans at semibold, slightly condensed, with a cap height ≈ B / 1.5 and
 // side padding ≈ half a cap (the HDR10 badge's own proportions, redrawn in CSS). The
-// tabler badges draw their box across 14 of their 24 units at stroke 1.12, so at
-// B × 24 / 14 their box is B tall and their line is B / 12: the same weight by
-// construction. A brand symbol and the flag stand at B; a lockup rises above B so a
-// two-line wordmark stays legible, centred on the row. Tuned once, on the demo page:
-//   sm  B = 10px  radius 2.5px  hairline 0.8px  text 8px   sides 3px   tabler 17px
-//   md  B = 12px  radius 3px    hairline 1px    text 11px  sides 4px   tabler 20.5px
+// two-line badge is the same box 1.75 × taller, centred on the row. A mark drawn in a
+// grid with margins states its factor (`MarkArt.box`) and the chip scales the grid to
+// B × box, so its box is B tall. A brand symbol and the flag stand at B; a lockup
+// rises above B so a two-line wordmark stays legible, centred. Tuned once, on the
+// demo page:
+//   sm  B = 10px  radius 2.5px  hairline 0.8px  text 8px   sides 3px   two-line 18px
+//   md  B = 12px  radius 3px    hairline 1px    text 11px  sides 4px   two-line 21px
 //       lockup 16px
-type Box = "tabler" | "symbol" | "lockup" | "flag"
-const BOX_OF: Partial<Record<MarkId, Box>> = {
-  "badge-4k": "tabler",
-  "badge-8k": "tabler",
-  "badge-hd": "tabler",
-  "badge-sd": "tabler",
-  "flag-es": "flag",
-}
+type Box = "symbol" | "lockup" | "flag"
+const BOX_OF: Partial<Record<MarkId, Box>> = { "flag-es": "flag" }
+/** The badge height B per rung, in px: what a mark drawn in a grid scales its box to. */
+const BADGE_PX: Record<Size, number> = { sm: 10, md: 12 }
 const MARK_H: Record<Size, Record<Box, string>> = {
-  sm: { tabler: "h-[17px]", symbol: "h-2.5", lockup: "h-2.5", flag: "h-2.5" },
-  md: { tabler: "h-[20.5px]", symbol: "h-3", lockup: "h-4", flag: "h-3" },
+  sm: { symbol: "h-2.5", lockup: "h-2.5", flag: "h-2.5" },
+  md: { symbol: "h-3", lockup: "h-4", flag: "h-3" },
 }
 /** The drawn badge. */
 const WORD: Record<Size, string> = {
   sm: "h-2.5 rounded-[2.5px] border-[0.8px] px-[3px] text-[8px]",
   md: "h-3 rounded-[3px] border px-1 text-[11px]",
+}
+/** The two-line drawn badge: the same box, 1.75 × taller (sm 18px, md 21px); the
+ *  primary line at the badge's text size in the heaviest weight, the secondary at
+ *  55% of it (clamped to 5px at sm), wide-tracked small caps. */
+const WORD2: Record<Size, [box: string, primary: string, secondary: string]> = {
+  sm: [
+    "h-[18px] rounded-[2.5px] border-[0.8px] px-[3px]",
+    "text-[8px] font-black tracking-tight",
+    "text-[5px] font-semibold uppercase tracking-[0.12em]",
+  ],
+  md: [
+    "h-[21px] rounded-[3px] border px-1",
+    "text-[11px] font-black tracking-tight",
+    "text-[6px] font-semibold uppercase tracking-[0.12em]",
+  ],
 }
 /** The emphasis ladder, named for its look. */
 const EMPHASIS: Record<Emphasis, string> = {
@@ -378,7 +393,7 @@ export interface ChipProps {
 }
 
 /** One value as one mark, or one drawn word where no artwork exists. */
-type Atom = { mark: MarkId; name: string } | { word: string }
+type Atom = { mark: MarkId; name: string } | { word: string; sub?: string }
 
 interface ChipRenderProps {
   kind: Kind
@@ -404,12 +419,17 @@ function Chip({
     "--ag-media-ink": `var(--ag-media-${kind}, currentColor)`,
   } as React.CSSProperties
   const isMark = "mark" in atom
+  const form = size === "sm" ? "symbol" : "lockup"
+  // A mark drawn inside a grid with margins (tabler's badges) scales its BOX to the
+  // badge height; the art states the factor, so the grid never sets the size.
+  const grid = isMark ? (MARKS[atom.mark][form]?.box ?? 1) : 1
+  if (grid !== 1) style.height = `${BADGE_PX[size] * grid}px`
   const classes = cn(
     "inline-flex shrink-0 items-center align-middle leading-none text-(--ag-media-ink)",
     isMark
-      ? MARK_H[size][BOX_OF[atom.mark] ?? (size === "sm" ? "symbol" : "lockup")]
+      ? grid === 1 && MARK_H[size][BOX_OF[atom.mark] ?? form]
       : cn(
-          WORD[size],
+          atom.sub ? WORD2[size][0] : WORD[size],
           "border-current font-semibold tracking-tight whitespace-nowrap",
           size === "sm" && SCRIM,
         ),
@@ -435,6 +455,11 @@ function Chip({
       tone={tone}
       fill
     />
+  ) : atom.sub ? (
+    <span className="flex flex-col items-center leading-none">
+      <span className={WORD2[size][1]}>{atom.word}</span>
+      <span className={WORD2[size][2]}>{atom.sub}</span>
+    </span>
   ) : (
     atom.word
   )
@@ -506,7 +531,7 @@ function markAt(id: MarkId | undefined, size: Size): MarkId | undefined {
 }
 
 const mark = (id: MarkId, name: string): Atom => ({ mark: id, name })
-const word = (w: string): Atom => ({ word: w })
+const word = (w: string, sub?: string): Atom => ({ word: w, sub })
 
 // ── The five axes.
 
@@ -517,13 +542,8 @@ export function PictureChip({
 }: ChipProps & { resolution: Resolution; range?: DynamicRange }) {
   const size = chip.size ?? "md"
   const atoms: [Facet, Atom][] = []
-  const res = markAt(RESOLUTION_MARK[resolution], size)
-  atoms.push([
-    "resolution",
-    res
-      ? mark(res, RESOLUTION_LABEL[resolution])
-      : word(RESOLUTION_LABEL[resolution]),
-  ])
+  const [primary, secondary] = RESOLUTION_BADGE[resolution]
+  atoms.push(["resolution", word(primary, secondary)])
   if (range !== "sdr") {
     const rng = markAt(RANGE_MARK[range], size)
     atoms.push([

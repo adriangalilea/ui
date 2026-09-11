@@ -110,14 +110,14 @@ already normalised as described above.
 | `DVD_logo.svg` | DVD | Commons, File:DVD logo.svg |
 | `IMAX.svg` | IMAX | Commons, File:IMAX.svg |
 | `Flag_of_Spain_civil_.svg` | Spain, civil flag without arms | Commons, File:Flag of Spain (civil).svg |
-| `badge-4k.svg` | 4K badge, stroke 2 → 1.12 to match the drawn family | tabler icons `badge-4k` via Iconify (MIT) |
-| `badge-8k.svg` | 8K badge, stroke 2 → 1.12 to match the drawn family | tabler icons `badge-8k` via Iconify (MIT) |
-| `badge-hd.svg` | HD badge, stroke 2 → 1.12 to match the drawn family | tabler icons `badge-hd` via Iconify (MIT) |
-| `badge-sd.svg` | SD badge, stroke 2 → 1.12 to match the drawn family | tabler icons `badge-sd` via Iconify (MIT) |
+| `badge-4k.svg` | 4K badge, stroke 2 → 1.12 to match the drawn family; reference only, not wired | tabler icons `badge-4k` via Iconify (MIT) |
+| `badge-8k.svg` | 8K badge, stroke 2 → 1.12; reference only, not wired | tabler icons `badge-8k` via Iconify (MIT) |
+| `badge-hd.svg` | HD badge, stroke 2 → 1.12; reference only, not wired | tabler icons `badge-hd` via Iconify (MIT) |
+| `badge-sd.svg` | SD badge, stroke 2 → 1.12; reference only, not wired | tabler icons `badge-sd` via Iconify (MIT) |
 
-SD, HD, 4K and 8K wear tabler's badges: the letterforms are what tells 4K from 8K, and
-the stroke is normalised so the box weighs what the drawn badge weighs (1.12 on the
-24-grid over a 14-unit box is .08 of the box, the drawn badge's hairline). Every other
-boxed value (HDR10, HDR10+, 720p, HLG, channels, the web tiers, Remux, DTS:X, plain codecs,
-cuts, languages) is ONE drawn badge in the chip, in the HDR10 badge's proportions. The
-HDR10 and HDR10+ artwork is kept as the geometry reference and is not wired into any chip.
+Every boxed value (a resolution, HDR10, HDR10+, HLG, channels, the web tiers, Remux, DTS:X,
+plain codecs, cuts, languages) is ONE drawn badge in the chip, in the HDR10 badge's
+proportions. The resolution badge is the disc-case badge drawn in that family, a big line
+over a small one ("4K" over "ULTRA HD"): no free vector of it exists and it is typography
+below the originality threshold. The HDR10 / HDR10+ and tabler badge artwork is kept as
+the geometry reference and is not wired into any chip.

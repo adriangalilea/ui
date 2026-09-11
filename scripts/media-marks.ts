@@ -25,6 +25,9 @@ type ManifestMark = {
   title: string
   source: string
   intrinsic_colours?: boolean
+  stroke?: boolean
+  /** artwork height over its visible box (tabler's badges: 24 / 14) */
+  box?: number
 }
 const manifest = JSON.parse(
   readFileSync(join(src, "manifest.json"), "utf8"),
@@ -173,8 +176,11 @@ const marks = Object.entries(manifest.marks)
 const entries = marks.map(([id, m]) => {
   const symbol = m.symbol ? clean(id, m.symbol) : null
   const lockup = m.lockup ? clean(id, m.lockup) : null
+  // A badge drawn inside a grid with margins (tabler: 14 of 24 units) states its
+  // factor in the manifest; the box, not the grid, is what a height means.
+  const box = m.box ?? 1
   const art = (a: NonNullable<typeof symbol>, em: number) =>
-    `{ viewBox: ${JSON.stringify(a.viewBox)}, aspect: ${a.aspect.toFixed(4)}, em: ${em}, body: ${JSON.stringify(a.body)} }`
+    `{ viewBox: ${JSON.stringify(a.viewBox)}, aspect: ${a.aspect.toFixed(4)}, em: ${em}, box: ${box.toFixed(4)}, body: ${JSON.stringify(a.body)} }`
   return `  ${JSON.stringify(id)}: {
     title: ${JSON.stringify(m.title)},
     brand: ${m.brand ? JSON.stringify(`#${m.brand}`) : "null"},
@@ -206,6 +212,9 @@ export interface MarkArt {
   aspect: number
   /** the height the mark wants, in em of the surrounding text */
   em: number
+  /** artwork height over its visible box: > 1 when the drawing sits inside a grid
+   *  with margins (tabler's badges, 24 / 14), so a height means the box, not the grid */
+  box: number
   body: string
 }
 export interface MarkEntry {
@@ -262,7 +271,7 @@ export function Mark({
   const entry = MARKS[id]
   const art = entry[form] ?? entry.lockup ?? entry.symbol
   if (!art) return null
-  const height = em ?? art.em
+  const height = (em ?? art.em) * art.box
   const size: React.CSSProperties = fill
     ? { height: "100%", width: "auto", aspectRatio: art.aspect }
     : { height: \`\${height}em\`, width: \`\${height * art.aspect}em\` }

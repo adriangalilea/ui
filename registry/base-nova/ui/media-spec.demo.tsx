@@ -249,7 +249,7 @@ export default function Demo() {
 
       <Sample
         name="badges"
-        label="badges · tabler's SD / HD / 4K / 8K beside the drawn badge, one level line"
+        label="badges · the drawn family, resolution badges beside the disc lockup, one level line"
       >
         <div className="space-y-3">
           <Kicker>
@@ -263,12 +263,13 @@ export default function Demo() {
             <PictureChip resolution="720p" range="hdr10-plus" />
           </div>
           <Kicker>
-            md · 4K · 8K · HD · SD are tabler&apos;s badges at stroke 1.12;
-            HDR10 · HDR10+ · HLG · 720p · AAC · 2.0 · 7.1 · Remux · WEB-DL are
-            drawn
+            md · the resolution badges are the disc-case badge drawn in the
+            family, beside the Ultra HD Blu-ray lockup; HDR10 · HDR10+ · HLG ·
+            AAC · 2.0 · 7.1 · Remux · WEB-DL are one-line drawn badges
           </Kicker>
           <div className="flex flex-wrap items-center gap-2.5">
             <PictureChip resolution="2160p" range="hdr10" />
+            <TierChip tier="bluray" resolution="2160p" />
             <PictureChip resolution="4320p" range="hdr10-plus" />
             <PictureChip resolution="1080p" range="hlg" />
             <PictureChip resolution="720p" />

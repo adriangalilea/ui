@@ -12,14 +12,16 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
   `MediaSpec` strip take values (`resolution`, `range`, `audio`, `tier`,
   `lang`, `cut`), never label strings. The item ships two files: the chips and
   `media-spec-marks.tsx`, the artwork inlined as single-ink SVG (Dolby Vision,
-  Dolby Atmos, TrueHD, Dolby Digital and Plus, dts, DTS-HD MA, the 4K / 8K / HD
-  / SD badges, FLAC, Opus, Blu-ray, Ultra HD Blu-ray, DVD, IMAX, the Spain flag).
-  A chip is ONE mark standing frameless; a drawn badge (a rounded box with the
-  word, to the HDR10 badge's proportions) stands in only for a value with no
-  artwork (HDR10, HDR10+, 720p, HLG, channels, Remux, WEB-DL, DTS:X, AAC, a
-  language, a cut). Each axis is a group of one to three chips ([resolution]
-  [range], [object] [codec] [channels], [disc] [Remux], [flag] [name]); at `md`
-  the lockups, at `sm` the brand symbols and the small badges. `emphasis` is a
+  Dolby Atmos, TrueHD, Dolby Digital and Plus, dts, DTS-HD MA, FLAC, Opus,
+  Blu-ray, Ultra HD Blu-ray, DVD, IMAX, the Spain flag, plus HDR10 / HDR10+ and
+  tabler's 4K / 8K / HD / SD badges kept as references). A chip is ONE mark
+  standing frameless; a drawn badge (a rounded box with the word, to the HDR10
+  badge's proportions) stands in for every value with no artwork (a resolution
+  as the disc-case badge, "4K" over "ULTRA HD"; HDR10, HDR10+, HLG, channels,
+  Remux, WEB-DL, DTS:X, AAC, a language, a cut). Each axis is a group of one to
+  three chips ([resolution] [range], [object] [codec] [channels], [disc]
+  [Remux], [flag] [name]); at `md` the lockups, at `sm` the brand symbols and
+  the small badges. `emphasis` is a
   visual ladder named for its look (`ghost · plain · washed · ringed`),
   `trailing` is a slot after an axis and `adornments` fills it per axis on the
   strip; what either means is the consumer's. `langLabel(tag, locale)` names a

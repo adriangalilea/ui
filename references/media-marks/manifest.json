@@ -134,7 +134,8 @@
       "brand": null,
       "title": "4K",
       "source": "tabler icons via Iconify (MIT)",
-      "stroke": true
+      "stroke": true,
+      "box": 1.7143
     },
     "badge-8k": {
       "symbol": "badge-8k.svg",
@@ -142,7 +143,8 @@
       "brand": null,
       "title": "8K",
       "source": "tabler icons via Iconify (MIT)",
-      "stroke": true
+      "stroke": true,
+      "box": 1.7143
     },
     "badge-hd": {
       "symbol": "badge-hd.svg",
@@ -150,7 +152,8 @@
       "brand": null,
       "title": "HD",
       "source": "tabler icons via Iconify (MIT)",
-      "stroke": true
+      "stroke": true,
+      "box": 1.7143
     },
     "badge-sd": {
       "symbol": "badge-sd.svg",
@@ -158,15 +161,16 @@
       "brand": null,
       "title": "SD",
       "source": "tabler icons via Iconify (MIT)",
-      "stroke": true
+      "stroke": true,
+      "box": 1.7143
     }
   },
   "value_to_mark": {
-    "resolution.sd": "badge-sd (stroke normalised to the drawn family)",
+    "resolution.sd": "drawn badge 'SD' (badge-sd is reference only)",
     "resolution.720p": "drawn badge '720p' (no artwork exists)",
-    "resolution.1080p": "badge-hd (stroke normalised to the drawn family)",
-    "resolution.2160p": "badge-4k (stroke normalised to the drawn family)",
-    "resolution.4320p": "badge-8k (stroke normalised to the drawn family)",
+    "resolution.1080p": "two-line drawn badge '1080p' / 'FULL HD' (badge-hd is reference only)",
+    "resolution.2160p": "two-line drawn badge '4K' / 'ULTRA HD' (badge-4k is reference only)",
+    "resolution.4320p": "two-line drawn badge '8K' / 'ULTRA HD' (badge-8k is reference only)",
     "range.dolby-vision": "dolby-vision",
     "range.hdr10": "drawn badge 'HDR10' (the hdr10 artwork is the geometry reference, not wired)",
     "range.hdr10-plus": "drawn badge 'HDR10+' (artwork reference only)",
@@ -192,10 +196,10 @@
     "lang": "the flag keyed by the tag's region subtag (ES → flag-es), then at md a drawn badge with the language's display name; no flag → the drawn badge alone"
   },
   "composition": {
-    "law": "ARTWORK FIRST. A chip is one mark standing FRAMELESS (the artwork is the chip: lockups keep their shape, symbols their glyph, the tabler badges their box); a drawn badge (rounded box + word, HDR10-badge geometry) only for a value with no artwork.",
+    "law": "ARTWORK FIRST. A chip is one mark standing FRAMELESS (the artwork is the chip: lockups keep their shape, symbols their glyph); a drawn badge (rounded box + word, HDR10-badge geometry) only for a value with no artwork; the resolution badge is the disc-case badge drawn in that family ('4K' over 'ULTRA HD').",
     "emphasis": "on the mark itself, a visual ladder named for its look: ghost (55% ink) · plain (full ink) · washed (full ink on a soft wash pill) · ringed (wash + ring).",
     "axes": "picture = [resolution] [range] (SDR omitted); sound = [object] [codec] [channels] (beside an object mark the codec is drawn); tier = [disc] [Remux]; lang = [flag] [name]; cut = [mark or drawn].",
-    "rungs": "sm = brand symbols, the tabler badges and drawn badges; md = lockups. Strip groups per axis: tight gap within an axis, wider between axes.",
+    "rungs": "sm = brand symbols and drawn badges; md = lockups. Strip groups per axis: tight gap within an axis, wider between axes.",
     "trailing": "a consumer's node after an axis's last chip."
   }
 }
