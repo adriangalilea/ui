@@ -148,8 +148,15 @@ export const FACETS = [
 ] as const
 export type Facet = (typeof FACETS)[number]
 
-export type Size = "sm" | "md"
+/** The three rungs: sm on a poster's corner, md on a rail, lg where the chip is the
+ *  thing looked at (a hero, a card wide enough to print the disc-case sticker). */
+export type Size = "sm" | "md" | "lg"
 export type Tone = MarkTone
+/** The form a mark takes: its symbol (the Dolby D, the Blu-ray glyph) or its lockup
+ *  (symbol and wordmark). The rung picks one (symbols at sm, lockups above); a
+ *  consumer may name the form outright — a corner over art wants symbols beside the
+ *  sticker at any rung, a rail wants lockups. */
+export type MarkForm = "symbol" | "lockup"
 
 /** A track's format. The codec is optional for a CLAIM that names only the object
  *  layer (a disc case, a release name saying "Atmos" and nothing about its carrier);
@@ -350,18 +357,22 @@ const HAS_SYMBOL: ReadonlySet<MarkId> = new Set<MarkId>([
 //   sm  B = 10px  radius 2.5px  hairline 0.8px  text 8px   sides 3px   sticker 18px
 //   md  B = 12px  radius 3px    hairline 1px    text 11px  sides 4px   sticker 21px
 //       lockup 16px
+//   lg  B = 16px  radius 4px    hairline 1.25px text 14px  sides 5px   sticker 30px
+//       lockup 21px  symbol 18px
 type Box = "symbol" | "lockup" | "flag"
 const BOX_OF: Partial<Record<MarkId, Box>> = { "flag-es": "flag" }
 /** The badge height B per rung, in px: what a mark drawn in a grid scales its box to. */
-const BADGE_PX: Record<Size, number> = { sm: 10, md: 12 }
+const BADGE_PX: Record<Size, number> = { sm: 10, md: 12, lg: 16 }
 const MARK_H: Record<Size, Record<Box, string>> = {
   sm: { symbol: "h-2.5", lockup: "h-2.5", flag: "h-2.5" },
   md: { symbol: "h-3", lockup: "h-4", flag: "h-3" },
+  lg: { symbol: "h-[18px]", lockup: "h-[21px]", flag: "h-4" },
 }
 /** The drawn badge. */
 const WORD: Record<Size, string> = {
   sm: "h-2.5 rounded-[2.5px] border-[0.8px] px-[3px] text-[8px]",
   md: "h-3 rounded-[3px] border px-1 text-[11px]",
+  lg: "h-4 rounded-[4px] border-[1.25px] px-[5px] text-[14px]",
 }
 /** THE STICKER: the disc-case resolution badge, two panels in one frame. An outer
  *  frame stroked in the ink; an upper panel on the near-black ground carrying the
@@ -404,6 +415,15 @@ const STICKER: Record<
     primary: 11.55,
     secondary: 6,
     pad: 4,
+  },
+  lg: {
+    h: 30,
+    stroke: 1.5,
+    r: 4,
+    band: 9,
+    primary: 16.5,
+    secondary: 8,
+    pad: 5,
   },
 }
 const STICKER_GROUND = "var(--ag-media-sticker-ground, #0b0b0b)"
@@ -534,20 +554,41 @@ const GOLD_GLINT = "var(--ag-media-gold-glint, #FFE680)"
 const GOLD_GROUND = "#0b0b0b"
 const GOLD_METAL = `linear-gradient(135deg, ${GOLD_HI} 0%, ${GOLD_MID} 45%, ${GOLD_LO} 84%, ${GOLD_GLINT} 97%, ${GOLD_LO} 100%)`
 /** The paint a rung's gold is drawn with. */
-const GOLD_PAINT: Record<Size, string> = { sm: GOLD_MID, md: GOLD_METAL }
+const GOLD_PAINT: Record<Size, string> = {
+  sm: GOLD_MID,
+  md: GOLD_METAL,
+  lg: GOLD_METAL,
+}
 /** The gold one-line badge's stroke: the family hairline, in the metal. */
 const GOLD_WORD: Record<Size, string> = {
   sm: "border-[0.8px]",
   md: "border",
+  lg: "border-[1.25px]",
 }
 const BUTTON =
   "cursor-pointer hover:brightness-110 focus-visible:outline-2 focus-visible:outline-(--ag-media-ink)/60 focus-visible:outline-offset-1"
-const GAP_WITHIN: Record<Size, string> = { sm: "gap-0.5", md: "gap-1" }
-const GAP_BETWEEN: Record<Size, string> = { sm: "gap-1.5", md: "gap-2.5" }
+const GAP_WITHIN: Record<Size, string> = {
+  sm: "gap-0.5",
+  md: "gap-1",
+  lg: "gap-1.5",
+}
+const GAP_BETWEEN: Record<Size, string> = {
+  sm: "gap-1.5",
+  md: "gap-2.5",
+  lg: "gap-3",
+}
+/** The rung's own form: symbols on the poster rung, lockups above it. */
+const FORM_OF: Record<Size, MarkForm> = {
+  sm: "symbol",
+  md: "lockup",
+  lg: "lockup",
+}
 
 export interface ChipProps {
   emphasis?: Emphasis
   size?: Size
+  /** the marks' form; default the rung's own (`FORM_OF`) */
+  marks?: MarkForm
   /** the marks' ink: the chip's own (default) or the brand's official hex */
   tone?: Tone
   /** rendered after the axis's last chip */
@@ -567,6 +608,7 @@ interface ChipRenderProps {
   atom: Atom
   emphasis: Emphasis
   size: Size
+  form: MarkForm
   tone: Tone
   onClick?: () => void
 }
@@ -577,6 +619,7 @@ function Chip({
   atom,
   emphasis,
   size,
+  form,
   tone,
   onClick,
 }: ChipRenderProps) {
@@ -592,7 +635,6 @@ function Chip({
     "--ag-media-ink": gold ? GOLD_MID : `var(--ag-media-${kind}, currentColor)`,
     ...emphasisStyle(emphasis, isMark),
   } as React.CSSProperties
-  const form = size === "sm" ? "symbol" : "lockup"
   // A mark drawn inside a grid with margins (tabler's badges) scales its BOX to the
   // badge height; the art states the factor, so the grid never sets the size.
   const grid = isMark ? (MARKS[atom.mark][form]?.box ?? 1) : 1
@@ -648,12 +690,7 @@ function Chip({
   // GOLD IS FOR THE DRAWN FAMILY ONLY: a brand mark stays in ink beside the metal
   // stickers, as disc cases print them.
   const body = isMark ? (
-    <Mark
-      id={atom.mark}
-      form={size === "sm" ? "symbol" : "lockup"}
-      tone={gold ? "ink" : tone}
-      fill
-    />
+    <Mark id={atom.mark} form={form} tone={gold ? "ink" : tone} fill />
   ) : atom.sub !== undefined ? (
     <Sticker
       primary={atom.word}
@@ -684,6 +721,7 @@ function Axis({
   atoms,
   emphasis = "plain",
   size = "md",
+  marks,
   tone = "ink",
   trailing,
   detail,
@@ -694,6 +732,7 @@ function Axis({
   label: string
   atoms: [Facet, Atom][]
 }) {
+  const form = marks ?? FORM_OF[size]
   return (
     <span
       // The axis reads as ONE picture named by the typed label ("4K · Dolby Vision"),
@@ -714,6 +753,7 @@ function Axis({
           atom={atom}
           emphasis={emphasis}
           size={size}
+          form={form}
           tone={tone}
           onClick={onClick}
         />
@@ -727,11 +767,15 @@ function Axis({
   )
 }
 
-/** The mark for a value at a rung, or nothing when the rung has no artwork for it. */
-function markAt(id: MarkId | undefined, size: Size): MarkId | undefined {
+/** The mark for a value in a form, or nothing when no artwork exists in that form. */
+function markAt(id: MarkId | undefined, form: MarkForm): MarkId | undefined {
   if (!id) return undefined
-  if (size === "sm" && !HAS_SYMBOL.has(id)) return undefined
+  if (form === "symbol" && !HAS_SYMBOL.has(id)) return undefined
   return id
+}
+/** The form a chip's marks take: named by the consumer, else the rung's own. */
+function formOf(chip: ChipProps): MarkForm {
+  return chip.marks ?? FORM_OF[chip.size ?? "md"]
 }
 
 const mark = (id: MarkId, name: string): Atom => ({ mark: id, name })
@@ -749,7 +793,7 @@ export function PictureChip({
   const [primary, secondary] = RESOLUTION_BADGE[resolution]
   atoms.push(["resolution", word(primary, secondary)])
   if (range !== "sdr") {
-    const rng = markAt(RANGE_MARK[range], size)
+    const rng = markAt(RANGE_MARK[range], formOf(chip))
     atoms.push([
       "range",
       rng ? mark(rng, RANGE_LABEL[range][0]) : word(RANGE_LABEL[range][0]),
@@ -768,8 +812,9 @@ export function PictureChip({
 export function SoundChip({ audio, ...chip }: ChipProps & { audio: Audio }) {
   const size = chip.size ?? "md"
   const atoms: [Facet, Atom][] = []
+  const form = formOf(chip)
   if (audio.object === "atmos") {
-    const id = markAt("dolby-atmos", size)
+    const id = markAt("dolby-atmos", form)
     atoms.push(["object", id ? mark(id, "Dolby Atmos") : word("Atmos")])
   } else if (audio.object === "dts-x") {
     // No DTS:X artwork exists anywhere free to vendor: a drawn badge.
@@ -779,7 +824,7 @@ export function SoundChip({ audio, ...chip }: ChipProps & { audio: Audio }) {
   // An unnamed carrier (a claim) draws nothing: the object mark is the whole claim.
   if (audio.codec) {
     const codec = CODEC_LABEL[audio.codec]
-    const id = audio.object ? undefined : markAt(CODEC_MARK[audio.codec], size)
+    const id = audio.object ? undefined : markAt(CODEC_MARK[audio.codec], form)
     atoms.push(["codec", id ? mark(id, codec) : word(codec)])
   }
   if (audio.channels) atoms.push(["channels", word(audio.channels)])
@@ -802,10 +847,9 @@ export function TierChip({
   /** the resolution, when known: a 2160p disc wears the Ultra HD Blu-ray mark */
   resolution?: Resolution
 }) {
-  const size = chip.size ?? "md"
   let id = TIER_MARK[tier]
   if (id === "bluray" && resolution === "2160p") id = "ultra-hd-bluray"
-  const disc = markAt(id, size)
+  const disc = markAt(id, formOf(chip))
   const atoms: [Facet, Atom][] = [
     [
       "tier",
@@ -840,14 +884,15 @@ export function LangChip({
   /** the locale the default label is named in */
   locale?: string
 }) {
-  const size = chip.size ?? "md"
+  const form = formOf(chip)
   const name = label ?? langLabel(lang, locale)
   const region = regionOf(lang)
-  const flag = markAt(region ? FLAG_MARK[region] : undefined, size)
+  const flag = markAt(region ? FLAG_MARK[region] : undefined, form)
   const atoms: [Facet, Atom][] = []
   if (flag) {
     atoms.push(["lang", mark(flag, name)])
-    if (size === "md") atoms.push(["edition", word(name)])
+    // The flag alone in symbol form; the name beside it where lockups go.
+    if (form === "lockup") atoms.push(["edition", word(name)])
   } else {
     atoms.push(["lang", word(name)])
   }
@@ -855,8 +900,7 @@ export function LangChip({
 }
 
 export function CutChip({ cut, ...chip }: ChipProps & { cut: Cut }) {
-  const size = chip.size ?? "md"
-  const id = markAt(CUT_MARK[cut], size)
+  const id = markAt(CUT_MARK[cut], formOf(chip))
   const atoms: [Facet, Atom][] = [
     ["cut", id ? mark(id, cutLabel(cut)) : word(cutLabel(cut))],
   ]
@@ -877,6 +921,7 @@ export interface MediaSpecProps {
   cut?: Cut
   emphasis?: Emphasis
   size?: Size
+  marks?: MarkForm
   tone?: Tone
   /** a node after each axis's last chip */
   adornments?: Partial<Record<Kind, React.ReactNode>>
@@ -895,13 +940,14 @@ export function MediaSpec({
   cut,
   emphasis,
   size = "md",
+  marks,
   tone,
   adornments,
   omit = [],
   className,
 }: MediaSpecProps) {
   const show = (k: Kind) => !omit.includes(k)
-  const shared = { emphasis, size, tone }
+  const shared = { emphasis, size, marks, tone }
   return (
     <span
       data-slot="media-spec"

@@ -16,6 +16,7 @@ import {
   PictureChip,
   RANGES,
   RESOLUTIONS,
+  type Size,
   SoundChip,
   TIERS,
   TierChip,
@@ -97,7 +98,7 @@ function Kicker({ children }: { children: React.ReactNode }) {
 }
 
 /** One row of every kind at one emphasis: the strip a file wears. */
-function Row({ emphasis, size }: { emphasis: Emphasis; size?: "sm" | "md" }) {
+function Row({ emphasis, size }: { emphasis: Emphasis; size?: Size }) {
   return (
     <div className="flex flex-wrap items-center gap-2.5">
       <PictureChip
@@ -313,7 +314,10 @@ export default function Demo() {
         </div>
       </Sample>
 
-      <Sample name="size" label="size · sm on a poster, md on a rail">
+      <Sample
+        name="size"
+        label="size · sm on a poster, md on a rail, lg where the chip is looked at"
+      >
         <div className="flex flex-wrap items-start gap-8">
           <div className="relative aspect-[2/3] w-40 overflow-hidden rounded-lg bg-[linear-gradient(160deg,#5b6a7a,#0b0b0e_55%,#3a2a1a)]">
             <div className="absolute top-1.5 left-1.5 flex flex-wrap gap-1.5">
@@ -327,6 +331,40 @@ export default function Demo() {
             <Row emphasis="plain" size="sm" />
             <Kicker>md · lockups, the whole spec</Kicker>
             <Row emphasis="plain" size="md" />
+            <Kicker>lg · the same, for a hero</Kicker>
+            <Row emphasis="plain" size="lg" />
+            <Kicker>
+              marks=&quot;symbol&quot; · lockups become symbols at any rung: the
+              corner recipe at lg, in gold
+            </Kicker>
+            <div className="flex flex-wrap items-center gap-3 rounded-lg bg-[#151515] px-4 py-3">
+              <PictureChip
+                resolution="2160p"
+                range="dolby-vision"
+                size="lg"
+                marks="symbol"
+                tone="gold"
+              />
+              <SoundChip
+                audio={{ object: "atmos" }}
+                size="lg"
+                marks="symbol"
+                tone="gold"
+              />
+              <SoundChip
+                audio={{ codec: "dts-hd-ma" }}
+                size="lg"
+                marks="symbol"
+                tone="gold"
+              />
+              <TierChip
+                tier="remux"
+                resolution="2160p"
+                size="lg"
+                marks="symbol"
+                tone="gold"
+              />
+            </div>
           </div>
         </div>
       </Sample>
