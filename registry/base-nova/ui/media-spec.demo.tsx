@@ -7,14 +7,13 @@ import {
   type Audio,
   type Cut,
   CutChip,
-  type Delta,
+  EMPHASES,
+  type Emphasis,
   isLossless,
   KINDS,
   LangChip,
   MediaSpec,
   PictureChip,
-  PROVENANCES,
-  type Provenance,
   RANGES,
   RESOLUTIONS,
   SoundChip,
@@ -41,10 +40,9 @@ const SOUNDS: Audio[] = [
 ]
 // #endregion
 
-// #region copies
-// Three copies of one film as a library would hold them: the disc, the web rip that
-// carries the dub, and the transcode the television is playing right now.
-const REMUX = {
+// #region files
+// Three files of one film: the disc, the web rip with the dub, a smaller transcode.
+const DISC = {
   resolution: "2160p",
   range: "dolby-vision",
   audio: { codec: "truehd", channels: "7.1", object: "atmos" },
@@ -60,11 +58,26 @@ const DUB = {
   lang: "es-ES",
   cut: "extended",
 } as const
-const PLAYING = {
+const SMALL = {
   resolution: "2160p",
   range: "hdr10",
   audio: { codec: "flac", channels: "5.1" },
 } as const
+// #endregion
+
+// #region scale
+// A consumer names its own four steps and maps them onto the ladder's four looks.
+const EMPHASIS_FOR = {
+  rumoured: "ghost",
+  stated: "plain",
+  checked: "washed",
+  playing: "ringed",
+} as const satisfies Record<string, Emphasis>
+// #endregion
+
+// #region compare
+// A consumer computes its own comparison and hands the strip a glyph per axis.
+const VERDICT = { picture: "▲", sound: "▲", tier: "▼" } as const
 // #endregion
 
 const KIND_LABEL: Record<(typeof KINDS)[number], string> = {
@@ -83,30 +96,20 @@ function Kicker({ children }: { children: React.ReactNode }) {
   )
 }
 
-/** One row of every kind at one provenance: the strip a copy card wears. */
-function Row({
-  provenance,
-  size,
-}: {
-  provenance: Provenance
-  size?: "sm" | "md"
-}) {
+/** One row of every kind at one emphasis: the strip a file wears. */
+function Row({ emphasis, size }: { emphasis: Emphasis; size?: "sm" | "md" }) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-2.5">
       <PictureChip
         resolution="2160p"
         range="dolby-vision"
-        provenance={provenance}
+        emphasis={emphasis}
         size={size}
       />
-      <SoundChip
-        audio={SOUNDS[0] as Audio}
-        provenance={provenance}
-        size={size}
-      />
-      <TierChip tier="remux" provenance={provenance} size={size} />
-      <LangChip lang="es-ES" provenance={provenance} size={size} />
-      <CutChip cut="extended" provenance={provenance} size={size} />
+      <SoundChip audio={SOUNDS[0] as Audio} emphasis={emphasis} size={size} />
+      <TierChip tier="remux" emphasis={emphasis} size={size} />
+      <LangChip lang="es-ES" emphasis={emphasis} size={size} />
+      <CutChip cut="extended" emphasis={emphasis} size={size} />
     </div>
   )
 }
@@ -131,7 +134,7 @@ export default function Demo() {
           {RESOLUTIONS.map((resolution) => (
             <div
               key={resolution}
-              className="flex flex-wrap items-center gap-1.5"
+              className="flex flex-wrap items-center gap-2.5"
             >
               {RANGES.map((range) => (
                 <PictureChip
@@ -151,7 +154,7 @@ export default function Demo() {
         with="sounds"
       >
         <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             {SOUNDS.map((audio) => (
               <SoundChip
                 key={`${audio.codec}-${audio.channels}-${audio.object}`}
@@ -162,7 +165,7 @@ export default function Demo() {
           <Kicker>
             every codec · lossless ones are marked in the DOM (data-lossless)
           </Kicker>
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             {AUDIO_CODECS.map((codec) => (
               <SoundChip
                 key={codec}
@@ -176,7 +179,7 @@ export default function Demo() {
 
       <Sample name="tier-lang-cut" label="tier · lang · cut">
         <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             {TIERS.map((tier) => (
               <TierChip key={tier} tier={tier} />
             ))}
@@ -187,12 +190,13 @@ export default function Demo() {
             />
             <TierChip tier="remux" resolution="2160p" />
           </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            {["es-ES", "es-419", "en", "fr", "ja"].map((lang) => (
+          <div className="flex flex-wrap items-center gap-2.5">
+            {["es-ES", "es-419", "en", "fr-CA", "ja"].map((lang) => (
               <LangChip key={lang} lang={lang} />
             ))}
+            <LangChip lang="es-ES" locale="es" />
           </div>
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             {(
               [
                 "theatrical",
@@ -244,47 +248,13 @@ export default function Demo() {
       </Sample>
 
       <Sample
-        name="provenance"
-        label="provenance · on the mark: ghosted, full ink, washed, washed and ringed"
-      >
-        <div className="space-y-3">
-          {PROVENANCES.map((provenance) => (
-            <div key={provenance} className="flex items-center gap-4">
-              <div className="w-20 font-mono text-muted-foreground text-xs">
-                {provenance}
-              </div>
-              <Row provenance={provenance} />
-            </div>
-          ))}
-        </div>
-      </Sample>
-
-      <Sample name="size" label="size · sm on a poster, md on a rail">
-        <div className="flex flex-wrap items-start gap-8">
-          <div className="relative aspect-[2/3] w-40 overflow-hidden rounded-lg bg-[linear-gradient(160deg,#5b6a7a,#0b0b0e_55%,#3a2a1a)]">
-            <div className="absolute top-1.5 left-1.5 flex flex-wrap gap-1">
-              <PictureChip resolution="2160p" range="dolby-vision" size="sm" />
-              <SoundChip audio={SOUNDS[0] as Audio} size="sm" />
-              <LangChip lang="es-ES" size="sm" provenance="claim" />
-            </div>
-          </div>
-          <div className="space-y-3">
-            <Kicker>sm · brand symbols and the small badges</Kicker>
-            <Row provenance="verified" size="sm" />
-            <Kicker>md · lockups, the whole spec</Kicker>
-            <Row provenance="verified" size="md" />
-          </div>
-        </div>
-      </Sample>
-
-      <Sample
         name="badges"
         label="badges · tabler's SD / HD / 4K / 8K beside the drawn badge, one level line"
       >
         <div className="space-y-3">
           <Kicker>
-            the retired HDR10 / HDR10+ artwork at the md badge height, for one
-            last comparison with the drawn badge that replaced it
+            the HDR10 / HDR10+ artwork at the md badge height, beside the drawn
+            badge that stands in for it
           </Kicker>
           <div className="flex flex-wrap items-center gap-2.5">
             <Mark id="hdr10" em={0.9} />
@@ -326,107 +296,173 @@ export default function Demo() {
         </div>
       </Sample>
 
-      <Sample name="delta" label="delta · a candidate against the copy you own">
-        <div className="space-y-2 font-mono text-xs">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="w-24 text-muted-foreground">owned</span>
-            <MediaSpec {...DUB} provenance="verified" omit={["lang", "cut"]} />
-          </div>
-          {(
-            [
-              [
-                "better",
-                {
-                  ...REMUX,
-                  deltas: {
-                    picture: "better",
-                    sound: "better",
-                    tier: "better",
-                  },
-                },
-              ],
-              [
-                "same",
-                {
-                  ...DUB,
-                  deltas: { picture: "same", sound: "same", tier: "same" },
-                },
-              ],
-              [
-                "worse",
-                {
-                  resolution: "720p",
-                  range: "sdr",
-                  audio: { codec: "aac", channels: "2.0" },
-                  tier: "webrip",
-                  deltas: { picture: "worse", sound: "worse", tier: "worse" },
-                },
-              ],
-            ] as const
-          ).map(([name, spec]) => (
-            <div key={name} className="flex flex-wrap items-center gap-1.5">
-              <span className="w-24 text-muted-foreground">
-                {name as Delta}
-              </span>
-              <MediaSpec {...spec} provenance="claim" omit={["lang", "cut"]} />
+      <Sample
+        name="emphasis"
+        label="emphasis · a ladder named for its look: ghost, plain, washed, ringed"
+      >
+        <div className="space-y-3">
+          {EMPHASES.map((emphasis) => (
+            <div key={emphasis} className="flex items-center gap-4">
+              <div className="w-20 font-mono text-muted-foreground text-xs">
+                {emphasis}
+              </div>
+              <Row emphasis={emphasis} />
             </div>
           ))}
         </div>
       </Sample>
 
+      <Sample name="size" label="size · sm on a poster, md on a rail">
+        <div className="flex flex-wrap items-start gap-8">
+          <div className="relative aspect-[2/3] w-40 overflow-hidden rounded-lg bg-[linear-gradient(160deg,#5b6a7a,#0b0b0e_55%,#3a2a1a)]">
+            <div className="absolute top-1.5 left-1.5 flex flex-wrap gap-1.5">
+              <PictureChip resolution="2160p" range="dolby-vision" size="sm" />
+              <SoundChip audio={SOUNDS[0] as Audio} size="sm" />
+              <LangChip lang="es-ES" size="sm" emphasis="ghost" />
+            </div>
+          </div>
+          <div className="space-y-3">
+            <Kicker>sm · brand symbols and the small badges</Kicker>
+            <Row emphasis="plain" size="sm" />
+            <Kicker>md · lockups, the whole spec</Kicker>
+            <Row emphasis="plain" size="md" />
+          </div>
+        </div>
+      </Sample>
+
+      <Sample
+        name="trailing"
+        label="trailing · the slot after an axis takes anything"
+      >
+        <div className="flex flex-wrap items-center gap-2.5">
+          <PictureChip resolution="2160p" range="hdr10" trailing="▲" />
+          <SoundChip audio={SOUNDS[3] as Audio} trailing="=" />
+          <TierChip
+            tier="webdl"
+            trailing={<span className="font-mono text-[10px]">×3</span>}
+          />
+          <LangChip lang="fr" trailing="·" />
+        </div>
+      </Sample>
+
       <Sample
         name="spec"
-        label="MediaSpec · a copy card, a poster, what is playing"
-        with="copies"
+        label="MediaSpec · one strip per file, the axes set apart"
+        with="files"
       >
         <div className="space-y-4">
           <div className="space-y-1">
-            <Kicker>
-              the disc · verified from the container · click the cut to restate
-              it
-            </Kicker>
-            <MediaSpec {...REMUX} cut={undefined} provenance="verified" />
-            <CutChip
-              cut={cut}
-              onClick={nextCut}
-              detail="click to restate the cut"
-            />
+            <Kicker>the disc · click the cut to restate it</Kicker>
+            <MediaSpec {...DISC} cut={undefined} />
+            <CutChip cut={cut} onClick={nextCut} detail="click to restate" />
           </div>
           <div className="space-y-1">
-            <Kicker>
-              the dub · the container states the picture, the name only promises
-              the language
-            </Kicker>
-            <span className="inline-flex flex-wrap items-center gap-1.5">
-              <MediaSpec {...DUB} provenance="verified" omit={["lang"]} />
-              <LangChip
-                lang={DUB.lang}
-                provenance="claim"
-                detail="promised by the release name, unheard"
-              />
+            <Kicker>the dub · the language ghosted</Kicker>
+            <span className="inline-flex flex-wrap items-center gap-2.5">
+              <MediaSpec {...DUB} omit={["lang"]} />
+              <LangChip lang={DUB.lang} emphasis="ghost" />
             </span>
           </div>
           <div className="space-y-1">
-            <Kicker>what the television gets · delivered</Kicker>
-            <MediaSpec {...PLAYING} provenance="delivered" />
+            <Kicker>the small one · ringed</Kicker>
+            <MediaSpec {...SMALL} emphasis="ringed" />
           </div>
           <div className="space-y-1">
             <Kicker>
-              the same disc in brand tone · the marks take their official
-              colours, the text keeps the ink
+              the disc in brand tone · the marks take their official colours
             </Kicker>
-            <MediaSpec {...REMUX} provenance="verified" tone="brand" />
-            <MediaSpec {...REMUX} provenance="claim" tone="brand" />
+            <MediaSpec {...DISC} tone="brand" />
+            <MediaSpec {...DISC} emphasis="ghost" tone="brand" />
             <MediaSpec
-              {...REMUX}
-              provenance="measured"
+              {...DISC}
+              emphasis="washed"
               tone="brand"
               omit={["lang", "cut"]}
             />
           </div>
           <div className="space-y-1">
             <Kicker>on the poster · sm, picture and sound only</Kicker>
-            <MediaSpec {...REMUX} size="sm" omit={["tier", "lang", "cut"]} />
+            <MediaSpec {...DISC} size="sm" omit={["tier", "lang", "cut"]} />
+          </div>
+        </div>
+      </Sample>
+
+      <Sample
+        name="recipes"
+        label="recipes · what the generic ergonomics allow"
+        with="scale compare"
+      >
+        <div className="space-y-6">
+          <div className="space-y-1.5">
+            <Kicker>a scale of certainty · the ladder is yours to name</Kicker>
+            {(Object.keys(EMPHASIS_FOR) as (keyof typeof EMPHASIS_FOR)[]).map(
+              (step) => (
+                <div key={step} className="flex items-center gap-4">
+                  <div className="w-20 font-mono text-muted-foreground text-xs">
+                    {step}
+                  </div>
+                  <MediaSpec
+                    {...DUB}
+                    emphasis={EMPHASIS_FOR[step]}
+                    omit={["lang", "cut"]}
+                  />
+                </div>
+              ),
+            )}
+          </div>
+          <div className="space-y-1.5">
+            <Kicker>
+              comparing against what you have · the slot takes anything
+            </Kicker>
+            <div className="flex items-center gap-4">
+              <div className="w-20 font-mono text-muted-foreground text-xs">
+                have
+              </div>
+              <MediaSpec {...DUB} omit={["lang", "cut"]} />
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="w-20 font-mono text-muted-foreground text-xs">
+                offered
+              </div>
+              <MediaSpec
+                {...DISC}
+                emphasis="ghost"
+                omit={["lang", "cut"]}
+                adornments={{
+                  picture: VERDICT.picture,
+                  sound: VERDICT.sound,
+                  tier: (
+                    <span className="font-mono text-[10px]">
+                      {VERDICT.tier} +38 GB
+                    </span>
+                  ),
+                }}
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Kicker>your own words · a label override per tag</Kicker>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <LangChip lang="fr-CA" label="Québécois" />
+              <LangChip lang="de-CH" label="Swiss German" />
+              <LangChip lang="pt-BR" label="Brazilian" />
+              <LangChip lang="es-ES" label="Peninsular" />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Kicker>
+              a poster corner · the two marks that matter, over a scrim
+            </Kicker>
+            <div className="relative aspect-[2/3] w-32 overflow-hidden rounded-lg bg-[linear-gradient(200deg,#e9d8a6,#1b263b_60%,#0d1b2a)]">
+              <div className="absolute top-1.5 left-1.5 flex gap-1">
+                <PictureChip
+                  resolution="2160p"
+                  range="dolby-vision"
+                  size="sm"
+                />
+                <SoundChip audio={SOUNDS[0] as Audio} size="sm" />
+              </div>
+            </div>
           </div>
         </div>
       </Sample>
@@ -445,42 +481,33 @@ export default function Demo() {
               "--ag-media-tier": "#e6e4ee",
               "--ag-media-lang": "#e8b13d",
               "--ag-media-cut": "#9c9aa8",
-              "--ag-media-better": "#43d17c",
-              "--ag-media-worse": "#f4655f",
-              "--ag-media-on-ink": "#0b0b0e",
             } as React.CSSProperties
           }
         >
-          {PROVENANCES.map((provenance) => (
-            <Row key={provenance} provenance={provenance} />
+          {EMPHASES.map((emphasis) => (
+            <Row key={emphasis} emphasis={emphasis} />
           ))}
-          <MediaSpec
-            {...REMUX}
-            provenance="claim"
-            deltas={{ picture: "better", sound: "better", tier: "worse" }}
-          />
         </div>
       </Sample>
 
       <Sample name="fallback" label="nothing set · monochrome by design">
         <p className="max-w-prose text-[0.9375rem] text-foreground/70 leading-relaxed">
-          A copy that is <PictureChip resolution="2160p" range="hdr10" /> with{" "}
+          A file that is <PictureChip resolution="2160p" range="hdr10" /> with{" "}
           <SoundChip audio={{ codec: "dts-hd-ma", channels: "5.1" }} /> from a{" "}
           <TierChip tier="bluray" /> reads in the paragraph&apos;s own ink, told
-          apart from a <PictureChip resolution="1080p" provenance="claim" />{" "}
-          promise by fill alone.
+          apart from a <PictureChip resolution="1080p" emphasis="ghost" /> by
+          presence alone.
         </p>
       </Sample>
 
       <p className="max-w-prose text-[0.9375rem] text-foreground/70 leading-relaxed">
         The claim this page makes: the vocabulary is typed and the chip owns its
         marks ({KINDS.map((k) => KIND_LABEL[k]).join(" · ")}), artwork comes
-        first and a drawn badge stands in only where none exists, provenance
-        reads on the mark without a legend, and the same chips render under a
-        palette that never installed the tokens. Which of two values is better
-        is not a question a chip answers: the order of the ladder belongs to the
-        app. Dolby, DTS, HDR10+, Blu-ray, DVD and IMAX are their owners&apos;
-        trademarks, worn here nominatively to say what a copy carries, never to
+        first and a drawn badge stands in only where none exists, the emphasis
+        ladder and the trailing slot carry whatever a consumer means by them,
+        and the same chips render under a palette that never installed the
+        tokens. Dolby, DTS, HDR10+, Blu-ray, DVD and IMAX are their owners&apos;
+        trademarks, worn here nominatively to say what a file carries, never to
         claim a certification; the artwork and its origins are in the
         repo&apos;s references.
       </p>

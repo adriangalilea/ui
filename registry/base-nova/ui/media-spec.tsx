@@ -1,31 +1,31 @@
-// THE MEDIA FORMAT VOCABULARY, typed. What a copy of a film carries and how we know it:
+// MEDIA FORMAT CHIPS. The generic vocabulary of what a video file carries, typed:
 // picture (resolution × dynamic range), sound (codec × object audio × channels), the
 // source tier, the language, the cut. An app passes VALUES, never label strings, and
-// the chip owns every mark, word and tone, the way a score chip knows what IMDb is. It
-// knows nothing about ranking: which of two values is better is the caller's business
-// (a daemon's ladder), and a chip renders one value honestly.
+// the chip owns every mark, word and tone, the way a score chip knows what IMDb is.
+// This item carries visuals and vocabulary only: a consumer that needs MEANING (what a
+// ghosted chip says about a fact, what a trailing glyph compares, a house spelling for
+// a language) vendors the file and maps it.
 //
 // ARTWORK FIRST. A chip is ONE MARK standing FRAMELESS: the artwork is the chip. A
 // brand lockup keeps its shape, a symbol its glyph, the flag its colours, and nothing
 // draws a frame around any of them, so there is never a box in a box. SD, HD, 4K and
 // 8K are tabler's badges, their stroke matched to the drawn family. Every other BOXED
 // value (HDR10, HDR10+, 720p, HLG, channels, Remux, WEB-DL, DTS:X, a codec named
-// beside its object mark, AAC and the other plain codecs, castellano, latino, a
-// language code, every cut but IMAX) is the ONE drawn badge: a rounded box with the
-// word set in the surrounding sans, semibold, to the HDR10 badge's proportions, so the
-// whole boxed family has one weight at each rung. The Commons HDR10 and HDR10+ artwork
-// stays in the references as the geometry reference and is not wired.
+// beside its object mark, AAC and the other plain codecs, a language, every cut but
+// IMAX) is the ONE drawn badge: a rounded box with the word set in the surrounding
+// sans, semibold, to the HDR10 badge's proportions, so the whole boxed family has one
+// weight at each rung. The HDR10 and HDR10+ artwork stays in the references as the
+// geometry reference and is not wired.
 //
-// PROVENANCE sits ON the mark, never as a glyph: `claim` (a release name's promise) is
-// ghosted; `verified` (the container states it) is full ink; `measured` (the pixels or
-// the meter say so) is full ink over a soft wash pill; `delivered` (what this session
-// on this screen actually gets) is the wash plus a ring, the loudest state. A reader
-// learns nothing to read it: more presence, more certain.
+// EMPHASIS is a visual ladder named for its look alone: `ghost` is the mark at 55%,
+// `plain` is full ink on no ground, `washed` is full ink over a soft wash pill,
+// `ringed` is the wash plus a ring. What a step means is the consumer's to decide.
 //
 // AN AXIS IS A GROUP of one to three chips: picture is [resolution] [range], sound is
-// [object] [codec] [channels], tier is [disc] [Remux], lang is [flag] [castellano]. The
+// [object] [codec] [channels], tier is [disc] [Remux], lang is [flag] [name]. The
 // per-axis components render the group, the `MediaSpec` strip sets the groups apart
-// (tight within an axis, wider between), and a `delta` trails the axis's last chip.
+// (tight within an axis, wider between), and a `trailing` node follows the axis's
+// last chip.
 //
 // STYLE IS UTILITIES, consumer `className` last. The one computed value is the chip's
 // ink: `--ag-media-ink` resolves `--ag-media-<kind>` and falls back to `currentColor`,
@@ -34,7 +34,6 @@
 // consumer MAY set:
 //   --ag-media-picture / --ag-media-sound / --ag-media-tier / --ag-media-lang /
 //   --ag-media-cut     the ink per kind (fallback: currentColor)
-//   --ag-media-better / --ag-media-worse   the delta glyph inks (fallback: currentColor)
 //   --ag-media-scrim   the ground under the poster rung's drawn badges (fallback:
 //                      rgb(0 0 0 / .65))
 // `tone` picks a mark's ink: "ink" (default) draws it like the words; "brand" draws it
@@ -43,9 +42,9 @@
 // `markFill` in media-spec-marks.tsx). Drawn badges never take a brand.
 // Every chip carries data-slot="media-chip", data-kind (the AXIS: picture | sound |
 // tier | lang | cut), data-facet (resolution | range | object | codec | channels | tier
-// | edition | lang | cut), data-provenance, data-size, and data-mark when it is artwork,
+// | edition | lang | cut), data-emphasis, data-size, and data-mark when it is artwork,
 // so a consumer styles Dolby Vision or Atmos from outside without a class name to know.
-// The typed label stays the accessible name of the axis group whatever is drawn.
+// The typed label is the accessible name of the axis group whatever is drawn.
 
 import { cn } from "@/lib/utils"
 import {
@@ -117,16 +116,8 @@ export const CUTS = [
 /** A known cut, or any label the catalogue names (rendered verbatim). */
 export type Cut = (typeof CUTS)[number] | (string & {})
 
-export const PROVENANCES = [
-  "claim",
-  "verified",
-  "measured",
-  "delivered",
-] as const
-export type Provenance = (typeof PROVENANCES)[number]
-
-export const DELTAS = ["better", "same", "worse"] as const
-export type Delta = (typeof DELTAS)[number]
+export const EMPHASES = ["ghost", "plain", "washed", "ringed"] as const
+export type Emphasis = (typeof EMPHASES)[number]
 
 export const KINDS = ["picture", "sound", "tier", "lang", "cut"] as const
 export type Kind = (typeof KINDS)[number]
@@ -208,11 +199,6 @@ const CUT_LABEL: Record<(typeof CUTS)[number], string> = {
   imax: "IMAX",
   remastered: "remastered",
 }
-/** The house spellings for the two Spanishes; every other code is its own label. */
-const LANG_LABEL: Record<string, string> = {
-  "es-ES": "castellano",
-  "es-419": "latino",
-}
 
 const LOSSLESS: ReadonlySet<AudioCodec> = new Set([
   "truehd",
@@ -250,8 +236,14 @@ export function tierLabel(tier: Tier): string {
   return TIER_LABEL[tier]
 }
 
-export function langLabel(code: string): string {
-  return LANG_LABEL[code] ?? code
+/** The language's display name in `locale` (default English) through Intl; a tag
+ *  Intl cannot name renders as itself. */
+export function langLabel(tag: string, locale = "en"): string {
+  try {
+    return new Intl.DisplayNames([locale], { type: "language" }).of(tag) ?? tag
+  } catch {
+    return tag
+  }
 }
 
 export function cutLabel(cut: Cut): string {
@@ -263,10 +255,7 @@ export function cutLabel(cut: Cut): string {
 
 // SD, HD, 4K and 8K are tabler's badges: their letterforms are what tells 4K from 8K,
 // and their stroke is normalised (2 → 1.12 on the 24-grid, .08 of the drawn box) so
-// they weigh exactly what the drawn badge weighs. Every other boxed value (HDR10,
-// HDR10+, 720p, HLG, channels, Remux, the web tiers, DTS:X, plain codecs, cuts,
-// languages) is the ONE drawn badge; the Commons HDR10 artwork stays in references as
-// the geometry reference and is not wired.
+// they weigh exactly what the drawn badge weighs.
 const RESOLUTION_MARK: Partial<Record<Resolution, MarkId>> = {
   sd: "badge-sd",
   "1080p": "badge-hd",
@@ -290,7 +279,8 @@ const TIER_MARK: Partial<Record<Tier, MarkId>> = {
   bluray: "bluray",
   dvd: "dvd",
 }
-const LANG_MARK: Record<string, MarkId> = { "es-ES": "flag-es" }
+/** Flags are keyed by the tag's region subtag. */
+const FLAG_MARK: Record<string, MarkId> = { ES: "flag-es" }
 const CUT_MARK: Record<string, MarkId> = { imax: "imax" }
 
 /** Marks with a SYMBOL for the poster rung; a lockup-only mark is a drawn word there. */
@@ -342,12 +332,12 @@ const WORD: Record<Size, string> = {
   sm: "h-2.5 rounded-[2.5px] border-[0.8px] px-[3px] text-[8px]",
   md: "h-3 rounded-[3px] border px-1 text-[11px]",
 }
-/** Provenance ON the mark: presence, never a glyph. */
-const PROVENANCE: Record<Provenance, string> = {
-  claim: "opacity-55",
-  verified: "",
-  measured: "rounded bg-(--ag-media-ink)/12 px-0.5",
-  delivered:
+/** The emphasis ladder, named for its look. */
+const EMPHASIS: Record<Emphasis, string> = {
+  ghost: "opacity-55",
+  plain: "",
+  washed: "rounded bg-(--ag-media-ink)/12 px-0.5",
+  ringed:
     "rounded bg-(--ag-media-ink)/12 px-0.5 ring-1 ring-(--ag-media-ink)/45",
 }
 /** A drawn badge on the poster rung sits on art: a scrim under it so it survives a
@@ -355,22 +345,17 @@ const PROVENANCE: Record<Provenance, string> = {
 const SCRIM = "bg-(--ag-media-scrim) backdrop-blur-sm"
 const BUTTON =
   "cursor-pointer hover:brightness-110 focus-visible:outline-2 focus-visible:outline-(--ag-media-ink)/60 focus-visible:outline-offset-1"
-const DELTA: Record<Delta, [glyph: string, cls: string]> = {
-  better: ["▲", "text-(--ag-media-better)"],
-  same: ["=", "opacity-50"],
-  worse: ["▼", "text-(--ag-media-worse)"],
-}
 const GAP_WITHIN: Record<Size, string> = { sm: "gap-0.5", md: "gap-1" }
 const GAP_BETWEEN: Record<Size, string> = { sm: "gap-1.5", md: "gap-2.5" }
 
 export interface ChipProps {
-  provenance?: Provenance
+  emphasis?: Emphasis
   size?: Size
   /** the marks' ink: the chip's own (default) or the brand's official hex */
   tone?: Tone
-  /** trails the axis's last chip */
-  delta?: Delta
-  /** the axis group's title: where the fact came from, what it became */
+  /** rendered after the axis's last chip */
+  trailing?: React.ReactNode
+  /** the axis group's title */
   detail?: string
   onClick?: () => void
   className?: string
@@ -383,7 +368,7 @@ interface ChipRenderProps {
   kind: Kind
   facet: Facet
   atom: Atom
-  provenance: Provenance
+  emphasis: Emphasis
   size: Size
   tone: Tone
   onClick?: () => void
@@ -393,7 +378,7 @@ function Chip({
   kind,
   facet,
   atom,
-  provenance,
+  emphasis,
   size,
   tone,
   onClick,
@@ -412,14 +397,14 @@ function Chip({
           "border-current font-semibold tracking-tight whitespace-nowrap",
           size === "sm" && SCRIM,
         ),
-    PROVENANCE[provenance],
+    EMPHASIS[emphasis],
     onClick && BUTTON,
   )
   const attrs = {
     "data-slot": "media-chip",
     "data-kind": kind,
     "data-facet": facet,
-    "data-provenance": provenance,
+    "data-emphasis": emphasis,
     "data-size": size,
     "data-mark": isMark ? atom.mark : undefined,
     "data-tone": isMark ? tone : undefined,
@@ -446,16 +431,16 @@ function Chip({
   return <span {...attrs}>{body}</span>
 }
 
-/** One axis: its chips as a group, the typed label as the group's name, the delta
- *  glyph trailing the last chip. */
+/** One axis: its chips as a group, the typed label as the group's name, the trailing
+ *  node after the last chip. */
 function Axis({
   kind,
   label,
   atoms,
-  provenance = "verified",
+  emphasis = "plain",
   size = "md",
   tone = "ink",
-  delta,
+  trailing,
   detail,
   onClick,
   className,
@@ -464,7 +449,6 @@ function Axis({
   label: string
   atoms: [Facet, Atom][]
 }) {
-  const glyph = delta ? DELTA[delta] : null
   return (
     <span
       // The axis reads as ONE picture named by the typed label ("4K · Dolby Vision"),
@@ -483,20 +467,15 @@ function Axis({
           kind={kind}
           facet={facet}
           atom={atom}
-          provenance={provenance}
+          emphasis={emphasis}
           size={size}
           tone={tone}
           onClick={onClick}
         />
       ))}
-      {glyph && (
-        <span
-          data-slot="media-axis-delta"
-          role="img"
-          className={cn("text-[11px] leading-none", glyph[1])}
-          aria-label={delta}
-        >
-          {glyph[0]}
+      {trailing !== undefined && trailing !== null && (
+        <span data-slot="media-axis-trailing" className="leading-none">
+          {trailing}
         </span>
       )}
     </span>
@@ -577,7 +556,7 @@ export function TierChip({
   ...chip
 }: ChipProps & {
   tier: Tier
-  /** the copy's resolution, when known: a 2160p disc wears the Ultra HD Blu-ray mark */
+  /** the resolution, when known: a 2160p disc wears the Ultra HD Blu-ray mark */
   resolution?: Resolution
 }) {
   const size = chip.size ?? "md"
@@ -600,17 +579,36 @@ export function TierChip({
   return <Axis kind="tier" label={tierLabel(tier)} atoms={atoms} {...chip} />
 }
 
-export function LangChip({ lang, ...chip }: ChipProps & { lang: string }) {
+/** The region subtag of a BCP-47 tag ("es-ES" → "ES"), or nothing. */
+function regionOf(tag: string): string | undefined {
+  return tag.split("-").find((part, i) => i > 0 && /^[A-Z]{2}$/.test(part))
+}
+
+export function LangChip({
+  lang,
+  label,
+  locale,
+  ...chip
+}: ChipProps & {
+  /** a BCP-47 tag */
+  lang: string
+  /** the word to draw beside the flag; default `langLabel(lang, locale)` */
+  label?: string
+  /** the locale the default label is named in */
+  locale?: string
+}) {
   const size = chip.size ?? "md"
-  const flag = markAt(LANG_MARK[lang], size)
+  const name = label ?? langLabel(lang, locale)
+  const region = regionOf(lang)
+  const flag = markAt(region ? FLAG_MARK[region] : undefined, size)
   const atoms: [Facet, Atom][] = []
   if (flag) {
-    atoms.push(["lang", mark(flag, langLabel(lang))])
-    if (size === "md") atoms.push(["edition", word(langLabel(lang))])
+    atoms.push(["lang", mark(flag, name)])
+    if (size === "md") atoms.push(["edition", word(name)])
   } else {
-    atoms.push(["lang", word(langLabel(lang))])
+    atoms.push(["lang", word(name)])
   }
-  return <Axis kind="lang" label={langLabel(lang)} atoms={atoms} {...chip} />
+  return <Axis kind="lang" label={name} atoms={atoms} {...chip} />
 }
 
 export function CutChip({ cut, ...chip }: ChipProps & { cut: Cut }) {
@@ -622,7 +620,7 @@ export function CutChip({ cut, ...chip }: ChipProps & { cut: Cut }) {
   return <Axis kind="cut" label={cutLabel(cut)} atoms={atoms} {...chip} />
 }
 
-// ── The strip: one copy's spec, axis groups in a fixed order, absent axes unsaid.
+// ── The strip: axis groups in a fixed order, absent axes unsaid.
 
 export interface MediaSpecProps {
   resolution?: Resolution
@@ -630,11 +628,15 @@ export interface MediaSpecProps {
   audio?: Audio
   tier?: Tier
   lang?: string
+  /** the word beside the flag, when the default display name is not wanted */
+  langLabel?: string
+  locale?: string
   cut?: Cut
-  provenance?: Provenance
+  emphasis?: Emphasis
   size?: Size
   tone?: Tone
-  deltas?: Partial<Record<"picture" | "sound" | "tier", Delta>>
+  /** a node after each axis's last chip */
+  adornments?: Partial<Record<Kind, React.ReactNode>>
   omit?: readonly Kind[]
   className?: string
 }
@@ -645,16 +647,18 @@ export function MediaSpec({
   audio,
   tier,
   lang,
+  langLabel: langWord,
+  locale,
   cut,
-  provenance,
+  emphasis,
   size = "md",
   tone,
-  deltas,
+  adornments,
   omit = [],
   className,
 }: MediaSpecProps) {
   const show = (k: Kind) => !omit.includes(k)
-  const shared = { provenance, size, tone }
+  const shared = { emphasis, size, tone }
   return (
     <span
       data-slot="media-spec"
@@ -669,23 +673,33 @@ export function MediaSpec({
         <PictureChip
           resolution={resolution}
           range={range}
-          delta={deltas?.picture}
+          trailing={adornments?.picture}
           {...shared}
         />
       )}
       {audio && show("sound") && (
-        <SoundChip audio={audio} delta={deltas?.sound} {...shared} />
+        <SoundChip audio={audio} trailing={adornments?.sound} {...shared} />
       )}
       {tier && show("tier") && (
         <TierChip
           tier={tier}
           resolution={resolution}
-          delta={deltas?.tier}
+          trailing={adornments?.tier}
           {...shared}
         />
       )}
-      {lang && show("lang") && <LangChip lang={lang} {...shared} />}
-      {cut && show("cut") && <CutChip cut={cut} {...shared} />}
+      {lang && show("lang") && (
+        <LangChip
+          lang={lang}
+          label={langWord}
+          locale={locale}
+          trailing={adornments?.lang}
+          {...shared}
+        />
+      )}
+      {cut && show("cut") && (
+        <CutChip cut={cut} trailing={adornments?.cut} {...shared} />
+      )}
     </span>
   )
 }

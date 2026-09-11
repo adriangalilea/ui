@@ -7,36 +7,31 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 ### media-spec
 
-- New: the media format vocabulary as typed chips. `PictureChip`, `SoundChip`,
-  `TierChip`, `LangChip`, `CutChip` and the composed `MediaSpec` strip take
-  values (`resolution`, `range`, `audio`, `tier`, `lang`, `cut`), never label
-  strings; the chip owns the words ("4K · Dolby Vision", "TrueHD Atmos 7.1",
-  "castellano"). Provenance is a fill ladder, `claim · verified · measured ·
-  delivered`, and `delta` adds a ▲ = ▼ glyph for a candidate row. No
-  dependencies: with nothing set every chip is monochrome in the surrounding
-  text colour; a consumer colours them through `--ag-media-picture`, `-sound`,
-  `-tier`, `-lang`, `-cut`, `-better`, `-worse`, `-on-ink` and `-scrim`. The
-  label functions (`pictureLabel`, `soundLabel`, `tierLabel`, `langLabel`,
-  `cutLabel`, `isLossless`) and the vocabulary tuples are exported.
-- Breaking: artwork first. The item now ships a second file,
-  `media-spec-marks.tsx` (Dolby Vision, Dolby Atmos, TrueHD, Dolby Digital and
-  Plus, dts, DTS-HD MA, HDR10, HDR10+, the 4K / 8K / HD / SD badges, FLAC, Opus,
-  Blu-ray, Ultra HD Blu-ray, DVD, IMAX, the Spain flag), inlined as single-ink
-  SVG, and a chip is ONE mark standing frameless: the artwork is the chip. A
-  drawn badge (a rounded box with the word, to the HDR10 badge's proportions)
-  stands in only for a value with no artwork anywhere (720p, HLG, channels,
-  Remux, WEB-DL, DTS:X, AAC, castellano, a cut). Each axis is now a GROUP of
-  one to three chips: `PictureChip` renders [resolution] [range], `SoundChip`
-  [object] [codec] [channels], `TierChip` [disc] [Remux], `LangChip` [flag]
-  [castellano]; `MediaSpec` sets the groups apart. At `md` the lockups, at `sm`
-  the brand symbols and the small badges. Provenance moved onto the mark
-  (ghosted, full ink, washed, washed and ringed): the border-and-fill ladder is
-  gone, and so is the monospace face. `delta` trails the axis's last chip.
-  `tone="brand"` paints only marks, in their official colour; a near-black
-  brand keeps the ink. `TierChip` takes `resolution` so a 2160p disc wears the
-  Ultra HD Blu-ray mark; `MediaSpec` passes it. Each chip carries `data-facet`
-  beside `data-kind`. The typed label is the axis group's accessible name.
-  `Mark` and `MARKS` are exported for a consumer that wants a mark on its own.
+- New: the media format vocabulary as typed chips wearing the real marks.
+  `PictureChip`, `SoundChip`, `TierChip`, `LangChip`, `CutChip` and the composed
+  `MediaSpec` strip take values (`resolution`, `range`, `audio`, `tier`,
+  `lang`, `cut`), never label strings. The item ships two files: the chips and
+  `media-spec-marks.tsx`, the artwork inlined as single-ink SVG (Dolby Vision,
+  Dolby Atmos, TrueHD, Dolby Digital and Plus, dts, DTS-HD MA, the 4K / 8K / HD
+  / SD badges, FLAC, Opus, Blu-ray, Ultra HD Blu-ray, DVD, IMAX, the Spain flag).
+  A chip is ONE mark standing frameless; a drawn badge (a rounded box with the
+  word, to the HDR10 badge's proportions) stands in only for a value with no
+  artwork (HDR10, HDR10+, 720p, HLG, channels, Remux, WEB-DL, DTS:X, AAC, a
+  language, a cut). Each axis is a group of one to three chips ([resolution]
+  [range], [object] [codec] [channels], [disc] [Remux], [flag] [name]); at `md`
+  the lockups, at `sm` the brand symbols and the small badges. `emphasis` is a
+  visual ladder named for its look (`ghost · plain · washed · ringed`),
+  `trailing` is a slot after an axis and `adornments` fills it per axis on the
+  strip; what either means is the consumer's. `langLabel(tag, locale)` names a
+  language through `Intl.DisplayNames`, and `LangChip` takes a `label`
+  override. `tone="brand"` paints only marks, in their official colour; a
+  near-black brand keeps the ink. `TierChip` takes `resolution` so a 2160p disc
+  wears the Ultra HD Blu-ray mark. No dependencies: with nothing set every chip
+  is monochrome in the surrounding text colour; a consumer colours it through
+  `--ag-media-picture`, `-sound`, `-tier`, `-lang`, `-cut` and `-scrim`. Every
+  chip carries `data-kind`, `data-facet`, `data-emphasis`, `data-size` and
+  `data-mark`. `Mark`, `MARKS`, the label functions and the vocabulary tuples
+  are exported.
 
 ## 2026-09-09
 

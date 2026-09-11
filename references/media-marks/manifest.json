@@ -1,5 +1,5 @@
 {
-  "vocabulary": "media-spec (kinds picture/sound/tier/lang/cut). A mark REPLACES the word it stands for; the rest of the label stays text. `symbol` is the poster (sm) artwork, `lockup` the rail (md) artwork. brand = official hex for tone=brand; marks with intrinsic colours (flag) ignore tone.",
+  "vocabulary": "media-spec (kinds picture/sound/tier/lang/cut). A chip is one mark standing frameless; a drawn badge only where no artwork exists. `symbol` is the poster (sm) artwork, `lockup` the rail (md) artwork; brand = official hex for tone=brand; marks with intrinsic colours (the flag) ignore tone.",
   "marks": {
     "dolby": {
       "symbol": "dolby-symbol.svg",
@@ -162,43 +162,40 @@
     }
   },
   "value_to_mark": {
+    "resolution.sd": "badge-sd (stroke normalised to the drawn family)",
+    "resolution.720p": "drawn badge '720p' (no artwork exists)",
+    "resolution.1080p": "badge-hd (stroke normalised to the drawn family)",
+    "resolution.2160p": "badge-4k (stroke normalised to the drawn family)",
+    "resolution.4320p": "badge-8k (stroke normalised to the drawn family)",
     "range.dolby-vision": "dolby-vision",
     "range.hdr10": "drawn badge 'HDR10' (the hdr10 artwork is the geometry reference, not wired)",
     "range.hdr10-plus": "drawn badge 'HDR10+' (artwork reference only)",
-    "resolution.2160p": "badge-4k (stroke normalised to the drawn family)",
+    "range.hlg": "drawn badge 'HLG'",
     "object.atmos": "dolby-atmos",
-    "object.dts-x": "dts (+ ':X' set in the chip's type; no DTS:X artwork exists)",
+    "object.dts-x": "drawn badge 'DTS:X' (no free DTS:X artwork exists)",
     "codec.truehd": "dolby-truehd",
     "codec.eac3": "dolby-digital-plus",
     "codec.ac3": "dolby-digital",
     "codec.dts": "dts",
     "codec.dts-hd-ma": "dts-hd-ma",
-    "codec.dts-hd-hra": "dts (symbol) + 'HD HRA' text",
-    "codec.flac": "flac (md only)",
-    "codec.opus": "opus (md only)",
+    "codec.dts-hd-hra": "drawn badge 'DTS-HD HRA'",
+    "codec.flac": "flac (md; a drawn badge at sm, no symbol)",
+    "codec.opus": "opus (md; a drawn badge at sm, no symbol)",
+    "codec.other": "drawn badge (AAC, PCM, ALAC, MP3, MP2, Vorbis)",
+    "channels": "drawn badge ('7.1')",
     "tier.bluray": "bluray, or ultra-hd-bluray when the strip knows resolution=2160p",
-    "tier.remux": "bluray mark + 'Remux' text (ultra-hd-bluray at 2160p)",
+    "tier.remux": "bluray mark, then a drawn 'Remux' badge (ultra-hd-bluray at 2160p)",
     "tier.dvd": "dvd",
+    "tier.other": "drawn badge (WEB-DL, WEBRip, HDTV, CAM)",
     "cut.imax": "imax",
-    "lang.es-ES": "flag-es (+ 'castellano' at md)",
-    "resolution.4320p": "badge-8k (stroke normalised to the drawn family)",
-    "resolution.1080p": "badge-hd (stroke normalised to the drawn family)",
-    "resolution.sd": "badge-sd (stroke normalised to the drawn family)",
-    "resolution.720p": "drawn badge '720p' (no artwork exists)"
+    "cut.other": "drawn badge",
+    "lang": "the flag keyed by the tag's region subtag (ES → flag-es), then at md a drawn badge with the language's display name; no flag → the drawn badge alone"
   },
   "composition": {
-    "md": "picture: resolution text + range lockup ('4K' + Dolby Vision lockup; '4K' + HDR10 badge; '1080p' alone). sound: object lockup if any (Dolby Atmos lockup) + codec/channels text ('TrueHD 7.1'); else codec lockup + channels text ('DTS-HD MA' lockup + '5.1'); codecs without a lockup = text. tier: mark alone for bluray/dvd; mark + 'Remux'. lang: flag + 'castellano'. cut: IMAX mark alone.",
-    "sm": "picture: symbol + short text (Dolby D + 'DV'; HDR10+ badge alone; '4K' text alone). sound: symbol + short (Dolby D + 'Atmos'; dts symbol + 'X'). tier: symbol alone. lang: flag alone. cut: IMAX mark alone."
-  },
-  "grammar_v3": {
-    "law": "ARTWORK FIRST. A chip is one mark standing FRAMELESS (the artwork is the chip: badge artwork keeps its own box, lockups keep their shape); a drawn word-badge (rounded box + word, HDR10-badge geometry) only for a value with no artwork anywhere.",
-    "provenance": "on the mark itself: claim = ghosted (~55% ink); verified = full ink; measured = full ink on a soft wash pill; delivered = wash + ring.",
-    "picture": "[resolution mark: 4K/8K/HD/SD tabler badges, 720p drawn] [range mark: Dolby Vision lockup / HDR10 badge / HDR10+ badge / HLG drawn]; SDR omitted.",
-    "sound": "[object mark: Dolby Atmos lockup; DTS:X drawn] [codec: lockup when no object shown (DTS-HD MA, TrueHD, DD+, DD, dts, FLAC, Opus), else drawn word (TrueHD); AAC/PCM/\u2026 drawn] [channels drawn: 7.1]",
-    "tier": "[Blu-ray lockup | Ultra HD Blu-ray at 2160p | DVD lockup | WEB-DL/WEBRip/HDTV/CAM drawn] [+ Remux drawn]",
-    "lang": "es-ES: flag (+ castellano drawn at md); es-419: latino drawn; other: code drawn",
-    "cut": "IMAX lockup; others drawn",
-    "sm": "brand SYMBOLS (Dolby D, dts, Blu-ray glyph, flag) and the small badges; drawn words at the small rung; md: lockups.",
-    "strip": "groups per axis: tight gap within an axis, wider between axes."
+    "law": "ARTWORK FIRST. A chip is one mark standing FRAMELESS (the artwork is the chip: lockups keep their shape, symbols their glyph, the tabler badges their box); a drawn badge (rounded box + word, HDR10-badge geometry) only for a value with no artwork.",
+    "emphasis": "on the mark itself, a visual ladder named for its look: ghost (55% ink) · plain (full ink) · washed (full ink on a soft wash pill) · ringed (wash + ring).",
+    "axes": "picture = [resolution] [range] (SDR omitted); sound = [object] [codec] [channels] (beside an object mark the codec is drawn); tier = [disc] [Remux]; lang = [flag] [name]; cut = [mark or drawn].",
+    "rungs": "sm = brand symbols, the tabler badges and drawn badges; md = lockups. Strip groups per axis: tight gap within an axis, wider between axes.",
+    "trailing": "a consumer's node after an axis's last chip."
   }
 }

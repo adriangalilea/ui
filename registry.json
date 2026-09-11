@@ -244,7 +244,7 @@
       "name": "media-spec",
       "type": "registry:ui",
       "title": "media-spec",
-      "description": "the media format vocabulary as typed chips: picture (resolution × dynamic range), sound (codec × object audio × channels), source tier, language and cut, each with a provenance fill ladder (claim · verified · measured · delivered) and an optional delta; values in, labels owned by the chip, monochrome on any palette until a consumer sets its inks",
+      "description": "the media format vocabulary as typed chips wearing the real marks: picture (resolution × dynamic range), sound (codec × object audio × channels), source tier, language and cut; artwork first, a drawn badge only where none exists, an emphasis ladder named for its look, a trailing slot per axis; values in, marks and words owned by the chip, monochrome on any palette until a consumer sets its inks",
       "dependencies": [],
       "registryDependencies": [],
       "files": [
