@@ -5,14 +5,16 @@
 // knows nothing about ranking: which of two values is better is the caller's business
 // (a daemon's ladder), and a chip renders one value honestly.
 //
-// ARTWORK FIRST. A chip is ONE MARK standing FRAMELESS: the artwork is the chip. Badge
-// artwork (HDR10, HDR10+, the 4K / 8K / HD / SD badges) keeps its own box, a lockup
-// keeps its shape, a symbol its glyph, and nothing draws a frame around any of them,
-// so there is never a box in a box. A DRAWN badge (a rounded box with the word set in
-// the surrounding sans, semibold, to the HDR10 badge's proportions) exists only for a
-// value with no artwork anywhere: 720p, HLG, channels, Remux, WEB-DL, DTS:X, a codec
-// named beside its object mark, AAC and the other plain codecs, castellano, latino, a
-// language code, every cut but IMAX. Artwork badges and drawn badges read as one row.
+// ARTWORK FIRST. A chip is ONE MARK standing FRAMELESS: the artwork is the chip. A
+// brand lockup keeps its shape, a symbol its glyph, the flag its colours, and nothing
+// draws a frame around any of them, so there is never a box in a box. SD, HD, 4K and
+// 8K are tabler's badges, their stroke matched to the drawn family. Every other BOXED
+// value (HDR10, HDR10+, 720p, HLG, channels, Remux, WEB-DL, DTS:X, a codec named
+// beside its object mark, AAC and the other plain codecs, castellano, latino, a
+// language code, every cut but IMAX) is the ONE drawn badge: a rounded box with the
+// word set in the surrounding sans, semibold, to the HDR10 badge's proportions, so the
+// whole boxed family has one weight at each rung. The Commons HDR10 and HDR10+ artwork
+// stays in the references as the geometry reference and is not wired.
 //
 // PROVENANCE sits ON the mark, never as a glyph: `claim` (a release name's promise) is
 // ghosted; `verified` (the container states it) is full ink; `measured` (the pixels or
@@ -259,6 +261,12 @@ export function cutLabel(cut: Cut): string {
 // ── Which mark a value wears. The mapping is the vocabulary's, stated once here; the
 // artwork is media-spec-marks.tsx. A value absent from a table is a drawn badge.
 
+// SD, HD, 4K and 8K are tabler's badges: their letterforms are what tells 4K from 8K,
+// and their stroke is normalised (2 → 1.12 on the 24-grid, .08 of the drawn box) so
+// they weigh exactly what the drawn badge weighs. Every other boxed value (HDR10,
+// HDR10+, 720p, HLG, channels, Remux, the web tiers, DTS:X, plain codecs, cuts,
+// languages) is the ONE drawn badge; the Commons HDR10 artwork stays in references as
+// the geometry reference and is not wired.
 const RESOLUTION_MARK: Partial<Record<Resolution, MarkId>> = {
   sd: "badge-sd",
   "1080p": "badge-hd",
@@ -267,8 +275,6 @@ const RESOLUTION_MARK: Partial<Record<Resolution, MarkId>> = {
 }
 const RANGE_MARK: Partial<Record<DynamicRange, MarkId>> = {
   "dolby-vision": "dolby-vision",
-  hdr10: "hdr10",
-  "hdr10-plus": "hdr10-plus",
 }
 const CODEC_MARK: Partial<Record<AudioCodec, MarkId>> = {
   truehd: "dolby-truehd",
@@ -297,8 +303,6 @@ const HAS_SYMBOL: ReadonlySet<MarkId> = new Set<MarkId>([
   "dolby-digital",
   "dts",
   "dts-hd-ma",
-  "hdr10",
-  "hdr10-plus",
   "bluray",
   "ultra-hd-bluray",
   "dvd",
@@ -310,17 +314,19 @@ const HAS_SYMBOL: ReadonlySet<MarkId> = new Set<MarkId>([
   "badge-sd",
 ])
 
-// ── The rungs. Every mark stands at a height that makes its VISIBLE box match the
-// row's badges: the HDR10 artwork is a tight box, so it sets the badge height B; the
-// tabler badges draw their box across 14 of their 24 units, so they stand at B × 24/14;
-// a brand symbol stands at B; a lockup rises above B to keep a two-line wordmark
-// legible. The drawn badge is a box of height B with the word's cap height ≈ B / 1.5,
-// corners at B / 4 and side padding at half the cap height (the HDR10 badge's own
-// geometry). Tuned once, on the demo page: sm B = 10px, md B = 12px.
-type Box = "badge" | "tabler" | "symbol" | "lockup" | "flag"
+// ── The rungs. ONE badge geometry for every boxed value, so the boxed family has one
+// weight at each rung: box height B, corners B / 4, a hairline of B / 12, the word in
+// the surrounding sans at semibold, slightly condensed, with a cap height ≈ B / 1.5 and
+// side padding ≈ half a cap (the HDR10 badge's own proportions, redrawn in CSS). The
+// tabler badges draw their box across 14 of their 24 units at stroke 1.12, so at
+// B × 24 / 14 their box is B tall and their line is B / 12: the same weight by
+// construction. A brand symbol and the flag stand at B; a lockup rises above B so a
+// two-line wordmark stays legible, centred on the row. Tuned once, on the demo page:
+//   sm  B = 10px  radius 2.5px  hairline 0.8px  text 8px   sides 3px   tabler 17px
+//   md  B = 12px  radius 3px    hairline 1px    text 11px  sides 4px   tabler 20.5px
+//       lockup 16px
+type Box = "tabler" | "symbol" | "lockup" | "flag"
 const BOX_OF: Partial<Record<MarkId, Box>> = {
-  hdr10: "badge",
-  "hdr10-plus": "badge",
   "badge-4k": "tabler",
   "badge-8k": "tabler",
   "badge-hd": "tabler",
@@ -328,25 +334,13 @@ const BOX_OF: Partial<Record<MarkId, Box>> = {
   "flag-es": "flag",
 }
 const MARK_H: Record<Size, Record<Box, string>> = {
-  sm: {
-    badge: "h-2.5",
-    tabler: "h-[17px]",
-    symbol: "h-2.5",
-    lockup: "h-2.5",
-    flag: "h-2.5",
-  },
-  md: {
-    badge: "h-3",
-    tabler: "h-5",
-    symbol: "h-3",
-    lockup: "h-4",
-    flag: "h-3",
-  },
+  sm: { tabler: "h-[17px]", symbol: "h-2.5", lockup: "h-2.5", flag: "h-2.5" },
+  md: { tabler: "h-[20.5px]", symbol: "h-3", lockup: "h-4", flag: "h-3" },
 }
-/** The drawn badge, in the HDR10 badge's proportions at each rung. */
+/** The drawn badge. */
 const WORD: Record<Size, string> = {
-  sm: "h-2.5 rounded-[2.5px] px-[3px] text-[8px]",
-  md: "h-3 rounded-[3px] px-1 text-[11px]",
+  sm: "h-2.5 rounded-[2.5px] border-[0.8px] px-[3px] text-[8px]",
+  md: "h-3 rounded-[3px] border px-1 text-[11px]",
 }
 /** Provenance ON the mark: presence, never a glyph. */
 const PROVENANCE: Record<Provenance, string> = {
@@ -409,16 +403,13 @@ function Chip({
     "--ag-media-ink": `var(--ag-media-${kind}, currentColor)`,
   } as React.CSSProperties
   const isMark = "mark" in atom
-  const box: Box = isMark
-    ? (BOX_OF[atom.mark] ?? (size === "sm" ? "symbol" : "lockup"))
-    : "badge"
   const classes = cn(
     "inline-flex shrink-0 items-center align-middle leading-none text-(--ag-media-ink)",
     isMark
-      ? MARK_H[size][box]
+      ? MARK_H[size][BOX_OF[atom.mark] ?? (size === "sm" ? "symbol" : "lockup")]
       : cn(
           WORD[size],
-          "border border-current font-semibold whitespace-nowrap",
+          "border-current font-semibold tracking-tight whitespace-nowrap",
           size === "sm" && SCRIM,
         ),
     PROVENANCE[provenance],

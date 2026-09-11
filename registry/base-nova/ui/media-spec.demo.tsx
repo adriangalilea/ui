@@ -279,12 +279,23 @@ export default function Demo() {
 
       <Sample
         name="badges"
-        label="badges · artwork beside the drawn badge, one row, both rungs"
+        label="badges · tabler's SD / HD / 4K / 8K beside the drawn badge, one level line"
       >
         <div className="space-y-3">
           <Kicker>
-            md · HDR10 and HDR10+ are artwork, 4K / 8K / HD / SD are tabler's
-            badges, HLG · 720p · 7.1 · Remux · WEB-DL are drawn
+            the retired HDR10 / HDR10+ artwork at the md badge height, for one
+            last comparison with the drawn badge that replaced it
+          </Kicker>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Mark id="hdr10" em={0.9} />
+            <Mark id="hdr10-plus" em={0.9} />
+            <PictureChip resolution="720p" range="hdr10" />
+            <PictureChip resolution="720p" range="hdr10-plus" />
+          </div>
+          <Kicker>
+            md · 4K · 8K · HD · SD are tabler&apos;s badges at stroke 1.12;
+            HDR10 · HDR10+ · HLG · 720p · AAC · 2.0 · 7.1 · Remux · WEB-DL are
+            drawn
           </Kicker>
           <div className="flex flex-wrap items-center gap-2.5">
             <PictureChip resolution="2160p" range="hdr10" />
