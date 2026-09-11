@@ -364,10 +364,14 @@ type Box = "symbol" | "lockup" | "flag"
 const BOX_OF: Partial<Record<MarkId, Box>> = { "flag-es": "flag" }
 /** The badge height B per rung, in px: what a mark drawn in a grid scales its box to. */
 const BADGE_PX: Record<Size, number> = { sm: 10, md: 12, lg: 16 }
+// A SYMBOL stands at the sticker's height (1.75 × B) at md and lg: it is a glyph
+// beside a two-panel badge, as a disc case prints the Dolby D beside "4K ULTRA HD",
+// and at the badge height it read as a speck beside the sticker. At sm the sticker
+// is one line, so the symbol stays at B.
 const MARK_H: Record<Size, Record<Box, string>> = {
   sm: { symbol: "h-2.5", lockup: "h-2.5", flag: "h-2.5" },
-  md: { symbol: "h-3", lockup: "h-4", flag: "h-3" },
-  lg: { symbol: "h-[18px]", lockup: "h-[21px]", flag: "h-4" },
+  md: { symbol: "h-[21px]", lockup: "h-4", flag: "h-3" },
+  lg: { symbol: "h-[30px]", lockup: "h-[21px]", flag: "h-4" },
 }
 /** The drawn badge. */
 const WORD: Record<Size, string> = {
