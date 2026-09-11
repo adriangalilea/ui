@@ -476,11 +476,13 @@ export default function Demo() {
 
       <Sample
         name="gold"
-        label="gold · the disc-case sticker: near-black boxes, a metallic stroke and letters, every mark in the metal"
+        label="gold · the disc-case stickers in metal, the brand marks in ink beside them"
       >
         <div className="space-y-4 rounded-lg bg-[#151515] px-5 py-4 text-[#e6e4ee]">
           <Kicker>
-            md · the metal is a 135° gradient, the stroke 1.5 × the hairline
+            md · the drawn family takes the metal (a 135° gradient, the stroke
+            1.5 × the hairline); Dolby, Blu-ray and every other brand mark stay
+            in ink, as disc cases print them
           </Kicker>
           <MediaSpec {...DISC} tone="gold" omit={["lang", "cut"]} />
           <Kicker>sm · flat mid gold: a gradient at 8px is noise</Kicker>

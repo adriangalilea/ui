@@ -31,7 +31,7 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
   takes a `label` override. `tone="brand"` paints only marks, in their official
   colour; a near-black brand keeps the ink. `tone="gold"` is the disc-case
   sticker: near-black boxes with a metallic gradient on stroke and letters and
-  every mark cut from the same metal (flat mid gold at `sm`); the metal is
+  the brand marks in ink beside them (flat mid gold at `sm`); the metal is
   retuned through `--ag-media-gold-hi`, `-mid`, `-lo` and `-glint`. `Mark` takes
   a `paint` (any CSS background, applied through a mask). `TierChip` takes
   `resolution` so a 2160p disc

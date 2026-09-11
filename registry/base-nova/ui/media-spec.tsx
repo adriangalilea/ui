@@ -14,7 +14,7 @@
 // but IMAX) is the ONE drawn badge: a rounded box with the word set in the surrounding
 // sans, semibold, to the HDR10 badge's proportions, so the whole boxed family has one
 // weight at each rung. The resolution badge is the disc-case badge drawn in that
-// family: "4K" over "ULTRA HD", twice the lines in the same box. The HDR10 / HDR10+
+// family: the sticker, "4K" over an inverted "ULTRA HD" band. The HDR10 / HDR10+
 // and tabler badge artwork stays in the references and in MARKS, not wired.
 //
 // EMPHASIS is a visual ladder named for its look alone: `ghost` is the mark at 55%,
@@ -40,16 +40,21 @@
 // a mark in its official hex, and only where that hex is a colour (a near-black brand
 // such as Dolby stays ink: black on a dark surface is a missing logo, not a brand
 // statement; `markFill` in media-spec-marks.tsx), and drawn badges keep the ink;
-// "gold" is the disc-case sticker: the drawn box filled near-black with a metallic
-// gradient on its stroke and letters, every mark cut from the same metal, the flag
-// itself. A consumer retunes the metal through --ag-media-gold-hi / -mid / -lo /
-// -glint (defaults #FFF1A8 · #E6B422 · #9C7A1B · #FFE680).
+// "gold" is the disc-case sticker, FOR THE DRAWN FAMILY ONLY: the drawn boxes filled
+// near-black with a metallic gradient on stroke and letters, while every brand mark
+// (Dolby, DTS, Blu-ray, DVD, IMAX, FLAC, Opus) stays in ink beside them, as disc
+// cases print them; the flag is itself. A consumer retunes the metal through
+// --ag-media-gold-hi / -mid / -lo / -glint (defaults #FFF1A8 · #E6B422 · #9C7A1B ·
+// #FFE680). The resolution badge is the STICKER: two panels in one frame, the upper
+// on the near-black ground with "4K" in the ink, the lower a band filled with the ink
+// carrying "ULTRA HD" in the ground colour (`--ag-media-sticker-ground`, #0b0b0b).
 // Every chip carries data-slot="media-chip", data-kind (the AXIS: picture | sound |
 // tier | lang | cut), data-facet (resolution | range | object | codec | channels | tier
 // | edition | lang | cut), data-emphasis, data-size, and data-mark when it is artwork,
 // so a consumer styles Dolby Vision or Atmos from outside without a class name to know.
 // The typed label is the accessible name of the axis group whatever is drawn.
 
+import { useId } from "react"
 import { cn } from "@/lib/utils"
 import {
   MARKS,
@@ -274,11 +279,11 @@ export function cutLabel(cut: Cut): string {
 // ── Which mark a value wears. The mapping is the vocabulary's, stated once here; the
 // artwork is media-spec-marks.tsx. A value absent from a table is a drawn badge.
 
-// The resolution badge is the disc-case badge, DRAWN: a big line over a small line
-// ("4K" over "ULTRA HD") in the same box, stroke and radius as the one-line badge.
-// No free vector of it exists and it is typography below the originality threshold.
-// SD and 720p are one line; the three that carry a second line keep the row level by
-// centring. tabler's badge-* artwork stays in MARKS and the references, not wired.
+// The resolution badge is the disc-case sticker, DRAWN (`Sticker`): "4K" on the ground
+// panel over an inverted "ULTRA HD" band, in the family's stroke and radius. No free
+// vector of it exists and it is typography below the originality threshold. SD and
+// 720p are one-panel badges; the three with a band keep the row level by centring.
+// tabler's badge-* artwork stays in MARKS and the references, not wired.
 const RESOLUTION_BADGE: Record<
   Resolution,
   [primary: string, secondary?: string]
@@ -331,13 +336,13 @@ const HAS_SYMBOL: ReadonlySet<MarkId> = new Set<MarkId>([
 // weight at each rung: box height B, corners B / 4, a hairline of B / 12, the word in
 // the surrounding sans at semibold, slightly condensed, with a cap height ≈ B / 1.5 and
 // side padding ≈ half a cap (the HDR10 badge's own proportions, redrawn in CSS). The
-// two-line badge is the same box 1.75 × taller, centred on the row. A mark drawn in a
+// sticker is the same frame 1.75 × taller, centred on the row. A mark drawn in a
 // grid with margins states its factor (`MarkArt.box`) and the chip scales the grid to
 // B × box, so its box is B tall. A brand symbol and the flag stand at B; a lockup
 // rises above B so a two-line wordmark stays legible, centred. Tuned once, on the
 // demo page:
-//   sm  B = 10px  radius 2.5px  hairline 0.8px  text 8px   sides 3px   two-line 18px
-//   md  B = 12px  radius 3px    hairline 1px    text 11px  sides 4px   two-line 21px
+//   sm  B = 10px  radius 2.5px  hairline 0.8px  text 8px   sides 3px   sticker 18px
+//   md  B = 12px  radius 3px    hairline 1px    text 11px  sides 4px   sticker 21px
 //       lockup 16px
 type Box = "symbol" | "lockup" | "flag"
 const BOX_OF: Partial<Record<MarkId, Box>> = { "flag-es": "flag" }
@@ -352,20 +357,128 @@ const WORD: Record<Size, string> = {
   sm: "h-2.5 rounded-[2.5px] border-[0.8px] px-[3px] text-[8px]",
   md: "h-3 rounded-[3px] border px-1 text-[11px]",
 }
-/** The two-line drawn badge: the same box, 1.75 × taller (sm 18px, md 21px); the
- *  primary line at the badge's text size in the heaviest weight, the secondary at
- *  55% of it (clamped to 5px at sm), wide-tracked small caps. */
-const WORD2: Record<Size, [box: string, primary: string, secondary: string]> = {
-  sm: [
-    "h-[18px] rounded-[2.5px] border-[0.8px] px-[3px]",
-    "text-[8px] font-black tracking-tight",
-    "text-[5px] font-semibold uppercase tracking-[0.12em]",
-  ],
-  md: [
-    "h-[21px] rounded-[3px] border px-1",
-    "text-[11px] font-black tracking-tight",
-    "text-[6px] font-semibold uppercase tracking-[0.12em]",
-  ],
+/** THE STICKER: the disc-case resolution badge, two panels in one frame. An outer
+ *  frame stroked in the ink; an upper panel on the near-black ground carrying the
+ *  primary ("4K") in the ink, heavy; a lower band FILLED with the ink carrying the
+ *  secondary ("ULTRA HD") in the ground colour, small caps, wide-tracked, flush to the
+ *  frame's inner edge so band and frame read as one shape. Drawn as inline SVG so the
+ *  geometry is exact at both rungs: box height 1.75 × B, band 30% of it, primary 55%
+ *  of it, frame stroke 1.5 × the hairline, radius as the family. The width follows the
+ *  longer word. Under ink and brand it is white-on-black; under gold every ink becomes
+ *  the metal and the panel stays near-black. The ground is `--ag-media-sticker-ground`
+ *  (default #0b0b0b) so a light surface can set its own. */
+const STICKER: Record<
+  Size,
+  {
+    h: number
+    stroke: number
+    r: number
+    band: number
+    primary: number
+    secondary: number
+  }
+> = {
+  sm: { h: 18, stroke: 1.2, r: 2.5, band: 5.4, primary: 9.9, secondary: 5 },
+  md: { h: 21, stroke: 1.5, r: 3, band: 6.3, primary: 11.55, secondary: 6 },
+}
+const STICKER_GROUND = "var(--ag-media-sticker-ground, #0b0b0b)"
+
+function Sticker({
+  primary,
+  secondary,
+  size,
+  gold,
+}: {
+  primary: string
+  secondary: string
+  size: Size
+  gold: boolean
+}) {
+  const g = STICKER[size]
+  const uid = useId()
+  const gradient = `ag-media-gold-${uid}`
+  const clip = `ag-media-clip-${uid}`
+  // The words set their own width: the longer of the heavy primary and the tracked
+  // secondary, plus a side pad of a third of the primary's size.
+  const pad = g.primary * 0.35
+  const wPrimary = primary.length * g.primary * 0.62 + pad * 2
+  const wSecondary = secondary.length * g.secondary * 0.72 + pad * 2
+  const w = Math.ceil(Math.max(wPrimary, wSecondary))
+  const ink = gold ? `url(#${gradient})` : "currentColor"
+  const s = g.stroke
+  return (
+    <svg
+      viewBox={`0 0 ${w} ${g.h}`}
+      width={w}
+      height={g.h}
+      aria-hidden="true"
+      data-slot="media-sticker"
+      className="block shrink-0"
+    >
+      <defs>
+        {gold && (
+          <linearGradient id={gradient} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" style={{ stopColor: GOLD_HI }} />
+            <stop offset="0.45" style={{ stopColor: GOLD_MID }} />
+            <stop offset="0.84" style={{ stopColor: GOLD_LO }} />
+            <stop offset="0.97" style={{ stopColor: GOLD_GLINT }} />
+            <stop offset="1" style={{ stopColor: GOLD_LO }} />
+          </linearGradient>
+        )}
+        <clipPath id={clip}>
+          <rect
+            x={s}
+            y={s}
+            width={w - 2 * s}
+            height={g.h - 2 * s}
+            rx={Math.max(g.r - s, 0)}
+          />
+        </clipPath>
+      </defs>
+      <rect
+        x={s / 2}
+        y={s / 2}
+        width={w - s}
+        height={g.h - s}
+        rx={g.r}
+        fill={STICKER_GROUND}
+        stroke={ink}
+        strokeWidth={s}
+      />
+      <rect
+        x={s}
+        y={g.h - s - g.band}
+        width={w - 2 * s}
+        height={g.band}
+        fill={ink}
+        clipPath={`url(#${clip})`}
+      />
+      <text
+        x={w / 2}
+        y={(g.h - g.band) / 2 + s / 4}
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontSize={g.primary}
+        fontWeight={900}
+        letterSpacing="-0.02em"
+        fill={ink}
+      >
+        {primary}
+      </text>
+      <text
+        x={w / 2}
+        y={g.h - s - g.band / 2}
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontSize={g.secondary}
+        fontWeight={600}
+        letterSpacing="0.12em"
+        fill={STICKER_GROUND}
+      >
+        {secondary}
+      </text>
+    </svg>
+  )
 }
 /** The emphasis ladder, named for its look. */
 const EMPHASIS: Record<Emphasis, string> = {
@@ -451,8 +564,11 @@ function Chip({
   // badge height; the art states the factor, so the grid never sets the size.
   const grid = isMark ? (MARKS[atom.mark][form]?.box ?? 1) : 1
   if (grid !== 1) style.height = `${BADGE_PX[size] * grid}px`
-  if (gold && !isMark) {
-    // The sticker's box: near-black inside, the metal on the stroke, the radius kept.
+  const sticker = !isMark && atom.sub !== undefined
+  if (gold && !isMark && !sticker) {
+    // The one-panel box under gold: near-black inside, the metal on the stroke, the
+    // radius kept (a padding-box fill over a border-box gradient behind a
+    // transparent border).
     style.borderColor = "transparent"
     style.backgroundImage = `linear-gradient(${GOLD_GROUND}, ${GOLD_GROUND}), ${GOLD_PAINT[size]}`
     style.backgroundOrigin = "border-box"
@@ -462,12 +578,14 @@ function Chip({
     "inline-flex shrink-0 items-center align-middle leading-none text-(--ag-media-ink)",
     isMark
       ? grid === 1 && MARK_H[size][BOX_OF[atom.mark] ?? form]
-      : cn(
-          atom.sub ? WORD2[size][0] : WORD[size],
-          "font-semibold tracking-tight whitespace-nowrap",
-          gold ? GOLD_WORD[size] : "border-current",
-          size === "sm" && !gold && SCRIM,
-        ),
+      : sticker
+        ? "whitespace-nowrap"
+        : cn(
+            WORD[size],
+            "font-semibold tracking-tight whitespace-nowrap",
+            gold ? GOLD_WORD[size] : "border-current",
+            size === "sm" && !gold && SCRIM,
+          ),
     EMPHASIS[emphasis],
     onClick && BUTTON,
   )
@@ -492,19 +610,17 @@ function Chip({
     style,
     "aria-label": isMark ? atom.name : undefined,
   }
+  // GOLD IS FOR THE DRAWN FAMILY ONLY: a brand mark stays in ink beside the metal
+  // stickers, as disc cases print them.
   const body = isMark ? (
     <Mark
       id={atom.mark}
       form={size === "sm" ? "symbol" : "lockup"}
-      tone={tone}
-      paint={gold ? GOLD_PAINT[size] : undefined}
+      tone={gold ? "ink" : tone}
       fill
     />
-  ) : atom.sub ? (
-    <span className="flex flex-col items-center leading-none" style={metal}>
-      <span className={WORD2[size][1]}>{atom.word}</span>
-      <span className={WORD2[size][2]}>{atom.sub}</span>
-    </span>
+  ) : atom.sub !== undefined ? (
+    <Sticker primary={atom.word} secondary={atom.sub} size={size} gold={gold} />
   ) : metal ? (
     <span style={metal}>{atom.word}</span>
   ) : (
