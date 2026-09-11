@@ -20,6 +20,7 @@ run = [
   "pnpm biome check .",
   "pnpm shadcn build",
   "bun scripts/validate-registry.ts",
+  "bun scripts/media-marks.ts --check",
   "bun scripts/changes.ts",
   "bun scripts/examples/changes-review.ts",
   # The demo site's full build, prerender included. Typecheck and lint both passed on a
@@ -43,6 +44,10 @@ run = [
 
 [tasks.format]
 run = "pnpm biome check --write ."
+
+[tasks.marks]
+description = "references/media-marks -> registry/base-nova/ui/media-spec-marks.tsx (the generated file is committed: a stale copy fails check)"
+run = "bun scripts/media-marks.ts"
 
 [tasks.changes]
 description = "review registry changes for handwritten release notes (optional --since <commit>)"

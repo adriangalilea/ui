@@ -1,0 +1,157 @@
+{
+  "vocabulary": "media-spec (kinds picture/sound/tier/lang/cut). A mark REPLACES the word it stands for; the rest of the label stays text. `symbol` is the poster (sm) artwork, `lockup` the rail (md) artwork. brand = official hex for tone=brand; marks with intrinsic colours (flag) ignore tone.",
+  "marks": {
+    "dolby": {
+      "symbol": "dolby-symbol.svg",
+      "lockup": null,
+      "brand": "000000",
+      "title": "Dolby",
+      "source": "simple-icons (CC0)"
+    },
+    "dolby-vision": {
+      "symbol": "dolby-symbol.svg",
+      "lockup": "Dolby_Vision_2021_logo.svg",
+      "brand": "000000",
+      "title": "Dolby Vision",
+      "source": "Wikimedia Commons (PD)"
+    },
+    "dolby-atmos": {
+      "symbol": "dolby-symbol.svg",
+      "lockup": "Logo_Dolby_Atmos.svg",
+      "brand": "000000",
+      "title": "Dolby Atmos",
+      "source": "Wikimedia Commons (PD)"
+    },
+    "dolby-truehd": {
+      "symbol": "dolby-symbol.svg",
+      "lockup": "Dolby_TrueHD.svg",
+      "brand": "000000",
+      "title": "Dolby TrueHD",
+      "source": "Wikimedia Commons (PD)"
+    },
+    "dolby-digital-plus": {
+      "symbol": "dolby-symbol.svg",
+      "lockup": "Dolby-Digital-Plus.svg",
+      "brand": "000000",
+      "title": "Dolby Digital Plus",
+      "source": "Wikimedia Commons (PD)"
+    },
+    "dolby-digital": {
+      "symbol": "dolby-symbol.svg",
+      "lockup": "Logo_Dolby-Digital_2011.svg",
+      "brand": "000000",
+      "title": "Dolby Digital",
+      "source": "Wikimedia Commons (PD)"
+    },
+    "dts": {
+      "symbol": "dts-symbol.svg",
+      "lockup": "DTS_2020_.svg",
+      "brand": "F98B2B",
+      "title": "DTS",
+      "source": "simple-icons (CC0) / Commons (PD)"
+    },
+    "dts-hd-ma": {
+      "symbol": "dts-symbol.svg",
+      "lockup": "DTS-HD-MA.svg",
+      "brand": "F98B2B",
+      "title": "DTS-HD Master Audio",
+      "source": "Wikimedia Commons (PD)"
+    },
+    "hdr10": {
+      "symbol": "HDR_10_logo_black_.svg",
+      "lockup": "HDR_10_logo_black_.svg",
+      "brand": "000000",
+      "title": "HDR10",
+      "source": "Wikimedia Commons (PD)"
+    },
+    "hdr10-plus": {
+      "symbol": "HDR_10_plus_logo_black_.svg",
+      "lockup": "HDR_10_plus_logo_black_.svg",
+      "brand": "000000",
+      "title": "HDR10+",
+      "source": "Wikimedia Commons (PD)"
+    },
+    "ultra-hd": {
+      "symbol": null,
+      "lockup": "Ultra_HD.svg",
+      "brand": "221E1F",
+      "title": "Ultra HD",
+      "source": "Wikimedia Commons (PD)"
+    },
+    "flac": {
+      "symbol": null,
+      "lockup": "FLAC_logo_vector.svg",
+      "brand": "000000",
+      "title": "FLAC",
+      "source": "Wikimedia Commons (PD, Xiph)"
+    },
+    "opus": {
+      "symbol": null,
+      "lockup": "Opus_logo2.svg",
+      "brand": "000000",
+      "title": "Opus",
+      "source": "Wikimedia Commons (PD, Xiph)"
+    },
+    "bluray": {
+      "symbol": "bluray-symbol.svg",
+      "lockup": "Blu-ray_Disc.svg",
+      "brand": "0095D5",
+      "title": "Blu-ray Disc",
+      "source": "Wikimedia Commons (PD)"
+    },
+    "ultra-hd-bluray": {
+      "symbol": "bluray-symbol.svg",
+      "lockup": "Ultra_HD_Blu-ray_logo.svg",
+      "brand": "007DC5",
+      "title": "Ultra HD Blu-ray",
+      "source": "Wikimedia Commons (PD)"
+    },
+    "dvd": {
+      "symbol": "DVD_logo.svg",
+      "lockup": "DVD_logo.svg",
+      "brand": "000000",
+      "title": "DVD",
+      "source": "Wikimedia Commons (PD)"
+    },
+    "imax": {
+      "symbol": "IMAX.svg",
+      "lockup": "IMAX.svg",
+      "brand": "0072CE",
+      "title": "IMAX",
+      "source": "Wikimedia Commons (PD)"
+    },
+    "flag-es": {
+      "symbol": "Flag_of_Spain_civil_.svg",
+      "lockup": "Flag_of_Spain_civil_.svg",
+      "brand": null,
+      "title": "Spain",
+      "source": "Wikimedia Commons (PD)",
+      "intrinsic_colours": true
+    }
+  },
+  "value_to_mark": {
+    "range.dolby-vision": "dolby-vision",
+    "range.hdr10": "hdr10",
+    "range.hdr10-plus": "hdr10-plus",
+    "resolution.2160p": "ultra-hd (md only; sm stays the text 4K)",
+    "object.atmos": "dolby-atmos",
+    "object.dts-x": "dts (+ ':X' set in the chip's type; no DTS:X artwork exists)",
+    "codec.truehd": "dolby-truehd",
+    "codec.eac3": "dolby-digital-plus",
+    "codec.ac3": "dolby-digital",
+    "codec.dts": "dts",
+    "codec.dts-hd-ma": "dts-hd-ma",
+    "codec.dts-hd-hra": "dts (symbol) + 'HD HRA' text",
+    "codec.flac": "flac (md only)",
+    "codec.opus": "opus (md only)",
+    "tier.bluray": "bluray, or ultra-hd-bluray when the strip knows resolution=2160p",
+    "tier.remux": "bluray mark + 'Remux' text (ultra-hd-bluray at 2160p)",
+    "tier.dvd": "dvd",
+    "cut.imax": "imax",
+    "lang.es-ES": "flag-es (+ 'castellano' at md)"
+  },
+  "composition": {
+    "md": "picture: resolution text + range lockup ('4K' + Dolby Vision lockup; '4K' + HDR10 badge; '1080p' alone). sound: object lockup if any (Dolby Atmos lockup) + codec/channels text ('TrueHD 7.1'); else codec lockup + channels text ('DTS-HD MA' lockup + '5.1'); codecs without a lockup = text. tier: mark alone for bluray/dvd; mark + 'Remux'. lang: flag + 'castellano'. cut: IMAX mark alone.",
+    "sm": "picture: symbol + short text (Dolby D + 'DV'; HDR10+ badge alone; '4K' text alone). sound: symbol + short (Dolby D + 'Atmos'; dts symbol + 'X'). tier: symbol alone. lang: flag alone. cut: IMAX mark alone."
+  }
+}

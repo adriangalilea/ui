@@ -251,6 +251,10 @@
         {
           "path": "registry/base-nova/ui/media-spec.tsx",
           "type": "registry:ui"
+        },
+        {
+          "path": "registry/base-nova/ui/media-spec-marks.tsx",
+          "type": "registry:ui"
         }
       ]
     },

@@ -26,11 +26,25 @@
 // data-size, plus data-delta, data-range and data-object when set, so a consumer can
 // style Dolby Vision or Atmos from outside without a class name to know.
 //
-// NO KIND GLYPH, on purpose. The typed label already names its kind ("4K · Dolby
-// Vision" is a picture, "TrueHD Atmos 7.1" a sound, "Remux" a tier) and at 9 px on a
-// poster a glyph is a smudge. A consumer who wants one styles `[data-kind]`.
+// THE MARKS. A value that has a brand mark wears it, and the mark REPLACES the word it
+// stands for while the rest of the label stays text: "4K" beside the Dolby Vision lockup,
+// the Dolby Atmos lockup beside "TrueHD 7.1", the Blu-ray lockup alone. The rail rung
+// (md) wears the LOCKUP; the poster rung (sm) wears the SYMBOL, because at 9 px a
+// wordmark is a smudge and a glyph is not. Artwork and rules: media-spec-marks.tsx,
+// generated from references/media-marks. `tone` picks the mark's ink: "ink" (default)
+// draws it in the chip's own ink like the text; "brand" draws it in the official hex,
+// and ONLY the mark, never the text. A filled provenance (measured, delivered) always
+// keeps the mark in the fill's text colour: a brand-coloured mark on a brand-coloured
+// fill is invisible. So does a near-black brand (Dolby, HDR10, DVD): black on a dark
+// chip is a missing logo, not a brand statement (media-spec-marks.tsx, `markFill`).
+// The typed label stays the accessible name whatever is drawn.
 
 import { cn } from "@/lib/utils"
+import {
+  Mark,
+  type MarkId,
+  type MarkTone,
+} from "@/registry/base-nova/ui/media-spec-marks"
 
 // ── The vocabulary. Raw values are the wire spellings; a sibling Swift product pins
 // the same literals, so a rename here is a rename there.
@@ -251,9 +265,13 @@ const DELTA: Record<Delta, [glyph: string, cls: string]> = {
   worse: ["▼", "text-(--ag-media-worse)"],
 }
 
+export type Tone = MarkTone
+
 export interface ChipProps {
   provenance?: Provenance
   size?: Size
+  /** the mark's ink: the chip's own (default) or the brand's official hex */
+  tone?: Tone
   delta?: Delta
   /** A second line for the title: where the fact came from, what it became. */
   detail?: string
@@ -261,18 +279,73 @@ export interface ChipProps {
   className?: string
 }
 
+// ── Which mark a value wears. The mapping is the vocabulary's, stated once here;
+// the artwork is media-spec-marks.tsx. A value absent from a table wears text.
+
+const RANGE_MARK: Partial<Record<DynamicRange, MarkId>> = {
+  "dolby-vision": "dolby-vision",
+  hdr10: "hdr10",
+  "hdr10-plus": "hdr10-plus",
+}
+const CODEC_MARK: Partial<Record<AudioCodec, MarkId>> = {
+  truehd: "dolby-truehd",
+  eac3: "dolby-digital-plus",
+  ac3: "dolby-digital",
+  dts: "dts",
+  "dts-hd-ma": "dts-hd-ma",
+  "dts-hd-hra": "dts",
+  flac: "flac",
+  opus: "opus",
+}
+const OBJECT_MARK: Record<ObjectAudio, MarkId> = {
+  atmos: "dolby-atmos",
+  "dts-x": "dts",
+}
+const TIER_MARK: Partial<Record<Tier, MarkId>> = {
+  remux: "bluray",
+  bluray: "bluray",
+  dvd: "dvd",
+}
+const LANG_MARK: Record<string, MarkId> = { "es-ES": "flag-es" }
+const CUT_MARK: Record<string, MarkId> = { imax: "imax" }
+/** Marks that carry a symbol for the poster rung (lockup-only marks stay text there). */
+const MARKS_WITH_SYMBOL: ReadonlySet<MarkId> = new Set<MarkId>([
+  "dolby",
+  "dolby-vision",
+  "dolby-atmos",
+  "dolby-truehd",
+  "dolby-digital-plus",
+  "dolby-digital",
+  "dts",
+  "dts-hd-ma",
+  "hdr10",
+  "hdr10-plus",
+  "bluray",
+  "ultra-hd-bluray",
+  "dvd",
+  "imax",
+  "flag-es",
+])
+
 interface ChipRenderProps extends ChipProps {
   kind: Kind
+  /** the typed label: the accessible name, and the text when no mark replaces it */
   label: string
+  /** the chip's content once a mark has replaced the word it stands for */
+  children?: React.ReactNode
+  mark?: MarkId
   data?: Record<`data-${string}`, string | undefined>
 }
 
 function Chip({
   kind,
   label,
+  children,
+  mark,
   data,
   provenance = "verified",
   size = "md",
+  tone = "ink",
   delta,
   detail,
   onClick,
@@ -300,16 +373,20 @@ function Chip({
     "data-kind": kind,
     "data-provenance": provenance,
     "data-size": size,
+    "data-tone": mark ? tone : undefined,
+    "data-mark": mark,
     "data-delta": delta,
     ...data,
     className: classes,
     style,
     title: detail,
+    // A mark replaced part of the words: the typed label stays the name.
+    "aria-label": children === undefined ? undefined : label,
     "aria-description": detail,
   }
   const body = (
     <>
-      {label}
+      {children ?? label}
       {glyph && (
         <span
           data-slot="media-chip-delta"
@@ -331,68 +408,251 @@ function Chip({
   return <span {...attrs}>{body}</span>
 }
 
-// ── The five chips.
+/** The mark inside a chip: the rung follows the size, and a filled chip keeps the mark
+ *  in its text colour whatever `tone` asks (brand on brand is invisible). */
+function ChipMark({
+  id,
+  size,
+  provenance,
+  tone,
+  em,
+}: {
+  id: MarkId
+  size: Size
+  provenance: Provenance
+  tone: Tone
+  em?: number
+}) {
+  const filled = provenance === "measured" || provenance === "delivered"
+  return (
+    <Mark
+      id={id}
+      form={size === "sm" ? "symbol" : "lockup"}
+      tone={filled ? "ink" : tone}
+      em={em}
+    />
+  )
+}
+
+// ── The five chips. Each states its content by the composition rules: at md the
+// lockup replaces the word, the rest stays text; at sm the symbol and the short word.
 
 export function PictureChip({
   resolution,
   range = "sdr",
   ...chip
 }: ChipProps & { resolution: Resolution; range?: DynamicRange }) {
+  const { size = "md", provenance = "verified", tone = "ink" } = chip
+  const mark = RANGE_MARK[range]
+  const badge = range === "hdr10" || range === "hdr10-plus"
+  const res = RESOLUTION_LABEL[resolution]
+  const wear = { size, provenance, tone }
+  let content: React.ReactNode | undefined
+  let worn: MarkId | undefined
+  if (mark && size === "md") {
+    // "4K" + the Dolby Vision lockup; "4K" + the HDR10 badge.
+    worn = mark
+    content = (
+      <>
+        {res}
+        <ChipMark id={mark} {...wear} />
+      </>
+    )
+  } else if (mark && badge) {
+    // The badge alone: it is its own word.
+    worn = mark
+    content = <ChipMark id={mark} {...wear} />
+  } else if (mark) {
+    // The Dolby D and the short word.
+    worn = mark
+    content = (
+      <>
+        <ChipMark id={mark} {...wear} />
+        {RANGE_LABEL[range][1]}
+      </>
+    )
+  } else if (resolution === "2160p" && size === "md") {
+    // SDR 4K wears the Ultra HD wordmark alone; beside a range lockup it stays "4K",
+    // two lockups in one chip being one too many.
+    worn = "ultra-hd"
+    content = <ChipMark id="ultra-hd" {...wear} />
+  }
   return (
     <Chip
       kind="picture"
-      label={pictureLabel(resolution, range, chip.size)}
+      label={pictureLabel(resolution, range, size)}
+      mark={worn}
       data={{ "data-resolution": resolution, "data-range": range }}
       {...chip}
-    />
+    >
+      {content}
+    </Chip>
   )
 }
 
 export function SoundChip({ audio, ...chip }: ChipProps & { audio: Audio }) {
+  const { size = "md", provenance = "verified", tone = "ink" } = chip
+  const wear = { size, provenance, tone }
+  const codec = CODEC_LABEL[audio.codec]
+  const channels = audio.channels ?? ""
+  let content: React.ReactNode | undefined
+  let worn: MarkId | undefined
+  if (audio.object === "atmos") {
+    // The Dolby Atmos lockup beside "TrueHD 7.1"; the Dolby D beside "Atmos".
+    worn = OBJECT_MARK.atmos
+    content =
+      size === "md" ? (
+        <>
+          <ChipMark id={worn} {...wear} />
+          {[codec, channels].filter(Boolean).join(" ")}
+        </>
+      ) : (
+        <>
+          <ChipMark id={worn} {...wear} />
+          {OBJECT_LABEL.atmos}
+        </>
+      )
+  } else if (audio.object === "dts-x") {
+    // No DTS:X artwork exists: the dts mark and ":X" set in the chip's own type.
+    worn = OBJECT_MARK["dts-x"]
+    content = (
+      <>
+        <ChipMark id={worn} {...wear} />
+        {size === "md" ? [":X", channels].filter(Boolean).join(" ") : "X"}
+      </>
+    )
+  } else {
+    const mark = CODEC_MARK[audio.codec]
+    if (mark && size === "md" && audio.codec !== "dts-hd-hra") {
+      // The codec's lockup beside the channels.
+      worn = mark
+      content = (
+        <>
+          <ChipMark id={mark} {...wear} />
+          {channels}
+        </>
+      )
+    } else if (mark && audio.codec === "dts-hd-hra" && size === "md") {
+      // No DTS-HD HRA artwork: the dts lockup and the rest as text.
+      worn = mark
+      content = (
+        <>
+          <ChipMark id={mark} {...wear} />
+          {["HD HRA", channels].filter(Boolean).join(" ")}
+        </>
+      )
+    } else if (mark && MARKS_WITH_SYMBOL.has(mark)) {
+      // The symbol and the short word.
+      worn = mark
+      content = (
+        <>
+          <ChipMark id={mark} {...wear} />
+          {codec}
+        </>
+      )
+    }
+  }
   return (
     <Chip
       kind="sound"
-      label={soundLabel(audio, chip.size)}
+      label={soundLabel(audio, size)}
+      mark={worn}
       data={{
         "data-codec": audio.codec,
         "data-object": audio.object,
         "data-lossless": isLossless(audio.codec) ? "" : undefined,
       }}
       {...chip}
-    />
+    >
+      {content}
+    </Chip>
   )
 }
 
-export function TierChip({ tier, ...chip }: ChipProps & { tier: Tier }) {
+export function TierChip({
+  tier,
+  resolution,
+  ...chip
+}: ChipProps & {
+  tier: Tier
+  /** the copy's resolution, when known: a 2160p disc wears the Ultra HD Blu-ray mark */
+  resolution?: Resolution
+}) {
+  const { size = "md", provenance = "verified", tone = "ink" } = chip
+  const wear = { size, provenance, tone }
+  let mark = TIER_MARK[tier]
+  if (mark === "bluray" && resolution === "2160p") mark = "ultra-hd-bluray"
+  let content: React.ReactNode | undefined
+  if (mark) {
+    // The disc's mark alone; "Remux" beside it, since a remux is the disc's own bits.
+    content = (
+      <>
+        <ChipMark id={mark} {...wear} />
+        {tier === "remux" && size === "md" ? TIER_LABEL.remux : null}
+      </>
+    )
+  }
   return (
     <Chip
       kind="tier"
       label={tierLabel(tier)}
+      mark={mark}
       data={{ "data-tier": tier }}
       {...chip}
-    />
+    >
+      {content}
+    </Chip>
   )
 }
 
 export function LangChip({ lang, ...chip }: ChipProps & { lang: string }) {
+  const { size = "md", provenance = "verified", tone = "ink" } = chip
+  const mark = LANG_MARK[lang]
+  let content: React.ReactNode | undefined
+  if (mark) {
+    // The flag at the text's own height, the house word beside it on the rail.
+    content = (
+      <>
+        <ChipMark
+          id={mark}
+          size={size}
+          provenance={provenance}
+          tone={tone}
+          em={1}
+        />
+        {size === "md" ? langLabel(lang) : null}
+      </>
+    )
+  }
   return (
     <Chip
       kind="lang"
       label={langLabel(lang)}
+      mark={mark}
       data={{ "data-lang": lang }}
       {...chip}
-    />
+    >
+      {content}
+    </Chip>
   )
 }
 
 export function CutChip({ cut, ...chip }: ChipProps & { cut: Cut }) {
+  const { size = "md", provenance = "verified", tone = "ink" } = chip
+  const mark = CUT_MARK[cut]
+  const content = mark ? (
+    <ChipMark id={mark} size={size} provenance={provenance} tone={tone} />
+  ) : undefined
   return (
     <Chip
       kind="cut"
       label={cutLabel(cut)}
+      mark={mark}
       data={{ "data-cut": cut }}
       {...chip}
-    />
+    >
+      {content}
+    </Chip>
   )
 }
 
@@ -407,6 +667,7 @@ export interface MediaSpecProps {
   cut?: Cut
   provenance?: Provenance
   size?: Size
+  tone?: Tone
   deltas?: Partial<Record<"picture" | "sound" | "tier", Delta>>
   omit?: readonly Kind[]
   className?: string
@@ -423,12 +684,13 @@ export function MediaSpec({
   cut,
   provenance,
   size = "md",
+  tone,
   deltas,
   omit = [],
   className,
 }: MediaSpecProps) {
   const show = (k: Kind) => !omit.includes(k)
-  const shared = { provenance, size }
+  const shared = { provenance, size, tone }
   return (
     <span
       data-slot="media-spec"
@@ -447,7 +709,12 @@ export function MediaSpec({
         <SoundChip audio={audio} delta={deltas?.sound} {...shared} />
       )}
       {tier && show("tier") && (
-        <TierChip tier={tier} delta={deltas?.tier} {...shared} />
+        <TierChip
+          tier={tier}
+          resolution={resolution}
+          delta={deltas?.tier}
+          {...shared}
+        />
       )}
       {lang && show("lang") && <LangChip lang={lang} {...shared} />}
       {cut && show("cut") && <CutChip cut={cut} {...shared} />}

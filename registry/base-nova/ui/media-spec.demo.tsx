@@ -21,6 +21,11 @@ import {
   TIERS,
   TierChip,
 } from "@/registry/base-nova/ui/media-spec"
+import {
+  MARKS,
+  Mark,
+  type MarkId,
+} from "@/registry/base-nova/ui/media-spec-marks"
 
 // #region sounds
 // Values, never labels: the chip spells "TrueHD Atmos 7.1" and "DD+ Atmos 5.1" itself.
@@ -175,6 +180,12 @@ export default function Demo() {
             {TIERS.map((tier) => (
               <TierChip key={tier} tier={tier} />
             ))}
+            <TierChip
+              tier="bluray"
+              resolution="2160p"
+              detail="a 2160p disc wears the Ultra HD Blu-ray mark"
+            />
+            <TierChip tier="remux" resolution="2160p" />
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             {["es-ES", "es-419", "en", "fr", "ja"].map((lang) => (
@@ -198,6 +209,37 @@ export default function Demo() {
               <CutChip key={c} cut={c} />
             ))}
           </div>
+        </div>
+      </Sample>
+
+      <Sample
+        name="marks"
+        label="marks · every mark, symbol and lockup, in ink and in brand colour"
+      >
+        <div className="space-y-2">
+          {(Object.keys(MARKS) as MarkId[]).map((id) => (
+            <div key={id} className="flex items-center gap-4 text-sm">
+              <div className="w-36 font-mono text-muted-foreground text-xs">
+                {id}
+              </div>
+              <div className="flex flex-1 items-center gap-6 rounded bg-black px-4 py-2 text-white">
+                <Mark id={id} form="symbol" />
+                <Mark id={id} form="lockup" />
+                <Mark id={id} form="symbol" tone="brand" />
+                <Mark id={id} form="lockup" tone="brand" />
+              </div>
+              <div className="flex flex-1 items-center gap-6 rounded bg-white px-4 py-2 text-black">
+                <Mark id={id} form="symbol" />
+                <Mark id={id} form="lockup" />
+                <Mark id={id} form="symbol" tone="brand" />
+                <Mark id={id} form="lockup" tone="brand" />
+              </div>
+            </div>
+          ))}
+          <Kicker>
+            symbol · lockup · symbol in brand · lockup in brand, at 1em / the
+            lockup&apos;s own rise; a mark with one form shows it in both slots
+          </Kicker>
         </div>
       </Sample>
 
@@ -320,6 +362,20 @@ export default function Demo() {
             <MediaSpec {...PLAYING} provenance="delivered" />
           </div>
           <div className="space-y-1">
+            <Kicker>
+              the same disc in brand tone · the marks take their official
+              colours, the text keeps the ink
+            </Kicker>
+            <MediaSpec {...REMUX} provenance="verified" tone="brand" />
+            <MediaSpec {...REMUX} provenance="claim" tone="brand" />
+            <MediaSpec
+              {...REMUX}
+              provenance="measured"
+              tone="brand"
+              omit={["lang", "cut"]}
+            />
+          </div>
+          <div className="space-y-1">
             <Kicker>on the poster · sm, picture and sound only</Kicker>
             <MediaSpec {...REMUX} size="sm" omit={["tier", "lang", "cut"]} />
           </div>
@@ -372,7 +428,11 @@ export default function Demo() {
         words ({KINDS.map((k) => KIND_LABEL[k]).join(" · ")}), provenance reads
         without a legend, and the same chips render under a palette that never
         installed the tokens. Which of two values is better is not a question a
-        chip answers: the order of the ladder belongs to the app.
+        chip answers: the order of the ladder belongs to the app. Dolby, DTS,
+        HDR10+, Blu-ray, DVD and IMAX are their owners&apos; trademarks, worn
+        here nominatively to say what a copy carries, never to claim a
+        certification; the artwork and its origins are in the repo&apos;s
+        references.
       </p>
     </div>
   )
