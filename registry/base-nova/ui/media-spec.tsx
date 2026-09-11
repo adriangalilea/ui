@@ -1,43 +1,49 @@
 // THE MEDIA FORMAT VOCABULARY, typed. What a copy of a film carries and how we know it:
 // picture (resolution × dynamic range), sound (codec × object audio × channels), the
 // source tier, the language, the cut. An app passes VALUES, never label strings, and
-// the chip owns every label, short form and tone, the way a score chip knows what IMDb
-// is. It knows nothing about ranking: which of two values is better is the caller's
-// business (a daemon's ladder), and a chip renders one value honestly.
+// the chip owns every mark, word and tone, the way a score chip knows what IMDb is. It
+// knows nothing about ranking: which of two values is better is the caller's business
+// (a daemon's ladder), and a chip renders one value honestly.
 //
-// PROVENANCE is the second axis and it is a fill ladder, never a glyph: `claim` (a
-// release name's promise) is a dotted hairline with no wash; `verified` (the container
-// states it) a solid hairline with a wash; `measured` (the pixels or the meter say so)
-// is filled; `delivered` (what this session on this screen actually gets) is filled and
-// ringed, the loudest state. A reader learns nothing to read it: more fill, more certain.
+// ARTWORK FIRST. A chip is ONE MARK standing FRAMELESS: the artwork is the chip. Badge
+// artwork (HDR10, HDR10+, the 4K / 8K / HD / SD badges) keeps its own box, a lockup
+// keeps its shape, a symbol its glyph, and nothing draws a frame around any of them,
+// so there is never a box in a box. A DRAWN badge (a rounded box with the word set in
+// the surrounding sans, semibold, to the HDR10 badge's proportions) exists only for a
+// value with no artwork anywhere: 720p, HLG, channels, Remux, WEB-DL, DTS:X, a codec
+// named beside its object mark, AAC and the other plain codecs, castellano, latino, a
+// language code, every cut but IMAX. Artwork badges and drawn badges read as one row.
+//
+// PROVENANCE sits ON the mark, never as a glyph: `claim` (a release name's promise) is
+// ghosted; `verified` (the container states it) is full ink; `measured` (the pixels or
+// the meter say so) is full ink over a soft wash pill; `delivered` (what this session
+// on this screen actually gets) is the wash plus a ring, the loudest state. A reader
+// learns nothing to read it: more presence, more certain.
+//
+// AN AXIS IS A GROUP of one to three chips: picture is [resolution] [range], sound is
+// [object] [codec] [channels], tier is [disc] [Remux], lang is [flag] [castellano]. The
+// per-axis components render the group, the `MediaSpec` strip sets the groups apart
+// (tight within an axis, wider between), and a `delta` trails the axis's last chip.
 //
 // STYLE IS UTILITIES, consumer `className` last. The one computed value is the chip's
 // ink: `--ag-media-ink` resolves `--ag-media-<kind>` and falls back to `currentColor`,
-// so with nothing set every chip is monochrome in the surrounding text colour and told
-// apart by the fill ladder alone. That is the contract with a consumer on any palette,
-// tokens or not. Custom properties a consumer MAY set:
+// so with nothing set every chip is monochrome in the surrounding text colour. That is
+// the contract with a consumer on any palette, tokens or not. Custom properties a
+// consumer MAY set:
 //   --ag-media-picture / --ag-media-sound / --ag-media-tier / --ag-media-lang /
 //   --ag-media-cut     the ink per kind (fallback: currentColor)
 //   --ag-media-better / --ag-media-worse   the delta glyph inks (fallback: currentColor)
-//   --ag-media-on-ink  the text on a filled chip (fallback: the theme's background,
-//                      then the system Canvas colour)
-//   --ag-media-scrim   the ground under the poster rung (fallback: rgb(0 0 0 / .65))
-// Every root carries data-slot="media-chip" with data-kind / data-provenance /
-// data-size, plus data-delta, data-range and data-object when set, so a consumer can
-// style Dolby Vision or Atmos from outside without a class name to know.
-//
-// THE MARKS. A value that has a brand mark wears it, and the mark REPLACES the word it
-// stands for while the rest of the label stays text: "4K" beside the Dolby Vision lockup,
-// the Dolby Atmos lockup beside "TrueHD 7.1", the Blu-ray lockup alone. The rail rung
-// (md) wears the LOCKUP; the poster rung (sm) wears the SYMBOL, because at 9 px a
-// wordmark is a smudge and a glyph is not. Artwork and rules: media-spec-marks.tsx,
-// generated from references/media-marks. `tone` picks the mark's ink: "ink" (default)
-// draws it in the chip's own ink like the text; "brand" draws it in the official hex,
-// and ONLY the mark, never the text. A filled provenance (measured, delivered) always
-// keeps the mark in the fill's text colour: a brand-coloured mark on a brand-coloured
-// fill is invisible. So does a near-black brand (Dolby, HDR10, DVD): black on a dark
-// chip is a missing logo, not a brand statement (media-spec-marks.tsx, `markFill`).
-// The typed label stays the accessible name whatever is drawn.
+//   --ag-media-scrim   the ground under the poster rung's drawn badges (fallback:
+//                      rgb(0 0 0 / .65))
+// `tone` picks a mark's ink: "ink" (default) draws it like the words; "brand" draws it
+// in the official hex, and only where that hex is a colour (a near-black brand such as
+// Dolby stays ink: black on a dark surface is a missing logo, not a brand statement;
+// `markFill` in media-spec-marks.tsx). Drawn badges never take a brand.
+// Every chip carries data-slot="media-chip", data-kind (the AXIS: picture | sound |
+// tier | lang | cut), data-facet (resolution | range | object | codec | channels | tier
+// | edition | lang | cut), data-provenance, data-size, and data-mark when it is artwork,
+// so a consumer styles Dolby Vision or Atmos from outside without a class name to know.
+// The typed label stays the accessible name of the axis group whatever is drawn.
 
 import { cn } from "@/lib/utils"
 import {
@@ -123,7 +129,21 @@ export type Delta = (typeof DELTAS)[number]
 export const KINDS = ["picture", "sound", "tier", "lang", "cut"] as const
 export type Kind = (typeof KINDS)[number]
 
+export const FACETS = [
+  "resolution",
+  "range",
+  "object",
+  "codec",
+  "channels",
+  "tier",
+  "edition",
+  "lang",
+  "cut",
+] as const
+export type Facet = (typeof FACETS)[number]
+
 export type Size = "sm" | "md"
+export type Tone = MarkTone
 
 export interface Audio {
   codec: AudioCodec
@@ -236,52 +256,15 @@ export function cutLabel(cut: Cut): string {
   return (CUT_LABEL as Record<string, string>)[cut] ?? cut
 }
 
-// ── Style. Fixed sets, one home each.
+// ── Which mark a value wears. The mapping is the vocabulary's, stated once here; the
+// artwork is media-spec-marks.tsx. A value absent from a table is a drawn badge.
 
-const BASE =
-  "inline-flex items-center gap-1 whitespace-nowrap rounded border align-middle leading-none text-(--ag-media-ink)"
-const SIZE: Record<Size, string> = {
-  sm: "px-1 py-0.5 text-[9px] font-bold",
-  md: "px-1.5 py-0.5 font-mono text-[11px]",
+const RESOLUTION_MARK: Partial<Record<Resolution, MarkId>> = {
+  sd: "badge-sd",
+  "1080p": "badge-hd",
+  "2160p": "badge-4k",
+  "4320p": "badge-8k",
 }
-/** THE FILL LADDER: more fill, more certain. */
-const PROVENANCE: Record<Provenance, string> = {
-  claim: "border-dotted border-(--ag-media-ink)/45 opacity-85",
-  verified: "border-solid border-(--ag-media-ink)/45 bg-(--ag-media-ink)/12",
-  measured:
-    "border-solid border-(--ag-media-ink) bg-(--ag-media-ink) text-(--ag-media-fill-text)",
-  delivered:
-    "border-solid border-(--ag-media-ink) bg-(--ag-media-ink) text-(--ag-media-fill-text) ring-2 ring-(--ag-media-ink)/35",
-}
-/** The poster rung sits on art: a scrim under the two unfilled states, so the chip
- *  survives a white sky. The filled states are their own ground. */
-const SCRIM = "bg-(--ag-media-scrim) backdrop-blur-sm"
-const BUTTON =
-  "cursor-pointer hover:brightness-110 focus-visible:outline-2 focus-visible:outline-(--ag-media-ink)/60 focus-visible:outline-offset-1"
-
-const DELTA: Record<Delta, [glyph: string, cls: string]> = {
-  better: ["▲", "text-(--ag-media-better)"],
-  same: ["=", "opacity-50"],
-  worse: ["▼", "text-(--ag-media-worse)"],
-}
-
-export type Tone = MarkTone
-
-export interface ChipProps {
-  provenance?: Provenance
-  size?: Size
-  /** the mark's ink: the chip's own (default) or the brand's official hex */
-  tone?: Tone
-  delta?: Delta
-  /** A second line for the title: where the fact came from, what it became. */
-  detail?: string
-  onClick?: () => void
-  className?: string
-}
-
-// ── Which mark a value wears. The mapping is the vocabulary's, stated once here;
-// the artwork is media-spec-marks.tsx. A value absent from a table wears text.
-
 const RANGE_MARK: Partial<Record<DynamicRange, MarkId>> = {
   "dolby-vision": "dolby-vision",
   hdr10: "hdr10",
@@ -293,13 +276,8 @@ const CODEC_MARK: Partial<Record<AudioCodec, MarkId>> = {
   ac3: "dolby-digital",
   dts: "dts",
   "dts-hd-ma": "dts-hd-ma",
-  "dts-hd-hra": "dts",
   flac: "flac",
   opus: "opus",
-}
-const OBJECT_MARK: Record<ObjectAudio, MarkId> = {
-  atmos: "dolby-atmos",
-  "dts-x": "dts",
 }
 const TIER_MARK: Partial<Record<Tier, MarkId>> = {
   remux: "bluray",
@@ -308,8 +286,9 @@ const TIER_MARK: Partial<Record<Tier, MarkId>> = {
 }
 const LANG_MARK: Record<string, MarkId> = { "es-ES": "flag-es" }
 const CUT_MARK: Record<string, MarkId> = { imax: "imax" }
-/** Marks that carry a symbol for the poster rung (lockup-only marks stay text there). */
-const MARKS_WITH_SYMBOL: ReadonlySet<MarkId> = new Set<MarkId>([
+
+/** Marks with a SYMBOL for the poster rung; a lockup-only mark is a drawn word there. */
+const HAS_SYMBOL: ReadonlySet<MarkId> = new Set<MarkId>([
   "dolby",
   "dolby-vision",
   "dolby-atmos",
@@ -325,79 +304,147 @@ const MARKS_WITH_SYMBOL: ReadonlySet<MarkId> = new Set<MarkId>([
   "dvd",
   "imax",
   "flag-es",
+  "badge-4k",
+  "badge-8k",
+  "badge-hd",
+  "badge-sd",
 ])
 
-interface ChipRenderProps extends ChipProps {
+// ── The rungs. Every mark stands at a height that makes its VISIBLE box match the
+// row's badges: the HDR10 artwork is a tight box, so it sets the badge height B; the
+// tabler badges draw their box across 14 of their 24 units, so they stand at B × 24/14;
+// a brand symbol stands at B; a lockup rises above B to keep a two-line wordmark
+// legible. The drawn badge is a box of height B with the word's cap height ≈ B / 1.5,
+// corners at B / 4 and side padding at half the cap height (the HDR10 badge's own
+// geometry). Tuned once, on the demo page: sm B = 10px, md B = 12px.
+type Box = "badge" | "tabler" | "symbol" | "lockup" | "flag"
+const BOX_OF: Partial<Record<MarkId, Box>> = {
+  hdr10: "badge",
+  "hdr10-plus": "badge",
+  "badge-4k": "tabler",
+  "badge-8k": "tabler",
+  "badge-hd": "tabler",
+  "badge-sd": "tabler",
+  "flag-es": "flag",
+}
+const MARK_H: Record<Size, Record<Box, string>> = {
+  sm: {
+    badge: "h-2.5",
+    tabler: "h-[17px]",
+    symbol: "h-2.5",
+    lockup: "h-2.5",
+    flag: "h-2.5",
+  },
+  md: {
+    badge: "h-3",
+    tabler: "h-5",
+    symbol: "h-3",
+    lockup: "h-4",
+    flag: "h-3",
+  },
+}
+/** The drawn badge, in the HDR10 badge's proportions at each rung. */
+const WORD: Record<Size, string> = {
+  sm: "h-2.5 rounded-[2.5px] px-[3px] text-[8px]",
+  md: "h-3 rounded-[3px] px-1 text-[11px]",
+}
+/** Provenance ON the mark: presence, never a glyph. */
+const PROVENANCE: Record<Provenance, string> = {
+  claim: "opacity-55",
+  verified: "",
+  measured: "rounded bg-(--ag-media-ink)/12 px-0.5",
+  delivered:
+    "rounded bg-(--ag-media-ink)/12 px-0.5 ring-1 ring-(--ag-media-ink)/45",
+}
+/** A drawn badge on the poster rung sits on art: a scrim under it so it survives a
+ *  white sky. Artwork carries its own weight. */
+const SCRIM = "bg-(--ag-media-scrim) backdrop-blur-sm"
+const BUTTON =
+  "cursor-pointer hover:brightness-110 focus-visible:outline-2 focus-visible:outline-(--ag-media-ink)/60 focus-visible:outline-offset-1"
+const DELTA: Record<Delta, [glyph: string, cls: string]> = {
+  better: ["▲", "text-(--ag-media-better)"],
+  same: ["=", "opacity-50"],
+  worse: ["▼", "text-(--ag-media-worse)"],
+}
+const GAP_WITHIN: Record<Size, string> = { sm: "gap-0.5", md: "gap-1" }
+const GAP_BETWEEN: Record<Size, string> = { sm: "gap-1.5", md: "gap-2.5" }
+
+export interface ChipProps {
+  provenance?: Provenance
+  size?: Size
+  /** the marks' ink: the chip's own (default) or the brand's official hex */
+  tone?: Tone
+  /** trails the axis's last chip */
+  delta?: Delta
+  /** the axis group's title: where the fact came from, what it became */
+  detail?: string
+  onClick?: () => void
+  className?: string
+}
+
+/** One value as one mark, or one drawn word where no artwork exists. */
+type Atom = { mark: MarkId; name: string } | { word: string }
+
+interface ChipRenderProps {
   kind: Kind
-  /** the typed label: the accessible name, and the text when no mark replaces it */
-  label: string
-  /** the chip's content once a mark has replaced the word it stands for */
-  children?: React.ReactNode
-  mark?: MarkId
-  data?: Record<`data-${string}`, string | undefined>
+  facet: Facet
+  atom: Atom
+  provenance: Provenance
+  size: Size
+  tone: Tone
+  onClick?: () => void
 }
 
 function Chip({
   kind,
-  label,
-  children,
-  mark,
-  data,
-  provenance = "verified",
-  size = "md",
-  tone = "ink",
-  delta,
-  detail,
+  facet,
+  atom,
+  provenance,
+  size,
+  tone,
   onClick,
-  className,
 }: ChipRenderProps) {
   const style = {
-    // The fallback chains, written once: the kind's ink or the text colour; the text
-    // on a fill, or the theme's background, or the system's page colour.
+    // The fallback chain, written once: the kind's ink or the surrounding text colour.
     "--ag-media-ink": `var(--ag-media-${kind}, currentColor)`,
-    "--ag-media-fill-text":
-      "var(--ag-media-on-ink, var(--color-background, Canvas))",
   } as React.CSSProperties
-  const filled = provenance === "measured" || provenance === "delivered"
+  const isMark = "mark" in atom
+  const box: Box = isMark
+    ? (BOX_OF[atom.mark] ?? (size === "sm" ? "symbol" : "lockup"))
+    : "badge"
   const classes = cn(
-    BASE,
-    SIZE[size],
+    "inline-flex shrink-0 items-center align-middle leading-none text-(--ag-media-ink)",
+    isMark
+      ? MARK_H[size][box]
+      : cn(
+          WORD[size],
+          "border border-current font-semibold whitespace-nowrap",
+          size === "sm" && SCRIM,
+        ),
     PROVENANCE[provenance],
-    size === "sm" && !filled && SCRIM,
     onClick && BUTTON,
-    className,
   )
-  const glyph = delta ? DELTA[delta] : null
   const attrs = {
     "data-slot": "media-chip",
     "data-kind": kind,
+    "data-facet": facet,
     "data-provenance": provenance,
     "data-size": size,
-    "data-tone": mark ? tone : undefined,
-    "data-mark": mark,
-    "data-delta": delta,
-    ...data,
+    "data-mark": isMark ? atom.mark : undefined,
+    "data-tone": isMark ? tone : undefined,
     className: classes,
     style,
-    title: detail,
-    // A mark replaced part of the words: the typed label stays the name.
-    "aria-label": children === undefined ? undefined : label,
-    "aria-description": detail,
+    "aria-label": isMark ? atom.name : undefined,
   }
-  const body = (
-    <>
-      {children ?? label}
-      {glyph && (
-        <span
-          data-slot="media-chip-delta"
-          role="img"
-          className={glyph[1]}
-          aria-label={delta}
-        >
-          {glyph[0]}
-        </span>
-      )}
-    </>
+  const body = isMark ? (
+    <Mark
+      id={atom.mark}
+      form={size === "sm" ? "symbol" : "lockup"}
+      tone={tone}
+      fill
+    />
+  ) : (
+    atom.word
   )
   if (onClick)
     return (
@@ -408,164 +455,128 @@ function Chip({
   return <span {...attrs}>{body}</span>
 }
 
-/** The mark inside a chip: the rung follows the size, and a filled chip keeps the mark
- *  in its text colour whatever `tone` asks (brand on brand is invisible). */
-function ChipMark({
-  id,
-  size,
-  provenance,
-  tone,
-  em,
-}: {
-  id: MarkId
-  size: Size
-  provenance: Provenance
-  tone: Tone
-  em?: number
+/** One axis: its chips as a group, the typed label as the group's name, the delta
+ *  glyph trailing the last chip. */
+function Axis({
+  kind,
+  label,
+  atoms,
+  provenance = "verified",
+  size = "md",
+  tone = "ink",
+  delta,
+  detail,
+  onClick,
+  className,
+}: ChipProps & {
+  kind: Kind
+  label: string
+  atoms: [Facet, Atom][]
 }) {
-  const filled = provenance === "measured" || provenance === "delivered"
+  const glyph = delta ? DELTA[delta] : null
   return (
-    <Mark
-      id={id}
-      form={size === "sm" ? "symbol" : "lockup"}
-      tone={filled ? "ink" : tone}
-      em={em}
-    />
+    <span
+      // The axis reads as ONE picture named by the typed label ("4K · Dolby Vision"),
+      // which is what a row of marks is; its chips are decoration inside it.
+      role="img"
+      aria-label={label}
+      title={detail}
+      data-slot="media-axis"
+      data-kind={kind}
+      data-size={size}
+      className={cn("inline-flex items-center", GAP_WITHIN[size], className)}
+    >
+      {atoms.map(([facet, atom]) => (
+        <Chip
+          key={facet}
+          kind={kind}
+          facet={facet}
+          atom={atom}
+          provenance={provenance}
+          size={size}
+          tone={tone}
+          onClick={onClick}
+        />
+      ))}
+      {glyph && (
+        <span
+          data-slot="media-axis-delta"
+          role="img"
+          className={cn("text-[11px] leading-none", glyph[1])}
+          aria-label={delta}
+        >
+          {glyph[0]}
+        </span>
+      )}
+    </span>
   )
 }
 
-// ── The five chips. Each states its content by the composition rules: at md the
-// lockup replaces the word, the rest stays text; at sm the symbol and the short word.
+/** The mark for a value at a rung, or nothing when the rung has no artwork for it. */
+function markAt(id: MarkId | undefined, size: Size): MarkId | undefined {
+  if (!id) return undefined
+  if (size === "sm" && !HAS_SYMBOL.has(id)) return undefined
+  return id
+}
+
+const mark = (id: MarkId, name: string): Atom => ({ mark: id, name })
+const word = (w: string): Atom => ({ word: w })
+
+// ── The five axes.
 
 export function PictureChip({
   resolution,
   range = "sdr",
   ...chip
 }: ChipProps & { resolution: Resolution; range?: DynamicRange }) {
-  const { size = "md", provenance = "verified", tone = "ink" } = chip
-  const mark = RANGE_MARK[range]
-  const badge = range === "hdr10" || range === "hdr10-plus"
-  const res = RESOLUTION_LABEL[resolution]
-  const wear = { size, provenance, tone }
-  let content: React.ReactNode | undefined
-  let worn: MarkId | undefined
-  if (mark && size === "md") {
-    // "4K" + the Dolby Vision lockup; "4K" + the HDR10 badge.
-    worn = mark
-    content = (
-      <>
-        {res}
-        <ChipMark id={mark} {...wear} />
-      </>
-    )
-  } else if (mark && badge) {
-    // The badge alone: it is its own word.
-    worn = mark
-    content = <ChipMark id={mark} {...wear} />
-  } else if (mark) {
-    // The Dolby D and the short word.
-    worn = mark
-    content = (
-      <>
-        <ChipMark id={mark} {...wear} />
-        {RANGE_LABEL[range][1]}
-      </>
-    )
-  } else if (resolution === "2160p" && size === "md") {
-    // SDR 4K wears the Ultra HD wordmark alone; beside a range lockup it stays "4K",
-    // two lockups in one chip being one too many.
-    worn = "ultra-hd"
-    content = <ChipMark id="ultra-hd" {...wear} />
+  const size = chip.size ?? "md"
+  const atoms: [Facet, Atom][] = []
+  const res = markAt(RESOLUTION_MARK[resolution], size)
+  atoms.push([
+    "resolution",
+    res
+      ? mark(res, RESOLUTION_LABEL[resolution])
+      : word(RESOLUTION_LABEL[resolution]),
+  ])
+  if (range !== "sdr") {
+    const rng = markAt(RANGE_MARK[range], size)
+    atoms.push([
+      "range",
+      rng ? mark(rng, RANGE_LABEL[range][0]) : word(RANGE_LABEL[range][0]),
+    ])
   }
   return (
-    <Chip
+    <Axis
       kind="picture"
       label={pictureLabel(resolution, range, size)}
-      mark={worn}
-      data={{ "data-resolution": resolution, "data-range": range }}
+      atoms={atoms}
       {...chip}
-    >
-      {content}
-    </Chip>
+    />
   )
 }
 
 export function SoundChip({ audio, ...chip }: ChipProps & { audio: Audio }) {
-  const { size = "md", provenance = "verified", tone = "ink" } = chip
-  const wear = { size, provenance, tone }
+  const size = chip.size ?? "md"
+  const atoms: [Facet, Atom][] = []
   const codec = CODEC_LABEL[audio.codec]
-  const channels = audio.channels ?? ""
-  let content: React.ReactNode | undefined
-  let worn: MarkId | undefined
   if (audio.object === "atmos") {
-    // The Dolby Atmos lockup beside "TrueHD 7.1"; the Dolby D beside "Atmos".
-    worn = OBJECT_MARK.atmos
-    content =
-      size === "md" ? (
-        <>
-          <ChipMark id={worn} {...wear} />
-          {[codec, channels].filter(Boolean).join(" ")}
-        </>
-      ) : (
-        <>
-          <ChipMark id={worn} {...wear} />
-          {OBJECT_LABEL.atmos}
-        </>
-      )
+    const id = markAt("dolby-atmos", size)
+    atoms.push(["object", id ? mark(id, "Dolby Atmos") : word("Atmos")])
   } else if (audio.object === "dts-x") {
-    // No DTS:X artwork exists: the dts mark and ":X" set in the chip's own type.
-    worn = OBJECT_MARK["dts-x"]
-    content = (
-      <>
-        <ChipMark id={worn} {...wear} />
-        {size === "md" ? [":X", channels].filter(Boolean).join(" ") : "X"}
-      </>
-    )
-  } else {
-    const mark = CODEC_MARK[audio.codec]
-    if (mark && size === "md" && audio.codec !== "dts-hd-hra") {
-      // The codec's lockup beside the channels.
-      worn = mark
-      content = (
-        <>
-          <ChipMark id={mark} {...wear} />
-          {channels}
-        </>
-      )
-    } else if (mark && audio.codec === "dts-hd-hra" && size === "md") {
-      // No DTS-HD HRA artwork: the dts lockup and the rest as text.
-      worn = mark
-      content = (
-        <>
-          <ChipMark id={mark} {...wear} />
-          {["HD HRA", channels].filter(Boolean).join(" ")}
-        </>
-      )
-    } else if (mark && MARKS_WITH_SYMBOL.has(mark)) {
-      // The symbol and the short word.
-      worn = mark
-      content = (
-        <>
-          <ChipMark id={mark} {...wear} />
-          {codec}
-        </>
-      )
-    }
+    // No DTS:X artwork exists anywhere free to vendor: a drawn badge.
+    atoms.push(["object", word(OBJECT_LABEL["dts-x"])])
   }
+  // Beside an object mark the codec is a word: two Dolby lockups in a row is heavy.
+  const id = audio.object ? undefined : markAt(CODEC_MARK[audio.codec], size)
+  atoms.push(["codec", id ? mark(id, codec) : word(codec)])
+  if (audio.channels) atoms.push(["channels", word(audio.channels)])
   return (
-    <Chip
+    <Axis
       kind="sound"
       label={soundLabel(audio, size)}
-      mark={worn}
-      data={{
-        "data-codec": audio.codec,
-        "data-object": audio.object,
-        "data-lossless": isLossless(audio.codec) ? "" : undefined,
-      }}
+      atoms={atoms}
       {...chip}
-    >
-      {content}
-    </Chip>
+    />
   )
 }
 
@@ -578,85 +589,49 @@ export function TierChip({
   /** the copy's resolution, when known: a 2160p disc wears the Ultra HD Blu-ray mark */
   resolution?: Resolution
 }) {
-  const { size = "md", provenance = "verified", tone = "ink" } = chip
-  const wear = { size, provenance, tone }
-  let mark = TIER_MARK[tier]
-  if (mark === "bluray" && resolution === "2160p") mark = "ultra-hd-bluray"
-  let content: React.ReactNode | undefined
-  if (mark) {
-    // The disc's mark alone; "Remux" beside it, since a remux is the disc's own bits.
-    content = (
-      <>
-        <ChipMark id={mark} {...wear} />
-        {tier === "remux" && size === "md" ? TIER_LABEL.remux : null}
-      </>
-    )
-  }
-  return (
-    <Chip
-      kind="tier"
-      label={tierLabel(tier)}
-      mark={mark}
-      data={{ "data-tier": tier }}
-      {...chip}
-    >
-      {content}
-    </Chip>
-  )
+  const size = chip.size ?? "md"
+  let id = TIER_MARK[tier]
+  if (id === "bluray" && resolution === "2160p") id = "ultra-hd-bluray"
+  const disc = markAt(id, size)
+  const atoms: [Facet, Atom][] = [
+    [
+      "tier",
+      disc
+        ? mark(
+            disc,
+            id === "ultra-hd-bluray" ? "Ultra HD Blu-ray" : TIER_LABEL[tier],
+          )
+        : word(tier === "remux" ? TIER_LABEL.bluray : TIER_LABEL[tier]),
+    ],
+  ]
+  // A remux is the disc's own bits: the disc, then the edition.
+  if (tier === "remux") atoms.push(["edition", word(TIER_LABEL.remux)])
+  return <Axis kind="tier" label={tierLabel(tier)} atoms={atoms} {...chip} />
 }
 
 export function LangChip({ lang, ...chip }: ChipProps & { lang: string }) {
-  const { size = "md", provenance = "verified", tone = "ink" } = chip
-  const mark = LANG_MARK[lang]
-  let content: React.ReactNode | undefined
-  if (mark) {
-    // The flag at the text's own height, the house word beside it on the rail.
-    content = (
-      <>
-        <ChipMark
-          id={mark}
-          size={size}
-          provenance={provenance}
-          tone={tone}
-          em={1}
-        />
-        {size === "md" ? langLabel(lang) : null}
-      </>
-    )
+  const size = chip.size ?? "md"
+  const flag = markAt(LANG_MARK[lang], size)
+  const atoms: [Facet, Atom][] = []
+  if (flag) {
+    atoms.push(["lang", mark(flag, langLabel(lang))])
+    if (size === "md") atoms.push(["edition", word(langLabel(lang))])
+  } else {
+    atoms.push(["lang", word(langLabel(lang))])
   }
-  return (
-    <Chip
-      kind="lang"
-      label={langLabel(lang)}
-      mark={mark}
-      data={{ "data-lang": lang }}
-      {...chip}
-    >
-      {content}
-    </Chip>
-  )
+  return <Axis kind="lang" label={langLabel(lang)} atoms={atoms} {...chip} />
 }
 
 export function CutChip({ cut, ...chip }: ChipProps & { cut: Cut }) {
-  const { size = "md", provenance = "verified", tone = "ink" } = chip
-  const mark = CUT_MARK[cut]
-  const content = mark ? (
-    <ChipMark id={mark} size={size} provenance={provenance} tone={tone} />
-  ) : undefined
-  return (
-    <Chip
-      kind="cut"
-      label={cutLabel(cut)}
-      mark={mark}
-      data={{ "data-cut": cut }}
-      {...chip}
-    >
-      {content}
-    </Chip>
-  )
+  const size = chip.size ?? "md"
+  const id = markAt(CUT_MARK[cut], size)
+  const atoms: [Facet, Atom][] = [
+    ["cut", id ? mark(id, cutLabel(cut)) : word(cutLabel(cut))],
+  ]
+  return <Axis kind="cut" label={cutLabel(cut)} atoms={atoms} {...chip} />
 }
 
-// ── The strip: one copy's spec in a fixed order, absent axes unsaid.
+// ── The strip: one copy's spec, axis groups in a fixed order, absent axes unsaid.
 
 export interface MediaSpecProps {
   resolution?: Resolution
@@ -672,8 +647,6 @@ export interface MediaSpecProps {
   omit?: readonly Kind[]
   className?: string
 }
-
-const GAP: Record<Size, string> = { sm: "gap-1", md: "gap-1.5" }
 
 export function MediaSpec({
   resolution,
@@ -695,7 +668,11 @@ export function MediaSpec({
     <span
       data-slot="media-spec"
       data-size={size}
-      className={cn("inline-flex flex-wrap items-center", GAP[size], className)}
+      className={cn(
+        "inline-flex flex-wrap items-center",
+        GAP_BETWEEN[size],
+        className,
+      )}
     >
       {resolution && show("picture") && (
         <PictureChip

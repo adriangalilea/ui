@@ -110,3 +110,7 @@ already normalised as described above.
 | `DVD_logo.svg` | DVD | Commons, File:DVD logo.svg |
 | `IMAX.svg` | IMAX | Commons, File:IMAX.svg |
 | `Flag_of_Spain_civil_.svg` | Spain, civil flag without arms | Commons, File:Flag of Spain (civil).svg |
+| `badge-4k.svg` | 4K badge (stroke) | tabler icons `badge-4k` via Iconify (MIT) |
+| `badge-8k.svg` | 8K badge (stroke) | tabler icons `badge-8k` via Iconify (MIT) |
+| `badge-hd.svg` | HD badge (stroke) | tabler icons `badge-hd` via Iconify (MIT) |
+| `badge-sd.svg` | SD badge (stroke) | tabler icons `badge-sd` via Iconify (MIT) |

@@ -229,6 +229,8 @@ export interface MarkProps {
   tone?: MarkTone
   /** override the mark's own height, in em */
   em?: number
+  /** fill the parent's height instead (a chip's content box); width follows the aspect */
+  fill?: boolean
   className?: string
   style?: React.CSSProperties
 }
@@ -253,6 +255,7 @@ export function Mark({
   form = "lockup",
   tone = "ink",
   em,
+  fill = false,
   className,
   style,
 }: MarkProps) {
@@ -260,6 +263,9 @@ export function Mark({
   const art = entry[form] ?? entry.lockup ?? entry.symbol
   if (!art) return null
   const height = em ?? art.em
+  const size: React.CSSProperties = fill
+    ? { height: "100%", width: "auto", aspectRatio: art.aspect }
+    : { height: \`\${height}em\`, width: \`\${height * art.aspect}em\` }
   return (
     <svg
       viewBox={art.viewBox}
@@ -269,7 +275,7 @@ export function Mark({
       data-form={entry[form] ? form : art === entry.lockup ? "lockup" : "symbol"}
       fill={markFill(entry, tone)}
       className={cn("inline-block shrink-0 align-middle", className)}
-      style={{ height: \`\${height}em\`, width: \`\${height * art.aspect}em\`, ...style }}
+      style={{ ...size, ...style }}
       // biome-ignore lint/security/noDangerouslySetInnerHtml: static markup generated from this repo's own reviewed artwork, never from a user or the network
       dangerouslySetInnerHTML={{ __html: art.body }}
     />

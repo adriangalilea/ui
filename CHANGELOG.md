@@ -18,19 +18,25 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
   `-tier`, `-lang`, `-cut`, `-better`, `-worse`, `-on-ink` and `-scrim`. The
   label functions (`pictureLabel`, `soundLabel`, `tierLabel`, `langLabel`,
   `cutLabel`, `isLossless`) and the vocabulary tuples are exported.
-- New: the chips wear brand marks. The item now ships a second file,
+- Breaking: artwork first. The item now ships a second file,
   `media-spec-marks.tsx` (Dolby Vision, Dolby Atmos, TrueHD, Dolby Digital and
-  Plus, dts, DTS-HD MA, HDR10, HDR10+, Ultra HD, FLAC, Opus, Blu-ray, Ultra HD
-  Blu-ray, DVD, IMAX, the Spain flag), inlined as single-ink SVG. A mark replaces
-  the word it stands for and the rest of the label stays text: at `md` the
-  lockup ("4K" beside the Dolby Vision logotype, the Dolby Atmos logotype beside
-  "TrueHD 7.1", the Blu-ray logotype beside "Remux"), at `sm` the symbol (the
-  double-D beside "DV" or "Atmos", the dts mark beside "X", the HDR10+ badge
-  alone). `tone="brand"` paints only the mark in its official colour; a filled
-  provenance and a near-black brand keep the ink. `TierChip` takes `resolution`
-  so a 2160p disc wears the Ultra HD Blu-ray mark; `MediaSpec` passes it. The
-  typed label stays the accessible name. `Mark` and `MARKS` are exported for a
-  consumer that wants a mark on its own.
+  Plus, dts, DTS-HD MA, HDR10, HDR10+, the 4K / 8K / HD / SD badges, FLAC, Opus,
+  Blu-ray, Ultra HD Blu-ray, DVD, IMAX, the Spain flag), inlined as single-ink
+  SVG, and a chip is ONE mark standing frameless: the artwork is the chip. A
+  drawn badge (a rounded box with the word, to the HDR10 badge's proportions)
+  stands in only for a value with no artwork anywhere (720p, HLG, channels,
+  Remux, WEB-DL, DTS:X, AAC, castellano, a cut). Each axis is now a GROUP of
+  one to three chips: `PictureChip` renders [resolution] [range], `SoundChip`
+  [object] [codec] [channels], `TierChip` [disc] [Remux], `LangChip` [flag]
+  [castellano]; `MediaSpec` sets the groups apart. At `md` the lockups, at `sm`
+  the brand symbols and the small badges. Provenance moved onto the mark
+  (ghosted, full ink, washed, washed and ringed): the border-and-fill ladder is
+  gone, and so is the monospace face. `delta` trails the axis's last chip.
+  `tone="brand"` paints only marks, in their official colour; a near-black
+  brand keeps the ink. `TierChip` takes `resolution` so a 2160p disc wears the
+  Ultra HD Blu-ray mark; `MediaSpec` passes it. Each chip carries `data-facet`
+  beside `data-kind`. The typed label is the axis group's accessible name.
+  `Mark` and `MARKS` are exported for a consumer that wants a mark on its own.
 
 ## 2026-09-09
 

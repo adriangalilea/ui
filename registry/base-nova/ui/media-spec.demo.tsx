@@ -245,7 +245,7 @@ export default function Demo() {
 
       <Sample
         name="provenance"
-        label="provenance · a fill ladder, never a glyph: more fill, more certain"
+        label="provenance · on the mark: ghosted, full ink, washed, washed and ringed"
       >
         <div className="space-y-3">
           {PROVENANCES.map((provenance) => (
@@ -269,10 +269,48 @@ export default function Demo() {
             </div>
           </div>
           <div className="space-y-3">
-            <Kicker>sm · 9px bold on a scrim, the two words that matter</Kicker>
+            <Kicker>sm · brand symbols and the small badges</Kicker>
             <Row provenance="verified" size="sm" />
-            <Kicker>md · 11px mono, the whole spec</Kicker>
+            <Kicker>md · lockups, the whole spec</Kicker>
             <Row provenance="verified" size="md" />
+          </div>
+        </div>
+      </Sample>
+
+      <Sample
+        name="badges"
+        label="badges · artwork beside the drawn badge, one row, both rungs"
+      >
+        <div className="space-y-3">
+          <Kicker>
+            md · HDR10 and HDR10+ are artwork, 4K / 8K / HD / SD are tabler's
+            badges, HLG · 720p · 7.1 · Remux · WEB-DL are drawn
+          </Kicker>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <PictureChip resolution="2160p" range="hdr10" />
+            <PictureChip resolution="4320p" range="hdr10-plus" />
+            <PictureChip resolution="1080p" range="hlg" />
+            <PictureChip resolution="720p" />
+            <PictureChip resolution="sd" />
+            <SoundChip audio={{ codec: "aac", channels: "2.0" }} />
+            <SoundChip audio={{ codec: "dts-hd-ma", channels: "7.1" }} />
+            <TierChip tier="remux" />
+            <TierChip tier="webdl" />
+          </div>
+          <Kicker>sm · the same row on the poster rung</Kicker>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <PictureChip resolution="2160p" range="hdr10" size="sm" />
+            <PictureChip resolution="4320p" range="hdr10-plus" size="sm" />
+            <PictureChip resolution="1080p" range="hlg" size="sm" />
+            <PictureChip resolution="720p" size="sm" />
+            <PictureChip resolution="sd" size="sm" />
+            <SoundChip audio={{ codec: "aac", channels: "2.0" }} size="sm" />
+            <SoundChip
+              audio={{ codec: "dts-hd-ma", channels: "7.1" }}
+              size="sm"
+            />
+            <TierChip tier="remux" size="sm" />
+            <TierChip tier="webdl" size="sm" />
           </div>
         </div>
       </Sample>
@@ -425,14 +463,15 @@ export default function Demo() {
 
       <p className="max-w-prose text-[0.9375rem] text-foreground/70 leading-relaxed">
         The claim this page makes: the vocabulary is typed and the chip owns its
-        words ({KINDS.map((k) => KIND_LABEL[k]).join(" · ")}), provenance reads
-        without a legend, and the same chips render under a palette that never
-        installed the tokens. Which of two values is better is not a question a
-        chip answers: the order of the ladder belongs to the app. Dolby, DTS,
-        HDR10+, Blu-ray, DVD and IMAX are their owners&apos; trademarks, worn
-        here nominatively to say what a copy carries, never to claim a
-        certification; the artwork and its origins are in the repo&apos;s
-        references.
+        marks ({KINDS.map((k) => KIND_LABEL[k]).join(" · ")}), artwork comes
+        first and a drawn badge stands in only where none exists, provenance
+        reads on the mark without a legend, and the same chips render under a
+        palette that never installed the tokens. Which of two values is better
+        is not a question a chip answers: the order of the ladder belongs to the
+        app. Dolby, DTS, HDR10+, Blu-ray, DVD and IMAX are their owners&apos;
+        trademarks, worn here nominatively to say what a copy carries, never to
+        claim a certification; the artwork and its origins are in the
+        repo&apos;s references.
       </p>
     </div>
   )

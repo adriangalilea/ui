@@ -127,13 +127,45 @@
       "title": "Spain",
       "source": "Wikimedia Commons (PD)",
       "intrinsic_colours": true
+    },
+    "badge-4k": {
+      "symbol": "badge-4k.svg",
+      "lockup": "badge-4k.svg",
+      "brand": null,
+      "title": "4K",
+      "source": "tabler icons via Iconify (MIT)",
+      "stroke": true
+    },
+    "badge-8k": {
+      "symbol": "badge-8k.svg",
+      "lockup": "badge-8k.svg",
+      "brand": null,
+      "title": "8K",
+      "source": "tabler icons via Iconify (MIT)",
+      "stroke": true
+    },
+    "badge-hd": {
+      "symbol": "badge-hd.svg",
+      "lockup": "badge-hd.svg",
+      "brand": null,
+      "title": "HD",
+      "source": "tabler icons via Iconify (MIT)",
+      "stroke": true
+    },
+    "badge-sd": {
+      "symbol": "badge-sd.svg",
+      "lockup": "badge-sd.svg",
+      "brand": null,
+      "title": "SD",
+      "source": "tabler icons via Iconify (MIT)",
+      "stroke": true
     }
   },
   "value_to_mark": {
     "range.dolby-vision": "dolby-vision",
     "range.hdr10": "hdr10",
     "range.hdr10-plus": "hdr10-plus",
-    "resolution.2160p": "ultra-hd (md only; sm stays the text 4K)",
+    "resolution.2160p": "badge-4k",
     "object.atmos": "dolby-atmos",
     "object.dts-x": "dts (+ ':X' set in the chip's type; no DTS:X artwork exists)",
     "codec.truehd": "dolby-truehd",
@@ -148,10 +180,25 @@
     "tier.remux": "bluray mark + 'Remux' text (ultra-hd-bluray at 2160p)",
     "tier.dvd": "dvd",
     "cut.imax": "imax",
-    "lang.es-ES": "flag-es (+ 'castellano' at md)"
+    "lang.es-ES": "flag-es (+ 'castellano' at md)",
+    "resolution.4320p": "badge-8k",
+    "resolution.1080p": "badge-hd",
+    "resolution.sd": "badge-sd",
+    "resolution.720p": "drawn badge '720p' (no artwork exists)"
   },
   "composition": {
     "md": "picture: resolution text + range lockup ('4K' + Dolby Vision lockup; '4K' + HDR10 badge; '1080p' alone). sound: object lockup if any (Dolby Atmos lockup) + codec/channels text ('TrueHD 7.1'); else codec lockup + channels text ('DTS-HD MA' lockup + '5.1'); codecs without a lockup = text. tier: mark alone for bluray/dvd; mark + 'Remux'. lang: flag + 'castellano'. cut: IMAX mark alone.",
     "sm": "picture: symbol + short text (Dolby D + 'DV'; HDR10+ badge alone; '4K' text alone). sound: symbol + short (Dolby D + 'Atmos'; dts symbol + 'X'). tier: symbol alone. lang: flag alone. cut: IMAX mark alone."
+  },
+  "grammar_v3": {
+    "law": "ARTWORK FIRST. A chip is one mark standing FRAMELESS (the artwork is the chip: badge artwork keeps its own box, lockups keep their shape); a drawn word-badge (rounded box + word, HDR10-badge geometry) only for a value with no artwork anywhere.",
+    "provenance": "on the mark itself: claim = ghosted (~55% ink); verified = full ink; measured = full ink on a soft wash pill; delivered = wash + ring.",
+    "picture": "[resolution mark: 4K/8K/HD/SD tabler badges, 720p drawn] [range mark: Dolby Vision lockup / HDR10 badge / HDR10+ badge / HLG drawn]; SDR omitted.",
+    "sound": "[object mark: Dolby Atmos lockup; DTS:X drawn] [codec: lockup when no object shown (DTS-HD MA, TrueHD, DD+, DD, dts, FLAC, Opus), else drawn word (TrueHD); AAC/PCM/\u2026 drawn] [channels drawn: 7.1]",
+    "tier": "[Blu-ray lockup | Ultra HD Blu-ray at 2160p | DVD lockup | WEB-DL/WEBRip/HDTV/CAM drawn] [+ Remux drawn]",
+    "lang": "es-ES: flag (+ castellano drawn at md); es-419: latino drawn; other: code drawn",
+    "cut": "IMAX lockup; others drawn",
+    "sm": "brand SYMBOLS (Dolby D, dts, Blu-ray glyph, flag) and the small badges; drawn words at the small rung; md: lockups.",
+    "strip": "groups per axis: tight gap within an axis, wider between axes."
   }
 }

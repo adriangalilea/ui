@@ -28,6 +28,10 @@ export type MarkId =
   | "dvd"
   | "imax"
   | "flag-es"
+  | "badge-4k"
+  | "badge-8k"
+  | "badge-hd"
+  | "badge-sd"
 export type MarkForm = "symbol" | "lockup"
 export type MarkTone = "ink" | "brand"
 
@@ -336,6 +340,74 @@ export const MARKS: Record<MarkId, MarkEntry> = {
       body: '<rect width="750" height="500" fill="#c60b1e"/><rect width="750" height="250" fill="#ffc400" y="125"/>',
     },
   },
+  "badge-4k": {
+    title: "4K",
+    brand: null,
+    luminance: null,
+    symbol: {
+      viewBox: "0 0 24 24",
+      aspect: 1.0,
+      em: 1,
+      body: '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M7 9v2a1 1 0 0 0 1 1h1m1-3v6m4-6v6m3-6l-2 3l2 3m-2-3h-1"/></g>',
+    },
+    lockup: {
+      viewBox: "0 0 24 24",
+      aspect: 1.0,
+      em: 1.6,
+      body: '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M7 9v2a1 1 0 0 0 1 1h1m1-3v6m4-6v6m3-6l-2 3l2 3m-2-3h-1"/></g>',
+    },
+  },
+  "badge-8k": {
+    title: "8K",
+    brand: null,
+    luminance: null,
+    symbol: {
+      viewBox: "0 0 24 24",
+      aspect: 1.0,
+      em: 1,
+      body: '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zm11 2v6"/><path d="m17 9l-2 3l2 3m-2-3h-1m-5.5 0H8a1 1 0 0 1-1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H8a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1a1 1 0 0 0-1-1"/></g>',
+    },
+    lockup: {
+      viewBox: "0 0 24 24",
+      aspect: 1.0,
+      em: 1.6,
+      body: '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zm11 2v6"/><path d="m17 9l-2 3l2 3m-2-3h-1m-5.5 0H8a1 1 0 0 1-1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H8a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1a1 1 0 0 0-1-1"/></g>',
+    },
+  },
+  "badge-hd": {
+    title: "HD",
+    brand: null,
+    luminance: null,
+    symbol: {
+      viewBox: "0 0 24 24",
+      aspect: 1.0,
+      em: 1,
+      body: '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M14 9v6h1a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2zm-7 6V9m3 6V9m-3 3h3"/></g>',
+    },
+    lockup: {
+      viewBox: "0 0 24 24",
+      aspect: 1.0,
+      em: 1.6,
+      body: '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M14 9v6h1a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2zm-7 6V9m3 6V9m-3 3h3"/></g>',
+    },
+  },
+  "badge-sd": {
+    title: "SD",
+    brand: null,
+    luminance: null,
+    symbol: {
+      viewBox: "0 0 24 24",
+      aspect: 1.0,
+      em: 1,
+      body: '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M14 9v6h1a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2zm-7 5.25c0 .414.336.75.75.75H9a1 1 0 0 0 1-1v-1a1 1 0 0 0-1-1H8a1 1 0 0 1-1-1v-1a1 1 0 0 1 1-1h1.25a.75.75 0 0 1 .75.75"/></g>',
+    },
+    lockup: {
+      viewBox: "0 0 24 24",
+      aspect: 1.0,
+      em: 1.6,
+      body: '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M14 9v6h1a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2zm-7 5.25c0 .414.336.75.75.75H9a1 1 0 0 0 1-1v-1a1 1 0 0 0-1-1H8a1 1 0 0 1-1-1v-1a1 1 0 0 1 1-1h1.25a.75.75 0 0 1 .75.75"/></g>',
+    },
+  },
 }
 
 export interface MarkProps {
@@ -345,6 +417,8 @@ export interface MarkProps {
   tone?: MarkTone
   /** override the mark's own height, in em */
   em?: number
+  /** fill the parent's height instead (a chip's content box); width follows the aspect */
+  fill?: boolean
   className?: string
   style?: React.CSSProperties
 }
@@ -369,6 +443,7 @@ export function Mark({
   form = "lockup",
   tone = "ink",
   em,
+  fill = false,
   className,
   style,
 }: MarkProps) {
@@ -376,6 +451,9 @@ export function Mark({
   const art = entry[form] ?? entry.lockup ?? entry.symbol
   if (!art) return null
   const height = em ?? art.em
+  const size: React.CSSProperties = fill
+    ? { height: "100%", width: "auto", aspectRatio: art.aspect }
+    : { height: `${height}em`, width: `${height * art.aspect}em` }
   return (
     <svg
       viewBox={art.viewBox}
@@ -387,11 +465,7 @@ export function Mark({
       }
       fill={markFill(entry, tone)}
       className={cn("inline-block shrink-0 align-middle", className)}
-      style={{
-        height: `${height}em`,
-        width: `${height * art.aspect}em`,
-        ...style,
-      }}
+      style={{ ...size, ...style }}
       // biome-ignore lint/security/noDangerouslySetInnerHtml: static markup generated from this repo's own reviewed artwork, never from a user or the network
       dangerouslySetInnerHTML={{ __html: art.body }}
     />
