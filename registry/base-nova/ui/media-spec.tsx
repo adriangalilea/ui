@@ -44,10 +44,10 @@
 // a mark in its official hex, and only where that hex is a colour (a near-black brand
 // such as Dolby stays ink: black on a dark surface is a missing logo, not a brand
 // statement; `markFill` in media-spec-marks.tsx), and drawn badges keep the ink;
-// "gold" is the disc-case sticker, FOR THE DRAWN FAMILY ONLY: the drawn boxes filled
-// near-black with a metallic gradient on stroke and letters, while every brand mark
-// (Dolby, DTS, Blu-ray, DVD, IMAX, FLAC, Opus) stays in ink beside them, as disc
-// cases print them; the flag is itself. A consumer retunes the metal through
+// "gold" is the disc-case sticker: the drawn boxes filled near-black with a metallic
+// gradient on stroke and letters, and every brand mark (Dolby, DTS, Blu-ray, DVD,
+// IMAX, FLAC, Opus) cut from the same metal beside them — one foil across the row,
+// the way a premium case is stamped; the flag is itself. A consumer retunes the metal through
 // --ag-media-gold-hi / -mid / -lo / -glint (defaults #FFF1A8 · #E6B422 · #9C7A1B ·
 // #FFE680). The resolution badge is the STICKER: two panels in one frame, the upper
 // on the near-black ground with "4K" in the ink, the lower a band filled with the ink
@@ -687,10 +687,16 @@ function Chip({
     style,
     "aria-label": isMark ? atom.name : undefined,
   }
-  // GOLD IS FOR THE DRAWN FAMILY ONLY: a brand mark stays in ink beside the metal
-  // stickers, as disc cases print them.
+  // ONE FOIL ACROSS THE ROW: under gold a brand mark is cut from the same metal as the
+  // stickers beside it (a white mark beside a gold sticker read as two objects).
   const body = isMark ? (
-    <Mark id={atom.mark} form={form} tone={gold ? "ink" : tone} fill />
+    <Mark
+      id={atom.mark}
+      form={form}
+      tone={tone}
+      paint={gold ? paint : undefined}
+      fill
+    />
   ) : atom.sub !== undefined ? (
     <Sticker
       primary={atom.word}
