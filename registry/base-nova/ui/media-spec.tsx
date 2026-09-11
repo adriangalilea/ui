@@ -54,7 +54,6 @@
 // so a consumer styles Dolby Vision or Atmos from outside without a class name to know.
 // The typed label is the accessible name of the axis group whatever is drawn.
 
-import { useId } from "react"
 import { cn } from "@/lib/utils"
 import {
   MARKS,
@@ -361,12 +360,14 @@ const WORD: Record<Size, string> = {
  *  frame stroked in the ink; an upper panel on the near-black ground carrying the
  *  primary ("4K") in the ink, heavy; a lower band FILLED with the ink carrying the
  *  secondary ("ULTRA HD") in the ground colour, small caps, wide-tracked, flush to the
- *  frame's inner edge so band and frame read as one shape. Drawn as inline SVG so the
- *  geometry is exact at both rungs: box height 1.75 × B, band 30% of it, primary 55%
- *  of it, frame stroke 1.5 × the hairline, radius as the family. The width follows the
- *  longer word. Under ink and brand it is white-on-black; under gold every ink becomes
- *  the metal and the panel stays near-black. The ground is `--ag-media-sticker-ground`
- *  (default #0b0b0b) so a light surface can set its own. */
+ *  frame's inner edge so band and frame read as one shape. Built as layout, not as a
+ *  fixed-width drawing: a column sized by its widest line plus side padding, so no
+ *  word ever clips. Box height 1.75 × B, band 30% of it, primary 55% of it, frame
+ *  the family hairline × 1.25 at full ink, radius as the family. Under ink and brand
+ *  it is white-on-black; under gold every ink is the metal (the frame a gradient
+ *  ground behind a 1px inset column, the primary clipped from the gradient, the band
+ *  a gradient fill) and the panel stays near-black. The ground is
+ *  `--ag-media-sticker-ground` (default #0b0b0b) so a light surface can set its own. */
 const STICKER: Record<
   Size,
   {
@@ -376,10 +377,27 @@ const STICKER: Record<
     band: number
     primary: number
     secondary: number
+    pad: number
   }
 > = {
-  sm: { h: 18, stroke: 1.2, r: 2.5, band: 5.4, primary: 9.9, secondary: 5 },
-  md: { h: 21, stroke: 1.5, r: 3, band: 6.3, primary: 11.55, secondary: 6 },
+  sm: {
+    h: 18,
+    stroke: 1,
+    r: 2.5,
+    band: 5.4,
+    primary: 9.9,
+    secondary: 5,
+    pad: 3,
+  },
+  md: {
+    h: 21,
+    stroke: 1.25,
+    r: 3,
+    band: 6.3,
+    primary: 11.55,
+    secondary: 6,
+    pad: 4,
+  },
 }
 const STICKER_GROUND = "var(--ag-media-sticker-ground, #0b0b0b)"
 
@@ -395,89 +413,69 @@ function Sticker({
   gold: boolean
 }) {
   const g = STICKER[size]
-  const uid = useId()
-  const gradient = `ag-media-gold-${uid}`
-  const clip = `ag-media-clip-${uid}`
-  // The words set their own width: the longer of the heavy primary and the tracked
-  // secondary, plus a side pad of a third of the primary's size.
-  const pad = g.primary * 0.35
-  const wPrimary = primary.length * g.primary * 0.62 + pad * 2
-  const wSecondary = secondary.length * g.secondary * 0.72 + pad * 2
-  const w = Math.ceil(Math.max(wPrimary, wSecondary))
-  const ink = gold ? `url(#${gradient})` : "currentColor"
-  const s = g.stroke
-  return (
-    <svg
-      viewBox={`0 0 ${w} ${g.h}`}
-      width={w}
-      height={g.h}
-      aria-hidden="true"
-      data-slot="media-sticker"
-      className="block shrink-0"
+  const paint = GOLD_PAINT[size]
+  const column = (
+    <span
+      data-slot={gold ? undefined : "media-sticker"}
+      className="flex flex-col items-stretch overflow-hidden whitespace-nowrap"
+      style={{
+        height: g.h - (gold ? 2 * g.stroke : 0),
+        borderRadius: gold ? Math.max(g.r - g.stroke, 0) : g.r,
+        borderWidth: gold ? 0 : g.stroke,
+        borderStyle: "solid",
+        borderColor: "currentColor",
+        background: STICKER_GROUND,
+      }}
     >
-      <defs>
-        {gold && (
-          <linearGradient id={gradient} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" style={{ stopColor: GOLD_HI }} />
-            <stop offset="0.45" style={{ stopColor: GOLD_MID }} />
-            <stop offset="0.84" style={{ stopColor: GOLD_LO }} />
-            <stop offset="0.97" style={{ stopColor: GOLD_GLINT }} />
-            <stop offset="1" style={{ stopColor: GOLD_LO }} />
-          </linearGradient>
-        )}
-        <clipPath id={clip}>
-          <rect
-            x={s}
-            y={s}
-            width={w - 2 * s}
-            height={g.h - 2 * s}
-            rx={Math.max(g.r - s, 0)}
-          />
-        </clipPath>
-      </defs>
-      <rect
-        x={s / 2}
-        y={s / 2}
-        width={w - s}
-        height={g.h - s}
-        rx={g.r}
-        fill={STICKER_GROUND}
-        stroke={ink}
-        strokeWidth={s}
-      />
-      <rect
-        x={s}
-        y={g.h - s - g.band}
-        width={w - 2 * s}
-        height={g.band}
-        fill={ink}
-        clipPath={`url(#${clip})`}
-      />
-      <text
-        x={w / 2}
-        y={(g.h - g.band) / 2 + s / 4}
-        textAnchor="middle"
-        dominantBaseline="central"
-        fontSize={g.primary}
-        fontWeight={900}
-        letterSpacing="-0.02em"
-        fill={ink}
+      <span
+        className="flex flex-1 items-center justify-center leading-none tracking-tight"
+        style={{
+          padding: `0 ${g.pad}px`,
+          fontSize: g.primary,
+          fontWeight: 900,
+          ...(gold
+            ? {
+                backgroundImage: paint,
+                WebkitBackgroundClip: "text",
+                backgroundClip: "text",
+                color: "transparent",
+              }
+            : undefined),
+        }}
       >
         {primary}
-      </text>
-      <text
-        x={w / 2}
-        y={g.h - s - g.band / 2}
-        textAnchor="middle"
-        dominantBaseline="central"
-        fontSize={g.secondary}
-        fontWeight={600}
-        letterSpacing="0.12em"
-        fill={STICKER_GROUND}
+      </span>
+      <span
+        className="flex items-center justify-center font-semibold uppercase leading-none tracking-[0.12em]"
+        style={{
+          height: g.band,
+          padding: `0 ${g.pad}px`,
+          fontSize: g.secondary,
+          color: STICKER_GROUND,
+          ...(gold
+            ? { backgroundImage: paint }
+            : { background: "currentColor" }),
+        }}
       >
         {secondary}
-      </text>
-    </svg>
+      </span>
+    </span>
+  )
+  if (!gold) return column
+  // The metal frame that keeps its radius: the gradient as the ground of a wrapper,
+  // the column inset by the stroke.
+  return (
+    <span
+      data-slot="media-sticker"
+      className="inline-block"
+      style={{
+        padding: g.stroke,
+        borderRadius: g.r,
+        backgroundImage: paint,
+      }}
+    >
+      {column}
+    </span>
   )
 }
 /** The emphasis ladder, named for its look. */
@@ -491,14 +489,15 @@ const EMPHASIS: Record<Emphasis, string> = {
 /** A drawn badge on the poster rung sits on art: a scrim under it so it survives a
  *  white sky. Artwork carries its own weight. */
 const SCRIM = "bg-(--ag-media-scrim) backdrop-blur-sm"
-// ── GOLD: the disc-case metallic sticker. ONE mechanism for words and marks: a CSS
-// background that the letters are clipped from (`background-clip: text`) and the
-// artwork is cut from (a mask, `Mark`'s `paint`). The drawn box fills near-black and
-// wears the same metal on its stroke through the two-layer background trick (a
-// padding-box fill over a border-box gradient behind a transparent border), so the
-// radius survives. The stroke is 1.5 × the hairline. At sm the metal is a flat mid
-// gold: a gradient at 8px is noise. A consumer retunes the metal through
-// --ag-media-gold-hi / -mid / -lo / -glint.
+// ── GOLD: the disc-case metallic sticker, for the drawn family. ONE mechanism: a CSS
+// background the letters are clipped from (`background-clip: text`) and a band or a
+// frame is filled with. The one-line box fills near-black and wears the metal on its
+// stroke through the two-layer background trick (a padding-box fill over a border-box
+// gradient behind a transparent border), so the radius survives; the sticker wears it
+// as the ground of a wrapper the column sits inset in. Stroke widths are the family's
+// (a hairline; the sticker's hairline × 1.25). At sm the metal is a flat mid gold: a
+// gradient at 8px is noise. A consumer retunes the metal through --ag-media-gold-hi /
+// -mid / -lo / -glint.
 const GOLD_HI = "var(--ag-media-gold-hi, #FFF1A8)"
 const GOLD_MID = "var(--ag-media-gold-mid, #E6B422)"
 const GOLD_LO = "var(--ag-media-gold-lo, #9C7A1B)"
@@ -507,10 +506,10 @@ const GOLD_GROUND = "#0b0b0b"
 const GOLD_METAL = `linear-gradient(135deg, ${GOLD_HI} 0%, ${GOLD_MID} 45%, ${GOLD_LO} 84%, ${GOLD_GLINT} 97%, ${GOLD_LO} 100%)`
 /** The paint a rung's gold is drawn with. */
 const GOLD_PAINT: Record<Size, string> = { sm: GOLD_MID, md: GOLD_METAL }
-/** The gold drawn badge's stroke (1.5 × the hairline) and its metal-clipped text. */
+/** The gold one-line badge's stroke: the family hairline, in the metal. */
 const GOLD_WORD: Record<Size, string> = {
-  sm: "border-[1.2px]",
-  md: "border-[1.5px]",
+  sm: "border-[0.8px]",
+  md: "border",
 }
 const BUTTON =
   "cursor-pointer hover:brightness-110 focus-visible:outline-2 focus-visible:outline-(--ag-media-ink)/60 focus-visible:outline-offset-1"
@@ -583,7 +582,8 @@ function Chip({
         : cn(
             WORD[size],
             "font-semibold tracking-tight whitespace-nowrap",
-            gold ? GOLD_WORD[size] : "border-current",
+            // The frame is never the loudest thing: a hairline at 70% of the ink.
+            gold ? GOLD_WORD[size] : "border-(--ag-media-ink)/70",
             size === "sm" && !gold && SCRIM,
           ),
     EMPHASIS[emphasis],

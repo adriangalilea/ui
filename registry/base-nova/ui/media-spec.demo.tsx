@@ -480,9 +480,9 @@ export default function Demo() {
       >
         <div className="space-y-4 rounded-lg bg-[#151515] px-5 py-4 text-[#e6e4ee]">
           <Kicker>
-            md · the drawn family takes the metal (a 135° gradient, the stroke
-            1.5 × the hairline); Dolby, Blu-ray and every other brand mark stay
-            in ink, as disc cases print them
+            md · the drawn family takes the metal (a 135° gradient on hairline
+            frames); Dolby, Blu-ray and every other brand mark stay in ink, as
+            disc cases print them
           </Kicker>
           <MediaSpec {...DISC} tone="gold" omit={["lang", "cut"]} />
           <Kicker>sm · flat mid gold: a gradient at 8px is noise</Kicker>
