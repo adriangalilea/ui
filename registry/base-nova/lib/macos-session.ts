@@ -74,6 +74,11 @@ export interface Art {
 
 /** How long the pointer takes to travel to what it is about to click. */
 export const POINTER_MS = 520
+/** How long the camera takes to move between two shots. */
+export const ZOOM_MS = 750
+/** Zoom first, then the input: a chord or a right-click that flips the glyph waits
+ *  for the camera to arrive on it, so the change happens in the close-up. */
+const LEAD_MS = ZOOM_MS + 250
 
 // ── pacing: the one place a step's time is decided ──
 //
@@ -96,8 +101,8 @@ const PAUSE: Record<StepKind, number> = {
   close: 300,
   hover: POINTER_MS + 100,
   press: 350,
-  key: 400,
-  "right-click": POINTER_MS + 150,
+  key: LEAD_MS,
+  "right-click": Math.max(POINTER_MS + 150, LEAD_MS),
   banner: 300,
   caption: 250,
 }
@@ -199,7 +204,13 @@ export function sceneClock(timeline: Timeline): SceneClock {
   for (const s of timeline.steps) {
     // The story opens on its first step: no frame of anything before it.
     if (starts.length > 0) at += s.delay ?? PAUSE[s.kind]
-    if (s.author) at = Math.max(at, ready)
+    // An input that flips the glyph also waits for the camera, which only leaves
+    // once the last beat has been taken in.
+    if (s.author)
+      at = Math.max(
+        at,
+        ready + (s.kind === "key" || s.kind === "right-click" ? LEAD_MS : 0),
+      )
     starts.push(at)
     const landed = at + hold(s)
     ends.push(landed)
@@ -426,9 +437,14 @@ export function focusSpans(timeline: Timeline, clock: SceneClock): FocusSpan[] {
   let lid: WorldState["lid"] = "open"
   let glyph = "off"
   let unseen: string | null = null
+  // The chord or right-click whose answer is the next glyph: the camera leaves for
+  // the glyph LEAD_MS before it lands, so the change happens in the close-up.
+  let input: number | null = null
   timeline.steps.forEach((s, i) => {
     const start = clock.starts[i] as number
     const end = clock.ends[i] as number
+    if (s.kind === "key" || s.kind === "right-click") input = start
+    else if (s.author) input = null
     switch (s.kind) {
       case "menu":
         endMenu(start)
@@ -452,10 +468,11 @@ export function focusSpans(timeline: Timeline, clock: SceneClock): FocusSpan[] {
           wants.push({
             key: `glyph:${i}`,
             kind: "glyph",
-            start,
+            start: input === null ? start : Math.max(0, input - LEAD_MS),
             end: start + GLYPH_FOCUS_MS,
           })
         glyph = s.glyph as string
+        input = null
         break
       case "banner":
         if (lid === "closed") unseen = s.text ?? ""
@@ -511,9 +528,6 @@ export function focusSpans(timeline: Timeline, clock: SceneClock): FocusSpan[] {
   }
   return spans
 }
-
-/** How long the camera takes to move between two shots. */
-export const ZOOM_MS = 750
 
 /** The camera's zoom at `ms`, given each span's target (`target(key)`, 1 for the
  *  wide shot): eased from where the previous span left it, so a span shorter than
