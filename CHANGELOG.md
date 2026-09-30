@@ -7,15 +7,15 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 ### agent-session
 
-- New: a coding agent's session as data (`AgentEntry`: a prompt, a reply, a tool call with its result; `AgentWork`: how long it has worked in the world's seconds and on screen in ms, facts each skin words and animates itself), the props every agent skin takes (`AgentViewProps`), `formatElapsed`, elapsed time the way both CLIs say it, and `formatTokens`, the running token count.
+- New: a coding agent's session as data (`AgentEntry`: a prompt, a reply, a tool call with its result; `AgentWork`: how long it has worked in the world's seconds and on screen in ms, facts each skin words and animates itself; `AgentFinished`: how long the finished turn took), the props every agent skin takes (`AgentViewProps`), `formatElapsed`, elapsed time the way both CLIs say it, and `formatTokens`, the running token count.
 
 ### claude-code
 
-- New: Claude Code's terminal UI drawn from an agent-session: the welcome box, your prompts as full-width grey bars (the only tinted lines, as in the real CLI), `⏺` replies and tool calls with their `⎿` results, the working line as the CLI draws it (`✻ Spelunking… (22s · ↓ 1.5k tokens · esc to interrupt)`: the spinner breathing through `· ✢ ✳ ✶ ✻ ✽`, a light band sweeping the verb, a new verb from Claude Code's own list on every request, all a pure function of time), the prompt box. Reads like a terminal: from the top while it fits, the oldest lines scrolled away once it does not.
+- New: Claude Code's terminal UI drawn from an agent-session: the welcome box, your prompts as full-width grey bars (the only tinted lines, as in the real CLI), `⏺` replies and tool calls with their `⎿` results, the working line as the CLI draws it (`✻ Spelunking… (22s · ↓ 1.5k tokens · esc to interrupt)`: the spinner breathing through `· ✢ ✳ ✶ ✻ ✽`, a light band sweeping the verb, a new verb from Claude Code's own list on every request, all a pure function of time), the grey line a finished turn leaves (`✻ Sautéed for 8m 37s`), the prompt box. Reads like a terminal: from the top while it fits, the oldest lines scrolled away once it does not.
 
 ### codex
 
-- New: OpenAI Codex CLI's terminal UI drawn from an agent-session: the header box, `›` prompts, `•` replies and `Ran` commands with their `└` output, the working line, the composer. Same terminal reading as claude-code.
+- New: OpenAI Codex CLI's terminal UI drawn from an agent-session: the header box, `›` prompts, `•` replies and `Ran` commands with their `└` output, the working line, the `─ Worked for 2h 14m` rule a finished turn leaves, the composer. Same terminal reading as claude-code.
 
 ### macos
 
@@ -27,7 +27,7 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 ### macos-session
 
-- New: the timeline a `macos` stage plays, written by the app itself: a scene script played through the app's real engine compiles to steps (world, glyph, command, output, menu, hover, press, key, banner, caption), so every word and pixel on stage is the app's. awake's `awake-scene` is the first compiler. The lib owns pacing and nothing else, and paces for reading: every step says what it asks of the viewer (a line to read, a menu to scan, the lid to watch close), and before the script's next act the player waits until all of it has been taken in, while the app's reactions follow their cause at once. What happens behind a shut lid takes no screen time: the world's clock jump plays as a time-lapse (`lapseAt`: the clock and battery run from before to after, the time gained counts up), and when the lid opens the viewer is given time to read what the agent did while it was shut, then the banners posted meanwhile. `sceneClock` lays the steps out in milliseconds, and `frameAt(timeline, clock, ms)` is a pure fold to the whole stage at one instant, so scrubbing, stills and autoplay are one function.
+- New: the timeline a `macos` stage plays, written by the app itself: a scene script played through the app's real engine compiles to steps (world, glyph, command, output, menu, hover, press, key, banner, caption), so every word and pixel on stage is the app's. awake's `awake-scene` is the first compiler. The lib owns pacing and nothing else, and paces for reading: every step says what it asks of the viewer (a line to read, a menu to scan, the lid to watch close), and before the script's next act the player waits until all of it has been taken in, while the app's reactions follow their cause at once. An agent's prompt sets it working, as the CLIs do, until the story says it is done. What happens behind a shut lid takes no screen time: the world's clock jump plays as a time-lapse (`lapseAt`: the clock and battery run from before to after, the time gained counts up), and when the lid opens the viewer is given time to read what the agent did while it was shut, then the banners posted meanwhile. `sceneClock` lays the steps out in milliseconds, and `frameAt(timeline, clock, ms)` is a pure fold to the whole stage at one instant, so scrubbing, stills and autoplay are one function.
 
 ## 2026-09-11
 

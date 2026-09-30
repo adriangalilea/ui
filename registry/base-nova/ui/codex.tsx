@@ -17,6 +17,7 @@ import {
 export function Codex({
   entries,
   work,
+  finished,
   draft,
   cwd = "~",
   className,
@@ -51,6 +52,12 @@ export function Codex({
             <span className="text-[#8a8a8a]">
               ({formatElapsed(work.seconds)} • esc to interrupt)
             </span>
+          </div>
+        )}
+        {finished && (
+          <div className="flex items-center gap-[1ch] text-[#6f6f6f]">
+            <span>─ Worked for {formatElapsed(finished.seconds)}</span>
+            <span className="h-px flex-1 bg-[#3a3a3a]" />
           </div>
         )}
         <div>

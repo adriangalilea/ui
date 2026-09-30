@@ -720,6 +720,7 @@ function TerminalWindow({
             <Agent
               entries={agent.entries}
               work={agent.work}
+              finished={agent.finished}
               draft={agent.draft}
               cwd={agent.cwd}
             />

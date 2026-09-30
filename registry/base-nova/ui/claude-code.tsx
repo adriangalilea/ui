@@ -22,6 +22,7 @@ const CLAUDE = "#d97757"
 export function ClaudeCode({
   entries,
   work,
+  finished,
   draft,
   cwd = "~",
   className,
@@ -53,6 +54,11 @@ export function ClaudeCode({
           <Entry key={i} entry={e} />
         ))}
         {work && <Working work={work} request={entries.length} />}
+        {finished && (
+          <div className="text-[#8a8a8a]">
+            ✻ {pick(PAST, entries.length)} for {formatElapsed(finished.seconds)}
+          </div>
+        )}
         <div>
           <div className="rounded-[6px] border border-[#5a5a5a] px-[1ch] py-[0.2em]">
             <span className="text-[#8a8a8a]">{"> "}</span>
@@ -72,6 +78,24 @@ const SPIN_MS = 120
 /** The highlight's speed across the verb, and the dark stretch between passes. */
 const SWEEP_MS_PER_CHAR = 70
 const SWEEP_GAP = 8
+
+/** One of `list` for the `n`th request: a hash, not a random call, so the server, the
+ *  browser and a film draw the same word. */
+function pick(list: string[], n: number): string {
+  return list[(Math.imul(n + 1, 2654435761) >>> 0) % list.length] as string
+}
+
+/** What a finished turn says it did, grey: "✻ Sautéed for 8m 37s". */
+const PAST = [
+  "Baked",
+  "Brewed",
+  "Churned",
+  "Cogitated",
+  "Cooked",
+  "Crunched",
+  "Sautéed",
+  "Worked",
+]
 
 /** The words Claude Code says it is working with, one drawn at random per request. */
 const VERBS = [
@@ -171,15 +195,13 @@ const VERBS = [
 
 /** "✻ Spelunking… (22s · ↓ 1.5k tokens · esc to interrupt)": the spinner breathes,
  *  a lighter band sweeps across the verb, and the counters run. The verb changes
- *  with each request (every entry the transcript gains is the model asked again),
- *  drawn by a hash of the request's number, not a random call, so the server, the
- *  browser and a film agree. The rest runs on `work.ms`, so a frame drawn alone is
- *  the frame played to. */
+ *  with each request (every entry the transcript gains is the model asked again).
+ *  The rest runs on `work.ms`, so a frame drawn alone is the frame played to. */
 function Working({ work, request }: { work: AgentWork; request: number }) {
   const cycle = SPINNER.length * 2 - 2
   const step = Math.floor(work.ms / SPIN_MS) % cycle
   const glyph = SPINNER[step < SPINNER.length ? step : cycle - step]
-  const verb = `${VERBS[(Math.imul(request + 1, 2654435761) >>> 0) % VERBS.length]}…`
+  const verb = `${pick(VERBS, request)}…`
   const at = (work.ms / SWEEP_MS_PER_CHAR) % (verb.length + SWEEP_GAP)
   return (
     <div>

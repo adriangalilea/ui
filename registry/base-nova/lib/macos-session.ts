@@ -6,6 +6,7 @@
 
 import type {
   AgentEntry,
+  AgentFinished,
   AgentWork,
 } from "@/registry/base-nova/lib/agent-session"
 import { TYPE_MS } from "@/registry/base-nova/lib/terminal-session"
@@ -51,7 +52,6 @@ export type StepKind =
   | "prompt" // a prompt typed now
   | "say" // the agent's reply
   | "tool" // a tool call: `text` the tool, `arg` its argument, `lines` the result
-  | "work" // the agent starts working (its CLI words the line)
   | "done" // it stops working and says `text`
 
 export interface Step {
@@ -124,7 +124,6 @@ const PAUSE: Record<StepKind, number> = {
   prompt: 400,
   say: 500,
   tool: 400,
-  work: 300,
   done: 400,
 }
 
@@ -204,8 +203,6 @@ function look(s: Step, before: WorldState, glyph: string): number {
       return readMs(text)
     case "tool":
       return readMs(`${s.arg ?? ""} ${(s.lines ?? []).join(" ")}`) / 2
-    case "work":
-      return 1400
     default:
       return 0
   }
@@ -242,13 +239,7 @@ const AGENT_WORDS = new Set<StepKind>(["say", "tool", "done"])
 
 /** The opening frame: the world, the glyph, an agent already at work. It is on screen
  *  from the first instant, then held before the story's first act. */
-const OPENING = new Set<StepKind>([
-  "world",
-  "glyph",
-  "agent",
-  "history",
-  "work",
-])
+const OPENING = new Set<StepKind>(["world", "glyph", "agent", "history"])
 
 export function sceneClock(timeline: Timeline): SceneClock {
   let at = 0
@@ -377,6 +368,7 @@ export interface Frame {
     entries: AgentEntry[]
     draft: string
     work: AgentWork | null
+    finished: AgentFinished | null
   } | null
   /** The last jump of the world's clock or battery, and when (ms): shown as a
    *  time-lapse (`lapseAt`), because time passing is the story behind a shut lid. */
@@ -544,11 +536,17 @@ export function frameAt(
           entries: [],
           draft: "",
           work: null,
+          finished: null,
         }
         work = null
         break
+      // A prompt sent is the agent at work, until it is done: the CLI shows its
+      // working line from that instant, across every reply and tool call.
       case "history":
-        f.agent?.entries.push({ kind: "prompt", text: s.text ?? "" })
+        if (!f.agent) break
+        f.agent.entries.push({ kind: "prompt", text: s.text ?? "" })
+        f.agent.finished = null
+        work = { since: start, clock: f.world.clock }
         break
       case "prompt":
         if (!f.agent) break
@@ -560,6 +558,8 @@ export function frameAt(
         else {
           f.agent.draft = ""
           f.agent.entries.push({ kind: "prompt", text: s.text ?? "" })
+          f.agent.finished = null
+          work = { since: end, clock: f.world.clock }
         }
         break
       case "say":
@@ -573,23 +573,27 @@ export function frameAt(
           result: ms < end ? [] : (s.lines ?? []),
         })
         break
-      case "work":
-        work = { since: start, clock: f.world.clock }
-        break
       case "done":
-        work = null
         add({ kind: "say", text: s.text ?? "" })
+        if (f.agent && work)
+          f.agent.finished = { seconds: worked(work, f.world, start) }
+        work = null
         break
     }
   })
   if (f.agent && work)
-    f.agent.work = {
-      seconds:
-        minutesBetween(work.clock, f.world.clock) * 60 +
-        (ms - work.since) / 1000,
-      ms: ms - work.since,
-    }
+    f.agent.work = { seconds: worked(work, f.world, ms), ms: ms - work.since }
   return f
+}
+
+/** How long the agent has worked at scene time `ms`, in the world's seconds: two
+ *  hours behind a shut lid count as two hours. */
+function worked(
+  work: { since: number; clock: string },
+  world: WorldState,
+  ms: number,
+): number {
+  return minutesBetween(work.clock, world.clock) * 60 + (ms - work.since) / 1000
 }
 
 /** Minutes from one "HH:MM" to the next, across midnight. */

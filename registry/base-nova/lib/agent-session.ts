@@ -18,6 +18,12 @@ export interface AgentWork {
   ms: number
 }
 
+/** The turn over: how long it took, in the world's seconds. Each skin draws its own
+ *  closing line ("✻ Sautéed for 8m 37s"). */
+export interface AgentFinished {
+  seconds: number
+}
+
 /** Output tokens an agent streams per second of work, near enough to what both
  *  CLIs count up while thinking and writing. */
 const TOKENS_PER_SECOND = 60
@@ -33,6 +39,8 @@ export function formatTokens(seconds: number): string {
 export interface AgentViewProps {
   entries: AgentEntry[]
   work: AgentWork | null
+  /** The last turn's closing line, once it is done; null while working or idle. */
+  finished?: AgentFinished | null
   draft: string
   /** The working directory the session was started in, shown in the header. */
   cwd?: string
