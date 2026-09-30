@@ -397,6 +397,18 @@
       ]
     },
     {
+      "name": "person",
+      "type": "registry:lib",
+      "title": "person",
+      "description": "a person as every surface that shows one needs them: the name, the @handle, the picture and its animated video. defined once by the page and handed to each component (a chat's contact, a Mac's lock-screen account), so the same person wears the same face everywhere. framework-free",
+      "files": [
+        {
+          "path": "registry/base-nova/lib/person.ts",
+          "type": "registry:lib"
+        }
+      ]
+    },
+    {
       "name": "playhead",
       "type": "registry:ui",
       "title": "playhead",
@@ -433,7 +445,8 @@
         "@ag/device-frame",
         "@ag/agent-session",
         "@ag/kbd",
-        "@ag/playhead"
+        "@ag/playhead",
+        "@ag/person"
       ],
       "files": [
         {
@@ -509,6 +522,7 @@
       "dependencies": ["lucide-react"],
       "registryDependencies": [
         "@ag/clip",
+        "@ag/person",
         "@ag/playhead",
         "@ag/web-preview",
         "@ag/device-frame",

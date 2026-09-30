@@ -9,6 +9,7 @@ import LightboxActions from "@/registry/base-nova/lib/lightbox-actions.demo"
 import LightboxMotion from "@/registry/base-nova/lib/lightbox-motion.demo"
 import MacosSession from "@/registry/base-nova/lib/macos-session.demo"
 import Media from "@/registry/base-nova/lib/media-asset.demo"
+import PersonDemo from "@/registry/base-nova/lib/person.demo"
 import PrepareMedia from "@/registry/base-nova/lib/prepare-media.demo"
 import QuoteCard from "@/registry/base-nova/lib/quote-card.demo"
 import TerminalSession from "@/registry/base-nova/lib/terminal-session.demo"
@@ -70,6 +71,7 @@ export const DEMOS: Record<string, ComponentType> = {
   keys: Keys,
   kbd: Kbd,
   clip: Clip,
+  person: PersonDemo,
   playhead: Playhead,
   player: Player,
   macos: Macos,

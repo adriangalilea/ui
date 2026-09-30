@@ -1,0 +1,14 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "person",
+  "title": "person",
+  "description": "a person as every surface that shows one needs them: the name, the @handle, the picture and its animated video. defined once by the page and handed to each component (a chat's contact, a Mac's lock-screen account), so the same person wears the same face everywhere. framework-free",
+  "files": [
+    {
+      "path": "registry/base-nova/lib/person.ts",
+      "content": "// A person, as every surface that shows one needs them: a chat's contact, a Mac's\n// lock-screen account. Defined once by the page and handed to each component, so the\n// same person wears the same name and picture everywhere. A surface with more to say\n// about someone extends this (telegram-chat's `ChatProfile` adds `bot`).\n// Framework-free.\n\nexport interface Person {\n  /** The display name. */\n  name: string\n  /** \"@adriangalilea\": what a mention types and a sub-line shows. */\n  handle?: string\n  /** The picture's URL. Absent, a surface draws its own placeholder. */\n  avatar?: string\n  /** An animated picture (mp4) that loops muted over `avatar`, where a surface\n   *  animates one. */\n  avatarVideo?: string\n}\n",
+      "type": "registry:lib"
+    }
+  ],
+  "type": "registry:lib"
+}

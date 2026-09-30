@@ -40,6 +40,7 @@ import { ChevronDown, SlidersHorizontal } from "lucide-react"
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import type { Clip } from "@/registry/base-nova/lib/clip"
+import type { Person } from "@/registry/base-nova/lib/person"
 import { IphoneFrame } from "@/registry/base-nova/ui/device-frame"
 import { Glass, type GlassTone } from "@/registry/base-nova/ui/liquid-glass"
 import { usePlayhead } from "@/registry/base-nova/ui/playhead"
@@ -113,14 +114,10 @@ export interface ChatMessage {
  *  `from` is the key into `people`; the label, the mini avatar and the chat header read
  *  the profile. A mock that spelled the bot's name three ways with three different
  *  gradient initials is what this exists to prevent. */
-export interface ChatProfile {
-  /** The display name, as Telegram shows it. */
-  name: string
-  /** "@xtldrbot": what a mention types and what a bot's sub-line shows. */
-  handle?: string
-  avatar?: string
-  /** Telegram's animated profile video (mp4), looping muted over `avatar`. */
-  avatarVideo?: string
+/** A person as Telegram shows them: the name, the `@handle` a mention types and a
+ *  bot's sub-line shows, the picture and its animated profile video, and whether
+ *  they are a bot. */
+export interface ChatProfile extends Person {
   bot?: boolean
 }
 

@@ -39,6 +39,7 @@ import {
   type Timeline,
   zoomAt,
 } from "@/registry/base-nova/lib/macos-session"
+import type { Person } from "@/registry/base-nova/lib/person"
 import {
   LINE_HEIGHT,
   terminalPalette,
@@ -67,6 +68,9 @@ export interface MacosProps {
    *  uses (`{ claude: ClaudeCode, codex: Codex }`): the page chooses the skins, so
    *  this component depends on none of them. */
   agents?: Record<string, React.ComponentType<AgentViewProps>>
+  /** The person this Mac belongs to, the account its lock screen shows: the page
+   *  chooses who. Absent, the lock screen shows a silhouette and no name. */
+  user?: Person
   /** Accessible description (the stage is one picture). */
   alt: string
   className?: string
@@ -131,6 +135,7 @@ export function Macos({
   accent = "#0a84ff",
   device,
   agents,
+  user,
   alt,
   className,
 }: MacosProps) {
@@ -152,6 +157,7 @@ export function Macos({
       art={art}
       accent={accent}
       agents={agents}
+      user={user}
     />
   )
   const viewport = React.useRef<HTMLDivElement>(null)
@@ -278,6 +284,7 @@ function Screen({
   art,
   accent,
   agents,
+  user,
 }: {
   timeline: Timeline
   clock: SceneClock
@@ -288,6 +295,7 @@ function Screen({
   art: Art
   accent: string
   agents: MacosProps["agents"]
+  user: Person | undefined
 }) {
   const app = timeline.app
   const stage = React.useRef<HTMLDivElement>(null)
@@ -387,6 +395,7 @@ function Screen({
           ms={ms}
           clock={f.world.clock ?? now?.time}
           date={f.world.date ?? now?.date}
+          user={user}
           battery={f.world.battery}
           charging={f.world.charging}
         />
@@ -691,15 +700,17 @@ function WifiGlyph() {
 }
 
 /** macOS's lock screen, over everything: the wallpaper dimmed, the date and the
- *  time large and rounded, and at the bottom the user and the glass password field.
- *  The Mac is awake behind it and nobody is at it; the top right keeps only Wi-Fi
- *  and the battery. It comes up and goes with a fade from `since`. */
+ *  time large, rounded and glassy, and at the bottom the person this Mac belongs to
+ *  (their picture and name) over the glass password field. The Mac is awake behind
+ *  it and nobody is at it; the top right keeps only Wi-Fi and the battery. It comes
+ *  up and goes with a fade from `since`. */
 function LockScreen({
   locked,
   since,
   ms,
   clock,
   date,
+  user,
   battery,
   charging,
 }: {
@@ -709,6 +720,7 @@ function LockScreen({
   /** Absent only before the viewer's clock is known (the server's frame). */
   clock: string | undefined
   date: string | undefined
+  user: Person | undefined
   battery: number
   charging: boolean
 }) {
@@ -732,28 +744,42 @@ function LockScreen({
         style={{ transform: `translateY(${(1 - shown) * 14}px)` }}
       >
         {date && (
-          <div className="font-semibold text-[21px] text-white/85 tracking-[0.005em]">
-            {date}
-          </div>
+          <div className="font-semibold text-[19px] text-white/90">{date}</div>
         )}
+        {/* Glass rather than paint: white fading down through the letters, over
+            the wallpaper's light. */}
         <div
-          className="font-bold text-[150px] text-white/80 tabular-nums leading-[0.95] tracking-[-0.02em] [text-shadow:0_2px_40px_rgb(0_0_0/0.25)]"
+          className="bg-[linear-gradient(180deg,rgb(255_255_255/0.97),rgb(255_255_255/0.62))] bg-clip-text font-semibold text-[136px] text-transparent tabular-nums leading-[0.98] tracking-[-0.015em] [filter:drop-shadow(0_4px_30px_rgb(0_0_0/0.22))]"
           style={{ fontFamily: `ui-rounded, "SF Pro Rounded", ${SYSTEM}` }}
         >
           {clock}
         </div>
       </div>
-      <div className="absolute inset-x-0 bottom-[42px] flex flex-col items-center gap-[12px]">
-        <div className="flex size-[54px] items-center justify-center rounded-full bg-[linear-gradient(180deg,#a3a7b3,#6b6f7c)] ring-[1.5px] ring-white/25 shadow-[0_6px_20px_rgb(0_0_0/0.35)]">
-          <svg aria-hidden="true" viewBox="0 0 24 24" className="size-[32px]">
-            <circle cx="12" cy="8.5" r="4.2" fill="rgb(255 255 255 / 0.95)" />
-            <path
-              d="M3.5 21.5c.8-4.4 4.3-7 8.5-7s7.7 2.6 8.5 7"
-              fill="rgb(255 255 255 / 0.95)"
-            />
-          </svg>
+      <div className="absolute inset-x-0 bottom-[38px] flex flex-col items-center">
+        <div className="size-[50px] overflow-hidden rounded-full bg-[linear-gradient(180deg,#a3a7b3,#6b6f7c)] shadow-[0_6px_20px_rgb(0_0_0/0.35)] ring-[1.5px] ring-white/30">
+          {user?.avatar ? (
+            // biome-ignore lint/performance/noImgElement: the page's own picture of the person, any URL
+            <img src={user.avatar} alt="" className="size-full object-cover" />
+          ) : (
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="size-full p-[9px]"
+            >
+              <circle cx="12" cy="8.5" r="4.2" fill="rgb(255 255 255 / 0.95)" />
+              <path
+                d="M3.5 21.5c.8-4.4 4.3-7 8.5-7s7.7 2.6 8.5 7"
+                fill="rgb(255 255 255 / 0.95)"
+              />
+            </svg>
+          )}
         </div>
-        <div className="flex h-[30px] w-[196px] items-center justify-between rounded-full border border-white/25 bg-white/15 pr-[4px] pl-[14px] text-[12.5px] text-white/65 shadow-[inset_0_1px_0_rgb(255_255_255/0.2)] backdrop-blur-2xl">
+        {user && (
+          <div className="mt-[8px] font-semibold text-[13px] text-white/95">
+            {user.name}
+          </div>
+        )}
+        <div className="mt-[12px] flex h-[28px] w-[184px] items-center justify-between rounded-full border border-white/25 bg-white/14 pr-[3px] pl-[13px] text-[12px] text-white/60 shadow-[inset_0_1px_0_rgb(255_255_255/0.18)] backdrop-blur-2xl">
           Enter Password
           <span className="flex size-[22px] items-center justify-center rounded-full bg-white/20">
             <svg aria-hidden="true" viewBox="0 0 12 12" className="size-[10px]">
@@ -768,7 +794,7 @@ function LockScreen({
             </svg>
           </span>
         </div>
-        <div className="text-[11.5px] text-white/60">
+        <div className="mt-[9px] text-[11px] text-white/55">
           Touch ID or Enter Password
         </div>
       </div>
