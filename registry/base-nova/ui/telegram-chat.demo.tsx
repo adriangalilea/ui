@@ -295,6 +295,16 @@ const ACTS: {
   },
 ]
 
+/** The same clip, chaptered by the acts: the bar names and snaps to what the
+ *  reader scrolls through, not to every message. */
+const ACT_CLIP = {
+  duration: CLIP.duration,
+  chapters: ACTS.map((a, i) => ({
+    start: i === 0 ? 0 : a.cue.from,
+    title: a.head,
+  })),
+}
+
 function Scrolly() {
   const act = useAct()
   const now = ACTS[act] as (typeof ACTS)[number]
@@ -320,7 +330,7 @@ function Scrolly() {
         ))}
       </div>
       <Player
-        clip={CLIP}
+        clip={ACT_CLIP}
         cue={now.cue}
         label="the story, act by act"
         className={`mx-auto w-full ${now.wide ? "max-w-[28rem]" : "max-w-[22rem]"}`}

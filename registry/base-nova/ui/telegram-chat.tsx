@@ -316,9 +316,28 @@ function afterlifeSeconds(script: ChatScript): number {
   )
 }
 
+/** A message as a chapter title: who, then what ("Melon: you have to watch this",
+ *  a summary by its first heading). */
+function chapterTitle(script: ChatScript, m: ChatMessage): string {
+  const who =
+    m.from === "me"
+      ? "you"
+      : typeof m.from === "string"
+        ? (script.people?.[m.from]?.name ?? m.from)
+        : m.from.name
+  const first = m.blocks?.[0]
+  const what =
+    m.text ??
+    (first
+      ? `${first.kind === "heading" && first.emoji ? `${first.emoji} ` : ""}${first.text}`
+      : "")
+  const title = `${who}: ${what}`
+  return title.length > 64 ? `${title.slice(0, 63)}…` : title
+}
+
 /** The chat as a clip (lib/clip), for a player, a playback or a scroll stage: the
- *  story at its natural pace, one chapter per message titled with the start of its
- *  text, then the afterlife (reactions, late messages) as a last chapter, so the
+ *  story at its natural pace, one chapter per message titled who and what, then the
+ *  afterlife (reactions, late messages) as a last chapter, so the
  *  afterlife scrubs and replays like the story and a still at 1 shows it whole.
  *  Message k's chapter is `chapters[k]`; the story ends where `later` starts. */
 export function chatClip(script: ChatScript): Clip {
@@ -330,7 +349,7 @@ export function chatClip(script: ChatScript): Clip {
     chapters: [
       ...script.messages.map((m, i) => ({
         start: (t.beats[i] as Beat).start * MS_PER_WEIGHT,
-        title: (m.text ?? "").slice(0, 60) || `message ${i + 1}`,
+        title: chapterTitle(script, m),
       })),
       ...(tail > 0 ? [{ start: story, title: "later" }] : []),
     ],

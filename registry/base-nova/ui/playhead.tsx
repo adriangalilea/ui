@@ -47,8 +47,8 @@ export interface PlaybackOptions {
   /** A span to be in, heading to its end: what a scroll stage's act asks for
    *  (`chapterSpan`). Behind it, the playhead jumps to `from` (the act's story, not a
    *  replay of everything before it); inside, it plays on to `to` and waits; past it,
-   *  it comes back to `to`. `from === to` is a seek, which is how a scrub drives it.
-   *  A new cue wins over the bar, and the bar over the last cue. */
+   *  it rewinds to `to`. A new cue wins over the bar, and the bar over the last cue.
+   *  A scrub that follows scroll exactly is no cue: it passes `progress`. */
   cue?: Span
 }
 
@@ -57,9 +57,13 @@ export interface PlaybackState {
   target: number
 }
 
+/** How much faster than the clip an aim behind the playhead plays it backwards. */
+const REWIND = 3
+
 /** The clock. Plays once, the first time the content is on screen (after `delay`);
  *  holds off screen and in a hidden tab; under reduced motion every aim lands at
- *  once. Rewinds are immediate: going back is a seek, never a replay backwards. */
+ *  once. One rule for motion: an AIM travels (forward at the clip's pace, backward at
+ *  `REWIND`x, so scrolling back an act unwinds it), a SEEK jumps (the bar). */
 export function usePlayback(
   clip: Clip,
   { start = 0, delay = 0, cue }: PlaybackOptions = {},
@@ -81,14 +85,13 @@ export function usePlayback(
   const cueRef = React.useRef(cue)
   cueRef.current = cue
 
-  /** Every transition goes through here: an aim behind the playhead is a seek, and
-   *  reduced motion lands every aim at once. */
+  /** Every transition goes through here: reduced motion lands every aim at once. */
   const go = React.useCallback(
     (next: (s: PlaybackState) => PlaybackState) =>
       setState((s) => {
         const n = next(s)
         const target = clamp(n.target)
-        const at = reduced.current ? target : Math.min(clamp(n.at), target)
+        const at = reduced.current ? target : clamp(n.at)
         return at === s.at && target === s.target ? s : { at, target }
       }),
     [clamp],
@@ -169,7 +172,13 @@ export function usePlayback(
       const dt = now - last
       last = now
       if (inView.current && !document.hidden)
-        go((s) => ({ at: s.at + dt, target: s.target }))
+        go((s) => ({
+          at:
+            s.at < s.target
+              ? Math.min(s.target, s.at + dt)
+              : Math.max(s.target, s.at - dt * REWIND),
+          target: s.target,
+        }))
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)

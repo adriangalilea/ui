@@ -26,7 +26,7 @@ export default function PlayerDemo() {
       label="a macos stage · its captions are the chapters"
       with="macos"
     >
-      <Player clip={CLOCK.clip} label="awake's hero scene">
+      <Player clip={CLOCK.clip} label="awake's hero scene" captioned>
         <Macos
           timeline={HERO}
           art={artJson as Art}

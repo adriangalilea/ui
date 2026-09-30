@@ -23,7 +23,7 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 ### playhead
 
-- New: where a clip is and where it is going, with one clock walking the first to the second while the content is on screen and the tab is visible. Every driver sets the target: `Playback` plays a clip once in view with no controls (`start` where it stands first, `delay` before it plays), the player's bar aims and seeks, and a scroll stage's `cue` (a span to be in, heading to its end, from `chapterSpan`) aims it act by act, so scroll and a bar move one playhead and whichever moved last wins. Going back is a seek, never a replay backwards; reduced motion lands every aim at once. `usePlayback(clip, options)` is the clock for a driver of your own. `Playhead` provides the moment and `usePlayhead(progress)` reads it: an explicit `progress` wins (a still), else the driver's, and a component placed where nothing moves it throws. So a page composes plain elements, `<Playback clip={clip}><Terminal session={s} /></Playback>`, from a server component too.
+- New: where a clip is and where it is going, with one clock walking the first to the second while the content is on screen and the tab is visible. Every driver sets the target: `Playback` plays a clip once in view with no controls (`start` where it stands first, `delay` before it plays), the player's bar aims and seeks, and a scroll stage's `cue` (a span to be in, heading to its end, from `chapterSpan`) aims it act by act, so scroll and a bar move one playhead and whichever moved last wins. An aim travels (forward at the clip's pace, backward at 3x, so scrolling back an act unwinds it) and a seek jumps; reduced motion lands every aim at once. `usePlayback(clip, options)` is the clock for a driver of your own. `Playhead` provides the moment and `usePlayhead(progress)` reads it: an explicit `progress` wins (a still), else the driver's, and a component placed where nothing moves it throws. So a page composes plain elements, `<Playback clip={clip}><Terminal session={s} /></Playback>`, from a server component too.
 
 ### terminal
 
@@ -40,7 +40,7 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 ### telegram-chat
 
 - Breaking: the chat draws and no longer plays itself. `from`, `until`, `duration` and `afterlifeDelay` are gone, each a driver's job now: wrap it in `<Playback clip={chatClip(script)}>` (with `start={clip.chapters[k].start}` for a story that opens at message k, `delay` for a phone that waits its turn), in a `Player`, or cue it from a scroll stage (`cue={chapterSpan(clip, k)}` is the old `until`); a fixed `progress` is a still. `frozen` stays, for captures with nothing decorative moving.
-- `chatClip(script)`: the chat as a clip, one chapter per message at its natural pace, then the afterlife (reactions, late messages) as a last chapter, `later`: it scrubs and replays like the story, and a still at 1 shows it whole. `storyEnd(script)` is where the story ends in it.
+- `chatClip(script)`: the chat as a clip, one chapter per message at its natural pace titled who and what ("Melon: you have to watch this"), then the afterlife (reactions, late messages) as a last chapter, `later`: it scrubs and replays like the story, and a still at 1 shows it whole. `storyEnd(script)` is where the story ends in it.
 
 ### telegram-summary
 
@@ -48,7 +48,7 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 ### player
 
-- New: a player for any clip (`<Player clip label><Terminal session={s} /></Player>`: a macos stage, a terminal, a chat; it moves the content's playhead). It is `Playback` with a bar and takes the same `start`, `delay` and `cue`, so a scroll stage and the bar drive one story. It plays once in view; a thick timeline under the content, cut into its chapters, fills in the accent. Hovering the bar shows that exact frame, with the chapter and the time above the pointer, and a pointer near a chapter's start is pulled onto it (a marker stands at the boundary, the tooltip says so). A click or a drag seeks without losing the play state, a horizontal swipe scrubs, and the bar is a slider: space plays and pauses, ← and → move between chapters, Home and End go to the ends.
+- New: a player for any clip (`<Player clip label><Terminal session={s} /></Player>`: a macos stage, a terminal, a chat; it moves the content's playhead). It is `Playback` with a bar and takes the same `start`, `delay` and `cue`, so a scroll stage and the bar drive one story. The chapter on screen is named beside the time; `captioned` leaves that to content that captions itself (a macos scene). It plays once in view; a thick timeline under the content, cut into its chapters, fills in the accent. Hovering the bar shows that exact frame, with the chapter and the time above the pointer, and a pointer near a chapter's start is pulled onto it (a marker stands at the boundary, the tooltip says so). A click or a drag seeks without losing the play state, a horizontal swipe scrubs, and the bar is a slider: space plays and pauses, ← and → move between chapters, Home and End go to the ends.
 
 ### keys
 

@@ -8,7 +8,8 @@
 // whichever moved last wins. Its timeline bar sits under the content, never over it: thick,
 // cut into the chapters, the played part in the accent. Hovering the bar shows that
 // exact frame in the content, with the chapter and the time above the pointer, and
-// leaving it returns to the playhead; a click seeks, a drag scrubs, a horizontal
+// leaving it returns to the playhead; the chapter on screen is named beside the time
+// (unless the content captions itself); a click seeks, a drag scrubs, a horizontal
 // swipe scrubs. Keys: space plays and pauses, ← and → move between chapters, Home
 // and End go to the ends. Reduced motion starts paused on the last frame.
 
@@ -36,6 +37,10 @@ export interface PlayerProps extends PlaybackOptions {
   /** The played part of the bar. By default a quiet foreground: the bar is a
    *  control, and a page's accent belongs to what it wants seen first. */
   accent?: string
+  /** The content draws its chapter itself (a scene's captions): the bar names a
+   *  chapter only under the pointer. Otherwise the chapter on screen is named beside
+   *  the time. */
+  captioned?: boolean
   className?: string
 }
 
@@ -54,6 +59,7 @@ export function Player({
   clip,
   label,
   accent,
+  captioned = false,
   className,
   ...options
 }: PlayerProps) {
@@ -279,6 +285,15 @@ export function Player({
             </div>
           )}
         </div>
+        {!captioned && chapterAt(shown)?.title && (
+          <span
+            data-slot="player-chapter"
+            aria-hidden="true"
+            className="min-w-0 max-w-[40%] shrink truncate text-muted-foreground text-xs"
+          >
+            <KeysText>{chapterAt(shown)?.title ?? ""}</KeysText>
+          </span>
+        )}
         <span className="shrink-0 font-mono text-[11px] text-muted-foreground tabular-nums">
           {clock(shown)} / {clock(duration)}
         </span>
