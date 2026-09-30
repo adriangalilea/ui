@@ -1,11 +1,11 @@
 "use client"
 
-// A player for any clip (lib/clip): a macos stage, a terminal, anything drawn from a
-// progress. The content's lib gives the clip (its length and chapters); the player
-// owns time and moves the playhead of the content inside (ui/playhead), so a
+// A player for any clip (lib/clip): a macos stage, a terminal, a chat, anything drawn
+// from a progress. The content's lib gives the clip (its length and chapters); the
+// player is Playback (ui/playhead: the clock, played once in view) with a bar, so a
 // page writes `<Player clip={clip}><Terminal session={s} /></Player>`, from a server
-// component as well. It plays once when it comes
-// into view, and its timeline bar sits under the content, never over it: thick,
+// component as well. A `cue` from a scroll stage and the bar move the same playhead,
+// whichever moved last wins. Its timeline bar sits under the content, never over it: thick,
 // cut into the chapters, the played part in the accent. Hovering the bar shows that
 // exact frame in the content, with the chapter and the time above the pointer, and
 // leaving it returns to the playhead; a click seeks, a drag scrubs, a horizontal
@@ -20,9 +20,13 @@ import {
   spans as spansOf,
 } from "@/registry/base-nova/lib/clip"
 import { KeysText } from "@/registry/base-nova/ui/kbd"
-import { Playhead } from "@/registry/base-nova/ui/playhead"
+import {
+  type PlaybackOptions,
+  Playhead,
+  usePlayback,
+} from "@/registry/base-nova/ui/playhead"
 
-export interface PlayerProps {
+export interface PlayerProps extends PlaybackOptions {
   /** The content: components on the clip contract read the moment from the player. */
   children: React.ReactNode
   /** What it plays: its length and its chapters. */
@@ -51,66 +55,27 @@ export function Player({
   label,
   accent,
   className,
+  ...options
 }: PlayerProps) {
   const duration = clip.duration
-  const [playhead, setPlayhead] = React.useState(0)
-  const [playing, setPlaying] = React.useState(false)
+  const {
+    root,
+    at: playhead,
+    target,
+    moving: playing,
+    seek,
+    aim,
+    pause,
+  } = usePlayback(clip, options)
   const [hover, setHover] = React.useState<{
     ms: number
     snapped: boolean
   } | null>(null)
-  // Whether it was playing when a drag began: it plays on from where it is let go.
-  const resume = React.useRef(false)
+  // Where it was heading when a drag began: it plays on to there from where it is
+  // let go, a cue's act end as much as the clip's.
+  const resume = React.useRef<number | null>(null)
   const spans = spansOf(clip)
-  const root = React.useRef<HTMLDivElement>(null)
   const track = React.useRef<HTMLDivElement>(null)
-  const inView = React.useRef(false)
-  const started = React.useRef(false)
-  const playheadRef = React.useRef(0)
-  playheadRef.current = playhead
-
-  // Once in view it plays; out of view it holds, and comes back where it was.
-  React.useEffect(() => {
-    const el = root.current
-    if (!el) return
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setPlayhead(duration)
-      started.current = true
-      return
-    }
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        inView.current = !!entry?.isIntersecting
-        if (inView.current && !started.current) {
-          started.current = true
-          setPlaying(true)
-        }
-      },
-      { threshold: 0.35 },
-    )
-    io.observe(el)
-    return () => io.disconnect()
-  }, [duration])
-
-  React.useEffect(() => {
-    if (!playing) return
-    let frame = 0
-    let last = performance.now()
-    const tick = (now: number) => {
-      if (inView.current) {
-        const next = Math.min(duration, playheadRef.current + (now - last))
-        setPlayhead(next)
-        if (next >= duration) {
-          setPlaying(false)
-          return
-        }
-      }
-      last = now
-      frame = requestAnimationFrame(tick)
-    }
-    frame = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(frame)
-  }, [playing, duration])
 
   // Where a pointer points on the bar, pulled to a chapter's start when it is close
   // enough that the hand meant it (measured on the bar, in px).
@@ -130,15 +95,17 @@ export function Player({
       ? { ms, snapped: false }
       : { ms: near, snapped: true }
   }
-  const seek = (ms: number) => setPlayhead(Math.min(duration, Math.max(0, ms)))
   const toggle = () => {
     if (playhead >= duration) {
-      setPlayhead(0)
-      setPlaying(true)
-    } else setPlaying((p) => !p)
+      seek(0)
+      aim(duration)
+    } else if (playing) pause()
+    else aim(duration)
   }
 
   // A horizontal swipe scrubs; a vertical one stays the page's.
+  const now = React.useRef(playhead)
+  now.current = playhead
   React.useEffect(() => {
     const el = root.current
     if (!el) return
@@ -146,13 +113,11 @@ export function Player({
       if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return
       e.preventDefault()
       const width = track.current?.getBoundingClientRect().width ?? 1
-      setPlayhead((p) =>
-        Math.min(duration, Math.max(0, p + (e.deltaX / width) * duration)),
-      )
+      seek(now.current + (e.deltaX / width) * duration)
     }
     el.addEventListener("wheel", wheel, { passive: false })
     return () => el.removeEventListener("wheel", wheel)
-  }, [duration])
+  }, [root, seek, duration])
 
   const chapterAt = (ms: number) =>
     spans.findLast((c) => ms >= c.start) ?? spans[0]
@@ -178,7 +143,6 @@ export function Player({
     act()
   }
 
-  if (!(duration > 0)) throw new Error("Player: duration must be positive")
   const shown = hover?.ms ?? playhead
   const hovered = hover ? chapterAt(hover.ms) : null
   const ended = playhead >= duration
@@ -244,14 +208,13 @@ export function Player({
           // is down, and plays on from where it is let go.
           onPointerDown={(e) => {
             e.currentTarget.setPointerCapture(e.pointerId)
-            resume.current = playing
-            setPlaying(false)
+            resume.current = playing ? target : null
             seek(at(e.clientX).ms)
           }}
           onPointerUp={() => {
-            if (resume.current && playheadRef.current < duration)
-              setPlaying(true)
-            resume.current = false
+            if (resume.current !== null && resume.current > now.current)
+              aim(resume.current)
+            resume.current = null
           }}
         >
           {spans.map((c) => {

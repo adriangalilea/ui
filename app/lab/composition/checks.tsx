@@ -8,12 +8,14 @@ import {
   Lightbox,
   LightboxTrigger,
 } from "@/registry/base-nova/ui/lightbox"
+import { Playback } from "@/registry/base-nova/ui/playhead"
 import { PreviewPicker } from "@/registry/base-nova/ui/preview-picker"
 import { Scrims } from "@/registry/base-nova/ui/scrims"
 import { ScrollStage } from "@/registry/base-nova/ui/scroll-stage"
 import { useScrollStageTimeline } from "@/registry/base-nova/ui/scroll-stage-timeline"
 import {
   type ChatScript,
+  chatClip,
   TelegramChat,
 } from "@/registry/base-nova/ui/telegram-chat"
 
@@ -180,7 +182,11 @@ export function Checks() {
           Start autoplay
         </button>
         <div id="autoplay-check" className="min-h-32">
-          {play && <TelegramChat script={script} frame="none" duration={800} />}
+          {play && (
+            <Playback clip={chatClip(script)}>
+              <TelegramChat script={script} frame="none" />
+            </Playback>
+          )}
         </div>
         <button
           type="button"

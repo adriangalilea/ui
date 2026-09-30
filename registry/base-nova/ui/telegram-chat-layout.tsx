@@ -80,9 +80,6 @@ export function useChatLayout({
   position,
   aliveSec,
   debug,
-  at,
-  ceiling,
-  lift,
 }: {
   elements: Elements
   focused: readonly number[]
@@ -94,10 +91,8 @@ export function useChatLayout({
   position: number
   aliveSec: number
   debug: boolean | ((trace: Record<string, unknown>) => void)
-  at: number
-  ceiling: number
-  lift: number
 }) {
+  const at = position
   const { root, thread, view, device, bubbles, ghosts, ghostRoot } = elements
   const focusKey = focused.join(",")
   const [threadScroll] = React.useState(createThreadScroll)
@@ -248,8 +243,6 @@ export function useChatLayout({
       if (debug)
         trace.current = {
           at: Math.round(at),
-          ceiling: Number(ceiling.toFixed(3)),
-          lift: Number(lift.toFixed(3)),
           target: focused[0],
           landed: hero !== null,
           cut,

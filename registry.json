@@ -401,7 +401,8 @@
       "name": "playhead",
       "type": "registry:ui",
       "title": "playhead",
-      "description": "how a driver hands its moment to the content it moves: Playhead provides it, usePlayhead reads it (an explicit progress wins, a component placed where nothing moves it screams). so a page, a server one too, composes plain elements inside a player",
+      "description": "where a clip is and where it is going, one clock walking the first to the second in view: Playback plays a clip once with no controls (from a start, after a delay), a cue from a scroll stage aims it act by act, usePlayhead reads the moment in the content. every driver sets the target, so scroll and a player's bar move the same playhead",
+      "registryDependencies": ["@ag/clip"],
       "files": [
         {
           "path": "registry/base-nova/ui/playhead.tsx",
@@ -413,7 +414,7 @@
       "name": "player",
       "type": "registry:ui",
       "title": "player",
-      "description": "a player for anything drawn from a progress: plays once in view, a thick timeline cut into chapters under the content, hover to preview any frame, click or drag or swipe to scrub, keys for play and chapters",
+      "description": "a player for anything drawn from a progress: playback's clock with a thick timeline cut into chapters under the content, hover to preview any frame, click or drag or swipe to scrub, keys for play and chapters. takes a scroll stage's cue too, so scroll and the bar drive one playhead",
       "registryDependencies": ["@ag/clip", "@ag/playhead", "@ag/kbd"],
       "files": [
         {
@@ -505,10 +506,11 @@
       "name": "telegram-chat",
       "type": "registry:ui",
       "title": "telegram-chat",
-      "description": "a Telegram chat as a pure function of {messages, progress}: peer, bot and group shapes, people defined once, streaming bodies, pressable reactions with animated emoji, afterlife. on an iPhone, or frameless at the container's width; focus lifts a message and blurs the rest; crop cuts the phone to a viewport, for a scrolly",
+      "description": "a Telegram chat as a pure function of {messages, progress}: peer, bot and group shapes, people defined once, streaming bodies, pressable reactions with animated emoji, an afterlife that scrubs like the story. a clip on the playhead: play it, put it in a player, cue it from a scroll stage, or fix it as a still. on an iPhone, or frameless at the container's width; focus lifts a message and blurs the rest; crop cuts the phone to a viewport, for a scrolly",
       "dependencies": ["lucide-react"],
       "registryDependencies": [
         "@ag/clip",
+        "@ag/playhead",
         "@ag/web-preview",
         "@ag/device-frame",
         "@ag/liquid-glass",
@@ -522,10 +524,6 @@
         {
           "path": "registry/base-nova/lib/telegram-chat-framing.ts",
           "type": "registry:lib"
-        },
-        {
-          "path": "registry/base-nova/ui/telegram-chat-playback.tsx",
-          "type": "registry:ui"
         },
         {
           "path": "registry/base-nova/ui/telegram-chat-layout.tsx",
@@ -545,8 +543,8 @@
       "name": "telegram-summary",
       "type": "registry:block",
       "title": "telegram-summary",
-      "description": "a link-summary bot's conversation (intro, link, mention, streamed answer) built on telegram-chat",
-      "registryDependencies": ["@ag/telegram-chat"],
+      "description": "a link-summary bot's conversation (intro, link, mention, streamed answer) built on telegram-chat, with its clip and where the conversation starts in it",
+      "registryDependencies": ["@ag/telegram-chat", "@ag/clip"],
       "files": [
         {
           "path": "registry/base-nova/blocks/telegram-summary/telegram-summary.tsx",

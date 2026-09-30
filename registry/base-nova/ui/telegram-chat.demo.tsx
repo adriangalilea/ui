@@ -3,10 +3,15 @@
 import * as React from "react"
 import { trace, useDebug } from "@/app/debug"
 import { Sample } from "@/app/samples"
+import { chapterSpan } from "@/registry/base-nova/lib/clip"
+import { Player } from "@/registry/base-nova/ui/player"
+import { Playback } from "@/registry/base-nova/ui/playhead"
 import { Act, ScrollStage, useAct } from "@/registry/base-nova/ui/scroll-stage"
 import {
   type ChatProfile,
   type ChatScript,
+  chatClip,
+  storyEnd,
   TelegramChat,
 } from "@/registry/base-nova/ui/telegram-chat"
 
@@ -134,6 +139,11 @@ const SCRIPT: ChatScript = {
   ],
   alt: "A group chat: a friend drops a talk, the bot is tagged and summarizes it with timestamps, a follow-up gets a cited answer.",
 }
+/** The chat as a clip: one chapter per message, then its afterlife. Every driver
+ *  below plays this same clip; message k starts at `CLIP.chapters[k].start`. */
+const CLIP = chatClip(SCRIPT)
+/** Where the story ends and its afterlife begins: a chat that opens complete. */
+const STORY_END = storyEnd(SCRIPT)
 // #endregion
 
 // #region chats
@@ -245,15 +255,17 @@ const GROUP: ChatScript = {
 const WALL = "/tg-pattern.svg"
 
 // #region acts
-/** THE SCROLLY: an act index in; `until`, `focus` and `crop` out. The chat is PACED by
- *  the acts: each raises the ceiling and the story plays on to it, so an act never
- *  points back at a message the reader already watched land, and a reader who arrives
- *  at act three (two acts at once, or a reload) gets the act's own beat with everything
- *  before it already there. The effects chain: the whole phone, then one message lifted
- *  with the rest blurred, then the view zooms onto the answer, the phone growing and
- *  the viewport closing down onto it. */
+/** THE SCROLLY: an act index in; a `cue`, `focus` and `crop` out. Each act is a span of
+ *  the clip, its messages' chapters (`chapterSpan`), and the chat plays on to the
+ *  span's end and waits, so an act never points back at a message the reader already
+ *  watched land, and a reader who arrives at act three (two acts at once, or a
+ *  reload) gets the act's own beat with everything before it already there. The cue
+ *  drives a PLAYER: scroll moves the story act by act, the bar scrubs it anywhere,
+ *  and the next scroll picks it up from wherever the bar left it. The effects chain:
+ *  the whole phone, then one message lifted with the rest blurred, then the view
+ *  zooms onto the answer, the phone growing and the viewport closing down onto it. */
 const ACTS: {
-  until: number
+  cue: { from: number; to: number }
   /** One message, or an exchange: the question and its answer focus together. */
   focus?: number | number[]
   crop?: string
@@ -262,18 +274,19 @@ const ACTS: {
   body: string
 }[] = [
   {
-    until: 2,
+    cue: chapterSpan(CLIP, 2),
     head: "a link lands",
     body: "someone drops a talk; you tag the bot. the phone plays to here and waits.",
   },
   {
-    until: 3,
+    cue: chapterSpan(CLIP, 3),
     focus: 3,
     head: "the bot answers",
     body: "the summary streams in and lifts; the rest blur and step back.",
   },
   {
-    until: 5,
+    // Through the last chapter: the afterlife's reactions land in this act too.
+    cue: chapterSpan(CLIP, 4, CLIP.chapters.length - 1),
     focus: [4, 5],
     crop: "4 / 3",
     wide: true,
@@ -306,17 +319,22 @@ function Scrolly() {
           </Act>
         ))}
       </div>
-      <TelegramChat
-        script={SCRIPT}
-        wallpaper={WALL}
-        theme="dark"
-        from={{ message: 1 }}
-        until={{ message: now.until }}
-        focus={now.focus}
-        crop={now.crop}
-        debug={debug ? (t) => trace("cut", t) : false}
+      <Player
+        clip={CLIP}
+        cue={now.cue}
+        label="the story, act by act"
         className={`mx-auto w-full ${now.wide ? "max-w-[28rem]" : "max-w-[22rem]"}`}
-      />
+      >
+        <TelegramChat
+          script={SCRIPT}
+          wallpaper={WALL}
+          theme="dark"
+          focus={now.focus}
+          crop={now.crop}
+          debug={debug ? (t) => trace("cut", t) : false}
+          className="w-full"
+        />
+      </Player>
     </div>
   )
 }
@@ -332,13 +350,12 @@ export default function Demo() {
         label="01 · the phone · both themes"
       >
         <div className="flex justify-center gap-10">
-          <TelegramChat script={SCRIPT} wallpaper={WALL} theme="dark" />
-          <TelegramChat
-            script={SCRIPT}
-            wallpaper={WALL}
-            theme="light"
-            className="max-lg:hidden"
-          />
+          <Player clip={CLIP} label="the story, dark">
+            <TelegramChat script={SCRIPT} wallpaper={WALL} theme="dark" />
+          </Player>
+          <Playback clip={CLIP} className="max-lg:hidden">
+            <TelegramChat script={SCRIPT} wallpaper={WALL} theme="light" />
+          </Playback>
         </div>
       </Sample>
 
@@ -368,14 +385,14 @@ export default function Demo() {
         label='02 · frame="none" · the same script at the width the phone was taking, in a viewport that never reflows the page'
       >
         <div className="flex flex-col items-center gap-4">
-          <TelegramChat
+          <Playback
             key={framelessReplay}
-            script={SCRIPT}
-            wallpaper={WALL}
-            frame="none"
-            from={{ message: 4 }}
-            duration={8000}
-          />
+            clip={CLIP}
+            start={CLIP.chapters[4]?.start}
+            className="w-full"
+          >
+            <TelegramChat script={SCRIPT} wallpaper={WALL} frame="none" />
+          </Playback>
           <button
             type="button"
             onClick={() => setFramelessReplay((value) => value + 1)}
@@ -391,22 +408,22 @@ export default function Demo() {
         label="03 · focus · one message lifts, the rest blur and step back"
       >
         <div className="flex flex-wrap items-start justify-center gap-10">
-          <TelegramChat
-            script={SCRIPT}
-            wallpaper={WALL}
-            frame="none"
-            from={1}
-            focus={3}
-            className="max-w-[30rem]"
-          />
-          <TelegramChat
-            script={SCRIPT}
-            wallpaper={WALL}
-            theme="dark"
-            from={1}
-            focus={2}
-            className="max-w-[18rem]"
-          />
+          <Playback clip={CLIP} start={STORY_END} className="max-w-[30rem]">
+            <TelegramChat
+              script={SCRIPT}
+              wallpaper={WALL}
+              frame="none"
+              focus={3}
+            />
+          </Playback>
+          <Playback clip={CLIP} start={STORY_END} className="max-w-[18rem]">
+            <TelegramChat
+              script={SCRIPT}
+              wallpaper={WALL}
+              theme="dark"
+              focus={2}
+            />
+          </Playback>
         </div>
       </Sample>
 
@@ -415,23 +432,31 @@ export default function Demo() {
         label="04 · crop · the phone at full width, cut in height only, the edges fading only where something is hidden; scrolled to a focus, or to the latest"
       >
         <div className="flex flex-wrap items-start justify-center gap-10">
-          <TelegramChat
-            script={SCRIPT}
-            wallpaper={WALL}
-            theme="dark"
-            from={1}
-            focus={5}
-            crop="4 / 3"
+          <Playback
+            clip={CLIP}
+            start={STORY_END}
             className="w-full max-w-[24rem]"
-          />
-          <TelegramChat
-            script={SCRIPT}
-            wallpaper={WALL}
-            theme="light"
-            from={1}
-            crop="1 / 1"
+          >
+            <TelegramChat
+              script={SCRIPT}
+              wallpaper={WALL}
+              theme="dark"
+              focus={5}
+              crop="4 / 3"
+            />
+          </Playback>
+          <Playback
+            clip={CLIP}
+            start={STORY_END}
             className="w-full max-w-[20rem]"
-          />
+          >
+            <TelegramChat
+              script={SCRIPT}
+              wallpaper={WALL}
+              theme="light"
+              crop="1 / 1"
+            />
+          </Playback>
         </div>
       </Sample>
 
@@ -441,18 +466,12 @@ export default function Demo() {
         label="05 · people · two profiles, defined once: a private chat with Adrian, and a group where Adrian and the bot are both senders"
       >
         <div className="flex flex-wrap items-start justify-center gap-10">
-          <TelegramChat
-            script={PEER}
-            wallpaper={WALL}
-            theme="dark"
-            className="max-w-[18rem]"
-          />
-          <TelegramChat
-            script={GROUP}
-            wallpaper={WALL}
-            theme="dark"
-            className="max-w-[18rem]"
-          />
+          <Playback clip={chatClip(PEER)} className="max-w-[18rem]">
+            <TelegramChat script={PEER} wallpaper={WALL} theme="dark" />
+          </Playback>
+          <Playback clip={chatClip(GROUP)} className="max-w-[18rem]">
+            <TelegramChat script={GROUP} wallpaper={WALL} theme="dark" />
+          </Playback>
         </div>
       </Sample>
 
@@ -469,16 +488,19 @@ export default function Demo() {
               {ACTS.map((a) => (
                 <div key={a.head} className="space-y-4">
                   <h3 className="font-semibold text-lg">{a.head}</h3>
-                  <TelegramChat
-                    script={SCRIPT}
-                    wallpaper={WALL}
-                    theme="dark"
-                    from={{ message: 1 }}
-                    until={{ message: a.until }}
-                    focus={a.focus}
-                    crop={a.crop}
+                  <Playback
+                    clip={CLIP}
+                    cue={a.cue}
                     className="mx-auto w-full max-w-[22rem]"
-                  />
+                  >
+                    <TelegramChat
+                      script={SCRIPT}
+                      wallpaper={WALL}
+                      theme="dark"
+                      focus={a.focus}
+                      crop={a.crop}
+                    />
+                  </Playback>
                   <p className="text-foreground/70">{a.body}</p>
                 </div>
               ))}

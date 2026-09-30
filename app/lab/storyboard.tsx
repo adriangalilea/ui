@@ -7,10 +7,26 @@
 
 import * as React from "react"
 import {
+  conversationStart,
+  summaryClip,
   TelegramSummary,
   type TelegramSummaryScript,
 } from "@/registry/base-nova/blocks/telegram-summary/telegram-summary"
+import { Playback } from "@/registry/base-nova/ui/playhead"
 import { Act, ScrollStage, useAct } from "@/registry/base-nova/ui/scroll-stage"
+
+/** A summary that plays once from the conversation, the moment it is on screen. */
+function Phone({ script }: { script: TelegramSummaryScript }) {
+  return (
+    <Playback clip={summaryClip(script)} start={conversationStart(script)}>
+      <TelegramSummary
+        script={script}
+        wallpaper="/tg-pattern.svg"
+        theme="dark"
+      />
+    </Playback>
+  )
+}
 
 const LINK = {
   link: "youtube.com/watch?v=zjkBMFhNj_g",
@@ -147,14 +163,7 @@ function Phones() {
               pointerEvents: on ? "auto" : "none",
             }}
           >
-            {played.current.has(i) && (
-              <TelegramSummary
-                script={act.script}
-                from="conversation"
-                wallpaper="/tg-pattern.svg"
-                theme="dark"
-              />
-            )}
+            {played.current.has(i) && <Phone script={act.script} />}
           </Act>
         )
       })}
@@ -194,12 +203,7 @@ function Stacked() {
           </h3>
           <div className="flex justify-center">
             <div className="w-full max-w-[330px]">
-              <TelegramSummary
-                script={act.script}
-                from="conversation"
-                wallpaper="/tg-pattern.svg"
-                theme="dark"
-              />
+              <Phone script={act.script} />
             </div>
           </div>
           <p className="text-[0.9375rem] leading-relaxed text-foreground/80">

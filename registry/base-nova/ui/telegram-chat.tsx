@@ -10,10 +10,11 @@
 // reactions are pills on the bubble, avatars are real images or Telegram-gradient
 // initials, the webpage preview is the client's card. The mockup is a `figure`
 // whose chrome is decorative (aria-hidden), but links and previews are REAL anchors:
-// what looks clickable is clickable, and tabbable. Uncontrolled (no `progress`) it
-// plays ONCE when it enters the viewport, pauses off-screen, and renders the
-// completed state under prefers-reduced-motion. `from` shifts the start so the first
-// frame already shows a conversation, never an empty screen.
+// what looks clickable is clickable, and tabbable. It owns no clock: `chatClip(script)`
+// is its clip (the story, then the afterlife), and a driver moves it (ui/playhead):
+// Playback plays it once in view, from a `start` so the first frame already shows a
+// conversation; a Player adds the bar; a scroll stage cues it act by act; a fixed
+// `progress` is a still.
 //
 // THE PHONE IS A MODE, NOT THE COMPONENT. At the width a feature card gives it the
 // device ate most of the space and the words landed too small to read, so a component
@@ -41,12 +42,9 @@ import { cn } from "@/lib/utils"
 import type { Clip } from "@/registry/base-nova/lib/clip"
 import { IphoneFrame } from "@/registry/base-nova/ui/device-frame"
 import { Glass, type GlassTone } from "@/registry/base-nova/ui/liquid-glass"
+import { usePlayhead } from "@/registry/base-nova/ui/playhead"
 import { Scrims } from "@/registry/base-nova/ui/scrims"
 import { useChatLayout } from "@/registry/base-nova/ui/telegram-chat-layout"
-import {
-  useChatAfterlife,
-  useChatPlayback,
-} from "@/registry/base-nova/ui/telegram-chat-playback"
 import { WebPreview } from "@/registry/base-nova/ui/web-preview"
 import "./telegram-chat.css"
 
@@ -65,9 +63,9 @@ export interface ChatReaction {
   emoji: string
   /** Shown when supplied; groups also show the default count of one. */
   count?: number
-  /** "timeline": pops one beat after the message lands, scrubbable. "afterlife"
-   *  (default): visible-time clock after the story completes. Counts grow to the
-   *  declared total, then stop; scrubbing cannot summon or rewind it. */
+  /** "timeline": pops one beat after the message lands. "afterlife" (default): lands
+   *  in the clip's afterlife, after the story, and climbs to the declared count one
+   *  press at a time. Both scrub like everything else. */
   when?: "timeline" | "afterlife"
 }
 
@@ -144,7 +142,7 @@ export interface ChatScript {
   people?: Record<string, ChatProfile>
   messages: ChatMessage[]
   /** The easter egg for whoever stays: messages that arrive `at` seconds after the
-   *  story completes, on the wall clock. */
+   *  story completes, in the clip's afterlife. */
   afterlife?: {
     from?: Who
     avatar?: string
@@ -157,22 +155,11 @@ export interface ChatScript {
 
 export interface TelegramChatProps {
   script: ChatScript
-  /** 0..1 scrub position. Omit for the one-shot in-view autoplay. */
+  /** 0..1 of `chatClip(script)`, for a still. Omit inside a driver (Playback,
+   *  Player, a scroll stage's Playhead), which moves it. */
   progress?: number
-  /** Floor for the animation. A number is a raw 0..1 position; {message: k} starts
-   *  at the beginning of message k's beat with everything before it on screen. */
-  from?: number | { message: number }
-  /** Autoplay ms (uncontrolled only). Defaults proportional to script length. */
-  duration?: number
-  /** The autoplay's CEILING (uncontrolled only): the story plays, on its own clock and
-   *  in view, up to the end of message k and waits there; raise it and it resumes. A
-   *  storyboard paces the chat with this, one act at a time, so a later act never
-   *  points back at a message the reader has already watched land. */
-  until?: { message: number }
-  /** Seconds added to the whole afterlife schedule (reactions + messages): lets a
-   *  phone that completes instantly wait for its neighbours' story. */
-  afterlifeDelay?: number
-  /** Render a deterministic completed conversation without a decorative clock. */
+  /** A capture: the completed conversation with nothing decorative moving (no
+   *  profile videos, no animated emoji). */
   frozen?: boolean
   /** Fill a definite parent height; focus pans within that measured viewport. */
   viewport?: "content" | "container"
@@ -202,7 +189,7 @@ export interface TelegramChatProps {
    *  WebP, no player, lazy): on by default. Off, the pill shows the text glyph. Each
    *  animation is 150-300 KB, which is why only reactions get them, never body text. */
   animatedEmoji?: boolean
-  /** What the cut decided, as it happened: story position, ceiling, target, whether it
+  /** What the cut decided, as it happened: story position, target, whether it
    *  has landed, the viewport's height, the scroll it asked for and got. `true` prints
    *  it as a mono readout under the chat; a function receives every decision, for a
    *  page that ships it somewhere a reader of logs can see (the demo posts it to a
@@ -309,21 +296,50 @@ interface Timeline {
 /** A weighted char's real time at the chat's natural pace, ms. */
 const MS_PER_WEIGHT = 6
 
-/** The chat as a clip (lib/clip), for a player or a scroll stage: its length at the
- *  natural pace and one chapter per message, titled with the start of its text.
- *  The chat's own in-view autoplay remains beside it because a storyboard paces it
- *  with `until` (a ceiling per act) and an afterlife of reactions after the story,
- *  which no clip driver has; it goes once xtldr's storyboard drives chats through a
- *  scroll stage's clip. */
+/** When the afterlife reaction `i` (script order) arrives, seconds after the story. */
+const arriveAt = (i: number) => 3 + i * 6
+/** Seconds between two presses of a climbing afterlife reaction. */
+const CLIMB_S = 5
+
+/** The afterlife's length, seconds after the story: the last reaction's last press or
+ *  the last late message, whichever comes later. */
+function afterlifeSeconds(script: ChatScript): number {
+  const reactions = script.messages.flatMap((m) =>
+    (m.reactions ?? []).filter((r) => r.when !== "timeline"),
+  )
+  return Math.max(
+    0,
+    ...reactions.map(
+      (r, i) => arriveAt(i) + CLIMB_S * Math.max(0, (r.count ?? 1) - 1),
+    ),
+    ...(script.afterlife?.messages.map((m) => m.at) ?? []),
+  )
+}
+
+/** The chat as a clip (lib/clip), for a player, a playback or a scroll stage: the
+ *  story at its natural pace, one chapter per message titled with the start of its
+ *  text, then the afterlife (reactions, late messages) as a last chapter, so the
+ *  afterlife scrubs and replays like the story and a still at 1 shows it whole.
+ *  Message k's chapter is `chapters[k]`; the story ends where `later` starts. */
 export function chatClip(script: ChatScript): Clip {
   const t = buildTimeline(script)
+  const story = t.total * MS_PER_WEIGHT
+  const tail = afterlifeSeconds(script) * 1000
   return {
-    duration: t.total * MS_PER_WEIGHT,
-    chapters: script.messages.map((m, i) => ({
-      start: (t.beats[i] as Beat).start * MS_PER_WEIGHT,
-      title: (m.text ?? "").slice(0, 60) || `message ${i + 1}`,
-    })),
+    duration: story + tail,
+    chapters: [
+      ...script.messages.map((m, i) => ({
+        start: (t.beats[i] as Beat).start * MS_PER_WEIGHT,
+        title: (m.text ?? "").slice(0, 60) || `message ${i + 1}`,
+      })),
+      ...(tail > 0 ? [{ start: story, title: "later" }] : []),
+    ],
   }
+}
+
+/** Where the story ends and the afterlife begins in a chat's clip, ms. */
+export function storyEnd(script: ChatScript): number {
+  return buildTimeline(script).total * MS_PER_WEIGHT
 }
 
 function buildTimeline(script: ChatScript): Timeline {
@@ -616,10 +632,6 @@ function TelegramGlass({
 export function TelegramChat({
   script,
   progress,
-  from = 0,
-  duration,
-  until,
-  afterlifeDelay = 0,
   frozen = false,
   viewport = "content",
   fit,
@@ -683,7 +695,13 @@ export function TelegramChat({
     setPresses((p) => ({ ...p, [key]: (p[key] ?? 0) + 1 }))
   }
   const timeline = React.useMemo(() => buildTimeline(script), [script])
-  const controlled = progress !== undefined || frozen
+  const clip = React.useMemo(() => chatClip(script), [script])
+  // One clock for the story and its afterlife: the story in weighted chars up to its
+  // end, then whole seconds of afterlife.
+  const ms = usePlayhead(frozen ? 1 : progress) * clip.duration
+  const story = timeline.total * MS_PER_WEIGHT
+  const at = Math.min(ms, story) / MS_PER_WEIGHT
+  const aliveSec = Math.floor(Math.max(0, ms - story) / 1000)
   const root = React.useRef<HTMLElement>(null)
   const thread = React.useRef<HTMLDivElement>(null)
   const view = React.useRef<HTMLDivElement>(null)
@@ -699,48 +717,6 @@ export function TelegramChat({
       throw new Error(
         `telegram-chat: focus ${f} outside 0..${script.messages.length - 1}`,
       )
-  const floor =
-    typeof from === "number"
-      ? from
-      : (() => {
-          const beat = timeline.beats[from.message]
-          if (!beat)
-            throw new Error(
-              `telegram-chat: from.message ${from.message} outside 0..${timeline.beats.length - 1}`,
-            )
-          return beat.start / timeline.total
-        })()
-  // ~6ms per weighted char, no ceiling: a cap squeezed every structural beat of a long
-  // script (a typed line went by in a second under a three-summary story).
-  const autoDuration =
-    duration ?? Math.max(4000, (1 - floor) * timeline.total * MS_PER_WEIGHT)
-
-  // The ceiling in raw 0..1 units: the end of message k's beat, mapped through the
-  // floor the way `eff` is. No `until`, and the ceiling is the end of the story. THE
-  // ACT'S STORY IS "MESSAGE k LANDS NOW": everything before it is context and is already
-  // there, so `lift` is where the play starts when the ceiling is raised past it — a
-  // reader who scrolls two acts at once, or reloads mid-scrolly, gets the act's own
-  // beat and not a blurred replay of the whole conversation at normal speed.
-  const rawAt = (weight: number) =>
-    floor >= 1
-      ? 1
-      : Math.min(
-          1,
-          Math.max(0, (weight / timeline.total - floor) / (1 - floor)),
-        )
-  const untilBeat = until ? timeline.beats[until.message] : undefined
-  if (until && !untilBeat)
-    throw new Error(
-      `telegram-chat: until.message ${until.message} outside 0..${timeline.beats.length - 1}`,
-    )
-  const ceiling = untilBeat ? rawAt(untilBeat.end) : 1
-  const lift = untilBeat ? rawAt(untilBeat.start) : 0
-
-  const auto = useChatPlayback(root, controlled, autoDuration, ceiling, lift)
-
-  const raw = frozen ? 1 : controlled ? (progress as number) : auto
-  const eff = floor + (1 - floor) * Math.min(1, Math.max(0, raw))
-  const at = eff * timeline.total
   // THE CUT WAITS FOR ITS TARGET. A phone cropped to a message that has not landed
   // showed the bottom of a thread with nothing to show; the viewport closes down only
   // once the focused message exists (the blur has the same rule). Frameless is always
@@ -753,29 +729,7 @@ export function TelegramChat({
       ? wantsCut
       : undefined
   const isGroup = script.kind === "group"
-  const completed = at >= timeline.total - BEAT.meta / 2 - 1e-6 || eff >= 1
-
-  const afterlifeEnd = React.useMemo(() => {
-    const reactions = script.messages.flatMap((message) =>
-      (message.reactions ?? []).filter(
-        (reaction) => reaction.when !== "timeline",
-      ),
-    )
-    return Math.max(
-      0,
-      ...reactions.map(
-        (reaction, i) =>
-          afterlifeDelay +
-          3 +
-          i * 6 +
-          5 * Math.max(0, (reaction.count ?? 1) - 1),
-      ),
-      ...(script.afterlife?.messages.map(
-        (message) => afterlifeDelay + message.at,
-      ) ?? []),
-    )
-  }, [script, afterlifeDelay])
-  const aliveSec = useChatAfterlife(root, completed, afterlifeEnd, frozen)
+  const completed = at >= timeline.total - BEAT.meta / 2 - 1e-6
 
   const { viewH, scroller, trace, showLatest, scrollToLatest } = useChatLayout({
     elements: { root, thread, view, device, bubbles, ghosts, ghostRoot },
@@ -785,19 +739,14 @@ export function TelegramChat({
     viewport,
     fit,
     completed,
-    position: eff,
+    position: at,
     aliveSec,
     debug,
-    at,
-    ceiling,
-    lift,
   })
 
-  // Afterlife reactions across every message, in script order: staggered arrivals
-  // with deterministic jitter, each pill lands at 1, climbs to its scripted count one
-  // press at a time, stopping at the scripted count.
+  // Afterlife reactions across every message, in script order: staggered arrivals,
+  // each pill lands at 1 and climbs to its scripted count one press at a time.
   let afterlifeIndex = 0
-  const arriveAt = (i: number) => afterlifeDelay + 3 + i * 6
   // Pills are BUTTONS: Telegram's reactions are pressable, and the demo's are too. A
   // pill you pressed is drawn as the client draws your own (filled in the accent) and
   // counts you; pressing again takes you off it. What the script and the afterlife clock
@@ -823,10 +772,10 @@ export function TelegramChat({
         continue
       }
       const i = afterlifeIndex++
-      const since = (frozen ? afterlifeEnd : aliveSec) - arriveAt(i)
+      const since = aliveSec - arriveAt(i)
       if (since < 0) continue
       const target = r.count ?? 1
-      const climb = Math.min(target - 1, Math.floor(since / 5))
+      const climb = Math.min(target - 1, Math.floor(since / CLIMB_S))
       shown.push({ emoji: r.emoji, count: 1 + Math.max(0, climb) })
     }
     if (shown.length === 0) return null
@@ -938,12 +887,8 @@ export function TelegramChat({
     const b = timeline.beats[i] as Beat
     return m.typing && at >= b.start + BEAT.typing / 3 && at < b.land
   })
-  const nextLate = script.afterlife?.messages.find(
-    (late) => aliveSec < afterlifeDelay + late.at,
-  )
-  const lateTyping = Boolean(
-    nextLate && aliveSec >= afterlifeDelay + nextLate.at - 3,
-  )
+  const nextLate = script.afterlife?.messages.find((late) => aliveSec < late.at)
+  const lateTyping = Boolean(nextLate && aliveSec >= nextLate.at - 3)
   const typingLabel = typingMessage
     ? (typingMessage.typing as string)
     : lateTyping
@@ -1253,7 +1198,7 @@ export function TelegramChat({
                     when there is no photo), the same row every scripted message
                     gets. Its own photo, or video, rides on the afterlife block. */}
               {script.afterlife?.messages
-                .filter((late) => aliveSec >= afterlifeDelay + late.at)
+                .filter((late) => aliveSec >= late.at)
                 .map((late) => {
                   const who = script.afterlife?.from ?? script.chatName
                   const bubble = (

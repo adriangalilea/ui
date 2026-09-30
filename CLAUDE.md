@@ -481,15 +481,21 @@ Left on the item:
 The public API and runnable compositions live on `/telegram-chat`; maintain those
 examples instead of a second API guide here.
 
-Ownership is split across `telegram-chat-playback.tsx` (visible-time clocks),
-`telegram-chat-layout.tsx` (measurement and framing), and `telegram-chat-scroll.ts`
-(scroll targeting). `telegram-chat.tsx` composes them and renders the conversation.
+The chat owns no clock. `chatClip(script)` is its clip (story, then the afterlife as a
+last chapter) and a driver from `playhead` moves it: `Playback` (once in view, from a
+`start`, after a `delay`), `Player` (the same clock plus the bar), a scroll stage's
+`cue` (be in this act's span, heading to its end), or a fixed `progress`. Nothing about
+time lives in the chat: an act ceiling, a start message, a neighbour's delay are all
+driver props, so a scroll stage and a player drive one playhead together.
+`telegram-chat-layout.tsx` owns measurement and framing, `telegram-chat-scroll.ts`
+scroll targeting; `telegram-chat.tsx` composes them and renders the conversation.
 Framing must preserve the focused messages and composer, shrinking the device when
 needed rather than eagerly clipping its bottom. Measurements use layout coordinates;
 transformed screen coordinates must not feed back into device sizing.
 
 Keep these invariants when changing the implementation: focus waits for its target;
-unseen context lands whole; hidden stories pause; completed stories stay complete;
+unseen context lands whole (a cue behind the playhead jumps to the act's start);
+hidden stories pause; completed stories stay complete;
 pending scroll targets are retried as the viewport resizes. Browser checks exercise
 these behaviors alongside the pure framing and scroll examples.
 

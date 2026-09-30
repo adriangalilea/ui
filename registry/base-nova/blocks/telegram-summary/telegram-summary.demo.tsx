@@ -1,7 +1,10 @@
 import {
+  conversationStart,
+  summaryClip,
   TelegramSummary,
   type TelegramSummaryScript,
 } from "@/registry/base-nova/blocks/telegram-summary/telegram-summary"
+import { Playback } from "@/registry/base-nova/ui/playhead"
 
 const SCRIPT: TelegramSummaryScript = {
   kind: "peer",
@@ -54,11 +57,9 @@ const SCRIPT: TelegramSummaryScript = {
 export default function Demo() {
   return (
     <div className="flex justify-center">
-      <TelegramSummary
-        script={SCRIPT}
-        from="conversation"
-        wallpaper="/tg-pattern.svg"
-      />
+      <Playback clip={summaryClip(SCRIPT)} start={conversationStart(SCRIPT)}>
+        <TelegramSummary script={SCRIPT} wallpaper="/tg-pattern.svg" />
+      </Playback>
     </div>
   )
 }

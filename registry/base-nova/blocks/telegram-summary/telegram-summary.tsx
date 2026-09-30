@@ -10,11 +10,13 @@
 //   group - a group; every left bubble carries its sender.
 // With no `mention` the flow reads as auto-mode: a link lands and the bot answers.
 
+import type { Clip } from "@/registry/base-nova/lib/clip"
 import {
   type ChatBlock,
   type ChatMessage,
   type ChatPreview,
   type ChatScript,
+  chatClip,
   hrefOf,
   linkIn,
   TelegramChat,
@@ -150,33 +152,32 @@ export function summaryScript(s: TelegramSummaryScript): ChatScript {
   }
 }
 
-/** The `from` that starts a summary mid-conversation: every bubble before the answer
- *  is already on screen (a typed mention still types, so it starts after the intro). */
-export function conversationStart(s: TelegramSummaryScript): {
-  message: number
-} {
-  if (s.mention && s.typeMention) return { message: s.intro ? 1 : 0 }
-  const messages = summaryMessages(s)
-  return { message: messages.length - 1 }
+/** The summary's clip (telegram-chat's `chatClip`), for a driver to play. */
+export function summaryClip(s: TelegramSummaryScript): Clip {
+  return chatClip(summaryScript(s))
+}
+
+/** Where a summary starts mid-conversation, ms into its clip: every bubble before the
+ *  answer is already on screen (a typed mention still types, so it starts after the
+ *  intro). A Playback's `start`. */
+export function conversationStart(s: TelegramSummaryScript): number {
+  const message =
+    s.mention && s.typeMention
+      ? s.intro
+        ? 1
+        : 0
+      : summaryMessages(s).length - 1
+  const chapter = summaryClip(s).chapters[message]
+  if (!chapter)
+    throw new Error(`telegram-summary: no message ${message} to start from`)
+  return chapter.start
 }
 
 export interface TelegramSummaryProps
-  extends Omit<TelegramChatProps, "script" | "from"> {
+  extends Omit<TelegramChatProps, "script"> {
   script: TelegramSummaryScript
-  /** A raw 0..1 floor, or "conversation" to start with the whole exchange on screen. */
-  from?: number | "conversation"
 }
 
-export function TelegramSummary({
-  script,
-  from,
-  ...rest
-}: TelegramSummaryProps) {
-  return (
-    <TelegramChat
-      script={summaryScript(script)}
-      from={from === "conversation" ? conversationStart(script) : from}
-      {...rest}
-    />
-  )
+export function TelegramSummary({ script, ...rest }: TelegramSummaryProps) {
+  return <TelegramChat script={summaryScript(script)} {...rest} />
 }
