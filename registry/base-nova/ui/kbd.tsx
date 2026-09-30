@@ -7,7 +7,7 @@
 // typography they keep their own look, never a frame around the whole shortcut.
 
 import { cn } from "@/lib/utils"
-import { keys, withKeys } from "@/registry/base-nova/lib/keys"
+import { keyName, keys, withKeys } from "@/registry/base-nova/lib/keys"
 
 export function isKeys(text: string): boolean {
   return keys(text) !== null
@@ -23,7 +23,7 @@ function Caps({ caps }: { caps: string[] }) {
     <span className="inline-flex gap-[0.25em]">
       {caps.map((cap, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: caps repeat (⌘ ⌘), position is identity
-        <kbd key={i} data-slot="kbd-cap" className={CAP}>
+        <kbd key={i} data-slot="kbd-cap" title={keyName(cap)} className={CAP}>
           {cap}
         </kbd>
       ))}

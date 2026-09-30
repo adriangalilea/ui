@@ -94,6 +94,28 @@ export function keys(text: string): string[][] | null {
   return combos.every((c) => c !== null) ? (combos as string[][]) : null
 }
 
+/** A cap's name, for a person who does not read the glyphs (⌃ is easily taken for
+ *  ⇧): "Control", "Option", "Command". A letter is its own name. */
+export function keyName(cap: string): string {
+  const names: Record<string, string> = {
+    "⌃": "Control",
+    "⌥": "Option",
+    "⇧": "Shift",
+    "⌘": "Command",
+    fn: "Function",
+    "↩": "Return",
+    "⇥": "Tab",
+    "⌫": "Delete",
+    esc: "Escape",
+    "←": "Left Arrow",
+    "→": "Right Arrow",
+    "↑": "Up Arrow",
+    "↓": "Down Arrow",
+    space: "Space",
+  }
+  return names[cap] ?? cap
+}
+
 /** A text with shortcuts written in glyphs ("Press ⌃⌥⌘A to keep your Mac awake."),
  *  split so each shortcut can be drawn as keys and the rest stays text. */
 export function withKeys(
