@@ -55,6 +55,10 @@ export interface PlaybackOptions {
    *  it rewinds to `to`. A new cue wins over the bar, and the bar over the last cue.
    *  A scrub that follows scroll exactly is no cue: it passes `progress`. */
   cue?: Span
+  /** Whether it plays, when the page decides (a card under the pointer): true plays
+   *  the clip from the top, false returns it to where it stands at rest (`start`).
+   *  Set, it replaces playing once on screen. */
+  playing?: boolean
 }
 
 interface PlaybackState {
@@ -65,13 +69,14 @@ interface PlaybackState {
 /** How much faster than the clip an aim behind the playhead plays it backwards. */
 const REWIND = 3
 
-/** The clock. Plays once, the first time the content is on screen (after `delay`);
- *  holds off screen and in a hidden tab; under reduced motion every aim lands at
- *  once. One rule for motion: an AIM travels (forward at the clip's pace, backward at
- *  `REWIND`x, so scrolling back an act unwinds it), a SEEK jumps (the bar). */
+/** The clock. Plays once, the first time the content is on screen (after `delay`),
+ *  or while the page says `playing`; holds off screen and in a hidden tab; under
+ *  reduced motion every aim lands at once. One rule for motion: an AIM travels
+ *  (forward at the clip's pace, backward at `REWIND`x, so scrolling back an act
+ *  unwinds it), a SEEK jumps (the bar). */
 export function usePlayback(
   clip: Clip,
-  { start = 0, delay = 0, cue }: PlaybackOptions = {},
+  { start = 0, delay = 0, cue, playing }: PlaybackOptions = {},
 ) {
   const duration = clip.duration
   if (!(duration > 0)) throw new Error("playback: duration must be positive")
@@ -89,6 +94,8 @@ export function usePlayback(
   const inView = React.useRef(false)
   const cueRef = React.useRef(cue)
   cueRef.current = cue
+  // Driven by the page, the first sight of it starts nothing.
+  const pageDriven = playing !== undefined
 
   /** Every transition goes through here: reduced motion lands every aim at once. */
   const go = React.useCallback(
@@ -138,7 +145,7 @@ export function usePlayback(
       ([entry]) => {
         inView.current =
           !!entry?.isIntersecting && el.getBoundingClientRect().height > 0
-        if (inView.current && !armed.current && !timer)
+        if (inView.current && !armed.current && !timer && !pageDriven)
           timer = window.setTimeout(arm, delay)
       },
       { threshold: 0.35 },
@@ -151,7 +158,14 @@ export function usePlayback(
       motion.removeEventListener("change", settle)
       window.clearTimeout(timer)
     }
-  }, [go, aim, enter, duration, delay])
+  }, [go, aim, enter, duration, delay, pageDriven])
+
+  // The page's word: play from the top, or back to rest.
+  React.useEffect(() => {
+    if (playing === undefined) return
+    if (playing) go(() => ({ at: 0, target: duration }))
+    else go(() => ({ at: start, target: start }))
+  }, [playing, go, duration, start])
 
   // A new cue moves the playhead into its span; before the first view it only
   // decides where the story stands.
