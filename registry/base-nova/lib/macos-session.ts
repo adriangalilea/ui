@@ -229,9 +229,18 @@ export interface SceneClock {
   /** When the viewer turns to each step: once it has landed and whatever was being
    *  read before it has been read. The camera goes to a glyph then, not before. */
   looks: number[]
+  /** What happened behind a shut lid is seen when it opens, in order: first the
+   *  work the agent did in the dark (its entries stay highlighted until
+   *  `reveal[lid-open step]`), then each banner that arrived meanwhile, from
+   *  `deferred[banner step]`. */
+  reveal: Record<number, number>
+  deferred: Record<number, number>
   /** The whole story, until the last thing on screen has been taken in. */
   total: number
 }
+
+/** An agent's words: read in turn, or, behind a shut lid, when it opens. */
+const AGENT_WORDS = new Set<StepKind>(["say", "tool", "done"])
 
 /** The opening frame: the world, the glyph, an agent already at work. It is on screen
  *  from the first instant, then held before the story's first act. */
@@ -250,21 +259,26 @@ export function sceneClock(timeline: Timeline): SceneClock {
   // The opening world is where the story starts, not a change to watch.
   const first = timeline.steps[0]
   let world = first?.kind === "world" ? (first.world as WorldState) : NIGHT
-  // A banner posted behind a shut lid is read when the lid opens.
-  let unseen = 0
+  // What happens behind a shut lid is owed to the viewer when it opens.
+  let dark = { agent: 0, banners: [] as [number, number][] }
+  const reveal: Record<number, number> = {}
+  const deferred: Record<number, number> = {}
   let glyph = "off"
   let opening = true
   const starts: number[] = []
   const ends: number[] = []
   const looks: number[] = []
-  for (const s of timeline.steps) {
+  for (const [i, s] of timeline.steps.entries()) {
     // The opening frame lands at once and is taken in before anything happens:
     // where we are, what is on screen.
     if (opening && !OPENING.has(s.kind)) {
       opening = false
       ready = Math.max(ready, ESTABLISH_MS)
     }
-    if (!opening) {
+    // What the agent does behind a shut lid takes no screen time: nobody sees it
+    // happen, it is read when the lid opens.
+    const inDark = world.lid === "closed" && AGENT_WORDS.has(s.kind)
+    if (!opening && !inDark) {
       at += s.delay ?? PAUSE[s.kind]
       // An input that flips the glyph also waits for the camera, which only
       // leaves once the last beat has been taken in.
@@ -275,7 +289,7 @@ export function sceneClock(timeline: Timeline): SceneClock {
         )
     }
     starts.push(at)
-    const landed = at + hold(s)
+    const landed = inDark ? at : at + hold(s)
     ends.push(landed)
     const seen = opening ? 0 : look(s, world, glyph)
     if (s.kind === "glyph") glyph = s.glyph as string
@@ -283,20 +297,37 @@ export function sceneClock(timeline: Timeline): SceneClock {
     // they are read; a world change is taken in at a glance, alongside.
     const inTurn = READ_IN_TURN.has(s.kind) || s.kind === "glyph"
     looks.push(inTurn ? Math.max(ready, landed) : landed)
-    if (s.kind === "banner" && world.lid === "closed") unseen += seen
+    const shut = world.lid === "closed"
+    if (shut && s.kind === "banner") dark.banners.push([i, seen])
+    else if (shut && AGENT_WORDS.has(s.kind)) dark.agent += seen
     else if (inTurn) ready = Math.max(ready, landed) + seen
     else ready = Math.max(ready, landed + seen)
     if (s.kind === "world") {
       const w = s.world as WorldState
-      if (w.lid === "open" && world.lid === "closed") {
-        ready = Math.max(ready, landed + LID_MS + unseen)
-        unseen = 0
+      if (w.lid === "open" && shut) {
+        // The lid swings open, the work done in the dark is read, then the
+        // banners that arrived meanwhile, one after another.
+        let t = landed + LID_MS + dark.agent
+        reveal[i] = t
+        for (const [b, look] of dark.banners) {
+          deferred[b] = t
+          t += look
+        }
+        ready = Math.max(ready, t)
+        dark = { agent: 0, banners: [] }
       }
       world = w
     }
     at = landed
   }
-  return { starts, ends, looks, total: Math.max(1, at, ready) + 800 }
+  return {
+    starts,
+    ends,
+    looks,
+    reveal,
+    deferred,
+    total: Math.max(1, at, ready) + 800,
+  }
 }
 
 /** How far the lid has travelled toward where it is going, 0..1, eased in and out
@@ -352,6 +383,45 @@ export interface Frame {
     draft: string
     work: { label: string; elapsed: string } | null
   } | null
+  /** The last jump of the world's clock or battery, and when (ms): shown as a
+   *  time-lapse (`lapseAt`), because time passing is the story behind a shut lid. */
+  lapse: { from: WorldState; to: WorldState; since: number } | null
+}
+
+/** How long a jump of the world's clock takes to run on screen. */
+export const LAPSE_MS = 1600
+/** How long the work done in the dark stays marked after it has been read. */
+const FRESH_MS = 1500
+
+/** The world's clock and battery as a time-lapse shows them at `ms`: running from
+ *  the last jump's start to its end, and how much time it covered. */
+export function lapseAt(
+  frame: Frame,
+  ms: number,
+): { clock: string; battery: number; gained: string | null } {
+  const l = frame.lapse
+  if (!l)
+    return {
+      clock: frame.world.clock,
+      battery: frame.world.battery,
+      gained: null,
+    }
+  const p = Math.min(1, Math.max(0, (ms - l.since) / LAPSE_MS))
+  const e = p < 0.5 ? 4 * p ** 3 : 1 - (-2 * p + 2) ** 3 / 2
+  const span = minutesBetween(l.from.clock, l.to.clock)
+  const [h, m] = l.from.clock.split(":").map(Number)
+  // The time covered so far counts up with the clock.
+  const run = Math.round(span * e)
+  const now = ((h ?? 0) * 60 + (m ?? 0) + run) % 1440
+  const gained =
+    span === 0
+      ? null
+      : `+${run >= 60 ? `${Math.floor(run / 60)}h ` : ""}${run % 60}m`
+  return {
+    clock: `${String(Math.floor(now / 60)).padStart(2, "0")}:${String(now % 60).padStart(2, "0")}`,
+    battery: Math.round(l.from.battery + (l.to.battery - l.from.battery) * e),
+    gained,
+  }
 }
 
 const NIGHT: WorldState = {
@@ -388,32 +458,43 @@ export function frameAt(
     glyphSince: Number.NEGATIVE_INFINITY,
     captionSince: Number.NEGATIVE_INFINITY,
     agent: null,
+    lapse: null,
   }
   // The agent's work, and when it began in scene time and on the world's clock: its
   // elapsed time is the world's, so two hours behind a shut lid read as two hours.
   let work = null as { label: string; since: number; clock: string } | null
-  let unseen: string | null = null
+  // What the agent wrote behind a shut lid: marked as new once it opens.
+  let dark: AgentEntry[] = []
+  const add = (e: AgentEntry) => {
+    if (!f.agent) return
+    f.agent.entries.push(e)
+    if (f.world.lid === "closed") dark.push(e)
+  }
   timeline.steps.forEach((s, i) => {
     const start = clock.starts[i] as number
     if (start > ms) return
     const end = clock.ends[i] as number
     f.step = i
     switch (s.kind) {
-      case "world":
-        if (s.world?.lid !== f.world.lid) {
+      case "world": {
+        const w = s.world as WorldState
+        // The opening world is where the story starts, not a jump from anything.
+        if (
+          i > 0 &&
+          (w.clock !== f.world.clock || w.battery !== f.world.battery)
+        )
+          f.lapse = { from: f.world, to: w, since: start }
+        if (w.lid !== f.world.lid) {
           f.lidSince = start
-          // Notifications that arrived behind the shut lid are there when it opens.
-          if (s.world?.lid === "open" && unseen) {
-            const since = start + LID_MS
-            f.banner =
-              ms >= since && ms < since + bannerStay(unseen)
-                ? { text: unseen, since }
-                : null
-            unseen = null
+          if (w.lid === "open") {
+            const until = (clock.reveal[i] ?? start) + FRESH_MS
+            for (const e of dark) e.fresh = ms < until
+            dark = []
           }
         }
-        f.world = s.world as WorldState
+        f.world = w
         break
+      }
       case "glyph":
         if (s.glyph !== f.glyph) f.glyphSince = start
         f.glyph = s.glyph as string
@@ -460,11 +541,14 @@ export function frameAt(
         f.click = clicked("right", start, ms)
         break
       case "banner": {
+        // A banner that arrived behind the shut lid shows once the lid is open and
+        // the work done in the dark has been read (clock.deferred); one that
+        // arrived with the lid open shows at once.
         const text = s.text ?? ""
-        if (f.world.lid === "closed") unseen = text
-        else
-          f.banner =
-            ms < start + bannerStay(text) ? { text, since: start } : null
+        const since =
+          clock.deferred[i] ?? (f.world.lid === "open" ? start : null)
+        if (since !== null && ms >= since && ms < since + bannerStay(text))
+          f.banner = { text, since }
         break
       }
       case "caption":
@@ -497,10 +581,10 @@ export function frameAt(
         }
         break
       case "say":
-        f.agent?.entries.push({ kind: "say", text: s.text ?? "" })
+        add({ kind: "say", text: s.text ?? "" })
         break
       case "tool":
-        f.agent?.entries.push({
+        add({
           kind: "tool",
           name: s.text ?? "",
           arg: s.arg ?? "",
@@ -512,7 +596,7 @@ export function frameAt(
         break
       case "done":
         work = null
-        f.agent?.entries.push({ kind: "say", text: s.text ?? "" })
+        add({ kind: "say", text: s.text ?? "" })
         break
     }
   })
@@ -572,7 +656,6 @@ export function focusSpans(timeline: Timeline, clock: SceneClock): FocusSpan[] {
   }
   let lid: WorldState["lid"] = "open"
   let glyph = "off"
-  let unseen: string | null = null
   // The chord or right-click whose answer is the next glyph: the camera leaves for
   // the glyph LEAD_MS before it lands, so the change happens in the close-up.
   let input: number | null = null
@@ -617,31 +700,22 @@ export function focusSpans(timeline: Timeline, clock: SceneClock): FocusSpan[] {
         glyph = s.glyph as string
         input = null
         break
-      case "banner":
-        if (lid === "closed") unseen = s.text ?? ""
-        else
-          wants.push({
-            key: `banner:${i}`,
-            kind: "banner",
-            start,
-            end: start + bannerStay(s.text ?? ""),
-          })
-        break
-      case "world": {
-        const next = (s.world as WorldState).lid
-        if (next === "open" && lid === "closed" && unseen !== null) {
-          const since = start + LID_MS
+      case "banner": {
+        // When the frame shows it: at once, or (behind a shut lid) once it opens
+        // and the work done in the dark has been read.
+        const since = clock.deferred[i] ?? (lid === "open" ? start : null)
+        if (since !== null)
           wants.push({
             key: `banner:${i}`,
             kind: "banner",
             start: since,
-            end: since + bannerStay(unseen),
+            end: since + bannerStay(s.text ?? ""),
           })
-          unseen = null
-        }
-        lid = next
         break
       }
+      case "world":
+        lid = (s.world as WorldState).lid
+        break
     }
   })
   endMenu(clock.total)

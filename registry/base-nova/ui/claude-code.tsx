@@ -3,8 +3,9 @@
 // working line, and the prompt box. Presentational: it fills its box with the
 // terminal's own monospace and text size, and reads like a terminal: from the top
 // while it fits, the oldest lines scrolled away once it does not (a column-reverse
-// box puts its one child at the top and clips overflow at the top). A page or a
-// story supplies the entries.
+// box anchors its one child at the bottom, and the child's auto bottom margin takes
+// any free space: at the top while it fits, anchored at the bottom with its top cut
+// once it overflows). A page or a story supplies the entries.
 
 import { cn } from "@/lib/utils"
 import type {
@@ -26,11 +27,11 @@ export function ClaudeCode({
     <div
       data-slot="claude-code"
       className={cn(
-        "flex h-full min-h-0 flex-col-reverse justify-end overflow-hidden whitespace-pre-wrap text-[#e6e6e6]",
+        "flex h-full min-h-0 flex-col-reverse overflow-hidden whitespace-pre-wrap text-[#e6e6e6]",
         className,
       )}
     >
-      <div className="flex flex-col gap-[0.9em]">
+      <div className="mb-auto flex flex-col gap-[0.9em]">
         <div
           className="rounded-[6px] border px-[1.2ch] py-[0.5em]"
           style={{ borderColor: CLAUDE }}
@@ -45,8 +46,16 @@ export function ClaudeCode({
           </div>
         </div>
         {entries.map((e, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: a transcript is positional
-          <Entry key={i} entry={e} />
+          <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: a transcript is positional
+            key={i}
+            className={cn(
+              "-mx-[1ch] rounded-[4px] px-[1ch]",
+              e.fresh && "bg-[#d97757]/15",
+            )}
+          >
+            <Entry entry={e} />
+          </div>
         ))}
         {work && (
           <div style={{ color: CLAUDE }}>

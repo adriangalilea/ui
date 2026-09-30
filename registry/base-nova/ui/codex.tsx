@@ -2,9 +2,10 @@
 // transcript (› prompts, • replies, • Ran commands with their └ output), the working
 // line, and the composer. Presentational: it fills its box with the terminal's own
 // monospace and text size, and reads like a terminal: from the top while it fits,
-// the oldest lines scrolled away once it does not (a column-reverse box puts its one
-// child at the top and clips overflow at the top). A page or a story supplies the
-// entries.
+// the oldest lines scrolled away once it does not (a column-reverse box anchors its
+// one child at the bottom, and the child's auto bottom margin takes any free space:
+// at the top while it fits, anchored at the bottom with its top cut once it
+// overflows). A page or a story supplies the entries.
 
 import { cn } from "@/lib/utils"
 import type {
@@ -23,11 +24,11 @@ export function Codex({
     <div
       data-slot="codex"
       className={cn(
-        "flex h-full min-h-0 flex-col-reverse justify-end overflow-hidden whitespace-pre-wrap text-[#e6e6e6]",
+        "flex h-full min-h-0 flex-col-reverse overflow-hidden whitespace-pre-wrap text-[#e6e6e6]",
         className,
       )}
     >
-      <div className="flex flex-col gap-[0.9em]">
+      <div className="mb-auto flex flex-col gap-[0.9em]">
         <div className="self-start rounded-[6px] border border-[#4a4a4a] px-[1.2ch] py-[0.5em]">
           <div>
             <span className="text-[#8a8a8a]">{">_ "}</span>
@@ -39,8 +40,16 @@ export function Codex({
           </div>
         </div>
         {entries.map((e, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: a transcript is positional
-          <Entry key={i} entry={e} />
+          <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: a transcript is positional
+            key={i}
+            className={cn(
+              "-mx-[1ch] rounded-[4px] px-[1ch]",
+              e.fresh && "bg-white/[0.09]",
+            )}
+          >
+            <Entry entry={e} />
+          </div>
         ))}
         {work && (
           <div>

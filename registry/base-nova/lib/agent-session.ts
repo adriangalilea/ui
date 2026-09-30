@@ -3,11 +3,16 @@
 // and codex skins draw the same entries in their own terminal UIs; a story (a macos
 // timeline) or a page supplies them. Framework-free by contract.
 
-export type AgentEntry =
+export type AgentEntry = (
   | { kind: "prompt"; text: string }
   | { kind: "say"; text: string }
   /** A tool call and its result, one line each. `result` empty while it runs. */
   | { kind: "tool"; name: string; arg: string; result: string[] }
+) & {
+  /** Done while nobody was looking (behind a shut lid): a skin marks it, so what
+   *  happened in the meantime reads at a glance. */
+  fresh?: boolean
+}
 
 /** The agent at work: what it is doing, and for how long (already formatted). */
 export interface AgentWork {

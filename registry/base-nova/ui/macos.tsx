@@ -24,6 +24,7 @@ import {
   focusSpans,
   frameAt,
   KEY_MS,
+  lapseAt,
   lidTravel,
   type MenuRow,
   PRESS_MS,
@@ -157,6 +158,7 @@ export function Macos({
     [timeline],
   )
   const captionIn = Math.min(1, Math.max(0, (ms - f.captionSince) / 360))
+  const lapse = lapseAt(f, ms)
 
   return (
     <div
@@ -188,18 +190,27 @@ export function Macos({
             </div>
           )}
         </div>
-        {/* The world keeps its clock while the lid is shut: over the dark panel, or
-            in the space the shut lid leaves. Time passing IS the story there. It
-            lives only in the shut half of the lid's travel, never over a lit screen. */}
+        {/* Time passing IS the story behind a shut lid, so it takes the stage: the
+            clock runs from where it was to where it lands like a time-lapse, the
+            time covered counts up, the battery counts down. In the space the shut
+            lid leaves (or over the dark panel), only in the shut half of the lid's
+            travel, never over a lit screen. */}
         <div
           data-slot="macos-lid-status"
-          className="pointer-events-none absolute inset-x-0 top-0 bottom-[12%] flex flex-col items-center justify-center gap-[0.8cqw] font-mono text-[1.7cqw] text-foreground/70 lowercase tabular-nums"
+          className="pointer-events-none absolute inset-x-0 top-0 bottom-[12%] flex flex-col items-center justify-center gap-[1.2cqw] text-foreground tabular-nums"
           style={{ opacity: Math.max(0, shut * 2 - 1) }}
         >
-          <span>
-            lid closed · {f.world.clock} · {f.world.battery}%
+          <span
+            className="font-extralight text-[9cqw] leading-none tracking-tight"
+            style={{ fontFamily: SYSTEM }}
+          >
+            {lapse.clock}
           </span>
-          <span className="text-foreground/45">
+          <span className="font-mono text-[1.8cqw] text-foreground/70 lowercase">
+            {lapse.gained && (
+              <span className="text-foreground">{lapse.gained} · </span>
+            )}
+            battery {lapse.battery}% ·{" "}
             {f.world.asleep ? "asleep" : "still awake"}
           </span>
         </div>
@@ -723,13 +734,17 @@ function TerminalWindow({
             <span key={d} className="size-2.5 rounded-full bg-white/15" />
           ))}
         </div>
-        <div className="min-h-0 flex-1 px-4 pt-3 pb-3">
-          <Agent
-            entries={agent.entries}
-            work={agent.work}
-            draft={agent.draft}
-            cwd={agent.cwd}
-          />
+        {/* A box of definite height, so the skin's own overflow (the oldest lines
+            scrolling away) happens in it, not in the window's clip. */}
+        <div className="relative min-h-0 flex-1">
+          <div className="absolute inset-0 px-4 pt-3 pb-3">
+            <Agent
+              entries={agent.entries}
+              work={agent.work}
+              draft={agent.draft}
+              cwd={agent.cwd}
+            />
+          </div>
         </div>
       </div>
     )
@@ -774,10 +789,11 @@ function TerminalWindow({
         ))}
       </div>
       {/* A terminal: from the top while it fits, the oldest lines scrolled away
-          once it does not (column-reverse puts its one child at the top and clips
-          overflow at the top). */}
-      <div className="flex min-h-0 flex-1 flex-col-reverse justify-end overflow-hidden whitespace-pre-wrap px-5 pt-3 pb-4">
-        <div>
+          once it does not (column-reverse anchors the one child at the bottom; its
+          auto bottom margin takes any free space, so it sits at the top until it
+          overflows, then its top is what is cut). */}
+      <div className="flex min-h-0 flex-1 flex-col-reverse overflow-hidden whitespace-pre-wrap px-5 pt-3 pb-4">
+        <div className="mb-auto">
           {lines.map(line)}
           <div>
             <span style={{ color: p.prompt }}>$ </span>
