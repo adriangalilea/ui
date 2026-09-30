@@ -31,7 +31,6 @@ export default function PlayerDemo() {
         duration={CLOCK.total}
         chapters={chapters(HERO, CLOCK)}
         label="awake's hero scene"
-        accent="#e7a13c"
       >
         {(progress) => (
           <Macos

@@ -29,7 +29,8 @@ export interface PlayerProps {
   chapters?: Chapter[]
   /** Accessible name of the player. */
   label: string
-  /** The played part of the bar; the foreground by default. */
+  /** The played part of the bar. By default a quiet foreground: the bar is a
+   *  control, and a page's accent belongs to what it wants seen first. */
   accent?: string
   className?: string
 }
@@ -194,7 +195,8 @@ export function Player({
       className={className}
       style={
         {
-          "--player-accent": accent ?? "var(--foreground)",
+          "--player-accent":
+            accent ?? "color-mix(in oklab, var(--foreground) 55%, transparent)",
         } as React.CSSProperties
       }
     >
