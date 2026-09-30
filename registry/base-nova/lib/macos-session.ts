@@ -4,6 +4,10 @@
 // and nothing else. Framework-free by contract: `frameAt(timeline, ms)` is a pure fold,
 // so scrubbing, stills and autoplay are the same function at different times.
 
+import {
+  type AgentEntry,
+  formatElapsed,
+} from "@/registry/base-nova/lib/agent-session"
 import { TYPE_MS } from "@/registry/base-nova/lib/terminal-session"
 
 /** A menu row. A separator says only that; an item says only what is true of it. */
@@ -41,6 +45,14 @@ export type StepKind =
   | "right-click"
   | "banner"
   | "caption"
+  // A coding agent in the terminal (drawn by a skin the page supplies):
+  | "agent" // opens it: `text` its name, `arg` the working directory
+  | "history" // a prompt already sent when the story starts
+  | "prompt" // a prompt typed now
+  | "say" // the agent's reply
+  | "tool" // a tool call: `text` the tool, `arg` its argument, `lines` the result
+  | "work" // the agent is working: `text` on what
+  | "done" // it stops working and says `text`
 
 export interface Step {
   kind: StepKind
@@ -57,6 +69,8 @@ export interface Step {
   tooltip?: string
   keys?: string
   world?: WorldState
+  arg?: string
+  lines?: string[]
 }
 
 export interface Timeline {
@@ -105,7 +119,17 @@ const PAUSE: Record<StepKind, number> = {
   "right-click": Math.max(POINTER_MS + 150, LEAD_MS),
   banner: 300,
   caption: 250,
+  agent: 0,
+  history: 0,
+  prompt: 400,
+  say: 500,
+  tool: 400,
+  work: 300,
+  done: 400,
 }
+
+/** How long a tool call shows as running before its result comes back. */
+export const TOOL_MS = 700
 
 /** How long a pressed row flashes before the menu closes, as NSMenu does. */
 export const PRESS_MS = 220
@@ -133,13 +157,15 @@ export function bannerStay(text: string): number {
 }
 
 const hold = (s: Step) =>
-  s.kind === "command"
+  s.kind === "command" || s.kind === "prompt"
     ? (s.text?.length ?? 0) * TYPE_MS + LAND_MS
     : s.kind === "output" || s.kind === "muted"
       ? LAND_MS
       : s.kind === "press"
         ? PRESS_MS
-        : 0
+        : s.kind === "tool"
+          ? TOOL_MS
+          : 0
 
 /** What a step asks of the viewer once it has landed, ms. */
 function look(s: Step, before: WorldState, glyph: string): number {
@@ -173,21 +199,49 @@ function look(s: Step, before: WorldState, glyph: string): number {
       return readMs(text) + 600
     case "caption":
       return readMs(text)
+    case "say":
+    case "done":
+      return readMs(text)
+    case "tool":
+      return readMs(`${s.arg ?? ""} ${(s.lines ?? []).join(" ")}`) / 2
+    case "work":
+      return 1400
     default:
       return 0
   }
 }
 
-const READ_IN_TURN = new Set<StepKind>(["output", "muted", "banner", "caption"])
+const READ_IN_TURN = new Set<StepKind>([
+  "output",
+  "muted",
+  "banner",
+  "caption",
+  "say",
+  "tool",
+  "done",
+])
 
 export interface SceneClock {
   /** When each step starts (after its pause), ms. */
   starts: number[]
   /** When each step is complete. */
   ends: number[]
+  /** When the viewer turns to each step: once it has landed and whatever was being
+   *  read before it has been read. The camera goes to a glyph then, not before. */
+  looks: number[]
   /** The whole story, until the last thing on screen has been taken in. */
   total: number
 }
+
+/** The opening frame: the world, the glyph, an agent already at work. It is on screen
+ *  from the first instant, then held before the story's first act. */
+const OPENING = new Set<StepKind>([
+  "world",
+  "glyph",
+  "agent",
+  "history",
+  "work",
+])
 
 export function sceneClock(timeline: Timeline): SceneClock {
   let at = 0
@@ -199,29 +253,38 @@ export function sceneClock(timeline: Timeline): SceneClock {
   // A banner posted behind a shut lid is read when the lid opens.
   let unseen = 0
   let glyph = "off"
+  let opening = true
   const starts: number[] = []
   const ends: number[] = []
+  const looks: number[] = []
   for (const s of timeline.steps) {
-    // The story opens on its first step: no frame of anything before it.
-    if (starts.length > 0) at += s.delay ?? PAUSE[s.kind]
-    // An input that flips the glyph also waits for the camera, which only leaves
-    // once the last beat has been taken in.
-    if (s.author)
-      at = Math.max(
-        at,
-        ready + (s.kind === "key" || s.kind === "right-click" ? LEAD_MS : 0),
-      )
+    // The opening frame lands at once and is taken in before anything happens:
+    // where we are, what is on screen.
+    if (opening && !OPENING.has(s.kind)) {
+      opening = false
+      ready = Math.max(ready, ESTABLISH_MS)
+    }
+    if (!opening) {
+      at += s.delay ?? PAUSE[s.kind]
+      // An input that flips the glyph also waits for the camera, which only
+      // leaves once the last beat has been taken in.
+      if (s.author)
+        at = Math.max(
+          at,
+          ready + (s.kind === "key" || s.kind === "right-click" ? LEAD_MS : 0),
+        )
+    }
     starts.push(at)
     const landed = at + hold(s)
     ends.push(landed)
-    // The opening frame is taken in before anything happens: where we are, what is
-    // on screen.
-    const seen = starts.length === 1 ? ESTABLISH_MS : look(s, world, glyph)
+    const seen = opening ? 0 : look(s, world, glyph)
     if (s.kind === "glyph") glyph = s.glyph as string
+    // Words are read one line after another, and a changed glyph is turned to once
+    // they are read; a world change is taken in at a glance, alongside.
+    const inTurn = READ_IN_TURN.has(s.kind) || s.kind === "glyph"
+    looks.push(inTurn ? Math.max(ready, landed) : landed)
     if (s.kind === "banner" && world.lid === "closed") unseen += seen
-    // Words are read one line after another; a picture is taken in at a glance,
-    // alongside whatever else is being read.
-    else if (READ_IN_TURN.has(s.kind)) ready = Math.max(ready, landed) + seen
+    else if (inTurn) ready = Math.max(ready, landed) + seen
     else ready = Math.max(ready, landed + seen)
     if (s.kind === "world") {
       const w = s.world as WorldState
@@ -233,7 +296,7 @@ export function sceneClock(timeline: Timeline): SceneClock {
     }
     at = landed
   }
-  return { starts, ends, total: Math.max(1, at, ready) + 800 }
+  return { starts, ends, looks, total: Math.max(1, at, ready) + 800 }
 }
 
 /** How far the lid has travelled toward where it is going, 0..1, eased in and out
@@ -280,6 +343,15 @@ export interface Frame {
   glyphSince: number
   /** When the current caption appeared: it fades in from here. */
   captionSince: number
+  /** A coding agent in the terminal, when the story opened one: its transcript so
+   *  far, what is being typed, and its work (the elapsed time is the world's). */
+  agent: {
+    name: string
+    cwd: string
+    entries: AgentEntry[]
+    draft: string
+    work: { label: string; elapsed: string } | null
+  } | null
 }
 
 const NIGHT: WorldState = {
@@ -315,7 +387,11 @@ export function frameAt(
     step: -1,
     glyphSince: Number.NEGATIVE_INFINITY,
     captionSince: Number.NEGATIVE_INFINITY,
+    agent: null,
   }
+  // The agent's work, and when it began in scene time and on the world's clock: its
+  // elapsed time is the world's, so two hours behind a shut lid read as two hours.
+  let work = null as { label: string; since: number; clock: string } | null
   let unseen: string | null = null
   timeline.steps.forEach((s, i) => {
     const start = clock.starts[i] as number
@@ -395,9 +471,69 @@ export function frameAt(
         f.caption = s.text ?? null
         f.captionSince = start
         break
+      case "agent":
+        f.agent = {
+          name: s.text ?? "",
+          cwd: s.arg ?? "~",
+          entries: [],
+          draft: "",
+          work: null,
+        }
+        work = null
+        break
+      case "history":
+        f.agent?.entries.push({ kind: "prompt", text: s.text ?? "" })
+        break
+      case "prompt":
+        if (!f.agent) break
+        if (ms < end)
+          f.agent.draft = (s.text ?? "").slice(
+            0,
+            Math.floor((ms - start) / TYPE_MS),
+          )
+        else {
+          f.agent.draft = ""
+          f.agent.entries.push({ kind: "prompt", text: s.text ?? "" })
+        }
+        break
+      case "say":
+        f.agent?.entries.push({ kind: "say", text: s.text ?? "" })
+        break
+      case "tool":
+        f.agent?.entries.push({
+          kind: "tool",
+          name: s.text ?? "",
+          arg: s.arg ?? "",
+          result: ms < end ? [] : (s.lines ?? []),
+        })
+        break
+      case "work":
+        work = { label: s.text ?? "", since: start, clock: f.world.clock }
+        break
+      case "done":
+        work = null
+        f.agent?.entries.push({ kind: "say", text: s.text ?? "" })
+        break
     }
   })
+  if (f.agent && work)
+    f.agent.work = {
+      label: work.label,
+      elapsed: formatElapsed(
+        minutesBetween(work.clock, f.world.clock) * 60 +
+          (ms - work.since) / 1000,
+      ),
+    }
   return f
+}
+
+/** Minutes from one "HH:MM" to the next, across midnight. */
+function minutesBetween(from: string, to: string): number {
+  const m = (t: string) => {
+    const [h, mm] = t.split(":").map(Number)
+    return (h ?? 0) * 60 + (mm ?? 0)
+  }
+  return (m(to) - m(from) + 1440) % 1440
 }
 
 // ── focus: what the camera is about, over time ──
@@ -468,8 +604,15 @@ export function focusSpans(timeline: Timeline, clock: SceneClock): FocusSpan[] {
           wants.push({
             key: `glyph:${i}`,
             kind: "glyph",
-            start: input === null ? start : Math.max(0, input - LEAD_MS),
-            end: start + GLYPH_FOCUS_MS,
+            // Zoom first, then the input; otherwise when the viewer turns to it,
+            // once the lines that caused it have been read.
+            start:
+              input === null
+                ? (clock.looks[i] as number)
+                : Math.max(0, input - LEAD_MS),
+            end:
+              (input === null ? (clock.looks[i] as number) : start) +
+              GLYPH_FOCUS_MS,
           })
         glyph = s.glyph as string
         input = null

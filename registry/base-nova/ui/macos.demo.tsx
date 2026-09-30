@@ -14,6 +14,8 @@ import {
   sceneClock,
   type Timeline,
 } from "@/registry/base-nova/lib/macos-session"
+import { ClaudeCode } from "@/registry/base-nova/ui/claude-code"
+import { Codex } from "@/registry/base-nova/ui/codex"
 import { Macos, type MacosDevice } from "@/registry/base-nova/ui/macos"
 
 // #region scenes
@@ -29,6 +31,8 @@ const SCENES = {
   "safety-nets": safetyNetsJson,
 } as Record<string, Timeline>
 const ART = artJson as Art
+// The agents a story may open in its terminal: the page picks the skins.
+const AGENTS = { claude: ClaudeCode, codex: Codex }
 // #endregion
 
 export default function MacosDemo() {
@@ -42,6 +46,7 @@ export default function MacosDemo() {
         <Macos
           timeline={SCENES["lid-yours"] as Timeline}
           art={ART}
+          agents={AGENTS}
           accent="#e7a13c"
           alt="awake: a coding agent asks to survive lid close, you allow it from the menu, close the lid, and the Mac sleeps when the agent exits"
         />
@@ -54,6 +59,7 @@ export default function MacosDemo() {
         <Macos
           timeline={SCENES["lid-closed"] as Timeline}
           art={ART}
+          agents={AGENTS}
           accent="#e7a13c"
           device="macbook"
           alt="awake: two hours awake, the lid closes and the Mac keeps running"
@@ -67,6 +73,7 @@ export default function MacosDemo() {
         <Macos
           timeline={SCENES["menu-bar"] as Timeline}
           art={ART}
+          agents={AGENTS}
           accent="#e7a13c"
           device="display"
           alt="awake: one chord keeps the Mac awake, the cup fills, the menu opens"
@@ -119,6 +126,7 @@ function Studio({
         <Macos
           timeline={timeline}
           art={art}
+          agents={AGENTS}
           progress={ms / clock.total}
           accent="#e7a13c"
           device={device === "screen" ? undefined : device}

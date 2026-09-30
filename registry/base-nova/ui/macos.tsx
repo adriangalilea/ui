@@ -16,6 +16,7 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
+import type { AgentViewProps } from "@/registry/base-nova/lib/agent-session"
 import {
   type Art,
   type FocusKind,
@@ -55,6 +56,10 @@ export interface MacosProps {
   accent?: string
   /** A MacBook (the lid folds when the scene closes it) or a display (it sleeps). */
   device?: MacosDevice
+  /** The coding agents a story may open in its terminal, by the name its timeline
+   *  uses (`{ claude: ClaudeCode, codex: Codex }`): the page chooses the skins, so
+   *  this component depends on none of them. */
+  agents?: Record<string, React.ComponentType<AgentViewProps>>
   /** Accessible description (the stage is one picture). */
   alt: string
   className?: string
@@ -75,6 +80,7 @@ export function Macos({
   progress,
   accent = "#0a84ff",
   device,
+  agents,
   alt,
   className,
 }: MacosProps) {
@@ -133,6 +139,7 @@ export function Macos({
       shut={shut}
       art={art}
       accent={accent}
+      agents={agents}
     />
   )
   const viewport = React.useRef<HTMLDivElement>(null)
@@ -241,6 +248,7 @@ function Screen({
   shut,
   art,
   accent,
+  agents,
 }: {
   timeline: Timeline
   clock: SceneClock
@@ -249,6 +257,7 @@ function Screen({
   shut: number
   art: Art
   accent: string
+  agents: MacosProps["agents"]
 }) {
   const app = timeline.app
   const box = React.useRef<HTMLDivElement>(null)
@@ -301,6 +310,8 @@ function Screen({
             lines={f.terminal}
             typing={f.typing}
             accent={accent}
+            agent={f.agent}
+            Agent={f.agent ? agents?.[f.agent.name] : undefined}
           />
           {pointer && <Cursor x={pointer.x} y={pointer.y} />}
           {/* The panel sleeps with the lid shut. */}
@@ -685,11 +696,43 @@ function TerminalWindow({
   lines,
   typing,
   accent,
+  agent,
+  Agent,
 }: {
   lines: TerminalLine[]
   typing: { text: string; chars: number } | null
   accent: string
+  agent: Frame["agent"]
+  Agent: React.ComponentType<AgentViewProps> | undefined
 }) {
+  // A coding agent owns the whole terminal while it runs, in its own colours: a
+  // plain dark terminal, not the app's phosphor.
+  if (agent && Agent)
+    return (
+      <div
+        data-slot="macos-terminal"
+        className="absolute top-[72px] left-[48px] flex h-[400px] w-[620px] flex-col overflow-hidden rounded-[12px] border border-white/10 bg-[#161617] shadow-[0_20px_60px_rgb(0_0_0/0.45)]"
+        style={{
+          fontFamily: "var(--font-mono, Menlo, Monaco, monospace)",
+          fontSize: 12.5,
+          lineHeight: 1.45,
+        }}
+      >
+        <div className="flex shrink-0 items-center gap-2 bg-[#222224] px-4 py-2.5">
+          {[0, 1, 2].map((d) => (
+            <span key={d} className="size-2.5 rounded-full bg-white/15" />
+          ))}
+        </div>
+        <div className="min-h-0 flex-1 px-4 pt-3 pb-3">
+          <Agent
+            entries={agent.entries}
+            work={agent.work}
+            draft={agent.draft}
+            cwd={agent.cwd}
+          />
+        </div>
+      </div>
+    )
   const p = terminalPalette(accent)
   const line = (l: TerminalLine, key: React.Key) => (
     <div
@@ -730,17 +773,21 @@ function TerminalWindow({
           />
         ))}
       </div>
-      {/* The newest line sits at the bottom, as a terminal scrolls. */}
-      <div className="flex min-h-0 flex-1 flex-col justify-end overflow-hidden whitespace-pre-wrap px-5 pt-3 pb-4">
-        {lines.map(line)}
+      {/* A terminal: from the top while it fits, the oldest lines scrolled away
+          once it does not (column-reverse puts its one child at the top and clips
+          overflow at the top). */}
+      <div className="flex min-h-0 flex-1 flex-col-reverse justify-end overflow-hidden whitespace-pre-wrap px-5 pt-3 pb-4">
         <div>
-          <span style={{ color: p.prompt }}>$ </span>
-          {typing && (
-            <span style={{ color: p.command }}>
-              {typing.text.slice(0, typing.chars)}
-            </span>
-          )}
-          <span style={{ color: p.dot }}>█</span>
+          {lines.map(line)}
+          <div>
+            <span style={{ color: p.prompt }}>$ </span>
+            {typing && (
+              <span style={{ color: p.command }}>
+                {typing.text.slice(0, typing.chars)}
+              </span>
+            )}
+            <span style={{ color: p.dot }}>█</span>
+          </div>
         </div>
       </div>
     </div>

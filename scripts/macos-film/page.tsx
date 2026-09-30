@@ -12,6 +12,8 @@ import {
   sceneClock,
   type Timeline,
 } from "@/registry/base-nova/lib/macos-session"
+import { ClaudeCode } from "@/registry/base-nova/ui/claude-code"
+import { Codex } from "@/registry/base-nova/ui/codex"
 import { Macos, type MacosDevice } from "@/registry/base-nova/ui/macos"
 
 export interface FilmOptions {
@@ -53,6 +55,7 @@ function draw(ms: number) {
           progress={ms / total}
           device={options.device}
           accent={options.accent}
+          agents={{ claude: ClaudeCode, codex: Codex }}
           alt="film"
         />
       </div>,
