@@ -68,8 +68,8 @@ export function Player({
     root,
     at: playhead,
     target,
-    moving: playing,
-    playing: forward,
+    moving,
+    playing,
     seek,
     aim,
     pause,
@@ -106,7 +106,7 @@ export function Player({
     if (playhead >= duration) {
       seek(0)
       aim(duration)
-    } else if (playing) pause()
+    } else if (moving) pause()
     else aim(duration)
   }
 
@@ -183,7 +183,7 @@ export function Player({
           toggle()
         }}
       >
-        <Playhead at={progressAt(clip, shown)} playing={forward && !hover}>
+        <Playhead at={progressAt(clip, shown)} playing={playing && !hover}>
           {children}
         </Playhead>
       </div>
@@ -191,7 +191,7 @@ export function Player({
         <button
           type="button"
           onClick={toggle}
-          aria-label={ended ? "replay" : playing ? "pause" : "play"}
+          aria-label={ended ? "replay" : moving ? "pause" : "play"}
           className="grid size-8 shrink-0 place-items-center rounded-full text-foreground/70 transition-colors hover:bg-foreground/8 hover:text-foreground"
         >
           <svg viewBox="0 0 16 16" className="size-3.5" aria-hidden="true">
@@ -204,7 +204,7 @@ export function Player({
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
-            ) : playing ? (
+            ) : moving ? (
               <path d="M4 3h2.6v10H4zM9.4 3H12v10H9.4z" fill="currentColor" />
             ) : (
               <path d="M4.5 2.8 13 8l-8.5 5.2z" fill="currentColor" />
@@ -235,7 +235,7 @@ export function Player({
           // is down, and plays on from where it is let go.
           onPointerDown={(e) => {
             e.currentTarget.setPointerCapture(e.pointerId)
-            resume.current = playing ? target : null
+            resume.current = moving ? target : null
             seek(at(e.clientX).ms)
           }}
           onPointerUp={() => {
