@@ -21,9 +21,9 @@
 // adds a shape to a badge that already has its frame. `ghost` is the chip at 55%;
 // `plain` is resting; `lit` is a soft glow behind the chip in the badge ink (a box
 // shadow on a drawn badge, a drop shadow that follows the artwork's silhouette on a
-// mark); `vivid` is the stronger glow with the chip at full brightness (white under
-// ink and brand, the metal's highlight under gold). What a step means is the
-// consumer's to decide.
+// mark); `vivid` is the stronger glow with the frame at the full ink (the metal's
+// highlight under gold). A chip is one colour at every step: vivid never turns the
+// word white inside a coloured frame. What a step means is the consumer's to decide.
 //
 // AN AXIS IS A GROUP of one to three chips: picture is [resolution] [range], sound is
 // [object] [codec] [channels], tier is [disc] [Remux], lang is [flag] [name]. The
@@ -387,7 +387,7 @@ const WORD: Record<Size, string> = {
  *  fixed-width drawing: a column sized by its widest line plus side padding, so no
  *  word ever clips. Box height 1.75 × B, band 30% of it, primary 55% of it, frame
  *  the family hairline × 1.25 at full ink, radius as the family. Under ink and brand
- *  it is white-on-black; under gold every ink is the metal (the frame a gradient
+ *  it is the ink on the ground; under gold every ink is the metal (the frame a gradient
  *  ground behind a 1px inset column, the primary clipped from the gradient, the band
  *  a gradient fill) and the panel stays near-black. The ground is
  *  `--ag-media-sticker-ground` (default #0b0b0b) so a light surface can set its own. */
@@ -479,19 +479,21 @@ function Sticker({
       >
         {primary}
       </span>
+      {/* The band is filled with the INHERITED ink (currentColor resolves against the
+          element's own `color`, so the band must not set one) and only the word inside
+          it takes the ground. */}
       <span
         className="flex items-center justify-center font-semibold uppercase leading-none tracking-[0.12em]"
         style={{
           height: g.band,
           padding: `0 ${g.pad}px`,
           fontSize: g.secondary,
-          color: STICKER_GROUND,
           ...(gold
             ? { backgroundImage: paint }
             : { background: "currentColor" }),
         }}
       >
-        {secondary}
+        <span style={{ color: STICKER_GROUND }}>{secondary}</span>
       </span>
     </span>
   )
@@ -541,8 +543,10 @@ const EMPHASIS: Record<Emphasis, string> = {
   vivid: "",
 }
 /** A drawn badge on the poster rung sits on art: a scrim under it so it survives a
- *  white sky. Artwork carries its own weight. */
-const SCRIM = "bg-(--ag-media-scrim) backdrop-blur-sm"
+ *  white sky. Artwork carries its own weight. A plain fill, never a blur of the
+ *  backdrop, because the poster rung is worn by every card of a grid and each
+ *  frosted badge is a render surface the browser re-blurs on every animated frame. */
+const SCRIM = "bg-(--ag-media-scrim)"
 // ── GOLD: the disc-case metallic sticker, for the drawn family. ONE mechanism: a CSS
 // background the letters are clipped from (`background-clip: text`) and a band or a
 // frame is filled with. The one-line box fills near-black and wears the metal on its
@@ -558,12 +562,18 @@ const GOLD_LO = "var(--ag-media-gold-lo, #9C7A1B)"
 const GOLD_GLINT = "var(--ag-media-gold-glint, #FFE680)"
 const GOLD_GROUND = "#0b0b0b"
 const GOLD_METAL = `linear-gradient(135deg, ${GOLD_HI} 0%, ${GOLD_MID} 45%, ${GOLD_LO} 84%, ${GOLD_GLINT} 97%, ${GOLD_LO} 100%)`
+/** A flat gold as an IMAGE. Every paint is an image because the drawn badges consume
+ *  it as `background-image` and clip letters from it; a bare colour there is an
+ *  invalid declaration the browser drops, leaving transparent letters in an empty box. */
+const flat = (colour: string) => `linear-gradient(${colour}, ${colour})`
 /** The paint a rung's gold is drawn with. */
 const GOLD_PAINT: Record<Size, string> = {
-  sm: GOLD_MID,
+  sm: flat(GOLD_MID),
   md: GOLD_METAL,
   lg: GOLD_METAL,
 }
+/** Vivid gold: the metal's highlight, flat. */
+const GOLD_VIVID = flat(GOLD_HI)
 /** The gold one-line badge's stroke: the family hairline, in the metal. */
 const GOLD_WORD: Record<Size, string> = {
   sm: "border-[0.8px]",
@@ -630,9 +640,10 @@ function Chip({
 }: ChipRenderProps) {
   const gold = tone === "gold"
   const vivid = emphasis === "vivid"
-  // Vivid brings the chip to full brightness while the glow keeps the badge ink:
-  // white under ink and brand, the metal's highlight under gold.
-  const paint = gold ? (vivid ? GOLD_HI : GOLD_PAINT[size]) : undefined
+  // Vivid is the chip at full strength in its OWN colour: the whole chip (frame,
+  // word, band, mark) in the full ink, never a second colour inside one frame; under
+  // gold, the metal's highlight.
+  const paint = gold ? (vivid ? GOLD_VIVID : GOLD_PAINT[size]) : undefined
   const isMark = "mark" in atom
   const style = {
     // The fallback chain, written once: the kind's ink or the surrounding text colour;
@@ -656,7 +667,7 @@ function Chip({
   }
   const classes = cn(
     "inline-flex shrink-0 items-center align-middle leading-none",
-    vivid && !gold ? "text-white" : "text-(--ag-media-ink)",
+    "text-(--ag-media-ink)",
     isMark
       ? grid === 1 && MARK_H[size][BOX_OF[atom.mark] ?? form]
       : sticker
@@ -664,8 +675,13 @@ function Chip({
         : cn(
             WORD[size],
             "font-semibold tracking-tight whitespace-nowrap",
-            // The frame is never the loudest thing: a hairline at 70% of the ink.
-            gold ? GOLD_WORD[size] : "border-(--ag-media-ink)/70",
+            // The frame is never the loudest thing: a hairline at 70% of the ink,
+            // the full ink at vivid.
+            gold
+              ? GOLD_WORD[size]
+              : vivid
+                ? "border-(--ag-media-ink)"
+                : "border-(--ag-media-ink)/70",
             size === "sm" && !gold && SCRIM,
           ),
     EMPHASIS[emphasis],
@@ -804,7 +820,10 @@ export function PictureChip({
   const [primary, secondary] = RESOLUTION_BADGE[resolution]
   // At sm the sticker collapses to its primary ("4K") as a one-line badge: an 18px
   // sticker's 5px band is not readable, only a smaller frame in a smaller row.
-  atoms.push(["resolution", word(primary, size === "sm" ? undefined : secondary)])
+  atoms.push([
+    "resolution",
+    word(primary, size === "sm" ? undefined : secondary),
+  ])
   if (range !== "sdr") {
     const rng = markAt(RANGE_MARK[range], formOf(chip))
     atoms.push([

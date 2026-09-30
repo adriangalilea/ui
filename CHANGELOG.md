@@ -5,6 +5,13 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 ## 2026-09-30
 
+### media-spec
+
+- Fix: the resolution sticker's lower band shows its word ("ULTRA HD", "FULL HD"); it was drawn in the band's own colour and read as an empty panel.
+- Fix: gold at `vivid`, and every gold badge at `sm`, draws its metal and letters; both were empty boxes.
+- `vivid` keeps the chip in its own ink: the frame goes to the full ink and the glow grows, and the word no longer turns white inside a coloured frame. A consumer that relied on vivid reading white sets the kind's ink to white.
+- The poster rung's scrim is a plain fill, no backdrop blur: a grid of posters re-blurred every badge on every animated frame.
+
 ### agent-session
 
 - New: a coding agent's session as data (`AgentEntry`: a prompt, a reply, a tool call with its result; `AgentWork`: how long the turn and the request in flight have run in the world's seconds, the output tokens so far, and screen time in ms, facts each skin words and animates itself; `AgentFinished`: how long the finished turn took), the props every agent skin takes (`AgentViewProps`), `formatElapsed`, elapsed time the way both CLIs say it, and `entryTokens` / `requestTokens` / `formatTokens`, the output a turn counts up (each reply and tool call its thinking and words, a request nothing until its thinking is over).
