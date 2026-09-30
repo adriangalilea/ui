@@ -27,12 +27,21 @@ export interface MenuRow {
 
 /** The Mac as the stage shows it. */
 export interface WorldState {
-  clock: string
+  /** The time, "HH:MM", when the story needs one: a clock that jumps is time passing
+   *  (a time-lapse behind the shut lid, an agent's hours). A story that never sets it
+   *  shows the viewer's own time, and its story time never jumps. Set in some steps
+   *  and not others is a broken scene. */
+  clock?: string
   battery: number
   charging: boolean
   lid: "open" | "closed"
   asleep: boolean
   heat: boolean
+  /** The lock screen is up: the Mac awake, nobody at it. */
+  locked?: true
+  /** The day the lock screen spells above the time, when the story needs one;
+   *  absent, the viewer's own. */
+  date?: string
 }
 
 export type StepKind =
@@ -50,6 +59,9 @@ export type StepKind =
   | "banner"
   | "caption"
   | "poster" // the frame a still of the story shows; takes no time
+  // The app's own surface (a popover) hanging from its glyph: `text` names it in
+  // `Art.surfaces`, `arg` is the second of its clip it opens at. `close` shuts it.
+  | "surface"
   // A coding agent in the terminal (drawn by a skin the page supplies):
   | "agent" // opens it: `text` its name, `arg` the working directory
   | "history" // a prompt already sent when the story starts
@@ -84,10 +96,23 @@ export interface Timeline {
 }
 
 /** The app's own pixels, drawn by its own code: one PNG per glyph state per menu bar
- *  appearance, and the icon its banners wear. */
+ *  appearance, the icon its banners wear, and the surfaces it opens (a popover the app
+ *  rendered as a clip, played in step with the story). */
 export interface Art {
   icon: string
   glyphs: Record<string, { light: string; dark: string }>
+  surfaces?: Record<string, Surface>
+}
+
+/** A surface's clip: its video, a still of its first frame, its size in points (the
+ *  stage's units, so it hangs at its true size under the glyph), and the colour it is
+ *  drawn on, which the arrow and the border around it wear too. */
+export interface Surface {
+  src: string
+  poster: string
+  width: number
+  height: number
+  background: string
 }
 
 /** How long the pointer takes to travel to what it is about to click. */
@@ -124,6 +149,7 @@ const PAUSE: Record<StepKind, number> = {
   banner: 300,
   caption: 250,
   poster: 0,
+  surface: 300,
   agent: 0,
   history: 0,
   prompt: 400,
@@ -141,6 +167,8 @@ export const PRESS_MS = 220
 export const KEY_MS = 1600
 /** How long the lid takes to fold, and the panel to go dark with it. */
 export const LID_MS = 1100
+/** How long the lock screen takes to come up, or to go. */
+export const LOCK_MS = 700
 /** How long the camera holds on the glyph after it changes. */
 export const GLYPH_FOCUS_MS = 2400
 /** Output lands a beat after the previous line. */
@@ -180,10 +208,12 @@ function look(s: Step, before: WorldState, glyph: string): number {
       if (w.lid !== before.lid) return LID_MS + 1200
       if (w.clock !== before.clock || w.battery !== before.battery) return 1800
       if (w.asleep !== before.asleep) return 1400
+      if (w.locked !== before.locked) return LOCK_MS + 1400
       return 0
     }
     case "glyph":
-      return s.glyph === glyph ? 0 : GLYPH_FOCUS_MS
+      // Behind the lock screen the menu bar is not there to look at.
+      return s.glyph === glyph || before.locked ? 0 : GLYPH_FOCUS_MS
     case "command":
       return 300
     case "output":
@@ -246,9 +276,16 @@ export interface SceneClock {
 /** An agent's words: read in turn, or, behind a shut lid, when it opens. */
 const AGENT_WORDS = new Set<StepKind>(["say", "tool", "done"])
 
-/** The opening frame: the world, the glyph, an agent already at work. It is on screen
- *  from the first instant, then held before the story's first act. */
-const OPENING = new Set<StepKind>(["world", "glyph", "agent", "history"])
+/** The opening frame: the world, the glyph, an agent already at work, a surface
+ *  already open. It is on screen from the first instant, then held before the
+ *  story's first act. */
+const OPENING = new Set<StepKind>([
+  "world",
+  "glyph",
+  "agent",
+  "history",
+  "surface",
+])
 
 /** Where the story's `poster` step lands, as the stage's `progress` (0..1): the one
  *  frame a still shows (a link card, a shelf). The scene chooses it; a story
@@ -383,6 +420,11 @@ export interface Frame {
   world: WorldState
   /** When the lid last moved (ms): its fold and the panel's fade run from here. */
   lidSince: number
+  /** When the lock screen last came up or went (ms): its fade runs from here. */
+  lockSince: number
+  /** The app's surface hanging from its glyph: which, the second of its clip it
+   *  opened at, and when (ms); the clip plays on from there with scene time. */
+  surface: { name: string; from: number; since: number } | null
   glyph: string
   tooltip: string
   terminal: TerminalLine[]
@@ -427,11 +469,12 @@ export interface Frame {
 export const LAPSE_MS = 1600
 
 /** The world's clock and battery as a time-lapse shows them at `ms`: running from
- *  the last jump's start to its end, and how much time it covered. */
+ *  the last jump's start to its end, and how much time it covered. A story without
+ *  a clock has no time to lapse: `clock` is absent and only the battery runs. */
 export function lapseAt(
   frame: Frame,
   ms: number,
-): { clock: string; battery: number; gained: string | null } {
+): { clock: string | undefined; battery: number; gained: string | null } {
   const l = frame.lapse
   if (!l)
     return {
@@ -441,7 +484,12 @@ export function lapseAt(
     }
   const p = Math.min(1, Math.max(0, (ms - l.since) / LAPSE_MS))
   const e = p < 0.5 ? 4 * p ** 3 : 1 - (-2 * p + 2) ** 3 / 2
+  const battery = Math.round(
+    l.from.battery + (l.to.battery - l.from.battery) * e,
+  )
   const span = minutesBetween(l.from.clock, l.to.clock)
+  if (l.from.clock === undefined)
+    return { clock: undefined, battery, gained: null }
   const [h, m] = l.from.clock.split(":").map(Number)
   // The time covered so far counts up with the clock.
   const run = Math.round(span * e)
@@ -452,13 +500,12 @@ export function lapseAt(
       : `+${run >= 60 ? `${Math.floor(run / 60)}h ` : ""}${run % 60}m`
   return {
     clock: `${String(Math.floor(now / 60)).padStart(2, "0")}:${String(now % 60).padStart(2, "0")}`,
-    battery: Math.round(l.from.battery + (l.to.battery - l.from.battery) * e),
+    battery,
     gained,
   }
 }
 
 const NIGHT: WorldState = {
-  clock: "21:00",
   battery: 80,
   charging: false,
   lid: "open",
@@ -478,6 +525,8 @@ export function frameAt(
   const f: Frame = {
     world: NIGHT,
     lidSince: Number.NEGATIVE_INFINITY,
+    lockSince: Number.NEGATIVE_INFINITY,
+    surface: null,
     glyph: "off",
     tooltip: "",
     terminal: [],
@@ -495,10 +544,10 @@ export function frameAt(
   }
   // The agent's work, and when it began in scene time and on the world's clock: its
   // elapsed time is the world's, so two hours behind a shut lid read as two hours.
-  let work = null as { since: number; clock: string } | null
+  let work = null as { since: number; clock: string | undefined } | null
   // The request in flight: the model is asked again once each reply or tool result
   // lands, and the new request starts by thinking.
-  let request = null as { since: number; clock: string } | null
+  let request = null as { since: number; clock: string | undefined } | null
   const add = (e: AgentEntry, landed: number) => {
     if (!f.agent) return
     f.agent.entries.push(e)
@@ -519,9 +568,25 @@ export function frameAt(
         )
           f.lapse = { from: f.world, to: w, since: start }
         if (w.lid !== f.world.lid) f.lidSince = start
+        if (w.locked !== f.world.locked) f.lockSince = start
+        // Locking closes whatever the app had open, as macOS does.
+        if (w.locked) {
+          f.menu = null
+          f.surface = null
+        }
         f.world = w
         break
       }
+      case "surface":
+        f.surface = {
+          name: s.text ?? "",
+          from: Number(s.arg ?? 0),
+          since: start,
+        }
+        // Opened by the author is a click on the glyph; open from the first
+        // frame, it was already up.
+        if (s.author) f.click = clicked("left", start, ms)
+        break
       case "glyph":
         if (s.glyph !== f.glyph) f.glyphSince = start
         f.glyph = s.glyph as string
@@ -559,6 +624,7 @@ export function frameAt(
         break
       case "close":
         f.menu = null
+        f.surface = null
         break
       case "key":
         f.key =
@@ -666,15 +732,24 @@ export function frameAt(
 /** How long the agent has worked at scene time `ms`, in the world's seconds: two
  *  hours behind a shut lid count as two hours. */
 function worked(
-  work: { since: number; clock: string },
+  work: { since: number; clock: string | undefined },
   world: WorldState,
   ms: number,
 ): number {
   return minutesBetween(work.clock, world.clock) * 60 + (ms - work.since) / 1000
 }
 
-/** Minutes from one "HH:MM" to the next, across midnight. */
-function minutesBetween(from: string, to: string): number {
+/** Minutes from one "HH:MM" to the next, across midnight. A story without a clock
+ *  has none passing; a clock in one step and not the other is a broken scene. */
+function minutesBetween(
+  from: string | undefined,
+  to: string | undefined,
+): number {
+  if (from === undefined && to === undefined) return 0
+  if (from === undefined || to === undefined)
+    throw new Error(
+      `macos-session: a clock in one step and not another (${from} → ${to}): set it in every world step or in none`,
+    )
   const m = (t: string) => {
     const [h, mm] = t.split(":").map(Number)
     return (h ?? 0) * 60 + (mm ?? 0)
@@ -718,6 +793,11 @@ export function focusSpans(timeline: Timeline, clock: SceneClock): FocusSpan[] {
   }
   let lid: WorldState["lid"] = "open"
   let glyph = "off"
+  // An open surface is the thing to see, and it hangs below the glyph: a close-up
+  // on the glyph would crop it, so the camera stays wide while one is open. Behind
+  // the lock screen there is no glyph to close in on.
+  let surface = false
+  let locked = false
   // The chord or right-click whose answer is the next glyph: the camera leaves for
   // the glyph LEAD_MS before it lands, so the change happens in the close-up.
   let input: number | null = null
@@ -743,9 +823,13 @@ export function focusSpans(timeline: Timeline, clock: SceneClock): FocusSpan[] {
         break
       case "close":
         endMenu(start)
+        surface = false
+        break
+      case "surface":
+        surface = true
         break
       case "glyph":
-        if (s.glyph !== glyph)
+        if (s.glyph !== glyph && !surface && !locked)
           wants.push({
             key: `glyph:${i}`,
             kind: "glyph",
@@ -777,6 +861,8 @@ export function focusSpans(timeline: Timeline, clock: SceneClock): FocusSpan[] {
       }
       case "world":
         lid = (s.world as WorldState).lid
+        locked = (s.world as WorldState).locked === true
+        if (locked) surface = false
         break
     }
   })
@@ -853,7 +939,9 @@ export function pointerTargets(
   timeline.steps.forEach((s, i) => {
     const arrive = clock.starts[i] as number
     const key =
-      s.kind === "menu" || s.kind === "right-click"
+      s.kind === "menu" ||
+      s.kind === "right-click" ||
+      (s.kind === "surface" && s.author)
         ? "glyph"
         : (s.kind === "hover" || s.kind === "press") && menu >= 0
           ? `row:${menu}:${(s.path ?? []).join(".")}`

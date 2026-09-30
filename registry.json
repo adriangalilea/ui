@@ -426,7 +426,7 @@
       "name": "macos",
       "type": "registry:ui",
       "title": "macos",
-      "description": "a menu bar app performed on a Mac screen: its glyph, its real menu, the terminal driving it, its banners, the keyboard shortcut pressed, the lid closing. draws a timeline the app's own engine compiled at a moment: inside a player it plays, with a fixed progress it is a still",
+      "description": "a menu bar app performed on a Mac screen: its glyph, its real menu or its own rendered popover, the terminal driving it, its banners, the keyboard shortcut pressed, the lock screen, the lid closing. draws a timeline the app's own engine compiled at a moment: inside a player it plays, with a fixed progress it is a still",
       "registryDependencies": [
         "@ag/macos-session",
         "@ag/terminal-session",

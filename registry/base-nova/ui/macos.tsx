@@ -25,6 +25,7 @@ import {
   focusSpans,
   frameAt,
   KEY_MS,
+  LOCK_MS,
   lapseAt,
   lidTravel,
   type MenuRow,
@@ -32,6 +33,7 @@ import {
   pointerAt,
   pointerTargets,
   type SceneClock,
+  type Surface,
   sceneClock,
   type TerminalLine,
   type Timeline,
@@ -79,6 +81,49 @@ const SYSTEM = "-apple-system, BlinkMacSystemFont, system-ui, sans-serif"
 
 const ROW = "flex h-[22px] items-center gap-1.5 rounded-[5px] px-2 text-[13px]"
 
+/** The viewer's own time, as an English Mac spells it: `menu` for the menu bar
+ *  ("9:41 AM"), `time` for the lock screen ("9:41"), `date` above it ("Tuesday,
+ *  September 30"). */
+interface Now {
+  menu: string
+  time: string
+  date: string
+}
+
+const MINUTE = 60_000
+const minuteNow = () => Math.floor(Date.now() / MINUTE)
+const tick = (changed: () => void) => {
+  const id = setInterval(changed, 15_000)
+  return () => clearInterval(id)
+}
+
+/** The current minute on the viewer's clock, in their timezone. Null on the
+ *  server: its clock and timezone are not the viewer's, so its frame shows no time
+ *  rather than a wrong one, and the browser fills it in at hydration. */
+function useNow(): Now | null {
+  const minute = React.useSyncExternalStore(tick, minuteNow, () => null)
+  return React.useMemo(() => {
+    if (minute === null) return null
+    const at = new Date(minute * MINUTE)
+    const parts = new Intl.DateTimeFormat("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    }).formatToParts(at)
+    const part = (type: Intl.DateTimeFormatPartTypes) =>
+      parts.find((p) => p.type === type)?.value
+    const time = `${part("hour")}:${part("minute")}`
+    return {
+      menu: `${time} ${part("dayPeriod")}`,
+      time,
+      date: new Intl.DateTimeFormat("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+      }).format(at),
+    }
+  }, [minute])
+}
+
 export function Macos({
   timeline,
   art,
@@ -95,10 +140,12 @@ export function Macos({
   // 0 = open, 1 = shut, in between while it moves.
   const travel = lidTravel(f, ms)
   const shut = f.world.lid === "closed" ? travel : 1 - travel
+  const now = useNow()
   const screen = (
     <Screen
       timeline={timeline}
       clock={clock}
+      now={now}
       frame={f}
       ms={ms}
       shut={shut}
@@ -167,7 +214,7 @@ export function Macos({
             className="font-extralight text-[9cqw] leading-none tracking-tight"
             style={{ fontFamily: SYSTEM }}
           >
-            {lapse.clock}
+            {lapse.clock ?? now?.time}
           </span>
           <span className="font-mono text-[1.8cqw] text-foreground/70 lowercase">
             {lapse.gained && (
@@ -224,6 +271,7 @@ export function Macos({
 function Screen({
   timeline,
   clock,
+  now,
   frame: f,
   ms,
   shut,
@@ -233,6 +281,7 @@ function Screen({
 }: {
   timeline: Timeline
   clock: SceneClock
+  now: Now | null
   frame: Frame
   ms: number
   shut: number
@@ -243,10 +292,36 @@ function Screen({
   const app = timeline.app
   const stage = React.useRef<HTMLDivElement>(null)
   const pointer = usePointer(stage, timeline, clock, ms, f)
-  // A right-click presses the status item for a beat, as the menu bar does.
+  // A story that types nothing has no terminal on screen, and Finder in front.
+  const typed = React.useMemo(
+    () => timeline.steps.some((s) => TYPED.has(s.kind)),
+    [timeline],
+  )
+  // The widest line the terminal will print, in characters: the window is sized
+  // to hold it, so no line of the story ever wraps.
+  const columns = React.useMemo(
+    () =>
+      Math.max(
+        0,
+        ...timeline.steps.map((s) =>
+          s.kind === "command"
+            ? (s.text?.length ?? 0) + 2
+            : s.kind === "output" || s.kind === "muted"
+              ? (s.text?.length ?? 0)
+              : 0,
+        ),
+      ),
+    [timeline],
+  )
+  // A right-click presses the status item for a beat, as the menu bar does; an
+  // open menu or surface keeps it pressed.
   const pressed =
     f.menu !== null ||
+    f.surface !== null ||
     (f.click?.button === "right" && ms - f.click.since < PRESS_MS + 120)
+  const surface = f.surface && art.surfaces?.[f.surface.name]
+  if (f.surface && !surface)
+    throw new Error(`macos: no surface "${f.surface.name}" in art.surfaces`)
   return (
     <div
       data-slot="macos-screen"
@@ -258,7 +333,7 @@ function Screen({
       <div
         ref={stage}
         data-slot="macos-stage"
-        className="absolute top-0 left-0 origin-top-left bg-[radial-gradient(120%_90%_at_20%_0%,color-mix(in_oklab,var(--ag-macos-accent)_22%,#1c1c22),#101014_70%)] text-white"
+        className="absolute top-0 left-0 origin-top-left overflow-hidden bg-[#06070f] text-white"
         style={
           {
             width: STAGE_WIDTH,
@@ -269,11 +344,13 @@ function Screen({
           } as React.CSSProperties
         }
       >
+        <Wallpaper />
         <MenuBar
           app={app}
+          front={typed ? "Terminal" : "Finder"}
           glyph={art.glyphs[f.glyph]}
           open={pressed}
-          clock={f.world.clock}
+          clock={f.world.clock ?? now?.menu}
           battery={f.world.battery}
           charging={f.world.charging}
         >
@@ -285,14 +362,34 @@ function Screen({
             />
           )}
         </MenuBar>
-        <TerminalWindow
-          lines={f.terminal}
-          typing={f.typing}
-          accent={accent}
-          agent={f.agent}
-          Agent={f.agent ? agents?.[f.agent.name] : undefined}
-        />
+        {typed && (
+          <TerminalWindow
+            columns={columns}
+            lines={f.terminal}
+            typing={f.typing}
+            accent={accent}
+            agent={f.agent}
+            Agent={f.agent ? agents?.[f.agent.name] : undefined}
+          />
+        )}
+        {f.surface && surface && (
+          <SurfaceView
+            surface={surface}
+            open={f.surface}
+            ms={ms}
+            stage={stage}
+          />
+        )}
         {pointer && <Cursor x={pointer.x} y={pointer.y} />}
+        <LockScreen
+          locked={f.world.locked === true}
+          since={f.lockSince}
+          ms={ms}
+          clock={f.world.clock ?? now?.time}
+          date={f.world.date ?? now?.date}
+          battery={f.world.battery}
+          charging={f.world.charging}
+        />
         {/* The panel sleeps with the lid shut. */}
         <div
           data-slot="macos-panel-off"
@@ -413,6 +510,272 @@ function Cursor({ x, y }: { x: number; y: number }) {
   )
 }
 
+/** The steps that put something in a terminal: a story with none shows no terminal. */
+const TYPED = new Set([
+  "command",
+  "output",
+  "muted",
+  "agent",
+  "history",
+  "prompt",
+])
+
+/** Where a surface hangs: its top this far under the menu bar (the arrow in the
+ *  gap), kept this far inside the screen's edge. */
+const SURFACE_TOP = 26 + 11
+const SURFACE_EDGE = 8
+const ARROW = { width: 22, height: 10 }
+
+/** The app's surface hanging from its glyph, as an NSPopover hangs: centred under
+ *  the status item unless that would leave the screen, then slid inside the edge
+ *  with its arrow still on the glyph. The body is the app's clip, played in step
+ *  with scene time: while the story moves forward it plays, anything else (a scrub, a
+ *  still, a pause) seeks it to the exact second. */
+function SurfaceView({
+  surface,
+  open,
+  ms,
+  stage,
+}: {
+  surface: Surface
+  open: { name: string; from: number; since: number }
+  ms: number
+  stage: React.RefObject<HTMLDivElement | null>
+}) {
+  const [glyph, setGlyph] = React.useState<number | null>(null)
+  React.useLayoutEffect(() => {
+    const root = stage.current
+    const item = root?.querySelector<HTMLElement>(
+      '[data-slot="macos-status-item"]',
+    )
+    if (!root || !item) return
+    const x = offsetIn(item, root).x + item.offsetWidth / 2
+    if (x !== glyph) setGlyph(x)
+  })
+  const second = open.from + (ms - open.since) / 1000
+  const video = React.useRef<HTMLVideoElement>(null)
+  const last = React.useRef(ms)
+  React.useEffect(() => {
+    const v = video.current
+    if (!v) return
+    const forward = ms > last.current && ms - last.current < 250
+    last.current = ms
+    if (Math.abs(v.currentTime - second) > 0.15) v.currentTime = second
+    if (forward && v.paused)
+      v.play().catch((e: unknown) => {
+        // A pause landing while play() is pending rejects it; that is the next
+        // frame's decision, not an error.
+        if (!(e instanceof DOMException && e.name === "AbortError")) throw e
+      })
+    if (!forward && !v.paused) v.pause()
+  })
+  // Unmeasured (the server's first frame), it waits unseen rather than guessing.
+  if (glyph === null) return null
+  const left = Math.min(
+    Math.max(SURFACE_EDGE, glyph - surface.width / 2),
+    STAGE_WIDTH - SURFACE_EDGE - surface.width,
+  )
+  const appear = Math.min(1, Math.max(0, (ms - open.since) / 160))
+  return (
+    <div
+      data-slot="macos-surface"
+      className="absolute z-20"
+      style={{
+        left,
+        top: SURFACE_TOP,
+        width: surface.width,
+        height: surface.height,
+        opacity: appear,
+        transform: `translateY(${(1 - appear) * -4}px)`,
+      }}
+    >
+      <svg
+        aria-hidden="true"
+        viewBox={`0 0 ${ARROW.width} ${ARROW.height + 1}`}
+        className="absolute"
+        style={{
+          left: glyph - left - ARROW.width / 2,
+          top: -ARROW.height,
+          width: ARROW.width,
+          height: ARROW.height + 1,
+        }}
+      >
+        <path
+          d={`M0 ${ARROW.height + 1} Q${ARROW.width / 4} ${ARROW.height + 1} ${ARROW.width / 2} 0 Q${(ARROW.width * 3) / 4} ${ARROW.height + 1} ${ARROW.width} ${ARROW.height + 1} Z`}
+          fill={surface.background}
+          stroke="rgb(255 255 255 / 0.1)"
+        />
+      </svg>
+      <div
+        className="size-full overflow-hidden rounded-[16px] border border-white/10 shadow-[0_18px_50px_rgb(0_0_0/0.5)]"
+        style={{ background: surface.background }}
+      >
+        <video
+          ref={video}
+          src={surface.src}
+          poster={surface.poster}
+          muted
+          playsInline
+          preload="auto"
+          className="size-full object-cover"
+        />
+      </div>
+    </div>
+  )
+}
+
+/** The desktop picture: an original, not Apple's (theirs are theirs), in the spirit
+ *  of macOS 26's: deep blue night with a luminous sweep of violet and teal across it.
+ *  Pure CSS, so it scales with the stage and costs no request. `dim` darkens it for
+ *  the lock screen, which also softens it as a lock screen does. */
+function Wallpaper({ dim = 0 }: { dim?: number }) {
+  return (
+    <div
+      aria-hidden="true"
+      data-slot="macos-wallpaper"
+      className="absolute inset-0 overflow-hidden bg-[linear-gradient(165deg,#0b1230_0%,#070a1c_45%,#04050d_100%)]"
+    >
+      <div
+        className="absolute rounded-[50%] blur-[70px]"
+        style={{
+          left: -180,
+          top: 260,
+          width: 900,
+          height: 420,
+          transform: "rotate(-18deg)",
+          background:
+            "conic-gradient(from 200deg at 55% 50%, #2f5dff 0deg, #7b4dff 80deg, #1fb6c9 170deg, #2f5dff 260deg, #1a2a80 360deg)",
+          opacity: 0.75,
+        }}
+      />
+      <div
+        className="absolute rounded-[50%] blur-[40px]"
+        style={{
+          left: 120,
+          top: 330,
+          width: 760,
+          height: 140,
+          transform: "rotate(-14deg)",
+          background:
+            "linear-gradient(90deg, transparent, rgb(180 200 255 / 0.55), rgb(120 230 240 / 0.35), transparent)",
+        }}
+      />
+      <div
+        className="absolute rounded-full blur-[90px]"
+        style={{
+          right: -120,
+          top: -160,
+          width: 520,
+          height: 420,
+          background: "radial-gradient(closest-side, #1d6fd1, transparent)",
+          opacity: 0.55,
+        }}
+      />
+      {dim > 0 && (
+        <div className="absolute inset-0 bg-black" style={{ opacity: dim }} />
+      )}
+    </div>
+  )
+}
+
+/** Wi-Fi at full strength, the lock screen's other status mark. */
+function WifiGlyph() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 18 13" className="h-[12px] w-auto">
+      <path
+        d="M9 12.2 11.6 9.3a3.6 3.6 0 0 0-5.2 0Z M9 2.2c2.9 0 5.6 1.1 7.6 3l-1.6 1.8A8.6 8.6 0 0 0 9 4.6 8.6 8.6 0 0 0 3 7L1.4 5.2A11 11 0 0 1 9 2.2Zm0 3.6c1.9 0 3.6.7 4.9 1.9l-1.6 1.8A4.9 4.9 0 0 0 9 8.2c-1.3 0-2.4.5-3.3 1.3L4.1 7.7A7.2 7.2 0 0 1 9 5.8Z"
+        fill="white"
+      />
+    </svg>
+  )
+}
+
+/** macOS's lock screen, over everything: the wallpaper dimmed, the date and the
+ *  time large and rounded, and at the bottom the user and the glass password field.
+ *  The Mac is awake behind it and nobody is at it; the top right keeps only Wi-Fi
+ *  and the battery. It comes up and goes with a fade from `since`. */
+function LockScreen({
+  locked,
+  since,
+  ms,
+  clock,
+  date,
+  battery,
+  charging,
+}: {
+  locked: boolean
+  since: number
+  ms: number
+  /** Absent only before the viewer's clock is known (the server's frame). */
+  clock: string | undefined
+  date: string | undefined
+  battery: number
+  charging: boolean
+}) {
+  const p = Math.min(1, Math.max(0, (ms - since) / LOCK_MS))
+  const e = p < 0.5 ? 4 * p ** 3 : 1 - (-2 * p + 2) ** 3 / 2
+  const shown = locked ? e : 1 - e
+  if (shown === 0) return null
+  return (
+    <div
+      data-slot="macos-lock"
+      className="absolute inset-0 z-40 text-white"
+      style={{ opacity: shown }}
+    >
+      <Wallpaper dim={0.28} />
+      <div className="absolute top-[8px] right-[16px] flex items-center gap-[12px]">
+        <WifiGlyph />
+        <BatteryGlyph percent={battery} charging={charging} />
+      </div>
+      <div
+        className="absolute inset-x-0 top-[70px] flex flex-col items-center"
+        style={{ transform: `translateY(${(1 - shown) * 14}px)` }}
+      >
+        {date && (
+          <div className="font-semibold text-[21px] text-white/85 tracking-[0.005em]">
+            {date}
+          </div>
+        )}
+        <div
+          className="font-bold text-[150px] text-white/80 tabular-nums leading-[0.95] tracking-[-0.02em] [text-shadow:0_2px_40px_rgb(0_0_0/0.25)]"
+          style={{ fontFamily: `ui-rounded, "SF Pro Rounded", ${SYSTEM}` }}
+        >
+          {clock}
+        </div>
+      </div>
+      <div className="absolute inset-x-0 bottom-[42px] flex flex-col items-center gap-[12px]">
+        <div className="flex size-[54px] items-center justify-center rounded-full bg-[linear-gradient(180deg,#a3a7b3,#6b6f7c)] ring-[1.5px] ring-white/25 shadow-[0_6px_20px_rgb(0_0_0/0.35)]">
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="size-[32px]">
+            <circle cx="12" cy="8.5" r="4.2" fill="rgb(255 255 255 / 0.95)" />
+            <path
+              d="M3.5 21.5c.8-4.4 4.3-7 8.5-7s7.7 2.6 8.5 7"
+              fill="rgb(255 255 255 / 0.95)"
+            />
+          </svg>
+        </div>
+        <div className="flex h-[30px] w-[196px] items-center justify-between rounded-full border border-white/25 bg-white/15 pr-[4px] pl-[14px] text-[12.5px] text-white/65 shadow-[inset_0_1px_0_rgb(255_255_255/0.2)] backdrop-blur-2xl">
+          Enter Password
+          <span className="flex size-[22px] items-center justify-center rounded-full bg-white/20">
+            <svg aria-hidden="true" viewBox="0 0 12 12" className="size-[10px]">
+              <path
+                d="M2 6h7.5M6.5 2.8 9.7 6 6.5 9.2"
+                fill="none"
+                stroke="white"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+        </div>
+        <div className="text-[11.5px] text-white/60">
+          Touch ID or Enter Password
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /** The camera, a pure function of scene time (`focusSpans` + `zoomAt`): the view
  *  closes in on the screen's top-right corner while a menu, a banner or a freshly
  *  changed glyph is up, and the corner stays put while the rest grows away from it.
@@ -509,6 +872,7 @@ function useCamera(
 
 function MenuBar({
   app,
+  front,
   glyph,
   open,
   clock,
@@ -517,9 +881,12 @@ function MenuBar({
   children,
 }: {
   app: string
+  /** The frontmost app, whose name leads the menu bar. */
+  front: string
   glyph: { light: string; dark: string } | undefined
   open: boolean
-  clock: string
+  /** Absent only before the viewer's clock is known (the server's frame). */
+  clock: string | undefined
   battery: number
   charging: boolean
   children: React.ReactNode
@@ -529,7 +896,7 @@ function MenuBar({
       data-slot="macos-menubar"
       className="relative z-10 flex h-[26px] items-center justify-end gap-[2px] bg-black/25 px-2 text-[13px] backdrop-blur-xl"
     >
-      <span className="mr-auto px-2 font-semibold">Terminal</span>
+      <span className="mr-auto px-2 font-semibold">{front}</span>
       <span
         data-slot="macos-status-item"
         className={cn("relative", STATUS_ITEM, open && "bg-white/20")}
@@ -543,7 +910,13 @@ function MenuBar({
       <span className={STATUS_ITEM}>
         <BatteryGlyph percent={battery} charging={charging} />
       </span>
-      <span className={cn(STATUS_ITEM, "tabular-nums")}>{clock}</span>
+      {/* The slot holds the widest time it can show, so the status items to its
+          left (the glyph the pointer and a surface are measured against) never
+          move when the viewer's clock arrives or a digit changes. */}
+      <span className={cn(STATUS_ITEM, "grid tabular-nums")}>
+        <span className="invisible [grid-area:1/1]">00:00 PM</span>
+        <span className="text-right [grid-area:1/1]">{clock}</span>
+      </span>
     </div>
   )
 }
@@ -653,13 +1026,19 @@ function Menu({
   )
 }
 
+/** The terminal window's own horizontal padding. */
+const TERMINAL_PADDING = 40
+
 function TerminalWindow({
+  columns,
   lines,
   typing,
   accent,
   agent,
   Agent,
 }: {
+  /** The widest line the story prints, in characters. */
+  columns: number
   lines: TerminalLine[]
   typing: { text: string; chars: number } | null
   accent: string
@@ -719,8 +1098,12 @@ function TerminalWindow({
   return (
     <div
       data-slot="macos-terminal"
-      className="absolute top-[88px] left-[64px] flex h-[340px] w-[560px] flex-col overflow-hidden rounded-[12px] border border-white/10 shadow-[0_20px_60px_rgb(0_0_0/0.45)]"
+      className="absolute top-[88px] left-[64px] flex h-[340px] flex-col overflow-hidden rounded-[12px] border border-white/10 shadow-[0_20px_60px_rgb(0_0_0/0.45)]"
       style={{
+        // In the font's own advance (`ch`), two columns spare for a glyph the
+        // mono face lacks (an arrow falls back wider), between the classic window
+        // and the screen's margins.
+        width: `min(${STAGE_WIDTH - 2 * 64}px, max(560px, calc(${columns + 2}ch + ${TERMINAL_PADDING}px)))`,
         background: p.bg,
         fontFamily: "var(--font-mono, Menlo, Monaco, monospace)",
         fontSize: 13,
