@@ -377,6 +377,154 @@ export function frameAt(
   return f
 }
 
+// ── focus: what the camera is about, over time ──
+//
+// A menu bar app lives in a 24pt strip, so the camera closes in on it while there is
+// something there to see: an open menu (a hovered submenu is its own focus, it
+// changes the menu's size), a banner, a glyph that just changed. Spans cover the
+// whole story in order, "none" between, so the camera is a pure function of time:
+// every frame can be drawn alone, in any order, by any renderer.
+
+export type FocusKind = "menu" | "banner" | "glyph"
+
+export interface FocusSpan {
+  /** Stable per thing in focus; "none" is the wide shot. */
+  key: string
+  kind: FocusKind | null
+  start: number
+  end: number
+}
+
+const RANK: Record<FocusKind, number> = { menu: 3, banner: 2, glyph: 1 }
+
+export function focusSpans(timeline: Timeline, clock: SceneClock): FocusSpan[] {
+  const wants: { key: string; kind: FocusKind; start: number; end: number }[] =
+    []
+  let menu: { i: number; hover: string; since: number } | null = null
+  const endMenu = (at: number) => {
+    if (menu)
+      wants.push({
+        key: `menu:${menu.i}:${menu.hover}`,
+        kind: "menu",
+        start: menu.since,
+        end: at,
+      })
+    menu = null
+  }
+  let lid: WorldState["lid"] = "open"
+  let glyph = "off"
+  let unseen: string | null = null
+  timeline.steps.forEach((s, i) => {
+    const start = clock.starts[i] as number
+    const end = clock.ends[i] as number
+    switch (s.kind) {
+      case "menu":
+        endMenu(start)
+        menu = { i, hover: "", since: start }
+        break
+      case "hover":
+        if (menu) {
+          const m = menu
+          endMenu(start)
+          menu = { i: m.i, hover: (s.path ?? []).join("."), since: start }
+        }
+        break
+      case "press":
+        endMenu(end)
+        break
+      case "close":
+        endMenu(start)
+        break
+      case "glyph":
+        if (s.glyph !== glyph)
+          wants.push({
+            key: `glyph:${i}`,
+            kind: "glyph",
+            start,
+            end: start + GLYPH_FOCUS_MS,
+          })
+        glyph = s.glyph as string
+        break
+      case "banner":
+        if (lid === "closed") unseen = s.text ?? ""
+        else
+          wants.push({
+            key: `banner:${i}`,
+            kind: "banner",
+            start,
+            end: start + bannerStay(s.text ?? ""),
+          })
+        break
+      case "world": {
+        const next = (s.world as WorldState).lid
+        if (next === "open" && lid === "closed" && unseen !== null) {
+          const since = start + LID_MS
+          wants.push({
+            key: `banner:${i}`,
+            kind: "banner",
+            start: since,
+            end: since + bannerStay(unseen),
+          })
+          unseen = null
+        }
+        lid = next
+        break
+      }
+    }
+  })
+  endMenu(clock.total)
+  // Between every pair of edges, the highest-ranked want (the latest, on a tie).
+  const edges = [
+    ...new Set([0, clock.total, ...wants.flatMap((w) => [w.start, w.end])]),
+  ]
+    .filter((t) => t >= 0 && t <= clock.total)
+    .sort((a, b) => a - b)
+  const spans: FocusSpan[] = []
+  for (let k = 0; k + 1 < edges.length; k++) {
+    const a = edges[k] as number
+    const b = edges[k + 1] as number
+    let best: (typeof wants)[number] | undefined
+    for (const w of wants)
+      if (w.start <= a && w.end > a)
+        if (
+          !best ||
+          RANK[w.kind] > RANK[best.kind] ||
+          (RANK[w.kind] === RANK[best.kind] && w.start >= best.start)
+        )
+          best = w
+    const key = best?.key ?? "none"
+    const last = spans.at(-1)
+    if (last && last.key === key) last.end = b
+    else spans.push({ key, kind: best?.kind ?? null, start: a, end: b })
+  }
+  return spans
+}
+
+/** How long the camera takes to move between two shots. */
+export const ZOOM_MS = 750
+
+/** The camera's zoom at `ms`, given each span's target (`target(key)`, 1 for the
+ *  wide shot): eased from where the previous span left it, so a span shorter than
+ *  a move hands on its unfinished position, never a jump. */
+export function zoomAt(
+  spans: FocusSpan[],
+  ms: number,
+  target: (key: string) => number,
+): number {
+  const at = (i: number, t: number): number => {
+    const span = spans[i]
+    if (!span) return 1
+    const from = i === 0 ? 1 : at(i - 1, span.start)
+    const to = span.key === "none" ? 1 : target(span.key)
+    const p = Math.min(1, Math.max(0, (t - span.start) / ZOOM_MS))
+    const e = p < 0.5 ? 4 * p ** 3 : 1 - (-2 * p + 2) ** 3 / 2
+    return from + (to - from) * e
+  }
+  let i = spans.findIndex((s) => ms >= s.start && ms < s.end)
+  if (i < 0) i = spans.length - 1
+  return at(i, ms)
+}
+
 /** The row a path points at in an open menu. */
 export function rowAt(rows: MenuRow[], path: number[]): MenuRow | undefined {
   const top = rows[path[0] as number]

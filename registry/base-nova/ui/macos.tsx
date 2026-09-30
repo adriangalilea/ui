@@ -18,15 +18,18 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import {
   type Art,
+  type FocusKind,
   type Frame,
+  focusSpans,
   frameAt,
-  GLYPH_FOCUS_MS,
   KEY_MS,
   lidTravel,
   type MenuRow,
+  type SceneClock,
   sceneClock,
   type TerminalLine,
   type Timeline,
+  zoomAt,
 } from "@/registry/base-nova/lib/macos-session"
 import {
   LINE_HEIGHT,
@@ -129,7 +132,7 @@ export function Macos({
     />
   )
   const viewport = React.useRef<HTMLDivElement>(null)
-  const camera = useCamera(viewport, ms, ms - f.glyphSince < GLYPH_FOCUS_MS)
+  const camera = useCamera(viewport, timeline, clock, ms)
   // Every caption the story will show, so the line is as tall as its tallest from
   // the first frame and the page never moves under the reader.
   const captions = React.useMemo(
@@ -175,11 +178,12 @@ export function Macos({
           )}
         </div>
         {/* The world keeps its clock while the lid is shut: over the dark panel, or
-            in the space the shut lid leaves. Time passing IS the story there. */}
+            in the space the shut lid leaves. Time passing IS the story there. It
+            lives only in the shut half of the lid's travel, never over a lit screen. */}
         <div
           data-slot="macos-lid-status"
           className="pointer-events-none absolute inset-x-0 top-0 bottom-[12%] flex flex-col items-center justify-center gap-[0.8cqw] font-mono text-[1.7cqw] text-foreground/70 lowercase tabular-nums"
-          style={{ opacity: shut }}
+          style={{ opacity: Math.max(0, shut * 2 - 1) }}
         >
           <span>
             lid closed · {f.world.clock} · {f.world.battery}%
@@ -296,82 +300,98 @@ function Screen({
   )
 }
 
-/** The camera: a menu bar app lives in a 24pt strip, so when its menu or a banner is
- *  up, or its glyph has just changed, the view closes in on the screen's top-right
- *  corner, as far as the thing on screen allows. The zoom is measured, not tuned: the
- *  menu's (and submenu's) real box, the banner's, or the glyph's must fit the view,
- *  so a tall menu gets less zoom than a lone glyph. The corner stays put and the rest
- *  grows away from it. The zoom chases its target in SCENE time (a jump backward
- *  snaps), so playing, scrubbing and a frame-by-frame capture land on the same
- *  frames. */
+/** The camera, a pure function of scene time (`focusSpans` + `zoomAt`): the view
+ *  closes in on the screen's top-right corner while a menu, a banner or a freshly
+ *  changed glyph is up, and the corner stays put while the rest grows away from it.
+ *  How far is measured, not tuned: the thing in focus (the menu with its open
+ *  submenu, the banner, the glyph) must fit the view, so a tall menu gets less zoom
+ *  than a lone glyph. Each focus is measured once, from layout offsets (transforms,
+ *  this camera's and the lid's, do not move them), so a frame gets the same zoom
+ *  whether it was played to, scrubbed to, or rendered alone by a film farm. */
 const ZOOM_MAX = 3.2
-const ZOOM_TAU_MS = 260
 const FOCUS_MARGIN = 20
+const FOCUS_SLOT: Record<FocusKind, string> = {
+  menu: '[data-slot="macos-menu"]',
+  banner: '[data-slot="macos-banner"]',
+  glyph: '[data-slot="macos-status-item"]',
+}
+
+/** Measured zoom per focus key, one table per timeline. The zoom is a ratio of the
+ *  focus to the screen, both of which scale with the stage, so it holds at any size. */
+const TARGETS = new WeakMap<Timeline, Map<string, number>>()
+function zoomTargets(timeline: Timeline) {
+  const known = TARGETS.get(timeline)
+  if (known) return known
+  const fresh = new Map<string, number>()
+  TARGETS.set(timeline, fresh)
+  return fresh
+}
 
 function useCamera(
   viewport: React.RefObject<HTMLDivElement | null>,
+  timeline: Timeline,
+  clock: SceneClock,
   ms: number,
-  glyph: boolean,
 ) {
-  const [camera, setCamera] = React.useState({ scale: 1, x: 0, y: 0 })
-  const chase = React.useRef({ scale: 1, ms: 0 })
+  const spans = React.useMemo(
+    () => focusSpans(timeline, clock),
+    [timeline, clock],
+  )
+  const targets = zoomTargets(timeline)
+  const [corner, setCorner] = React.useState({ x: 0, y: 0 })
+  const [, measured] = React.useReducer((n: number) => n + 1, 0)
+  const span = spans.find((s) => ms >= s.start && ms < s.end)
   React.useLayoutEffect(() => {
     const vp = viewport.current
     const box = vp?.querySelector<HTMLElement>('[data-slot="macos-screen"]')
     const stage = vp?.querySelector<HTMLElement>('[data-slot="macos-stage"]')
     if (!vp || !box || !stage) return
-    // The screen's corner in the viewport, from layout offsets: transforms (this
-    // camera, the lid) do not move them.
-    let x = box.offsetWidth
-    let y = 0
-    for (
-      let el: HTMLElement | null = box;
-      el && el !== vp;
-      el = el.offsetParent as HTMLElement | null
-    ) {
-      x += el.offsetLeft
-      y += el.offsetTop
+    const offset = (el: HTMLElement, root: HTMLElement) => {
+      let x = 0
+      let y = 0
+      for (
+        let e: HTMLElement | null = el;
+        e && e !== root;
+        e = e.offsetParent as HTMLElement | null
+      ) {
+        x += e.offsetLeft
+        y += e.offsetTop
+      }
+      return { x, y }
     }
-    const perDesign = box.offsetWidth / STAGE_WIDTH
-    // What must stay in view, in stage px: rects relative to the stage divide out
-    // every transform above it.
-    const sr = stage.getBoundingClientRect()
-    const k = sr.width / STAGE_WIDTH
+    const o = offset(box, vp)
+    const x = o.x + box.offsetWidth
+    if (x !== corner.x || o.y !== corner.y) setCorner({ x, y: o.y })
+    if (!span?.kind || targets.has(span.key)) return
     let left = STAGE_WIDTH
     let bottom = 0
     for (const el of stage.querySelectorAll<HTMLElement>(
-      `[data-slot="macos-menu"], [data-slot="macos-banner"]${glyph ? ', [data-slot="macos-status-item"]' : ""}`,
+      FOCUS_SLOT[span.kind],
     )) {
-      const r = el.getBoundingClientRect()
-      left = Math.min(left, (r.left - sr.left) / k - FOCUS_MARGIN)
-      bottom = Math.max(bottom, (r.bottom - sr.top) / k + FOCUS_MARGIN)
+      const p = offset(el, stage)
+      left = Math.min(left, p.x - FOCUS_MARGIN)
+      bottom = Math.max(bottom, p.y + el.offsetHeight + FOCUS_MARGIN)
     }
-    const target =
-      bottom === 0
-        ? 1
-        : Math.max(
-            1,
-            Math.min(
-              ZOOM_MAX,
-              x / ((STAGE_WIDTH - left) * perDesign),
-              (vp.offsetHeight - y) / (bottom * perDesign),
-            ),
-          )
-    const c = chase.current
-    c.scale =
-      ms < c.ms
-        ? target
-        : c.scale +
-          (target - c.scale) * (1 - Math.exp(-(ms - c.ms) / ZOOM_TAU_MS))
-    c.ms = ms
-    if (
-      Math.abs(c.scale - camera.scale) > 0.0005 ||
-      x !== camera.x ||
-      y !== camera.y
+    if (bottom === 0) return
+    const perDesign = box.offsetWidth / STAGE_WIDTH
+    targets.set(
+      span.key,
+      Math.max(
+        1,
+        Math.min(
+          ZOOM_MAX,
+          x / ((STAGE_WIDTH - left) * perDesign),
+          (vp.offsetHeight - o.y) / (bottom * perDesign),
+        ),
+      ),
     )
-      setCamera({ scale: c.scale, x, y })
+    measured()
   })
-  return camera
+  return {
+    scale: zoomAt(spans, ms, (key) => targets.get(key) ?? 1),
+    x: corner.x,
+    y: corner.y,
+  }
 }
 
 /** A box's size, measured: the one fact CSS cannot divide by. */
