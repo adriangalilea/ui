@@ -13,35 +13,48 @@
 import * as React from "react"
 import { type Clip, progressAt, type Span } from "@/registry/base-nova/lib/clip"
 
-const Context = React.createContext<number | null>(null)
+const Context = React.createContext<{ at: number; playing: boolean } | null>(
+  null,
+)
 
-/** Provides the moment (0..1 of the clip) to the content inside. */
+/** Provides the moment (0..1 of the clip) to the content inside, and whether time is
+ *  running forward at the clip's pace from it. */
 export function Playhead({
   at,
+  playing = false,
   children,
 }: {
   at: number
+  playing?: boolean
   children: React.ReactNode
 }) {
-  return <Context.Provider value={at}>{children}</Context.Provider>
+  const value = React.useMemo(() => ({ at, playing }), [at, playing])
+  return <Context.Provider value={value}>{children}</Context.Provider>
 }
 
 /** The moment a component draws (`at`, 0..1): its own `progress` when given, else the
  *  driver's around it. Neither is a component placed where nothing moves it, and
  *  that screams. `driven` says which: a driven component can change at any moment
  *  (a chat keeps a viewport that a landing message slides inside), one with its own
- *  progress is a still and never will. */
+ *  progress is a still and never will. `playing` says time runs forward at the clip's
+ *  pace, for content with a clock of its own (a video) to run alongside; anything
+ *  else (paused, scrubbed, rewinding, a still) holds it on `at`. */
 export function usePlayhead(progress: number | undefined): {
   at: number
   driven: boolean
+  playing: boolean
 } {
   const driver = React.useContext(Context)
-  const p = progress ?? driver
-  if (p === null)
+  if (progress === undefined && driver === null)
     throw new Error(
       "no playhead: pass `progress`, or place the component inside a driver (Playback, Player)",
     )
-  return { at: Math.min(1, Math.max(0, p)), driven: progress === undefined }
+  const p = progress ?? (driver?.at as number)
+  return {
+    at: Math.min(1, Math.max(0, p)),
+    driven: progress === undefined,
+    playing: progress === undefined && !!driver?.playing,
+  }
 }
 
 export interface PlaybackOptions {
@@ -209,6 +222,8 @@ export function usePlayback(
     at: state.at,
     target: state.target,
     moving,
+    /** Forward at the clip's pace (a rewind moves too, at `REWIND`x). */
+    playing: state.at < state.target,
     progress: progressAt(clip, state.at),
     seek,
     aim,
@@ -233,7 +248,9 @@ export function Playback({
   const playback = usePlayback(clip, options)
   return (
     <div ref={playback.root} data-slot="playback" className={className}>
-      <Playhead at={playback.progress}>{children}</Playhead>
+      <Playhead at={playback.progress} playing={playback.playing}>
+        {children}
+      </Playhead>
     </div>
   )
 }

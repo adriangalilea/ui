@@ -69,6 +69,7 @@ export function Player({
     at: playhead,
     target,
     moving: playing,
+    playing: forward,
     seek,
     aim,
     pause,
@@ -165,7 +166,27 @@ export function Player({
         } as React.CSSProperties
       }
     >
-      <Playhead at={progressAt(clip, shown)}>{children}</Playhead>
+      {/* A click anywhere on the content plays and pauses, as on a video; a control
+          inside the content (a reaction pill) keeps its own click. The button below is
+          the keyboard's way. */}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: the toggle button is the accessible control */}
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: space and k toggle on the player */}
+      <div
+        data-slot="player-content"
+        onClick={(e) => {
+          if (
+            (e.target as Element).closest(
+              "button, a, input, select, textarea, [role=button], [role=slider]",
+            )
+          )
+            return
+          toggle()
+        }}
+      >
+        <Playhead at={progressAt(clip, shown)} playing={forward && !hover}>
+          {children}
+        </Playhead>
+      </div>
       <div className="mt-4 flex select-none items-center gap-3">
         <button
           type="button"

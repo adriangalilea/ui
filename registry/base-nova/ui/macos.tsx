@@ -141,7 +141,8 @@ export function Macos({
   className,
 }: MacosProps) {
   const clock = React.useMemo(() => sceneClock(timeline), [timeline])
-  const ms = usePlayhead(progress).at * clock.total
+  const playhead = usePlayhead(progress)
+  const ms = playhead.at * clock.total
   const f = frameAt(timeline, clock, ms)
   // 0 = open, 1 = shut, in between while it moves.
   const travel = lidTravel(f, ms)
@@ -154,6 +155,7 @@ export function Macos({
       now={now}
       frame={f}
       ms={ms}
+      playing={playhead.playing}
       shut={shut}
       art={art}
       accent={accent}
@@ -281,6 +283,7 @@ function Screen({
   now,
   frame: f,
   ms,
+  playing,
   shut,
   art,
   accent,
@@ -292,6 +295,7 @@ function Screen({
   now: Now | null
   frame: Frame
   ms: number
+  playing: boolean
   shut: number
   art: Art
   accent: string
@@ -386,6 +390,7 @@ function Screen({
             surface={surface}
             open={f.surface}
             ms={ms}
+            playing={playing}
             stage={stage}
           />
         )}
@@ -539,17 +544,19 @@ const ARROW = { width: 22, height: 10 }
 /** The app's surface hanging from its glyph, as an NSPopover hangs: centred under
  *  the status item unless that would leave the screen, then slid inside the edge
  *  with its arrow still on the glyph. The body is the app's clip, played in step
- *  with scene time: while the story moves forward it plays, anything else (a scrub, a
- *  still, a pause) seeks it to the exact second. */
+ *  with scene time: while the playhead plays it plays, anything else (a scrub, a
+ *  still, a pause) holds it at the exact second. */
 function SurfaceView({
   surface,
   open,
   ms,
+  playing,
   stage,
 }: {
   surface: Surface
   open: { name: string; from: number; since: number }
   ms: number
+  playing: boolean
   stage: React.RefObject<HTMLDivElement | null>
 }) {
   const [glyph, setGlyph] = React.useState<number | null>(null)
@@ -564,20 +571,17 @@ function SurfaceView({
   })
   const second = open.from + (ms - open.since) / 1000
   const video = React.useRef<HTMLVideoElement>(null)
-  const last = React.useRef(ms)
   React.useEffect(() => {
     const v = video.current
     if (!v) return
-    const forward = ms > last.current && ms - last.current < 250
-    last.current = ms
     if (Math.abs(v.currentTime - second) > 0.15) v.currentTime = second
-    if (forward && v.paused)
+    if (playing && v.paused)
       v.play().catch((e: unknown) => {
         // A pause landing while play() is pending rejects it; that is the next
         // frame's decision, not an error.
         if (!(e instanceof DOMException && e.name === "AbortError")) throw e
       })
-    if (!forward && !v.paused) v.pause()
+    if (!playing && !v.paused) v.pause()
   })
   // Unmeasured (the server's first frame), it waits unseen rather than guessing.
   if (glyph === null) return null
