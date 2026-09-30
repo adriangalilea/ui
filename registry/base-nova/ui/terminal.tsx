@@ -29,16 +29,24 @@ export interface TerminalProps {
   /** Minimum rows the frame reserves, so a short session still gets a window that
    *  feels like one (a hero). The script's own length always wins when longer. */
   rows?: number
+  /** The type size, any CSS length; the whole frame scales with it. A frame that
+   *  must fill its box, as a still fills its image, passes a share of the box's width
+   *  (`cqw`, lib/terminal-session `stillSize()`). */
+  size?: string
   /** Accessible description (the terminal is one picture). */
   alt: string
   className?: string
 }
+
+/** The chrome is drawn at 13px type and kept in em, so it scales with `size`. */
+const em = (px: number) => `${px / 13}em`
 
 export function Terminal({
   session,
   progress,
   accent,
   rows = 0,
+  size = "13px",
   alt,
   className,
 }: TerminalProps) {
@@ -98,10 +106,10 @@ export function Terminal({
       aria-label={alt}
       style={{
         background: palette.bg,
-        borderRadius: 12,
+        borderRadius: em(12),
         overflow: "hidden",
         fontFamily: "var(--font-mono, Menlo, Monaco, monospace)",
-        fontSize: 13,
+        fontSize: size,
         lineHeight: LINE_HEIGHT,
       }}
     >
@@ -109,19 +117,19 @@ export function Terminal({
         <div
           style={{
             display: "flex",
-            gap: 8,
+            gap: em(8),
             alignItems: "center",
             background: palette.bar,
-            padding: "10px 16px",
+            padding: `${em(10)} ${em(16)}`,
           }}
         >
           {[0, 1, 2].map((d) => (
             <span
               key={d}
               style={{
-                width: 10,
-                height: 10,
-                borderRadius: 5,
+                width: em(10),
+                height: em(10),
+                borderRadius: "50%",
                 background: palette.dot,
               }}
             />
@@ -133,7 +141,7 @@ export function Terminal({
         <div
           style={{
             display: "grid",
-            padding: "20px 24px 24px",
+            padding: `${em(20)} ${em(24)} ${em(24)}`,
             whiteSpace: "pre-wrap",
             overflowWrap: "anywhere",
           }}

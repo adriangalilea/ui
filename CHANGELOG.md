@@ -35,10 +35,12 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 ### terminal
 
 - Breaking: the terminal draws and no longer plays itself. The in-view autoplay and `duration` are gone: place it inside `<Player clip={sessionTimeline(parseSession(session)).clip}>`, or pass a fixed `progress` for a still.
+- New: `size`, the type size as any CSS length (default `13px`); the chrome is in em and scales with it. A box the terminal must fill passes `stillSize()`.
 
 ### terminal-session
 
 - `sessionTimeline(…).clip`: the session as a clip, one chapter per command titled with it.
+- New: `STILL`, the still's frame and type in px (the defaults of `renderSessionSvg`), and `stillSize()`, the still's type as a share of its width in `cqw`, so a live terminal in an inline-size container draws the frame the still draws.
 
 ### scroll-stage
 

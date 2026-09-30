@@ -154,6 +154,16 @@ export interface StillOptions {
   height?: number
 }
 
+/** The still's frame and type, in px. */
+export const STILL = { fontSize: 38, width: 1920, height: 1200 } as const
+
+/** The type size at which the live terminal fills its box the way a still fills its
+ *  frame: the still's type as a share of its width, in the box's own width. The box
+ *  must be an inline-size container. */
+export function stillSize(): string {
+  return `${(STILL.fontSize / STILL.width) * 100}cqw`
+}
+
 const esc = (s: string) =>
   s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
 
@@ -164,9 +174,9 @@ export function renderSessionSvg(
   lines: SessionLine[],
   {
     accent = "#38ff6e",
-    fontSize = 38,
-    width = 1920,
-    height = 1200,
+    fontSize = STILL.fontSize,
+    width = STILL.width,
+    height = STILL.height,
   }: StillOptions = {},
 ): string {
   const { bg, bar, dot, prompt, muted, command } = terminalPalette(accent)
