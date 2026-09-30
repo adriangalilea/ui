@@ -267,7 +267,8 @@ export default function Demo() {
           <Kicker>
             md · the resolution badges are the disc-case badge drawn in the
             family, beside the Ultra HD Blu-ray lockup; HDR10 · HDR10+ · HLG ·
-            AAC · 2.0 · 7.1 · Remux · WEB-DL are one-line drawn badges
+            3D · AAC · 2.0 · 7.1 · Remux · WEB-DL are one-line drawn badges (3D
+            names its layout in the axis label, the badge stays one word)
           </Kicker>
           <div className="flex flex-wrap items-center gap-2.5">
             <PictureChip resolution="2160p" range="hdr10" />
@@ -276,6 +277,8 @@ export default function Demo() {
             <PictureChip resolution="1080p" range="hlg" />
             <PictureChip resolution="720p" />
             <PictureChip resolution="sd" />
+            <PictureChip resolution="1080p" stereo="half-sbs" />
+            <PictureChip resolution="2160p" range="hdr10" stereo="mvc" />
             <SoundChip audio={{ codec: "aac", channels: "2.0" }} />
             <SoundChip audio={{ codec: "dts-hd-ma", channels: "7.1" }} />
             <TierChip tier="remux" />
@@ -288,6 +291,7 @@ export default function Demo() {
             <PictureChip resolution="1080p" range="hlg" size="sm" />
             <PictureChip resolution="720p" size="sm" />
             <PictureChip resolution="sd" size="sm" />
+            <PictureChip resolution="1080p" stereo="half-sbs" size="sm" />
             <SoundChip audio={{ codec: "aac", channels: "2.0" }} size="sm" />
             <SoundChip
               audio={{ codec: "dts-hd-ma", channels: "7.1" }}

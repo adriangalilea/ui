@@ -11,6 +11,7 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 ### media-spec
 
+- New: stereo 3D on the picture axis. `STEREOS` (`sbs`, `half-sbs`, `tab`, `half-tab`, `mvc`, and `3d` when the layout is unnamed), `stereo` on `PictureChip` and `MediaSpec`, drawn as one `3D` badge after the range, with the layout in the axis label ("1080p · 3D half side-by-side"). New: `stereoLabel`; `pictureLabel` takes `stereo` as an optional fourth argument. A flat picture passes nothing and renders as before.
 - Fix: the resolution sticker's lower band shows its word ("ULTRA HD", "FULL HD"); it was drawn in the band's own colour and read as an empty panel.
 - Fix: gold at `vivid`, and every gold badge at `sm`, draws its metal and letters; both were empty boxes.
 - `vivid` keeps the chip in its own ink: the frame goes to the full ink and the glow grows, and the word no longer turns white inside a coloured frame. A consumer that relied on vivid reading white sets the kind's ink to white.

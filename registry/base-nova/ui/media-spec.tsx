@@ -1,5 +1,5 @@
 // MEDIA FORMAT CHIPS. The generic vocabulary of what a video file carries, typed:
-// picture (resolution × dynamic range), sound (codec × object audio × channels), the
+// picture (resolution × dynamic range × stereo 3D), sound (codec × object audio × channels), the
 // source tier, the language, the cut. An app passes VALUES, never label strings, and
 // the chip owns every mark, word and tone, the way a score chip knows what IMDb is.
 // This item carries visuals and vocabulary only: a consumer that needs MEANING (what a
@@ -10,8 +10,8 @@
 // brand lockup keeps its shape, a symbol its glyph, the flag its colours, and nothing
 // draws a frame around any of them, so there is never a box in a box. Every BOXED
 // value (a resolution, HDR10, HDR10+, HLG, channels, Remux, WEB-DL, DTS:X, a codec
-// named beside its object mark, AAC and the other plain codecs, a language, every cut
-// but IMAX) is the ONE drawn badge: a rounded box with the word set in the surrounding
+// named beside its object mark, AAC and the other plain codecs, a language, 3D, every
+// cut but IMAX) is the ONE drawn badge: a rounded box with the word set in the surrounding
 // sans, semibold, to the HDR10 badge's proportions, so the whole boxed family has one
 // weight at each rung. The resolution badge is the disc-case badge drawn in that
 // family: the sticker, "4K" over an inverted "ULTRA HD" band. The HDR10 / HDR10+
@@ -25,7 +25,7 @@
 // highlight under gold). A chip is one colour at every step: vivid never turns the
 // word white inside a coloured frame. What a step means is the consumer's to decide.
 //
-// AN AXIS IS A GROUP of one to three chips: picture is [resolution] [range], sound is
+// AN AXIS IS A GROUP of one to three chips: picture is [resolution] [range] [3D], sound is
 // [object] [codec] [channels], tier is [disc] [Remux], lang is [flag] [name]. The
 // per-axis components render the group, the `MediaSpec` strip sets the groups apart
 // (tight within an axis, wider between), and a `trailing` node follows the axis's
@@ -53,7 +53,7 @@
 // on the near-black ground with "4K" in the ink, the lower a band filled with the ink
 // carrying "ULTRA HD" in the ground colour (`--ag-media-sticker-ground`, #0b0b0b).
 // Every chip carries data-slot="media-chip", data-kind (the AXIS: picture | sound |
-// tier | lang | cut), data-facet (resolution | range | object | codec | channels | tier
+// tier | lang | cut), data-facet (resolution | range | stereo | object | codec | channels | tier
 // | edition | lang | cut), data-emphasis, data-size, and data-mark when it is artwork,
 // so a consumer styles Dolby Vision or Atmos from outside without a class name to know.
 // The typed label is the accessible name of the axis group whatever is drawn.
@@ -80,6 +80,20 @@ export const RANGES = [
   "dolby-vision",
 ] as const
 export type DynamicRange = (typeof RANGES)[number]
+
+/** How one picture carries two eyes: the frame split side by side or top over
+ *  bottom, each eye at full or half resolution, or the Blu-ray 3D disc's MVC
+ *  second view. `3d` is stereoscopic with the layout unnamed (a release saying
+ *  only "3D"). A flat picture has no stereo value at all. */
+export const STEREOS = [
+  "sbs",
+  "half-sbs",
+  "tab",
+  "half-tab",
+  "mvc",
+  "3d",
+] as const
+export type Stereo = (typeof STEREOS)[number]
 
 export const AUDIO_CODECS = [
   "aac",
@@ -138,6 +152,7 @@ export type Kind = (typeof KINDS)[number]
 export const FACETS = [
   "resolution",
   "range",
+  "stereo",
   "object",
   "codec",
   "channels",
@@ -182,6 +197,14 @@ const RANGE_LABEL: Record<DynamicRange, [long: string, short: string]> = {
   hdr10: ["HDR10", "HDR10"],
   "hdr10-plus": ["HDR10+", "HDR10+"],
   "dolby-vision": ["Dolby Vision", "DV"],
+}
+const STEREO_LABEL: Record<Stereo, string> = {
+  sbs: "side-by-side",
+  "half-sbs": "half side-by-side",
+  tab: "top-and-bottom",
+  "half-tab": "half top-and-bottom",
+  mvc: "Blu-ray 3D",
+  "3d": "",
 }
 const CODEC_LABEL: Record<AudioCodec, string> = {
   aac: "AAC",
@@ -235,16 +258,27 @@ export function isLossless(codec: AudioCodec): boolean {
   return LOSSLESS.has(codec)
 }
 
-/** "4K · Dolby Vision" at md, "4K·DV" at sm; SDR is the default and goes unsaid. */
+/** "3D half side-by-side"; "3D" when the layout is unnamed. */
+export function stereoLabel(stereo: Stereo): string {
+  const layout = STEREO_LABEL[stereo]
+  return layout ? `3D ${layout}` : "3D"
+}
+
+/** "4K · Dolby Vision · 3D half side-by-side" at md, "4K·DV·3D" at sm; SDR is the
+ *  default and goes unsaid, and so is a flat picture. */
 export function pictureLabel(
   resolution: Resolution,
   range: DynamicRange = "sdr",
   size: Size = "md",
+  stereo?: Stereo,
 ): string {
-  const res = RESOLUTION_LABEL[resolution]
-  if (range === "sdr") return res
-  const [long, short] = RANGE_LABEL[range]
-  return size === "sm" ? `${res}·${short}` : `${res} · ${long}`
+  const parts = [RESOLUTION_LABEL[resolution]]
+  if (range !== "sdr") {
+    const [long, short] = RANGE_LABEL[range]
+    parts.push(size === "sm" ? short : long)
+  }
+  if (stereo) parts.push(size === "sm" ? "3D" : stereoLabel(stereo))
+  return parts.join(size === "sm" ? "·" : " · ")
 }
 
 /** "TrueHD Atmos 7.1" at md; the one word that matters at sm ("Atmos", else "TrueHD"). */
@@ -825,8 +859,14 @@ const word = (w: string, sub?: string): Atom => ({ word: w, sub })
 export function PictureChip({
   resolution,
   range = "sdr",
+  stereo,
   ...chip
-}: ChipProps & { resolution: Resolution; range?: DynamicRange }) {
+}: ChipProps & {
+  resolution: Resolution
+  range?: DynamicRange
+  /** a stereoscopic picture's layout; absent for a flat picture */
+  stereo?: Stereo
+}) {
   const size = chip.size ?? "md"
   const atoms: [Facet, Atom][] = []
   const [primary, secondary] = RESOLUTION_BADGE[resolution]
@@ -843,10 +883,12 @@ export function PictureChip({
       rng ? mark(rng, RANGE_LABEL[range][0]) : word(RANGE_LABEL[range][0]),
     ])
   }
+  // 3D is one drawn badge whatever the layout; the layout is the axis's words.
+  if (stereo) atoms.push(["stereo", word("3D")])
   return (
     <Axis
       kind="picture"
-      label={pictureLabel(resolution, range, size)}
+      label={pictureLabel(resolution, range, size, stereo)}
       atoms={atoms}
       {...chip}
     />
@@ -956,6 +998,7 @@ export function CutChip({ cut, ...chip }: ChipProps & { cut: Cut }) {
 export interface MediaSpecProps {
   resolution?: Resolution
   range?: DynamicRange
+  stereo?: Stereo
   audio?: Audio
   tier?: Tier
   lang?: string
@@ -976,6 +1019,7 @@ export interface MediaSpecProps {
 export function MediaSpec({
   resolution,
   range,
+  stereo,
   audio,
   tier,
   lang,
@@ -1006,6 +1050,7 @@ export function MediaSpec({
         <PictureChip
           resolution={resolution}
           range={range}
+          stereo={stereo}
           trailing={adornments?.picture}
           {...shared}
         />
