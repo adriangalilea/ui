@@ -48,6 +48,7 @@ export type StepKind =
   | "right-click"
   | "banner"
   | "caption"
+  | "poster" // the frame a still of the story shows; takes no time
   // A coding agent in the terminal (drawn by a skin the page supplies):
   | "agent" // opens it: `text` its name, `arg` the working directory
   | "history" // a prompt already sent when the story starts
@@ -121,6 +122,7 @@ const PAUSE: Record<StepKind, number> = {
   "right-click": Math.max(POINTER_MS + 150, LEAD_MS),
   banner: 300,
   caption: 250,
+  poster: 0,
   agent: 0,
   history: 0,
   prompt: 400,
@@ -242,6 +244,16 @@ const AGENT_WORDS = new Set<StepKind>(["say", "tool", "done"])
 /** The opening frame: the world, the glyph, an agent already at work. It is on screen
  *  from the first instant, then held before the story's first act. */
 const OPENING = new Set<StepKind>(["world", "glyph", "agent", "history"])
+
+/** Where the story's `poster` step lands, as the stage's `progress` (0..1): the one
+ *  frame a still shows (a link card, a shelf). The scene chooses it; a story
+ *  without one screams rather than posing an arbitrary frame. */
+export function posterAt(timeline: Timeline): number {
+  const i = timeline.steps.findIndex((s) => s.kind === "poster")
+  if (i < 0) throw new Error("posterAt: the scene marks no `poster` frame")
+  const clock = sceneClock(timeline)
+  return (clock.starts[i] as number) / clock.total
+}
 
 export function sceneClock(timeline: Timeline): SceneClock {
   let at = 0
