@@ -1,28 +1,45 @@
+import type * as React from "react"
 import type { ComponentProps, ReactNode } from "react"
 import { cn } from "@/lib/utils"
 import "./device-frame.css"
 
 type DesktopFrameProps = ComponentProps<"div"> & { screenClassName?: string }
 
-/** A 16:10 laptop display with a shallow base. */
+/** A 16:10 laptop display with a shallow base. `lid` closes it on its hinge: 0 is
+ *  open, 1 is shut, anything between is the lid on its way (the caller animates the
+ *  number; the frame draws exactly that angle). Shut, it is a closed laptop from the
+ *  front: the lid's top surface resting on the base. Without `lid` the frame is flat
+ *  2D and nothing 3D is set up. */
 export function MacbookFrame({
   children,
   className,
   screenClassName,
   notch = true,
+  lid,
+  style,
   ...props
-}: DesktopFrameProps & { notch?: boolean }) {
+}: DesktopFrameProps & { notch?: boolean; lid?: number }) {
   return (
     <div
       {...props}
       data-device="macbook"
+      data-hinged={lid === undefined ? undefined : ""}
       className={cn("device-desktop", className)}
+      style={
+        lid === undefined
+          ? style
+          : ({
+              ...style,
+              "--device-lid": Math.min(1, Math.max(0, lid)),
+            } as React.CSSProperties)
+      }
     >
       <div className="device-lid">
         <div className={cn("device-display", screenClassName)}>{children}</div>
         {notch && <span aria-hidden className="device-notch" />}
         <span aria-hidden className="device-camera" />
       </div>
+      {lid !== undefined && <span aria-hidden className="device-lid-shut" />}
       <div aria-hidden className="device-base" />
       <span aria-hidden className="device-rubber left" />
       <span aria-hidden className="device-rubber right" />

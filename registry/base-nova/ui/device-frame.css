@@ -44,6 +44,35 @@
     width: 84%;
     margin-inline: auto;
   }
+  /* The hinge (MacbookFrame `lid`, 0 open .. 1 shut, as --device-lid). The lid
+     turns on its bottom edge toward the viewer until it is edge-on and gone; over
+     its last stretch the shut laptop's top surface fades in above the base: a thin
+     aluminium slab, wider at the front edge nearest the viewer, the way a closed
+     MacBook reads from the front. The frame draws no keyboard deck (the base is its
+     front edge), so a lid laid flat in true 3D would have no consistent place to
+     rest; this draws what the eye expects instead. Only set up when hinged. */
+  .device-desktop[data-hinged] {
+    perspective: 3600px;
+  }
+  .device-desktop[data-hinged] .device-lid {
+    z-index: 3;
+    transform-origin: 50% 100%;
+    transform: rotateX(calc(var(--device-lid, 0) * -90deg));
+  }
+  .device-lid-shut {
+    position: absolute;
+    z-index: 3;
+    left: 50%;
+    bottom: 3.5cqw;
+    width: 97%;
+    height: 2.4cqw;
+    translate: -50% 0;
+    clip-path: polygon(5.7% 0, 94.3% 0, 100% 100%, 0 100%);
+    background:
+      linear-gradient(90deg, #0004, transparent 8%, transparent 92%, #0004),
+      linear-gradient(#2a2b2f, #3a3b40 70%, #56575c);
+    opacity: clamp(0, (var(--device-lid, 0) - 0.82) / 0.18, 1);
+  }
   .device-base {
     position: relative;
     z-index: 2;
