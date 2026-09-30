@@ -12,12 +12,14 @@ export function isKeys(text: string): boolean {
   return keys(text) !== null
 }
 
+/** One key. Every measure is in em, so a cap is the same shape at any size: inline
+ *  in a sentence or large over a stage. The Mac's own face draws ⌃⌥⌘ as macOS does. */
 const CAP =
-  "inline-flex min-w-[1.7em] items-center justify-center rounded-md border border-b-2 border-border bg-muted px-1.5 py-1 font-mono text-[0.72em] font-medium leading-none text-foreground/90"
+  "inline-flex min-w-[1.8em] items-center justify-center rounded-[0.32em] border border-b-2 border-border bg-muted px-[0.45em] py-[0.32em] text-[0.8em] font-medium leading-none text-foreground/90 [font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif]"
 
 function Caps({ caps }: { caps: string[] }) {
   return (
-    <span className="inline-flex gap-[0.2em]">
+    <span className="inline-flex gap-[0.25em]">
       {caps.map((cap, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: caps repeat (⌘ ⌘), position is identity
         <kbd key={i} data-slot="kbd-cap" className={CAP}>

@@ -44,7 +44,7 @@ import {
   MacbookFrame,
   StudioDisplayFrame,
 } from "@/registry/base-nova/ui/device-frame"
-import { KeysText } from "@/registry/base-nova/ui/kbd"
+import { Kbd, KeysText } from "@/registry/base-nova/ui/kbd"
 
 /** The hardware around the screen. Absent: the screen alone, rounded. */
 export type MacosDevice = "macbook" | "display"
@@ -841,24 +841,20 @@ function Keycaps({ keys, age }: { keys: string; age: number }) {
   const t = Math.min(1, age / 160)
   const out = Math.max(0, (age - (KEY_MS - 260)) / 260)
   return (
+    // The same keys as everywhere else (@ag/kbd), large, and toned for the dark screen
+    // they float over.
     <div
       data-slot="macos-keycaps"
-      className={cn(OVERLAY, "flex gap-[0.7cqw]")}
+      className={cn(
+        OVERLAY,
+        "text-[3.6cqw] [&_[data-slot=kbd-cap]]:border-white/15 [&_[data-slot=kbd-cap]]:bg-neutral-800/85 [&_[data-slot=kbd-cap]]:text-white [&_[data-slot=kbd-cap]]:shadow-[0_8px_24px_rgb(0_0_0/0.4)] [&_[data-slot=kbd-cap]]:backdrop-blur-xl",
+      )}
       style={{
         opacity: Math.min(t, 1 - out),
         transform: `scale(${0.92 + 0.08 * t})`,
       }}
     >
-      {[...keys].map((k, i) => (
-        <kbd
-          // biome-ignore lint/suspicious/noArrayIndexKey: a chord is positional
-          key={i}
-          className="flex h-[5cqw] min-w-[5cqw] items-center justify-center rounded-[1cqw] border border-white/15 bg-neutral-800/85 px-[1.2cqw] font-medium text-[2.3cqw] text-white shadow-[0_2px_0_rgb(255_255_255/0.08),0_8px_24px_rgb(0_0_0/0.4)] backdrop-blur-xl"
-          style={{ fontFamily: SYSTEM }}
-        >
-          {k}
-        </kbd>
-      ))}
+      <Kbd keys={keys} />
     </div>
   )
 }
