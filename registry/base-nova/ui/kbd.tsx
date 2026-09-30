@@ -3,7 +3,8 @@
 // screams when the string is not keys. `<KeysText>` draws a sentence with its
 // shortcuts as keys ("Press ⌃⌥⌘A to …"), for text that comes from somewhere else: a
 // caption, a scene, a changelog. `isKeys` lets a renderer decide between keys and
-// code (`awake hotkey` is a command, not keys).
+// code (`awake hotkey` is a command, not keys). Keys are `not-prose`: inside article
+// typography they keep their own look, never a frame around the whole shortcut.
 
 import { cn } from "@/lib/utils"
 import { keys, withKeys } from "@/registry/base-nova/lib/keys"
@@ -43,7 +44,7 @@ export function Kbd({
     <kbd
       data-slot="kbd"
       className={cn(
-        "inline-flex gap-[0.5em] align-[-0.12em] font-[inherit] not-italic",
+        "not-prose inline-flex gap-[0.5em] align-[-0.12em] font-[inherit] not-italic",
         className,
       )}
     >
@@ -64,7 +65,7 @@ export function KeysText({ children }: { children: string }) {
             // biome-ignore lint/suspicious/noArrayIndexKey: a sentence is positional
             key={i}
             data-slot="kbd"
-            className="inline-flex align-[-0.12em] font-[inherit] not-italic"
+            className="not-prose inline-flex align-[-0.12em] font-[inherit] not-italic"
           >
             <Caps caps={part.keys} />
           </kbd>
