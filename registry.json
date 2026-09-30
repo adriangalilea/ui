@@ -175,8 +175,8 @@
       "name": "scroll-stage",
       "type": "registry:ui",
       "title": "scroll-stage",
-      "description": "the pinned stage: a tall track, a sticky stage, --stage-p driven by CSS scroll-driven animation, acts as checkpoints",
-      "registryDependencies": [],
+      "description": "the pinned stage: a tall track, a sticky stage, --stage-p driven by CSS scroll-driven animation, acts as checkpoints; clipBeats and clipProgress scroll any clip a player plays",
+      "registryDependencies": ["@ag/clip"],
       "files": [
         {
           "path": "registry/base-nova/ui/scroll-stage.tsx",
@@ -313,7 +313,8 @@
       "name": "terminal-session",
       "type": "registry:lib",
       "title": "terminal-session",
-      "description": "the session script the terminal plays: parse, palette, timeline, and the SVG still renderer that draws the same frame. framework-free, so a build script can render a still without React",
+      "description": "the session script the terminal plays: parse, palette, timeline (with its clip, one chapter per command), and the SVG still renderer that draws the same frame. framework-free, so a build script can render a still without React",
+      "registryDependencies": ["@ag/clip"],
       "files": [
         {
           "path": "registry/base-nova/lib/terminal-session.ts",
@@ -385,11 +386,23 @@
       ]
     },
     {
+      "name": "clip",
+      "type": "registry:lib",
+      "title": "clip",
+      "description": "anything drawn from a moment, as the facts a driver moves through it by: its length and its chapters. the player plays a clip, a scroll stage scrolls it, a fixed progress is a still. framework-free",
+      "files": [
+        {
+          "path": "registry/base-nova/lib/clip.ts",
+          "type": "registry:lib"
+        }
+      ]
+    },
+    {
       "name": "player",
       "type": "registry:ui",
       "title": "player",
       "description": "a player for anything drawn from a progress: plays once in view, a thick timeline cut into chapters under the content, hover to preview any frame, click or drag or swipe to scrub, keys for play and chapters",
-      "registryDependencies": ["@ag/kbd"],
+      "registryDependencies": ["@ag/clip", "@ag/kbd"],
       "files": [
         {
           "path": "registry/base-nova/ui/player.tsx",
@@ -421,7 +434,11 @@
       "type": "registry:lib",
       "title": "macos-session",
       "description": "the timeline a macos stage plays: the step types an app's scene compiler writes, the pacing, and frameAt, a pure fold from a timeline and an instant to the whole stage. framework-free",
-      "registryDependencies": ["@ag/terminal-session", "@ag/agent-session"],
+      "registryDependencies": [
+        "@ag/clip",
+        "@ag/terminal-session",
+        "@ag/agent-session"
+      ],
       "files": [
         {
           "path": "registry/base-nova/lib/macos-session.ts",
@@ -478,6 +495,7 @@
       "description": "a Telegram chat as a pure function of {messages, progress}: peer, bot and group shapes, people defined once, streaming bodies, pressable reactions with animated emoji, afterlife. on an iPhone, or frameless at the container's width; focus lifts a message and blurs the rest; crop cuts the phone to a viewport, for a scrolly",
       "dependencies": ["lucide-react"],
       "registryDependencies": [
+        "@ag/clip",
         "@ag/web-preview",
         "@ag/device-frame",
         "@ag/liquid-glass",

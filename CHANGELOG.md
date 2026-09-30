@@ -9,9 +9,29 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 - New: a coding agent's session as data (`AgentEntry`: a prompt, a reply, a tool call with its result; `AgentWork`: how long the turn and the request in flight have run in the world's seconds, the output tokens so far, and screen time in ms, facts each skin words and animates itself; `AgentFinished`: how long the finished turn took), the props every agent skin takes (`AgentViewProps`), `formatElapsed`, elapsed time the way both CLIs say it, and `entryTokens` / `requestTokens` / `formatTokens`, the output a turn counts up (each reply and tool call its thinking and words, a request nothing until its thinking is over).
 
+### clip
+
+- New: anything drawn from a moment, as the facts a driver moves through it by: `Clip` (its length in ms and its `Chapter`s), `progressAt` and `spans`. The content's lib makes the clip, a driver moves through it (the player by the clock, a scroll stage by scroll, a still at one moment), the component draws the frame at a progress. One contract, so any content plays in any driver.
+
+### terminal
+
+- Breaking: the terminal draws and no longer plays itself. `progress` is required and the in-view autoplay and `duration` are gone: play it with `<Player clip={sessionTimeline(parseSession(session)).clip}>`, or pass a fixed `progress` for a still.
+
+### terminal-session
+
+- `sessionTimeline(…).clip`: the session as a clip, one chapter per command titled with it.
+
+### scroll-stage
+
+- `clipBeats(clip)` turns a clip's chapters into scroll beats sized by their share of it, and `clipProgress(clip, frame)` maps a scroll frame back to the progress its content draws: the same clip a player plays, scrolled.
+
+### telegram-chat
+
+- `chatClip(script)`: the chat as a clip, one chapter per message at its natural pace. Its own in-view autoplay stays for now, because storyboards pace it with `until` and an afterlife of reactions that no clip driver has yet.
+
 ### player
 
-- New: a player for anything drawn from a progress (`<Player duration chapters label>{(progress) => …}</Player>`: a macos stage, a terminal, a telegram chat). It plays once in view; a thick timeline under the content, cut into its chapters, fills in the accent. Hovering the bar shows that exact frame, with the chapter and the time above the pointer, and a pointer near a chapter's start is pulled onto it (a marker stands at the boundary, the tooltip says so). A click or a drag seeks without losing the play state, a horizontal swipe scrubs, and the bar is a slider: space plays and pauses, ← and → move between chapters, Home and End go to the ends.
+- New: a player for any clip (`<Player clip label>{(progress) => …}</Player>`: a macos stage, a terminal, a telegram chat). It plays once in view; a thick timeline under the content, cut into its chapters, fills in the accent. Hovering the bar shows that exact frame, with the chapter and the time above the pointer, and a pointer near a chapter's start is pulled onto it (a marker stands at the boundary, the tooltip says so). A click or a drag seeks without losing the play state, a horizontal swipe scrubs, and the bar is a slider: space plays and pauses, ← and → move between chapters, Home and End go to the ends.
 
 ### keys
 
@@ -31,7 +51,7 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 ### macos
 
-- New: a menu bar app performed on a Mac screen. `<Macos timeline art alt />` draws the menu bar with the app's own glyph, the macOS 26 capsule battery (no percentage) and the clock, each item in the system's own padded box so the icons sit evenly apart, the app's real menu (check column, key equivalents, submenus opening to the side with room), a terminal driving it, notification banners, the keyboard shortcut as keycaps, a pointer that travels to whatever the story clicks with the pressed mouse button shown beside the keycaps, and captions, with any shortcut in them drawn as keys (`@ag/kbd`). A story can open a coding agent in the terminal (`agents={{ claude: ClaudeCode, codex: Codex }}`: the page supplies the skins, so this item depends on none of them), and the camera closes in on a glyph before the chord or right-click that flips it. `device="macbook"` puts it on device-frame's MacBook and closes the lid for real when the scene does, and while it is shut the dark panel shows the time passing, large; `device="display"` puts the panel to sleep instead. A camera closes in on the menu bar corner while a menu or banner is up or the glyph has just changed, as far as the measured thing allows. Same `progress` contract as `terminal`: pass 0..1 to scrub, omit it for a one-shot autoplay in view; reduced motion shows the final frame. The height never changes while it plays: the caption line reserves the story's tallest caption. The screen is scaled by CSS, not a measure, so the server's HTML is already the opening frame: no blank panel before hydration. `accent` colours the menu highlight and the terminal.
+- New: a menu bar app performed on a Mac screen. `<Macos timeline art alt />` draws the menu bar with the app's own glyph, the macOS 26 capsule battery (no percentage) and the clock, each item in the system's own padded box so the icons sit evenly apart, the app's real menu (check column, key equivalents, submenus opening to the side with room), a terminal driving it, notification banners, the keyboard shortcut as keycaps, a pointer that travels to whatever the story clicks with the pressed mouse button shown beside the keycaps, and captions, with any shortcut in them drawn as keys (`@ag/kbd`). A story can open a coding agent in the terminal (`agents={{ claude: ClaudeCode, codex: Codex }}`: the page supplies the skins, so this item depends on none of them), and the camera closes in on a glyph before the chord or right-click that flips it. `device="macbook"` puts it on device-frame's MacBook and closes the lid for real when the scene does, and while it is shut the dark panel shows the time passing, large; `device="display"` puts the panel to sleep instead. A camera closes in on the menu bar corner while a menu or banner is up or the glyph has just changed, as far as the measured thing allows. It draws the frame at a `progress` (required) and nothing moves it on its own: play it with `<Player clip={sceneClock(timeline).clip}>`, or pass a fixed `progress` for a still. The height never changes while it plays: the caption line reserves the story's tallest caption. The screen is scaled by CSS, not a measure, so the server's HTML is already the opening frame: no blank panel before hydration. `accent` colours the menu highlight and the terminal.
 
 ### device-frame
 
@@ -39,7 +59,7 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 ### macos-session
 
-- New: the timeline a `macos` stage plays, written by the app itself: a scene script played through the app's real engine compiles to steps (world, glyph, command, output, menu, hover, press, key, banner, caption), so every word and pixel on stage is the app's. awake's `awake-scene` is the first compiler. The lib owns pacing and nothing else, and paces for reading: every step says what it asks of the viewer (a line to read, a menu to scan, the lid to watch close), and before the script's next act the player waits until all of it has been taken in, while the app's reactions follow their cause at once. An agent's prompt sets it working, as the CLIs do, until the story says it is done. What happens behind a shut lid takes no screen time: the world's clock jump plays as a time-lapse (`lapseAt`: the clock and battery run from before to after, the time gained counts up), and when the lid opens the viewer is given time to read what the agent did while it was shut, then the banners posted meanwhile. `sceneClock(…).chapters` are the story's chapters, one per caption, starting where the thing each tells begins; the caption line shows the chapter from that moment, so a player's timeline and the stage always name the same chapter. `sceneClock` lays the steps out in milliseconds, and `frameAt(timeline, clock, ms)` is a pure fold to the whole stage at one instant, so scrubbing, stills and autoplay are one function.
+- New: the timeline a `macos` stage plays, written by the app itself: a scene script played through the app's real engine compiles to steps (world, glyph, command, output, menu, hover, press, key, banner, caption), so every word and pixel on stage is the app's. awake's `awake-scene` is the first compiler. The lib owns pacing and nothing else, and paces for reading: every step says what it asks of the viewer (a line to read, a menu to scan, the lid to watch close), and before the script's next act the player waits until all of it has been taken in, while the app's reactions follow their cause at once. An agent's prompt sets it working, as the CLIs do, until the story says it is done. What happens behind a shut lid takes no screen time: the world's clock jump plays as a time-lapse (`lapseAt`: the clock and battery run from before to after, the time gained counts up), and when the lid opens the viewer is given time to read what the agent did while it was shut, then the banners posted meanwhile. `sceneClock(…).clip` is the story as a clip, its chapters, one per caption, starting where the thing each tells begins; the caption line shows the chapter from that moment, so a player's timeline and the stage always name the same chapter. `sceneClock` lays the steps out in milliseconds, and `frameAt(timeline, clock, ms)` is a pure fold to the whole stage at one instant, so scrubbing, stills and autoplay are one function.
 
 ## 2026-09-11
 

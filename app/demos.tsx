@@ -3,6 +3,7 @@
 import type { ComponentType } from "react"
 import TelegramSummary from "@/registry/base-nova/blocks/telegram-summary/telegram-summary.demo"
 import AgentSession from "@/registry/base-nova/lib/agent-session.demo"
+import Clip from "@/registry/base-nova/lib/clip.demo"
 import Keys from "@/registry/base-nova/lib/keys.demo"
 import LightboxActions from "@/registry/base-nova/lib/lightbox-actions.demo"
 import LightboxMotion from "@/registry/base-nova/lib/lightbox-motion.demo"
@@ -67,6 +68,7 @@ export const DEMOS: Record<string, ComponentType> = {
   terminal: Terminal,
   keys: Keys,
   kbd: Kbd,
+  clip: Clip,
   player: Player,
   macos: Macos,
   "macos-session": MacosSession,

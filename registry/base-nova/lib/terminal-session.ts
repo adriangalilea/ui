@@ -12,6 +12,8 @@
 //   @800 <line>       a pause of 800 ms before this line lands (any line kind)
 //   (blank)           vertical breathing room
 
+import type { Clip } from "@/registry/base-nova/lib/clip"
+
 export type SessionLine = (
   | { kind: "command"; text: string }
   | { kind: "output"; text: string }
@@ -106,6 +108,9 @@ export interface SessionTimeline {
   /** Time (ms) at which each line is complete. */
   ends: number[]
   total: number
+  /** The session as a clip, for any driver: one chapter per command, titled with
+   *  it, starting as it starts to type (the first at 0). */
+  clip: Clip
 }
 
 export function sessionTimeline(lines: SessionLine[]): SessionTimeline {
@@ -123,7 +128,21 @@ export function sessionTimeline(lines: SessionLine[]): SessionTimeline {
           : LAND_MS
     ends.push(at)
   }
-  return { lines, starts, ends, total: Math.max(1, at) }
+  const total = Math.max(1, at)
+  const chapters = lines
+    .flatMap((l, i) =>
+      l.kind === "command"
+        ? [{ start: (starts[i] as number) - l.delay, title: `$ ${l.text}` }]
+        : [],
+    )
+    .map((c, k) => (k === 0 ? { ...c, start: 0 } : c))
+  return {
+    lines,
+    starts,
+    ends,
+    total,
+    clip: { duration: total, chapters },
+  }
 }
 
 // ── the still: a session as one SVG frame ──

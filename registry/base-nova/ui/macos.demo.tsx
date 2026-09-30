@@ -16,6 +16,7 @@ import {
 import { ClaudeCode } from "@/registry/base-nova/ui/claude-code"
 import { Codex } from "@/registry/base-nova/ui/codex"
 import { Macos, type MacosDevice } from "@/registry/base-nova/ui/macos"
+import { Player } from "@/registry/base-nova/ui/player"
 
 // #region scenes
 // Real timelines, not hand-written ones: awake compiles them from its scene scripts
@@ -37,15 +38,12 @@ export default function MacosDemo() {
   return (
     <div className="space-y-16">
       <Sample
-        name="autoplay"
-        label="autoplay · plays once, in view"
+        name="played"
+        label="in a player · plays once, in view"
         with="scenes"
       >
-        <Macos
+        <Played
           timeline={SCENES["lid-yours"] as Timeline}
-          art={ART}
-          agents={AGENTS}
-          accent="#e7a13c"
           alt="awake: a coding agent asks to survive lid close, you allow it from the menu, close the lid, and the Mac sleeps when the agent exits"
         />
       </Sample>
@@ -54,11 +52,8 @@ export default function MacosDemo() {
         label="on a macbook · the lid folds when the scene closes it"
         with="scenes"
       >
-        <Macos
+        <Played
           timeline={SCENES["safety-nets"] as Timeline}
-          art={ART}
-          agents={AGENTS}
-          accent="#e7a13c"
           device="macbook"
           alt="awake: held awake with the lid shut in a bag, it sleeps when it gets too hot, and again when the battery runs low"
         />
@@ -68,11 +63,8 @@ export default function MacosDemo() {
         label="on a display · the panel sleeps instead"
         with="scenes"
       >
-        <Macos
+        <Played
           timeline={SCENES["menu-bar"] as Timeline}
-          art={ART}
-          agents={AGENTS}
-          accent="#e7a13c"
           device="display"
           alt="awake: right-click the cup, ⌃⌥⌘A or the awake command flip the same switch, and the menu shows what holds the Mac awake"
         />
@@ -81,6 +73,34 @@ export default function MacosDemo() {
         <Studio scenes={SCENES} art={ART} />
       </Sample>
     </div>
+  )
+}
+
+/** A scene in the player: the stage draws, the player moves time through its clip. */
+function Played({
+  timeline,
+  device,
+  alt,
+}: {
+  timeline: Timeline
+  device?: MacosDevice
+  alt: string
+}) {
+  const clock = React.useMemo(() => sceneClock(timeline), [timeline])
+  return (
+    <Player clip={clock.clip} label={alt}>
+      {(progress) => (
+        <Macos
+          timeline={timeline}
+          progress={progress}
+          art={ART}
+          agents={AGENTS}
+          accent="#e7a13c"
+          device={device}
+          alt={alt}
+        />
+      )}
+    </Player>
   )
 }
 

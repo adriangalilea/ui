@@ -1,0 +1,14 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "clip",
+  "title": "clip",
+  "description": "anything drawn from a moment, as the facts a driver moves through it by: its length and its chapters. the player plays a clip, a scroll stage scrolls it, a fixed progress is a still. framework-free",
+  "files": [
+    {
+      "path": "registry/base-nova/lib/clip.ts",
+      "content": "// A clip: anything drawn from a moment, told as the facts a driver moves through\n// it by: how long it runs and where its chapters start. The content's own lib makes\n// its clip (macos-session's scene clock, terminal-session's session timeline); a\n// driver moves through it (the player by the clock, a scroll stage by scroll, a\n// still by one fixed moment); the component draws the frame at a progress. One\n// contract, so any content plays in any driver. Framework-free.\n\n/** A chapter: where it starts (ms) and its title. It runs to the next chapter's\n *  start, the last to the end. */\nexport interface Chapter {\n  start: number\n  title: string\n}\n\nexport interface Clip {\n  /** ms */\n  duration: number\n  chapters: Chapter[]\n}\n\n/** A moment of the clip (ms) as the 0..1 progress its component draws. */\nexport function progressAt(clip: Clip, ms: number): number {\n  return Math.min(1, Math.max(0, ms / clip.duration))\n}\n\n/** The chapters with their ends; a clip without chapters is one whole span. */\nexport function spans(clip: Clip): (Chapter & { end: number })[] {\n  const list = clip.chapters.length ? clip.chapters : [{ start: 0, title: \"\" }]\n  return list.map((c, i) => ({\n    ...c,\n    end: list[i + 1]?.start ?? clip.duration,\n  }))\n}\n",
+      "type": "registry:lib"
+    }
+  ],
+  "type": "registry:lib"
+}

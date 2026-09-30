@@ -1,11 +1,11 @@
 "use client"
 
-// A phosphor terminal that plays a session script (lib/terminal-session) live: commands
-// type char by char, output lands whole, `@ms` pauses. Same {session, progress}
-// contract as telegram-chat: pass `progress` (0..1) to scrub it, omit it for the
-// one-shot in-view autoplay. The still renderer in the same lib draws the identical
-// frame as SVG, so a CLI's media and its live demo cannot drift. Display-only:
-// role="img", zero focusables, completed state under prefers-reduced-motion.
+// A phosphor terminal that draws a session script (lib/terminal-session) at a moment:
+// commands type char by char, output lands whole, `@ms` pauses. It draws; something
+// else moves time: `<Player clip={sessionTimeline(…).clip}>` plays it, a scroll stage
+// scrolls it, a fixed `progress` is a still. The still renderer in the same lib draws
+// the identical frame as SVG, so a CLI's media and its live demo cannot drift.
+// Display-only: role="img", zero focusables.
 
 import * as React from "react"
 import {
@@ -20,10 +20,8 @@ import {
 export interface TerminalProps {
   /** A session script (`$ cmd` · `~ muted` · plain · `# comment` · `@ms` pause). */
   session: string
-  /** 0..1 scrub position. Omit for the one-shot in-view autoplay. */
-  progress?: number
-  /** Autoplay length in ms. Default: the script's natural pace. */
-  duration?: number
+  /** The moment drawn, 0..1 of the session. */
+  progress: number
   /** One accent drives the whole palette (default: phosphor green). */
   accent?: string
   /** Minimum rows the frame reserves, so a short session still gets a window that
@@ -37,7 +35,6 @@ export interface TerminalProps {
 export function Terminal({
   session,
   progress,
-  duration,
   accent,
   rows = 0,
   alt,
@@ -48,48 +45,7 @@ export function Terminal({
     [session],
   )
   const palette = React.useMemo(() => terminalPalette(accent), [accent])
-  const controlled = progress !== undefined
-  const [auto, setAuto] = React.useState(0)
-  const root = React.useRef<HTMLDivElement>(null)
-  const length = duration ?? timeline.total
-
-  React.useEffect(() => {
-    if (controlled) return
-    const el = root.current
-    if (!el) return
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setAuto(1)
-      return
-    }
-    let frame = 0
-    let last = 0
-    let value = 0
-    const tick = (now: number) => {
-      value = Math.min(1, value + (now - last) / length)
-      last = now
-      setAuto(value)
-      if (value < 1) frame = requestAnimationFrame(tick)
-    }
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        cancelAnimationFrame(frame)
-        if (entry?.isIntersecting && value < 1) {
-          last = performance.now()
-          frame = requestAnimationFrame(tick)
-        }
-      },
-      { threshold: 0.35 },
-    )
-    io.observe(el)
-    return () => {
-      io.disconnect()
-      cancelAnimationFrame(frame)
-    }
-  }, [controlled, length])
-
-  const at =
-    Math.min(1, Math.max(0, controlled ? (progress as number) : auto)) *
-    timeline.total
+  const at = Math.min(1, Math.max(0, progress)) * timeline.total
   let full = 0
   while (full < timeline.lines.length && (timeline.ends[full] as number) <= at)
     full++
@@ -135,7 +91,6 @@ export function Terminal({
 
   return (
     <div
-      ref={root}
       className={className}
       role="img"
       aria-label={alt}

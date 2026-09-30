@@ -38,6 +38,7 @@
 import { ChevronDown, SlidersHorizontal } from "lucide-react"
 import * as React from "react"
 import { cn } from "@/lib/utils"
+import type { Clip } from "@/registry/base-nova/lib/clip"
 import { IphoneFrame } from "@/registry/base-nova/ui/device-frame"
 import { Glass, type GlassTone } from "@/registry/base-nova/ui/liquid-glass"
 import { Scrims } from "@/registry/base-nova/ui/scrims"
@@ -303,6 +304,26 @@ interface Beat {
 interface Timeline {
   beats: Beat[]
   total: number
+}
+
+/** A weighted char's real time at the chat's natural pace, ms. */
+const MS_PER_WEIGHT = 6
+
+/** The chat as a clip (lib/clip), for a player or a scroll stage: its length at the
+ *  natural pace and one chapter per message, titled with the start of its text.
+ *  The chat's own in-view autoplay remains beside it because a storyboard paces it
+ *  with `until` (a ceiling per act) and an afterlife of reactions after the story,
+ *  which no clip driver has; it goes once xtldr's storyboard drives chats through a
+ *  scroll stage's clip. */
+export function chatClip(script: ChatScript): Clip {
+  const t = buildTimeline(script)
+  return {
+    duration: t.total * MS_PER_WEIGHT,
+    chapters: script.messages.map((m, i) => ({
+      start: (t.beats[i] as Beat).start * MS_PER_WEIGHT,
+      title: (m.text ?? "").slice(0, 60) || `message ${i + 1}`,
+    })),
+  }
 }
 
 function buildTimeline(script: ChatScript): Timeline {
@@ -692,7 +713,7 @@ export function TelegramChat({
   // ~6ms per weighted char, no ceiling: a cap squeezed every structural beat of a long
   // script (a typed line went by in a second under a three-summary story).
   const autoDuration =
-    duration ?? Math.max(4000, (1 - floor) * timeline.total * 6)
+    duration ?? Math.max(4000, (1 - floor) * timeline.total * MS_PER_WEIGHT)
 
   // The ceiling in raw 0..1 units: the end of message k's beat, mapped through the
   // floor the way `eff` is. No `until`, and the ceiling is the end of the story. THE

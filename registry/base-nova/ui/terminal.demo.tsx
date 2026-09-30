@@ -1,8 +1,38 @@
+"use client"
+
 import {
   parseSession,
   renderSessionSvg,
+  sessionTimeline,
 } from "@/registry/base-nova/lib/terminal-session"
+import { Player } from "@/registry/base-nova/ui/player"
 import { Terminal } from "@/registry/base-nova/ui/terminal"
+
+/** A session in the player: one chapter per command. */
+function Played({
+  session,
+  accent,
+  alt,
+}: {
+  session: string
+  accent?: string
+  alt: string
+}) {
+  const clip = sessionTimeline(parseSession(session)).clip
+  return (
+    <Player clip={clip} label={alt}>
+      {(progress) => (
+        <Terminal
+          session={session}
+          progress={progress}
+          accent={accent}
+          rows={12}
+          alt={alt}
+        />
+      )}
+    </Player>
+  )
+}
 
 const SESSION = `$ trash thesis-draft.txt
 trashed: ~/Desktop/thesis-draft.txt
@@ -28,10 +58,9 @@ export default function Demo() {
           <div className="font-mono text-xs lowercase text-muted-foreground">
             live · terminal
           </div>
-          <Terminal
+          <Played
             session={SESSION}
             accent={ACCENT}
-            rows={12}
             alt="A terminal session: trash, list, restore."
           />
         </div>
@@ -47,9 +76,8 @@ export default function Demo() {
           />
         </div>
       </div>
-      <Terminal
+      <Played
         session={SESSION}
-        rows={12}
         alt="The same session on the default phosphor."
       />
     </div>

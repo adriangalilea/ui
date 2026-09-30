@@ -11,6 +11,7 @@ import {
   entryTokens,
   requestTokens,
 } from "@/registry/base-nova/lib/agent-session"
+import type { Chapter, Clip } from "@/registry/base-nova/lib/clip"
 import { TYPE_MS } from "@/registry/base-nova/lib/terminal-session"
 
 /** A menu row. A separator says only that; an item says only what is true of it. */
@@ -234,18 +235,12 @@ export interface SceneClock {
    *  work the agent did in the dark is read, then each banner that arrived
    *  meanwhile, from `deferred[banner step]`. */
   deferred: Record<number, number>
-  /** The story's chapters, one per caption, titled with its words: the caption line
-   *  shows the chapter the moment it begins, so a player's timeline and the stage
-   *  always name the same chapter. */
-  chapters: Chapter[]
   /** The whole story, until the last thing on screen has been taken in. */
   total: number
-}
-
-/** A chapter of the story: where it starts (ms) and its title, the caption. */
-export interface Chapter {
-  start: number
-  title: string
+  /** The story as a clip, for any driver: its length, and one chapter per caption
+   *  titled with its words. The caption line shows the chapter the moment it
+   *  begins, so a player's timeline and the stage always name the same chapter. */
+  clip: Clip
 }
 
 /** An agent's words: read in turn, or, behind a shut lid, when it opens. */
@@ -359,7 +354,14 @@ export function sceneClock(timeline: Timeline): SceneClock {
     chapters.push({ start: from, title: s.text })
     from = starts[i + 1] ?? total
   })
-  return { starts, ends, looks, deferred, chapters, total }
+  return {
+    starts,
+    ends,
+    looks,
+    deferred,
+    total,
+    clip: { duration: total, chapters },
+  }
 }
 
 /** How far the lid has travelled toward where it is going, 0..1, eased in and out
@@ -639,7 +641,7 @@ export function frameAt(
     }
   })
   // The caption is the chapter the story is in, from the moment it begins.
-  const chapter = clock.chapters.findLast((c) => ms >= c.start)
+  const chapter = clock.clip.chapters.findLast((c) => ms >= c.start)
   if (chapter) {
     f.caption = chapter.title
     f.captionSince = chapter.start

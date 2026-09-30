@@ -98,6 +98,7 @@ export default function Lab() {
         <figure className="space-y-3">
           <Terminal
             session={HERO}
+            progress={1}
             rows={16}
             alt="A terminal: a video is added, then a phrase is found in its transcript."
           />

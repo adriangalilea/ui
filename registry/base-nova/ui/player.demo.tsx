@@ -26,11 +26,7 @@ export default function PlayerDemo() {
       label="a macos stage · its captions are the chapters"
       with="macos"
     >
-      <Player
-        duration={CLOCK.total}
-        chapters={CLOCK.chapters}
-        label="awake's hero scene"
-      >
+      <Player clip={CLOCK.clip} label="awake's hero scene">
         {(progress) => (
           <Macos
             timeline={HERO}

@@ -1,8 +1,8 @@
 "use client"
 
-// A player for anything drawn from a progress (0..1): a macos stage, a terminal, a
-// telegram chat, any component on the same {progress} contract. The content gives
-// its duration and its chapters; the player owns time. It plays once when it comes
+// A player for any clip (lib/clip): a macos stage, a terminal, anything drawn from a
+// progress. The content's lib gives the clip (its length and chapters); the player
+// owns time and hands the content a progress. It plays once when it comes
 // into view, and its timeline bar sits under the content, never over it: thick,
 // cut into the chapters, the played part in the accent. Hovering the bar shows that
 // exact frame in the content, with the chapter and the time above the pointer, and
@@ -12,21 +12,18 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
+import {
+  type Clip,
+  progressAt,
+  spans as spansOf,
+} from "@/registry/base-nova/lib/clip"
 import { KeysText } from "@/registry/base-nova/ui/kbd"
-
-/** A chapter of the content: where it starts (ms) and what it is called. It runs to
- *  the next chapter's start, the last to the end. */
-export interface Chapter {
-  start: number
-  title: string
-}
 
 export interface PlayerProps {
   /** The content at a progress, 0..1. */
   children: (progress: number) => React.ReactNode
-  /** Its length, ms. */
-  duration: number
-  chapters?: Chapter[]
+  /** What it plays: its length and its chapters. */
+  clip: Clip
   /** Accessible name of the player. */
   label: string
   /** The played part of the bar. By default a quiet foreground: the bar is a
@@ -47,12 +44,12 @@ function clock(ms: number): string {
 
 export function Player({
   children,
-  duration,
-  chapters = [],
+  clip,
   label,
   accent,
   className,
 }: PlayerProps) {
+  const duration = clip.duration
   const [playhead, setPlayhead] = React.useState(0)
   const [playing, setPlaying] = React.useState(false)
   const [hover, setHover] = React.useState<{
@@ -61,12 +58,7 @@ export function Player({
   } | null>(null)
   // Whether it was playing when a drag began: it plays on from where it is let go.
   const resume = React.useRef(false)
-  const spans = (chapters.length ? chapters : [{ start: 0, title: "" }]).map(
-    (c, i, all) => ({
-      ...c,
-      end: all[i + 1]?.start ?? duration,
-    }),
-  )
+  const spans = spansOf(clip)
   const root = React.useRef<HTMLDivElement>(null)
   const track = React.useRef<HTMLDivElement>(null)
   const inView = React.useRef(false)
@@ -200,7 +192,7 @@ export function Player({
         } as React.CSSProperties
       }
     >
-      {children(shown / duration)}
+      {children(progressAt(clip, shown))}
       <div className="mt-4 flex select-none items-center gap-3">
         <button
           type="button"

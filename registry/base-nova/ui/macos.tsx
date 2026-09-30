@@ -3,10 +3,10 @@
 // A menu bar app, performed: the menu bar with the app's own glyph, its real menu, the
 // terminal driving it, its banners, the chord pressed, the lid closing and the Mac
 // going to sleep. Every word and pixel comes from the app (a timeline its own engine
-// compiled, lib/macos-session); this draws a frame of it. Same {progress} contract as
-// terminal and telegram-chat: pass `progress` (0..1) to scrub, omit it for the
-// one-shot in-view autoplay. Display-only: role="img", zero focusables, the final
-// frame under prefers-reduced-motion.
+// compiled, lib/macos-session); this draws the frame at a moment, and something else
+// moves time: `<Player clip={sceneClock(timeline).clip}>` plays it, a scroll stage
+// scrolls it, a fixed `progress` is a still (a link card, a film frame).
+// Display-only: role="img", zero focusables.
 //
 // The screen is laid out once at the width of a small Mac screen (STAGE_WIDTH) and
 // scaled to whatever box holds it, so a menu keeps its real proportions from a phone to
@@ -52,8 +52,8 @@ export type MacosDevice = "macbook" | "display"
 export interface MacosProps {
   timeline: Timeline
   art: Art
-  /** 0..1 scrub position. Omit for the one-shot in-view autoplay. */
-  progress?: number
+  /** The moment drawn, 0..1 of the story. */
+  progress: number
   /** The app's accent: menu highlight, terminal phosphor. */
   accent?: string
   /** A MacBook (the lid folds when the scene closes it) or a display (it sleeps). */
@@ -87,47 +87,7 @@ export function Macos({
   className,
 }: MacosProps) {
   const clock = React.useMemo(() => sceneClock(timeline), [timeline])
-  const controlled = progress !== undefined
-  const [auto, setAuto] = React.useState(0)
-  const root = React.useRef<HTMLDivElement>(null)
-
-  React.useEffect(() => {
-    if (controlled) return
-    const el = root.current
-    if (!el) return
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setAuto(1)
-      return
-    }
-    let frame = 0
-    let last = 0
-    let value = 0
-    const tick = (now: number) => {
-      value = Math.min(1, value + (now - last) / clock.total)
-      last = now
-      setAuto(value)
-      if (value < 1) frame = requestAnimationFrame(tick)
-    }
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        cancelAnimationFrame(frame)
-        if (entry?.isIntersecting && value < 1) {
-          last = performance.now()
-          frame = requestAnimationFrame(tick)
-        }
-      },
-      { threshold: 0.35 },
-    )
-    io.observe(el)
-    return () => {
-      io.disconnect()
-      cancelAnimationFrame(frame)
-    }
-  }, [controlled, clock.total])
-
-  const ms =
-    Math.min(1, Math.max(0, controlled ? (progress as number) : auto)) *
-    clock.total
+  const ms = Math.min(1, Math.max(0, progress)) * clock.total
   const f = frameAt(timeline, clock, ms)
   // 0 = open, 1 = shut, in between while it moves.
   const travel = lidTravel(f, ms)
@@ -163,7 +123,6 @@ export function Macos({
 
   return (
     <div
-      ref={root}
       data-slot="macos"
       className={cn("w-full", className)}
       role="img"
