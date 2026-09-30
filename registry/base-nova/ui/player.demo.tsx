@@ -5,7 +5,6 @@ import artJson from "@/public/macos/awake/art.json"
 import heroJson from "@/public/macos/awake/hero.json"
 import {
   type Art,
-  chapters,
   sceneClock,
   type Timeline,
 } from "@/registry/base-nova/lib/macos-session"
@@ -29,7 +28,7 @@ export default function PlayerDemo() {
     >
       <Player
         duration={CLOCK.total}
-        chapters={chapters(HERO, CLOCK)}
+        chapters={CLOCK.chapters}
         label="awake's hero scene"
       >
         {(progress) => (

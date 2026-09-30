@@ -234,8 +234,18 @@ export interface SceneClock {
    *  work the agent did in the dark is read, then each banner that arrived
    *  meanwhile, from `deferred[banner step]`. */
   deferred: Record<number, number>
+  /** The story's chapters, one per caption, titled with its words: the caption line
+   *  shows the chapter the moment it begins, so a player's timeline and the stage
+   *  always name the same chapter. */
+  chapters: Chapter[]
   /** The whole story, until the last thing on screen has been taken in. */
   total: number
+}
+
+/** A chapter of the story: where it starts (ms) and its title, the caption. */
+export interface Chapter {
+  start: number
+  title: string
 }
 
 /** An agent's words: read in turn, or, behind a shut lid, when it opens. */
@@ -253,24 +263,6 @@ export function posterAt(timeline: Timeline): number {
   if (i < 0) throw new Error("posterAt: the scene marks no `poster` frame")
   const clock = sceneClock(timeline)
   return (clock.starts[i] as number) / clock.total
-}
-
-/** The story's chapters, for a player's timeline: each caption tells one beat, so
- *  each is a chapter titled with its own words. A chapter starts where the thing
- *  it tells begins (the step after the previous caption; the first at 0) and runs
- *  to the next. `start` in ms of the scene clock. */
-export function chapters(
-  timeline: Timeline,
-  clock: SceneClock,
-): { start: number; title: string }[] {
-  const out: { start: number; title: string }[] = []
-  let from = 0
-  timeline.steps.forEach((s, i) => {
-    if (s.kind !== "caption" || !s.text) return
-    out.push({ start: from, title: s.text })
-    from = clock.starts[i + 1] ?? clock.total
-  })
-  return out
 }
 
 export function sceneClock(timeline: Timeline): SceneClock {
@@ -357,13 +349,17 @@ export function sceneClock(timeline: Timeline): SceneClock {
     }
     at = landed
   }
-  return {
-    starts,
-    ends,
-    looks,
-    deferred,
-    total: Math.max(1, at, ready) + 800,
-  }
+  const total = Math.max(1, at, ready) + 800
+  // Each caption titles one chapter, which starts where the thing it tells begins:
+  // the step after the previous caption (the first at 0).
+  const chapters: Chapter[] = []
+  let from = 0
+  timeline.steps.forEach((s, i) => {
+    if (s.kind !== "caption" || !s.text) return
+    chapters.push({ start: from, title: s.text })
+    from = starts[i + 1] ?? total
+  })
+  return { starts, ends, looks, deferred, chapters, total }
 }
 
 /** How far the lid has travelled toward where it is going, 0..1, eased in and out
@@ -581,8 +577,7 @@ export function frameAt(
         break
       }
       case "caption":
-        f.caption = s.text ?? null
-        f.captionSince = start
+        // Shown from its chapter's start, below.
         break
       case "agent":
         f.agent = {
@@ -643,6 +638,12 @@ export function frameAt(
         break
     }
   })
+  // The caption is the chapter the story is in, from the moment it begins.
+  const chapter = clock.chapters.findLast((c) => ms >= c.start)
+  if (chapter) {
+    f.caption = chapter.title
+    f.captionSince = chapter.start
+  }
   if (f.agent && work && request) {
     const entries = f.agent.entries
     const turn = entries.slice(
