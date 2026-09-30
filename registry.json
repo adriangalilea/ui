@@ -322,6 +322,44 @@
       ]
     },
     {
+      "name": "agent-session",
+      "type": "registry:lib",
+      "title": "agent-session",
+      "description": "a coding agent's session as data: prompts, replies, tool calls with their results, and the working line. the claude-code and codex skins draw it. framework-free",
+      "files": [
+        {
+          "path": "registry/base-nova/lib/agent-session.ts",
+          "type": "registry:lib"
+        }
+      ]
+    },
+    {
+      "name": "claude-code",
+      "type": "registry:ui",
+      "title": "claude-code",
+      "description": "Claude Code's terminal UI drawn from an agent-session: the welcome box, the transcript with its tool calls and results, the working line, the prompt box",
+      "registryDependencies": ["@ag/agent-session"],
+      "files": [
+        {
+          "path": "registry/base-nova/ui/claude-code.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "codex",
+      "type": "registry:ui",
+      "title": "codex",
+      "description": "OpenAI Codex CLI's terminal UI drawn from an agent-session: the header, the transcript with the commands it ran, the working line, the composer",
+      "registryDependencies": ["@ag/agent-session"],
+      "files": [
+        {
+          "path": "registry/base-nova/ui/codex.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
       "name": "macos",
       "type": "registry:ui",
       "title": "macos",
@@ -329,7 +367,8 @@
       "registryDependencies": [
         "@ag/macos-session",
         "@ag/terminal-session",
-        "@ag/device-frame"
+        "@ag/device-frame",
+        "@ag/agent-session"
       ],
       "files": [
         {
@@ -343,7 +382,7 @@
       "type": "registry:lib",
       "title": "macos-session",
       "description": "the timeline a macos stage plays: the step types an app's scene compiler writes, the pacing, and frameAt, a pure fold from a timeline and an instant to the whole stage. framework-free",
-      "registryDependencies": ["@ag/terminal-session"],
+      "registryDependencies": ["@ag/terminal-session", "@ag/agent-session"],
       "files": [
         {
           "path": "registry/base-nova/lib/macos-session.ts",

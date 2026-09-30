@@ -2,6 +2,7 @@
 // validator checks every registry.json item is listed.
 import type { ComponentType } from "react"
 import TelegramSummary from "@/registry/base-nova/blocks/telegram-summary/telegram-summary.demo"
+import AgentSession from "@/registry/base-nova/lib/agent-session.demo"
 import LightboxActions from "@/registry/base-nova/lib/lightbox-actions.demo"
 import LightboxMotion from "@/registry/base-nova/lib/lightbox-motion.demo"
 import MacosSession from "@/registry/base-nova/lib/macos-session.demo"
@@ -13,7 +14,9 @@ import WebPreviewUnfurl from "@/registry/base-nova/lib/web-preview-unfurl.demo"
 import Tokens from "@/registry/base-nova/theme/tokens.demo"
 import Avatar from "@/registry/base-nova/ui/avatar.demo"
 import CardGallery from "@/registry/base-nova/ui/card-gallery.demo"
+import ClaudeCode from "@/registry/base-nova/ui/claude-code.demo"
 import Code from "@/registry/base-nova/ui/code.demo"
+import Codex from "@/registry/base-nova/ui/codex.demo"
 import Copy from "@/registry/base-nova/ui/copy.demo"
 import DeviceFrame from "@/registry/base-nova/ui/device-frame.demo"
 import Editor from "@/registry/base-nova/ui/editor.demo"
@@ -61,6 +64,9 @@ export const DEMOS: Record<string, ComponentType> = {
   terminal: Terminal,
   macos: Macos,
   "macos-session": MacosSession,
+  "agent-session": AgentSession,
+  "claude-code": ClaudeCode,
+  codex: Codex,
   "theme-toggle": ThemeToggle,
   "telegram-chat": TelegramChat,
   "telegram-summary": TelegramSummary,

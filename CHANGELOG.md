@@ -5,9 +5,21 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 ## 2026-09-30
 
+### agent-session
+
+- New: a coding agent's session as data (`AgentEntry`: a prompt, a reply, a tool call with its result; `AgentWork`: the working line), the props every agent skin takes (`AgentViewProps`), and `formatElapsed`, elapsed time the way both CLIs say it.
+
+### claude-code
+
+- New: Claude Code's terminal UI drawn from an agent-session: the welcome box, `>` prompts, `⏺` replies and tool calls with their `⎿` results, the orange working line, the prompt box. Reads like a terminal: from the top while it fits, the oldest lines scrolled away once it does not.
+
+### codex
+
+- New: OpenAI Codex CLI's terminal UI drawn from an agent-session: the header box, `›` prompts, `•` replies and `Ran` commands with their `└` output, the working line, the composer. Same terminal reading as claude-code.
+
 ### macos
 
-- New: a menu bar app performed on a Mac screen. `<Macos timeline art alt />` draws the menu bar with the app's own glyph, battery and clock, the app's real menu (check column, key equivalents, submenus opening to the side with room), a terminal driving it, notification banners, the chord as keycaps, a pointer that travels to whatever the story clicks with the pressed mouse button shown beside the keycaps, and captions. `device="macbook"` puts it on device-frame's MacBook and closes the lid for real when the scene does; `device="display"` puts the panel to sleep instead. A camera closes in on the menu bar corner while a menu or banner is up or the glyph has just changed, as far as the measured thing allows. Same `progress` contract as `terminal`: pass 0..1 to scrub, omit it for a one-shot autoplay in view; reduced motion shows the final frame. The height never changes while it plays: the caption line reserves the story's tallest caption. `accent` colours the menu highlight and the terminal.
+- New: a menu bar app performed on a Mac screen. `<Macos timeline art alt />` draws the menu bar with the app's own glyph, battery and clock, the app's real menu (check column, key equivalents, submenus opening to the side with room), a terminal driving it, notification banners, the chord as keycaps, a pointer that travels to whatever the story clicks with the pressed mouse button shown beside the keycaps, and captions. A story can open a coding agent in the terminal (`agents={{ claude: ClaudeCode, codex: Codex }}`: the page supplies the skins, so this item depends on none of them), and the camera closes in on a glyph before the chord or right-click that flips it. `device="macbook"` puts it on device-frame's MacBook and closes the lid for real when the scene does; `device="display"` puts the panel to sleep instead. A camera closes in on the menu bar corner while a menu or banner is up or the glyph has just changed, as far as the measured thing allows. Same `progress` contract as `terminal`: pass 0..1 to scrub, omit it for a one-shot autoplay in view; reduced motion shows the final frame. The height never changes while it plays: the caption line reserves the story's tallest caption. `accent` colours the menu highlight and the terminal.
 
 ### device-frame
 
