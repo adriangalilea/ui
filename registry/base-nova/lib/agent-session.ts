@@ -3,21 +3,29 @@
 // and codex skins draw the same entries in their own terminal UIs; a story (a macos
 // timeline) or a page supplies them. Framework-free by contract.
 
-export type AgentEntry = (
+export type AgentEntry =
   | { kind: "prompt"; text: string }
   | { kind: "say"; text: string }
   /** A tool call and its result, one line each. `result` empty while it runs. */
   | { kind: "tool"; name: string; arg: string; result: string[] }
-) & {
-  /** Done while nobody was looking (behind a shut lid): a skin marks it, so what
-   *  happened in the meantime reads at a glance. */
-  fresh?: boolean
+
+/** The agent at work. Facts only; each skin words and draws its own working line. */
+export interface AgentWork {
+  /** How long it has worked, in the world's seconds (a shut lid's hours count). */
+  seconds: number
+  /** Time on screen since it started, in ms: the spinner and the shimmer run on it,
+   *  so a frame drawn alone animates exactly like one played to. */
+  ms: number
 }
 
-/** The agent at work: what it is doing, and for how long (already formatted). */
-export interface AgentWork {
-  label: string
-  elapsed: string
+/** Output tokens an agent streams per second of work, near enough to what both
+ *  CLIs count up while thinking and writing. */
+const TOKENS_PER_SECOND = 60
+
+/** "↓ 1.5k tokens": the running count Claude Code shows beside the elapsed time. */
+export function formatTokens(seconds: number): string {
+  const n = Math.round(Math.max(0, seconds) * TOKENS_PER_SECOND)
+  return n < 1000 ? `${n}` : `${(n / 1000).toFixed(1)}k`
 }
 
 /** What a skin draws: the transcript so far, the working line if any, and what is

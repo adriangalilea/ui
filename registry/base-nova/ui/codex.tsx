@@ -8,9 +8,10 @@
 // overflows). A page or a story supplies the entries.
 
 import { cn } from "@/lib/utils"
-import type {
-  AgentEntry,
-  AgentViewProps,
+import {
+  type AgentEntry,
+  type AgentViewProps,
+  formatElapsed,
 } from "@/registry/base-nova/lib/agent-session"
 
 export function Codex({
@@ -40,23 +41,15 @@ export function Codex({
           </div>
         </div>
         {entries.map((e, i) => (
-          <div
-            // biome-ignore lint/suspicious/noArrayIndexKey: a transcript is positional
-            key={i}
-            className={cn(
-              "-mx-[1ch] rounded-[4px] px-[1ch]",
-              e.fresh && "bg-white/[0.09]",
-            )}
-          >
-            <Entry entry={e} />
-          </div>
+          // biome-ignore lint/suspicious/noArrayIndexKey: a transcript is positional
+          <Entry key={i} entry={e} />
         ))}
         {work && (
           <div>
             <span className="text-[#8a8a8a]">◦ </span>
-            <span className="font-semibold">{work.label}</span>{" "}
+            <span className="font-semibold">Working</span>{" "}
             <span className="text-[#8a8a8a]">
-              ({work.elapsed} • esc to interrupt)
+              ({formatElapsed(work.seconds)} • esc to interrupt)
             </span>
           </div>
         )}

@@ -557,15 +557,12 @@ function MenuBar({
   return (
     <div
       data-slot="macos-menubar"
-      className="relative z-10 flex h-[26px] items-center justify-end gap-3.5 bg-black/25 px-3 text-[13px] backdrop-blur-xl"
+      className="relative z-10 flex h-[26px] items-center justify-end gap-[2px] bg-black/25 px-2 text-[13px] backdrop-blur-xl"
     >
-      <span className="mr-auto font-semibold">Terminal</span>
+      <span className="mr-auto px-2 font-semibold">Terminal</span>
       <span
         data-slot="macos-status-item"
-        className={cn(
-          "relative flex h-[22px] items-center rounded-[5px] px-1.5",
-          open && "bg-white/20",
-        )}
+        className={cn("relative", STATUS_ITEM, open && "bg-white/20")}
       >
         {glyph && (
           // biome-ignore lint/performance/noImgElement: the app's own glyph as an inline data URL
@@ -573,12 +570,20 @@ function MenuBar({
         )}
         {children}
       </span>
-      <BatteryGlyph percent={battery} charging={charging} />
-      <span className="tabular-nums">{clock}</span>
+      <span className={STATUS_ITEM}>
+        <BatteryGlyph percent={battery} charging={charging} />
+      </span>
+      <span className={cn(STATUS_ITEM, "tabular-nums")}>{clock}</span>
     </div>
   )
 }
 
+/** Every menu bar item's box, as the system lays them out: the same padding around
+ *  each, so the space between icons is even whatever their widths. */
+const STATUS_ITEM = "flex h-[22px] items-center rounded-[5px] px-[7px]"
+
+/** The macOS 26 battery: a capsule, no outline, the charge a solid fill from the
+ *  left inside a translucent body, a small nub apart from it. No percentage. */
 function BatteryGlyph({
   percent,
   charging,
@@ -587,23 +592,19 @@ function BatteryGlyph({
   charging: boolean
 }) {
   return (
-    <span className="flex items-center gap-1.5 tabular-nums">
-      <span className="text-[12px] text-white/80">{percent}%</span>
-      <span className="relative flex h-[11px] w-[23px] items-center rounded-[3px] border border-white/50 p-[1.5px]">
+    <span className="flex items-center gap-[1.5px]">
+      <span className="relative flex h-[11.5px] w-[25px] overflow-hidden rounded-full bg-white/35">
         <span
-          className={cn(
-            "h-full rounded-[1.5px]",
-            percent <= 20 && !charging ? "bg-[#ff453a]" : "bg-white",
-          )}
-          style={{ width: `${Math.max(6, percent)}%` }}
+          className={percent <= 20 && !charging ? "bg-[#ff453a]" : "bg-white"}
+          style={{ width: `${Math.max(8, percent)}%` }}
         />
-        <span className="-right-[3px] absolute h-[4px] w-[1.5px] rounded-r-sm bg-white/50" />
         {charging && (
           <span className="absolute inset-0 flex items-center justify-center text-[8px] text-black">
             ⚡
           </span>
         )}
       </span>
+      <span className="h-[4px] w-[1.5px] rounded-r-full bg-white/35" />
     </span>
   )
 }

@@ -28,7 +28,7 @@ export default function CodexDemo() {
       <div className="h-[420px] rounded-xl bg-[#161617] p-5 font-mono text-[13px] leading-[1.45]">
         <Codex
           entries={ENTRIES}
-          work={{ label: "Working", elapsed: "1m 04s" }}
+          work={{ seconds: 64, ms: 0 }}
           draft=""
           cwd="~/invoices"
         />

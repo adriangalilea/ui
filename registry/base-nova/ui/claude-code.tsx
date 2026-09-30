@@ -8,9 +8,12 @@
 // once it overflows). A page or a story supplies the entries.
 
 import { cn } from "@/lib/utils"
-import type {
-  AgentEntry,
-  AgentViewProps,
+import {
+  type AgentEntry,
+  type AgentViewProps,
+  type AgentWork,
+  formatElapsed,
+  formatTokens,
 } from "@/registry/base-nova/lib/agent-session"
 
 /** Claude's own orange. */
@@ -46,25 +49,10 @@ export function ClaudeCode({
           </div>
         </div>
         {entries.map((e, i) => (
-          <div
-            // biome-ignore lint/suspicious/noArrayIndexKey: a transcript is positional
-            key={i}
-            className={cn(
-              "-mx-[1ch] rounded-[4px] px-[1ch]",
-              e.fresh && "bg-[#d97757]/15",
-            )}
-          >
-            <Entry entry={e} />
-          </div>
+          // biome-ignore lint/suspicious/noArrayIndexKey: a transcript is positional
+          <Entry key={i} entry={e} />
         ))}
-        {work && (
-          <div style={{ color: CLAUDE }}>
-            ✻ {work.label}…{" "}
-            <span className="text-[#8a8a8a]">
-              ({work.elapsed} · esc to interrupt)
-            </span>
-          </div>
-        )}
+        {work && <Working work={work} request={entries.length} />}
         <div>
           <div className="rounded-[6px] border border-[#5a5a5a] px-[1ch] py-[0.2em]">
             <span className="text-[#8a8a8a]">{"> "}</span>
@@ -78,9 +66,145 @@ export function ClaudeCode({
   )
 }
 
+/** The spinner's glyphs, played forth and back. */
+const SPINNER = ["·", "✢", "✳", "✶", "✻", "✽"]
+const SPIN_MS = 120
+/** The highlight's speed across the verb, and the dark stretch between passes. */
+const SWEEP_MS_PER_CHAR = 70
+const SWEEP_GAP = 8
+
+/** The words Claude Code says it is working with, one drawn at random per request. */
+const VERBS = [
+  "Accomplishing",
+  "Actioning",
+  "Actualizing",
+  "Baking",
+  "Blanching",
+  "Booping",
+  "Brewing",
+  "Calculating",
+  "Cerebrating",
+  "Channelling",
+  "Churning",
+  "Clauding",
+  "Coalescing",
+  "Cogitating",
+  "Combobulating",
+  "Computing",
+  "Concocting",
+  "Conjuring",
+  "Considering",
+  "Contemplating",
+  "Cooking",
+  "Crafting",
+  "Creating",
+  "Crunching",
+  "Deciphering",
+  "Deliberating",
+  "Determining",
+  "Discombobulating",
+  "Divining",
+  "Doing",
+  "Effecting",
+  "Elucidating",
+  "Enchanting",
+  "Envisioning",
+  "Finagling",
+  "Flibbertigibbeting",
+  "Forging",
+  "Forming",
+  "Frolicking",
+  "Generating",
+  "Germinating",
+  "Hatching",
+  "Herding",
+  "Honking",
+  "Hustling",
+  "Ideating",
+  "Imagining",
+  "Incubating",
+  "Inferring",
+  "Ionizing",
+  "Jiving",
+  "Manifesting",
+  "Marinating",
+  "Meandering",
+  "Moseying",
+  "Mulling",
+  "Mustering",
+  "Musing",
+  "Noodling",
+  "Percolating",
+  "Perusing",
+  "Philosophising",
+  "Pondering",
+  "Pontificating",
+  "Processing",
+  "Puttering",
+  "Puzzling",
+  "Reticulating",
+  "Ruminating",
+  "Scheming",
+  "Schlepping",
+  "Shimmying",
+  "Shucking",
+  "Simmering",
+  "Smooshing",
+  "Spelunking",
+  "Spinning",
+  "Stewing",
+  "Sussing",
+  "Synthesizing",
+  "Thinking",
+  "Tinkering",
+  "Transmuting",
+  "Unfurling",
+  "Unravelling",
+  "Vibing",
+  "Wandering",
+  "Whirring",
+  "Wibbling",
+  "Wizarding",
+  "Working",
+  "Wrangling",
+]
+
+/** "✻ Spelunking… (22s · ↓ 1.5k tokens · esc to interrupt)": the spinner breathes,
+ *  a lighter band sweeps across the verb, and the counters run. The verb changes
+ *  with each request (every entry the transcript gains is the model asked again),
+ *  drawn by a hash of the request's number, not a random call, so the server, the
+ *  browser and a film agree. The rest runs on `work.ms`, so a frame drawn alone is
+ *  the frame played to. */
+function Working({ work, request }: { work: AgentWork; request: number }) {
+  const cycle = SPINNER.length * 2 - 2
+  const step = Math.floor(work.ms / SPIN_MS) % cycle
+  const glyph = SPINNER[step < SPINNER.length ? step : cycle - step]
+  const verb = `${VERBS[(Math.imul(request + 1, 2654435761) >>> 0) % VERBS.length]}…`
+  const at = (work.ms / SWEEP_MS_PER_CHAR) % (verb.length + SWEEP_GAP)
+  return (
+    <div>
+      <span style={{ color: CLAUDE }}>{glyph} </span>
+      {[...verb].map((ch, i) => (
+        <span
+          // biome-ignore lint/suspicious/noArrayIndexKey: letters are positional
+          key={i}
+          style={{ color: Math.abs(i - at) < 1.5 ? "#f5c4b0" : CLAUDE }}
+        >
+          {ch}
+        </span>
+      ))}{" "}
+      <span className="text-[#8a8a8a]">
+        ({formatElapsed(work.seconds)} · ↓ {formatTokens(work.seconds)} tokens ·
+        esc to interrupt)
+      </span>
+    </div>
+  )
+}
+
 function Entry({ entry: e }: { entry: AgentEntry }) {
+  // The one tinted thing in the transcript: what you asked, as a full-width bar.
   if (e.kind === "prompt")
-    return <div className="text-[#a0a0a0]">{`> ${e.text}`}</div>
+    return <div className="-mx-[1ch] bg-white/[0.1] px-[1ch]">{e.text}</div>
   if (e.kind === "say")
     return (
       <div className="flex gap-[1ch]">
@@ -99,9 +223,11 @@ function Entry({ entry: e }: { entry: AgentEntry }) {
       </div>
       {e.result.map((line, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: output lines are positional
-        <div key={i} className="text-[#9a9a9a]">
-          {i === 0 ? "  ⎿  " : "     "}
-          {line.trimStart()}
+        <div key={i} className="flex text-[#9a9a9a]">
+          {/* A fixed gutter: ⎿ is narrower than a cell in most monospace faces,
+              so spaces cannot line the rows up. */}
+          <span className="w-[5ch] shrink-0 pl-[2ch]">{i === 0 && "⎿"}</span>
+          <span>{line.trimStart()}</span>
         </div>
       ))}
     </div>

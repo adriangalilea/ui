@@ -4,9 +4,9 @@
 // and nothing else. Framework-free by contract: `frameAt(timeline, ms)` is a pure fold,
 // so scrubbing, stills and autoplay are the same function at different times.
 
-import {
-  type AgentEntry,
-  formatElapsed,
+import type {
+  AgentEntry,
+  AgentWork,
 } from "@/registry/base-nova/lib/agent-session"
 import { TYPE_MS } from "@/registry/base-nova/lib/terminal-session"
 
@@ -51,7 +51,7 @@ export type StepKind =
   | "prompt" // a prompt typed now
   | "say" // the agent's reply
   | "tool" // a tool call: `text` the tool, `arg` its argument, `lines` the result
-  | "work" // the agent is working: `text` on what
+  | "work" // the agent starts working (its CLI words the line)
   | "done" // it stops working and says `text`
 
 export interface Step {
@@ -230,10 +230,8 @@ export interface SceneClock {
    *  read before it has been read. The camera goes to a glyph then, not before. */
   looks: number[]
   /** What happened behind a shut lid is seen when it opens, in order: first the
-   *  work the agent did in the dark (its entries stay highlighted until
-   *  `reveal[lid-open step]`), then each banner that arrived meanwhile, from
-   *  `deferred[banner step]`. */
-  reveal: Record<number, number>
+   *  work the agent did in the dark is read, then each banner that arrived
+   *  meanwhile, from `deferred[banner step]`. */
   deferred: Record<number, number>
   /** The whole story, until the last thing on screen has been taken in. */
   total: number
@@ -261,7 +259,6 @@ export function sceneClock(timeline: Timeline): SceneClock {
   let world = first?.kind === "world" ? (first.world as WorldState) : NIGHT
   // What happens behind a shut lid is owed to the viewer when it opens.
   let dark = { agent: 0, banners: [] as [number, number][] }
-  const reveal: Record<number, number> = {}
   const deferred: Record<number, number> = {}
   let glyph = "off"
   let opening = true
@@ -308,7 +305,6 @@ export function sceneClock(timeline: Timeline): SceneClock {
         // The lid swings open, the work done in the dark is read, then the
         // banners that arrived meanwhile, one after another.
         let t = landed + LID_MS + dark.agent
-        reveal[i] = t
         for (const [b, look] of dark.banners) {
           deferred[b] = t
           t += look
@@ -324,7 +320,6 @@ export function sceneClock(timeline: Timeline): SceneClock {
     starts,
     ends,
     looks,
-    reveal,
     deferred,
     total: Math.max(1, at, ready) + 800,
   }
@@ -381,7 +376,7 @@ export interface Frame {
     cwd: string
     entries: AgentEntry[]
     draft: string
-    work: { label: string; elapsed: string } | null
+    work: AgentWork | null
   } | null
   /** The last jump of the world's clock or battery, and when (ms): shown as a
    *  time-lapse (`lapseAt`), because time passing is the story behind a shut lid. */
@@ -390,8 +385,6 @@ export interface Frame {
 
 /** How long a jump of the world's clock takes to run on screen. */
 export const LAPSE_MS = 1600
-/** How long the work done in the dark stays marked after it has been read. */
-const FRESH_MS = 1500
 
 /** The world's clock and battery as a time-lapse shows them at `ms`: running from
  *  the last jump's start to its end, and how much time it covered. */
@@ -462,13 +455,9 @@ export function frameAt(
   }
   // The agent's work, and when it began in scene time and on the world's clock: its
   // elapsed time is the world's, so two hours behind a shut lid read as two hours.
-  let work = null as { label: string; since: number; clock: string } | null
-  // What the agent wrote behind a shut lid: marked as new once it opens.
-  let dark: AgentEntry[] = []
+  let work = null as { since: number; clock: string } | null
   const add = (e: AgentEntry) => {
-    if (!f.agent) return
-    f.agent.entries.push(e)
-    if (f.world.lid === "closed") dark.push(e)
+    if (f.agent) f.agent.entries.push(e)
   }
   timeline.steps.forEach((s, i) => {
     const start = clock.starts[i] as number
@@ -484,14 +473,7 @@ export function frameAt(
           (w.clock !== f.world.clock || w.battery !== f.world.battery)
         )
           f.lapse = { from: f.world, to: w, since: start }
-        if (w.lid !== f.world.lid) {
-          f.lidSince = start
-          if (w.lid === "open") {
-            const until = (clock.reveal[i] ?? start) + FRESH_MS
-            for (const e of dark) e.fresh = ms < until
-            dark = []
-          }
-        }
+        if (w.lid !== f.world.lid) f.lidSince = start
         f.world = w
         break
       }
@@ -592,7 +574,7 @@ export function frameAt(
         })
         break
       case "work":
-        work = { label: s.text ?? "", since: start, clock: f.world.clock }
+        work = { since: start, clock: f.world.clock }
         break
       case "done":
         work = null
@@ -602,11 +584,10 @@ export function frameAt(
   })
   if (f.agent && work)
     f.agent.work = {
-      label: work.label,
-      elapsed: formatElapsed(
+      seconds:
         minutesBetween(work.clock, f.world.clock) * 60 +
-          (ms - work.since) / 1000,
-      ),
+        (ms - work.since) / 1000,
+      ms: ms - work.since,
     }
   return f
 }
