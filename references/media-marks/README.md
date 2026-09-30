@@ -101,7 +101,7 @@ already normalised as described above.
 | `DTS-HD-MA.svg` | DTS-HD Master Audio | Commons, File:DTS-HD-MA.svg |
 | `HDR_10_logo_black_.svg` | HDR10 (fan-drawn badge), reference only, not wired: the geometry every drawn badge copies | Commons, File:HDR 10 logo (black).svg |
 | `HDR_10_plus_logo_black_.svg` | HDR10+, reference only, not wired | Commons, File:HDR 10 plus logo (black).svg |
-| `Ultra_HD.svg` | Ultra HD wordmark | Commons, File:Ultra HD.svg |
+| `Ultra_HD.svg` | Ultra HD wordmark. "HD" redrawn at a light weight (stems 0.45 of the 3.638 cap, the original outer bounds kept): the Commons file draws it as 0.041 hairlines, invisible at any chip size. Two off-canvas stray points dropped. | Commons, File:Ultra HD.svg |
 | `FLAC_logo_vector.svg` | FLAC | Commons, File:FLAC logo vector.svg (Xiph) |
 | `Opus_logo2.svg` | Opus | Commons, File:Opus logo2.svg (Xiph) |
 | `Blu-ray_Disc.svg` | Blu-ray Disc | Commons, File:Blu-ray Disc.svg |
