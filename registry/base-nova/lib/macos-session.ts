@@ -318,7 +318,9 @@ export function sceneClock(timeline: Timeline): SceneClock {
   for (const [i, s] of timeline.steps.entries()) {
     // The opening frame lands at once and is taken in before anything happens:
     // where we are, what is on screen.
-    if (opening && !OPENING.has(s.kind)) {
+    // A step the author paused before is not part of the opening frame, whatever
+    // its kind: a glyph that flips a second in happens a second in.
+    if (opening && (!OPENING.has(s.kind) || s.delay !== undefined)) {
       opening = false
       ready = Math.max(ready, ESTABLISH_MS)
       readyButGlyph = ready
