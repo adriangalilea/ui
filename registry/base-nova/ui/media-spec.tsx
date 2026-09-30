@@ -203,7 +203,7 @@ const STEREO_LABEL: Record<Stereo, string> = {
   "half-sbs": "half side-by-side",
   tab: "top-and-bottom",
   "half-tab": "half top-and-bottom",
-  mvc: "Blu-ray 3D",
+  mvc: "frame-packed",
   "3d": "",
 }
 const CODEC_LABEL: Record<AudioCodec, string> = {
