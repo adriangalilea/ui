@@ -11,7 +11,7 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 ### device-frame
 
-- New: `MacbookFrame` has a hinge. `lid="open"` or `lid="closed"` and the frame moves the lid itself, on its own curve, whenever the value changes; a number (0 open .. 1 shut) puts it exactly there with no motion, for a caller that owns time (a scrubbed or filmed timeline). Shut, the laptop reads as closed from the front: the lid's edge sitting on the base as one body. Without `lid` the frame renders as before, flat.
+- New: `MacbookFrame` has a hinge. `lid="open"` or `lid="closed"` and the frame moves the lid itself, on its own curve, whenever the value changes; a number (0 open .. 1 shut) puts it exactly there with no motion, for a caller that owns time (a scrubbed or filmed timeline). The lid's face turns in true perspective (the eye at the hinge, at the distance where a shut lid spans exactly the base's width) and its thickness is painted where that same camera puts it: the lid's own outline raised by the projected thickness, so it follows the rounded corners, is nothing when open, grows as the lid comes down, and shut is the closed laptop's front resting on the base. All of it is `sin()`/`cos()` of one number, so a transition, a scrub and a filmed frame are the same geometry. Without `lid` the frame renders as before, flat.
 
 ### macos-session
 

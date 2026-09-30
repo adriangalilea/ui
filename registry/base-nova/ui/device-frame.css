@@ -53,47 +53,71 @@
     width: 84%;
     margin-inline: auto;
   }
-  /* The hinge (MacbookFrame `lid`, 0 open .. 1 shut, as --device-lid). The lid
-     turns on its bottom edge toward the viewer until it is edge-on and gone; over
-     its last stretch the shut laptop's top surface fades in above the base: a thin
-     aluminium slab, wider at the front edge nearest the viewer, the way a closed
-     MacBook reads from the front. The frame draws no keyboard deck (the base is its
-     front edge), so a lid laid flat in true 3D would have no consistent place to
-     rest; this draws what the eye expects instead. Only set up when hinged. */
-  /* lid="open" | "closed": the frame owns the motion. --device-lid is a registered
+  /* The hinge (MacbookFrame `lid`, 0 open .. 1 shut, as --device-lid). Only set up
+     when hinged.
+     lid="open" | "closed": the frame owns the motion. --device-lid is a registered
      number (below), so it interpolates, and everything that reads it (the angle,
      the shut slab) moves together on one curve. A numeric lid is the caller's time
      and never transitions. */
   .device-desktop[data-lid-motion] {
     transition: --device-lid 1.1s cubic-bezier(0.65, 0, 0.35, 1);
   }
-  /* The camera is chosen so the lid lands where the shut laptop is drawn. The eye
-     sits at the hinge (perspective() in the lid's own transform puts it at the
-     transform origin), so the lid's top edge comes down to the base's top; the
-     distance makes a lid 84% of the base's width, swung flat toward the viewer,
-     project to exactly the base's width: P / (P - H) = 1 / 0.84, P = 6.25 H, with H
-     the lid's height (55cqw). The corners then travel down and out, onto the base's
-     own corners. */
+  /* One camera for the whole hinge, in cqw as bare numbers (CSS cannot divide a
+     length by a length): the lid's border box W = 84 by H = 55.1125 (84% of the
+     frame; padding 1.2 / 2.8, border 0.15, a 16:10 display), its top corner radius
+     R = 2.7, thickness T = 1, and the eye at the hinge at distance P = 6.25 H, the
+     distance at which the lid, swung flat toward the viewer, spans exactly the
+     base's width (W P / (P - H) = 100). For the lid at angle θ:
+       top    the lid's top edge, height above the hinge: H cos θ · P / (P - H sin θ)
+       back   the back edge of its thickness: (H cos θ + T sin θ) · P / (P - H sin θ + T cos θ)
+       band   back - top, the rim as the eye sees it (0 open, T P / (P - H) shut)
+       ry     the top corners' projected height: R cos θ · P / (P - H sin θ) */
+  .device-desktop[data-hinged] {
+    --lid-sin: sin(calc(var(--device-lid, 0) * 90deg));
+    --lid-cos: cos(calc(var(--device-lid, 0) * 90deg));
+    --lid-scale: calc(344.45 / (344.45 - 55.1125 * var(--lid-sin)));
+    --lid-top: calc(55.1125 * var(--lid-cos) * var(--lid-scale));
+    --lid-back: calc(
+      (55.1125 * var(--lid-cos) + var(--lid-sin)) *
+      344.45 /
+      (344.45 - 55.1125 * var(--lid-sin) + var(--lid-cos))
+    );
+    --lid-band: max(0, calc(var(--lid-back) - var(--lid-top)));
+    --lid-ry: calc(2.7 * var(--lid-cos) * var(--lid-scale));
+  }
+  /* The lid's face turns in true perspective: the eye at the hinge (perspective()
+     in the lid's own transform puts it at the transform origin), at distance P. */
   .device-desktop[data-hinged] .device-lid {
     z-index: 3;
     transform-origin: 50% 100%;
-    transform: perspective(344cqw) rotateX(calc(var(--device-lid, 0) * -90deg));
-    /* Past edge-on the lid would show its own flipped panel over the base. */
-    backface-visibility: hidden;
+    transform: perspective(344.45cqw)
+      rotateX(calc(var(--device-lid, 0) * -90deg));
   }
-  /* The shut lid from the front: the lid's edge sitting on the base. Exactly the
-     base's width and end shading, rounded where the base is square, lit on its top
-     edge (the one the light reaches), and parted from the base by the dark hairline
-     gap every closed laptop has, so the base's own lit edge reads as the next piece
-     down. */
-  .device-lid-shut {
+  /* The lid's thickness, painted where the camera puts it: the lid's own outline
+     (projected width, projected corner radii) raised by the band and set just behind
+     the face, so what shows is the rim above the lid's top edge and around its
+     corners, and nothing past them. Open, the band is zero and the rim hides behind
+     the face; closing, it grows; shut, the face is edge-on and the rim is the closed
+     laptop's front: the base's width, lit along its top, the dark seam at its foot.
+     Its paint is the base's own: the same end shading, the same aluminium. */
+  .device-lid-rim {
     position: absolute;
-    z-index: 3;
-    left: 0;
-    right: 0;
-    bottom: calc(3.7cqw - 0.15cqw);
-    height: 1.2cqw;
-    border-radius: 1.2cqw 1.2cqw 0 0;
+    z-index: 2;
+    left: 50%;
+    bottom: calc((3.55 + var(--lid-top) - var(--lid-ry)) * 1cqw);
+    width: calc(84cqw * var(--lid-scale));
+    height: calc((var(--lid-band) + var(--lid-ry)) * 1cqw);
+    translate: -50% 0;
+    /* The lid's projected top corners, unchanged: the rim is the outline shifted
+       up, not grown. As the lid comes down the corner's height (ry) flattens and a
+       corner that wide and that flat is visually square, so its width follows it
+       down; both floor at the edge's own rounding (0.45cqw), which is all a shut
+       lid's corner shows from the front: its plan-view curve lies flat in depth. */
+    border-radius:
+      calc(min(2.7 * var(--lid-scale), max(0.45, 4 * var(--lid-ry))) * 1cqw)
+      calc(min(2.7 * var(--lid-scale), max(0.45, 4 * var(--lid-ry))) * 1cqw) 0 0
+      / calc(max(0.45, var(--lid-ry)) * 1cqw)
+      calc(max(0.45, var(--lid-ry)) * 1cqw) 0 0;
     background:
       linear-gradient(
         90deg,
@@ -108,7 +132,9 @@
       ),
       linear-gradient(#5a5a5f, #2e2e32 22%, #36363a 72%, #1a1a1d 90%, #0b0b0c);
     box-shadow: 0 0.14cqw 0 #060607;
-    opacity: clamp(0, (var(--device-lid, 0) - 0.9) / 0.1, 1);
+    /* Below a tenth of a cqw of band there is nothing to see, and the rim's
+       antialiased corners would fringe the face's. */
+    opacity: clamp(0, var(--lid-band) * 10, 1);
   }
   .device-base {
     position: relative;

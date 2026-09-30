@@ -12,8 +12,9 @@ type DesktopFrameProps = ComponentProps<"div"> & { screenClassName?: string }
 export type MacbookLid = "open" | "closed" | number
 
 /** A 16:10 laptop display with a shallow base. `lid` puts it on a hinge (see
- *  MacbookLid); shut, it is a closed laptop from the front, the lid's top surface
- *  resting on the base. Without `lid` the frame is flat 2D and nothing 3D is set up. */
+ *  MacbookLid): the lid's face turns in perspective and its thickness is painted
+ *  where the same camera puts it (device-frame.css), so shut it is the closed
+ *  laptop's front, resting on the base. Without `lid` the frame is flat 2D. */
 export function MacbookFrame({
   children,
   className,
@@ -49,8 +50,8 @@ export function MacbookFrame({
         {notch && <span aria-hidden className="device-notch" />}
         <span aria-hidden className="device-camera" />
       </div>
-      {lid !== undefined && <span aria-hidden className="device-lid-shut" />}
       <div aria-hidden className="device-base" />
+      {lid !== undefined && <span aria-hidden className="device-lid-rim" />}
       <span aria-hidden className="device-rubber left" />
       <span aria-hidden className="device-rubber right" />
     </div>
