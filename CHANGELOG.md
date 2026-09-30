@@ -38,6 +38,7 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 - Breaking: the terminal draws and no longer plays itself. The in-view autoplay and `duration` are gone: place it inside `<Player clip={sessionTimeline(parseSession(session)).clip}>`, or pass a fixed `progress` for a still.
 - New: `size`, the type size as any CSS length (default `13px`); the chrome is in em and scales with it. A box the terminal must fill passes `stillSize()`.
+- The window parts from the page: a hairline in its own accent at low alpha (`TerminalPalette.edge`) and a soft, low shadow, so its near-black no longer melts into a dark page. A frame that fills a box of its own (a card) drops both with its className.
 
 ### terminal-session
 

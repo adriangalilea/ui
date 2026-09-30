@@ -68,6 +68,7 @@ export interface TerminalPalette {
   bg: string
   bar: string
   dot: string
+  edge: string
   prompt: string
   muted: string
   command: string
@@ -82,6 +83,9 @@ export function terminalPalette(accent = "#38ff6e"): TerminalPalette {
     bg: mix(accent, BLACK, 0.955),
     bar: mix(accent, BLACK, 0.925),
     dot: mix(accent, BLACK, 0.8),
+    // The window's hairline: the accent at low alpha, so the frame parts from any
+    // page (its near-black melts into a dark one) without a second colour. CSS only.
+    edge: `color-mix(in oklab, ${accent} 16%, transparent)`,
     prompt: mix(accent, BLACK, 0.55),
     muted: mix(accent, WHITE, 0.4),
     command: mix(accent, WHITE, 0.82),

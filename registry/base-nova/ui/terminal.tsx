@@ -108,6 +108,10 @@ export function Terminal({
         background: palette.bg,
         borderRadius: em(12),
         overflow: "hidden",
+        // Parted from the page by a hairline in its own accent and a soft, low
+        // shadow: a window resting on it, not a hole in it.
+        border: `1px solid ${palette.edge}`,
+        boxShadow: `0 ${em(1)} ${em(2)} rgb(0 0 0 / 0.25), 0 ${em(18)} ${em(40)} -${em(12)} rgb(0 0 0 / 0.55)`,
         fontFamily: "var(--font-mono, Menlo, Monaco, monospace)",
         fontSize: size,
         lineHeight: LINE_HEIGHT,
