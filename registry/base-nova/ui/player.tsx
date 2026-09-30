@@ -8,10 +8,11 @@
 // whichever moved last wins. Its timeline bar sits under the content, never over it: thick,
 // cut into the chapters, the played part in the accent. Hovering the bar shows that
 // exact frame in the content, with the chapter and the time above the pointer, and
-// leaving it returns to the playhead; the chapter on screen is named beside the time
-// (unless the content captions itself); a click seeks, a drag scrubs, a horizontal
-// swipe scrubs. Keys: space plays and pauses, ← and → move between chapters, Home
-// and End go to the ends. Reduced motion starts paused on the last frame.
+// leaving it returns to the playhead; the chapter on screen is named on its own line
+// under the bar (unless the content captions itself); a click on the bar seeks, a
+// drag scrubs, a horizontal swipe scrubs, and a click on the content plays and
+// pauses. Keys: space plays and pauses, ← and → move between chapters, Home and End
+// go to the ends. Reduced motion starts paused on the last frame.
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
