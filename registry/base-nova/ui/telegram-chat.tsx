@@ -1067,7 +1067,6 @@ export function TelegramChat({
   return (
     <figure
       ref={root}
-      data-frozen={frozen}
       className={`tgchat${className ? ` ${className}` : ""}`}
       data-theme={theme}
       data-managed={script.managedBy ? "" : undefined}

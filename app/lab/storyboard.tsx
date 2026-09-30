@@ -2,8 +2,9 @@
 
 // A storyboard on scroll-stage: phones on the left, the words on the right. Act i's
 // phone stands in front; the act before tucks behind and outward; the words for
-// every act stay on screen, the one on stage lit. A chat plays itself once, on its
-// own clock, the moment its act begins (useAct mounts it); scroll never scrubs it.
+// every act stay on screen, the one on stage lit. Each act's chat is a Playback,
+// mounted when its act begins (useAct), so it plays once from the conversation;
+// scroll never scrubs it.
 
 import * as React from "react"
 import {

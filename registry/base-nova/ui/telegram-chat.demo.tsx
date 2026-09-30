@@ -488,7 +488,7 @@ export default function Demo() {
       <Sample
         name="scrolly"
         with="acts"
-        label="06 · a scrolly · an act index in; until, focus and crop out. the chat is paced by the acts and the effects chain"
+        label="06 · a scrolly · an act index in; a cue, focus and crop out. scroll plays the chat act by act, the bar scrubs the same story, and the effects chain"
       >
         <ScrollStage
           acts={ACTS.length}

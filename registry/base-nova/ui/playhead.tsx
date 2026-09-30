@@ -52,7 +52,7 @@ export interface PlaybackOptions {
   cue?: Span
 }
 
-export interface PlaybackState {
+interface PlaybackState {
   at: number
   target: number
 }

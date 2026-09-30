@@ -175,8 +175,7 @@
       "name": "scroll-stage",
       "type": "registry:ui",
       "title": "scroll-stage",
-      "description": "the pinned stage: a tall track, a sticky stage, --stage-p driven by CSS scroll-driven animation, acts as checkpoints; clipBeats and clipProgress scroll any clip a player plays",
-      "registryDependencies": ["@ag/clip"],
+      "description": "the pinned stage: a tall track, a sticky stage, --stage-p driven by CSS scroll-driven animation, acts as checkpoints. an act drives a clip by cueing its playhead (@ag/playhead cue, @ag/clip chapterSpan); a beat's progress scrubs one directly (progressWithin)",
       "files": [
         {
           "path": "registry/base-nova/ui/scroll-stage.tsx",

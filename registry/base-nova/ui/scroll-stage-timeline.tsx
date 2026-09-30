@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { type Clip, progressAt, spans } from "@/registry/base-nova/lib/clip"
 import { useScrollStage } from "@/registry/base-nova/ui/scroll-stage"
 
 export interface ScrollBeat {
@@ -36,33 +35,6 @@ export function scrollBeatFrame(
   })
   if (position <= 0) active = offset = 0
   return { active, offset, progress }
-}
-
-/** A clip's chapters as scroll beats: each chapter a span in proportion to its
- *  share of the clip, so a story scrolls at the pace it plays. `play` and `hold` as
- *  for any beat. The same clip a player plays (lib/clip). */
-export function clipBeats(
-  clip: Clip,
-  beat: Omit<ScrollBeat, "span"> = {},
-): ScrollBeat[] {
-  return spans(clip).map((c) => ({
-    ...beat,
-    span: (c.end - c.start) / clip.duration,
-  }))
-}
-
-/** Where a scroll frame is in the clip, as the progress its content draws: the
- *  active chapter played as far as its beat has. */
-export function clipProgress(
-  clip: Clip,
-  frame: { active: number; progress: readonly number[] },
-): number {
-  const c = spans(clip)[frame.active]
-  if (!c) throw new Error(`clipProgress: no chapter ${frame.active}`)
-  return progressAt(
-    clip,
-    c.start + (c.end - c.start) * (frame.progress[frame.active] ?? 0),
-  )
 }
 
 /** Opt-in JS driver for renderers such as transcripts that need exact content

@@ -36,7 +36,7 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 ### scroll-stage
 
-- `clipBeats(clip)` turns a clip's chapters into scroll beats sized by their share of it, and `clipProgress(clip, frame)` maps a scroll frame back to the progress its content draws: the same clip a player plays, scrolled.
+- A scroll stage drives any clip a player plays: an act cues the playhead (`<Player cue={chapterSpan(clip, k)}>`, so scroll and the bar share one story), and a beat's progress scrubs a card directly (`progressWithin`). `clipBeats` and `clipProgress`, shipped earlier today, are gone with that.
 
 ### telegram-chat
 
