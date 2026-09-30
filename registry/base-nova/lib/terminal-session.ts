@@ -132,7 +132,13 @@ export function sessionTimeline(lines: SessionLine[]): SessionTimeline {
   const chapters = lines
     .flatMap((l, i) =>
       l.kind === "command"
-        ? [{ start: (starts[i] as number) - l.delay, title: `$ ${l.text}` }]
+        ? [
+            {
+              start: (starts[i] as number) - l.delay,
+              title: l.text,
+              code: true,
+            },
+          ]
         : [],
     )
     .map((c, k) => (k === 0 ? { ...c, start: 0 } : c))

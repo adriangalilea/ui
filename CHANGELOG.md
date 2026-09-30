@@ -26,6 +26,7 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 ### clip
 
 - New: anything drawn from a moment, as the facts a driver moves through it by: `Clip` (its length in ms and its `Chapter`s), `progressAt` and `spans`; `chapterSpan(clip, first, last)` for the stretch an act tells, and `progressWithin(clip, span, local)` for a card scrubbed across only its part of a clip. The content's lib makes the clip, a driver moves through it (the player by the clock, a scroll stage by scroll, a still at one moment), the component draws the frame at a progress. One contract, so any content plays in any driver.
+- New: `Chapter.code`, a title that is code as typed (a terminal's command), for a driver to draw in mono.
 
 ### playhead
 
@@ -40,7 +41,7 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 ### terminal-session
 
-- `sessionTimeline(…).clip`: the session as a clip, one chapter per command titled with it.
+- `sessionTimeline(…).clip`: the session as a clip, one chapter per command titled with it, as typed (no `$`), marked `code`.
 - New: `STILL`, the still's frame and type in px (the defaults of `renderSessionSvg`), and `stillSize()`, the still's type as a share of its width in `cqw`, so a live terminal in an inline-size container draws the frame the still draws.
 
 ### scroll-stage
@@ -59,6 +60,7 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 ### player
 
 - New: a player for any clip (`<Player clip label><Terminal session={s} /></Player>`: a macos stage, a terminal, a chat; it moves the content's playhead). It is `Playback` with a bar and takes the same `start`, `delay` and `cue`, so a scroll stage and the bar drive one story. The chapter on screen is named beside the time; `captioned` leaves that to content that captions itself (a macos scene). It plays once in view; a thick timeline under the content, cut into its chapters, fills in the accent. Hovering the bar shows that exact frame, with the chapter and the time above the pointer, and a pointer near a chapter's start is pulled onto it (a marker stands at the boundary, the tooltip says so). A click or a drag seeks without losing the play state, a horizontal swipe scrubs, and the bar is a slider: space plays and pauses, ← and → move between chapters, Home and End go to the ends.
+- The chapter on screen is named on its own reserved line under the bar, aligned with it, not beside the time: there its width changed with every chapter and resized the bar under the pointer. A `code` chapter (a command) is drawn in mono.
 - A click anywhere on the content plays and pauses, as on a video; a control inside the content (a button, a link, a reaction pill) keeps its own click.
 
 ### keys

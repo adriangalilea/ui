@@ -10,6 +10,8 @@
 export interface Chapter {
   start: number
   title: string
+  /** The title is code, as typed (a terminal's command): drawn in mono. */
+  code?: boolean
 }
 
 export interface Clip {

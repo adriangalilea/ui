@@ -16,6 +16,7 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import {
+  type Chapter,
   type Clip,
   progressAt,
   spans as spansOf,
@@ -52,6 +53,17 @@ const SNAP_PX = 10
 function clock(ms: number): string {
   const s = Math.max(0, Math.round(ms / 1000))
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`
+}
+
+/** A chapter's title as its kind reads: a command in mono, as typed; words with
+ *  their shortcuts drawn as keys. */
+function ChapterTitle({ chapter }: { chapter: Chapter | undefined }) {
+  if (!chapter?.title) return null
+  return chapter.code ? (
+    <code className="font-mono">{chapter.title}</code>
+  ) : (
+    <KeysText>{chapter.title}</KeysText>
+  )
 }
 
 export function Player({
@@ -295,7 +307,7 @@ export function Player({
                     hover.snapped ? "font-medium" : "text-popover-foreground/70"
                   }
                 >
-                  <KeysText>{hovered.title}</KeysText>
+                  <ChapterTitle chapter={hovered} />
                 </span>
               )}
               <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
@@ -306,19 +318,23 @@ export function Player({
             </div>
           )}
         </div>
-        {!captioned && chapterAt(shown)?.title && (
-          <span
-            data-slot="player-chapter"
-            aria-hidden="true"
-            className="min-w-0 max-w-[40%] shrink truncate text-muted-foreground text-xs"
-          >
-            <KeysText>{chapterAt(shown)?.title ?? ""}</KeysText>
-          </span>
-        )}
         <span className="shrink-0 font-mono text-[11px] text-muted-foreground tabular-nums">
           {clock(shown)} / {clock(duration)}
         </span>
       </div>
+      {/* The chapter on screen, on its own line under the bar, aligned with it: its
+          width changes with every chapter, and beside the bar it resized the bar
+          under the pointer. The line is reserved, so no chapter moves the page. */}
+      {!captioned && (
+        <p
+          data-slot="player-chapter"
+          aria-hidden="true"
+          className="mt-1 truncate pl-11 text-muted-foreground text-xs leading-5"
+        >
+          <ChapterTitle chapter={chapterAt(shown)} />
+          &#8203;
+        </p>
+      )}
     </div>
   )
 }
