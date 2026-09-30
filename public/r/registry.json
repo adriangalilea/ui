@@ -360,15 +360,41 @@
       ]
     },
     {
+      "name": "keys",
+      "type": "registry:lib",
+      "title": "keys",
+      "description": "keyboard shortcuts as data: any notation (⌃⌥⌘A, ctrl+alt+cmd+a, ← →) split into the keys pressed in the Mac's glyphs, anything that is not keys refused, and shortcuts found inside text. framework-free",
+      "files": [
+        {
+          "path": "registry/base-nova/lib/keys.ts",
+          "type": "registry:lib"
+        }
+      ]
+    },
+    {
+      "name": "kbd",
+      "type": "registry:ui",
+      "title": "kbd",
+      "description": "keyboard shortcuts drawn as keys: one shortcut in any notation, or a sentence with its shortcuts as keys; isKeys tells a shortcut from a command",
+      "registryDependencies": ["@ag/keys"],
+      "files": [
+        {
+          "path": "registry/base-nova/ui/kbd.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
       "name": "macos",
       "type": "registry:ui",
       "title": "macos",
-      "description": "a menu bar app performed on a Mac screen: its glyph, its real menu, the terminal driving it, its banners, the chord pressed, the lid closing. plays a timeline the app's own engine compiled; scrub it with progress or let it play once in view",
+      "description": "a menu bar app performed on a Mac screen: its glyph, its real menu, the terminal driving it, its banners, the keyboard shortcut pressed, the lid closing. plays a timeline the app's own engine compiled; scrub it with progress or let it play once in view",
       "registryDependencies": [
         "@ag/macos-session",
         "@ag/terminal-session",
         "@ag/device-frame",
-        "@ag/agent-session"
+        "@ag/agent-session",
+        "@ag/kbd"
       ],
       "files": [
         {

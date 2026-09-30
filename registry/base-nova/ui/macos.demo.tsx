@@ -4,7 +4,6 @@ import * as React from "react"
 import { Sample } from "@/app/samples"
 import artJson from "@/public/macos/awake/art.json"
 import heroJson from "@/public/macos/awake/hero.json"
-import lidClosedJson from "@/public/macos/awake/lid-closed.json"
 import lidYoursJson from "@/public/macos/awake/lid-yours.json"
 import menuBarJson from "@/public/macos/awake/menu-bar.json"
 import safetyNetsJson from "@/public/macos/awake/safety-nets.json"
@@ -26,7 +25,6 @@ import { Macos, type MacosDevice } from "@/registry/base-nova/ui/macos"
 const SCENES = {
   hero: heroJson,
   "menu-bar": menuBarJson,
-  "lid-closed": lidClosedJson,
   "lid-yours": lidYoursJson,
   "safety-nets": safetyNetsJson,
 } as Record<string, Timeline>
@@ -57,12 +55,12 @@ export default function MacosDemo() {
         with="scenes"
       >
         <Macos
-          timeline={SCENES["lid-closed"] as Timeline}
+          timeline={SCENES["safety-nets"] as Timeline}
           art={ART}
           agents={AGENTS}
           accent="#e7a13c"
           device="macbook"
-          alt="awake: two hours awake, the lid closes and the Mac keeps running"
+          alt="awake: held awake with the lid shut in a bag, it sleeps when it gets too hot, and again when the battery runs low"
         />
       </Sample>
       <Sample

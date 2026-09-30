@@ -44,6 +44,7 @@ import {
   MacbookFrame,
   StudioDisplayFrame,
 } from "@/registry/base-nova/ui/device-frame"
+import { KeysText } from "@/registry/base-nova/ui/kbd"
 
 /** The hardware around the screen. Absent: the screen alone, rounded. */
 export type MacosDevice = "macbook" | "display"
@@ -235,9 +236,11 @@ export function Macos({
         data-slot="macos-caption"
         className="mt-5 grid text-balance text-center text-[15px] text-foreground/80 leading-relaxed"
       >
+        {/* A shortcut in a caption is drawn as the keys it is; the reserved
+            lines draw it too, so they are exactly as tall. */}
         {captions.map((c) => (
           <p key={c} className="invisible [grid-area:1/1]">
-            {c}
+            <KeysText>{c}</KeysText>
           </p>
         ))}
         <p
@@ -247,7 +250,7 @@ export function Macos({
             transform: `translateY(${(1 - captionIn) * 4}px)`,
           }}
         >
-          {f.caption}
+          {f.caption && <KeysText>{f.caption}</KeysText>}
         </p>
       </div>
     </div>

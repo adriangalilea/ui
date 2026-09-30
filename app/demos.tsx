@@ -3,6 +3,7 @@
 import type { ComponentType } from "react"
 import TelegramSummary from "@/registry/base-nova/blocks/telegram-summary/telegram-summary.demo"
 import AgentSession from "@/registry/base-nova/lib/agent-session.demo"
+import Keys from "@/registry/base-nova/lib/keys.demo"
 import LightboxActions from "@/registry/base-nova/lib/lightbox-actions.demo"
 import LightboxMotion from "@/registry/base-nova/lib/lightbox-motion.demo"
 import MacosSession from "@/registry/base-nova/lib/macos-session.demo"
@@ -21,6 +22,7 @@ import Copy from "@/registry/base-nova/ui/copy.demo"
 import DeviceFrame from "@/registry/base-nova/ui/device-frame.demo"
 import Editor from "@/registry/base-nova/ui/editor.demo"
 import Image from "@/registry/base-nova/ui/image.demo"
+import Kbd from "@/registry/base-nova/ui/kbd.demo"
 import Lightbox from "@/registry/base-nova/ui/lightbox.demo"
 import LiquidGlass from "@/registry/base-nova/ui/liquid-glass.demo"
 import Macos from "@/registry/base-nova/ui/macos.demo"
@@ -62,6 +64,8 @@ export const DEMOS: Record<string, ComponentType> = {
   "media-spec": MediaSpec,
   quote: Quote,
   terminal: Terminal,
+  keys: Keys,
+  kbd: Kbd,
   macos: Macos,
   "macos-session": MacosSession,
   "agent-session": AgentSession,
