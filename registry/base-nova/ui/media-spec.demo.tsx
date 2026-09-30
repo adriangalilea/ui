@@ -242,8 +242,9 @@ export default function Demo() {
             </div>
           ))}
           <Kicker>
-            symbol · lockup · symbol in brand · lockup in brand, at 1em / the
-            lockup&apos;s own rise; a mark with one form shows it in both slots
+            symbol · lockup · symbol in brand · lockup in brand; a symbol at
+            1em, a lockup with its word&apos;s capitals at the text&apos;s cap
+            height; a mark with one form shows it in both slots
           </Kicker>
         </div>
       </Sample>

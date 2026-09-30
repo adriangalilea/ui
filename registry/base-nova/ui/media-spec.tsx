@@ -60,10 +60,10 @@
 
 import { cn } from "@/lib/utils"
 import {
-  MARKS,
   Mark,
   type MarkId,
   type MarkTone,
+  markArt,
 } from "@/registry/base-nova/ui/media-spec-marks"
 
 // ── The vocabulary. Raw values are the wire spellings; a sibling Swift product pins
@@ -352,15 +352,16 @@ const HAS_SYMBOL: ReadonlySet<MarkId> = new Set<MarkId>([
 // side padding ≈ half a cap (the HDR10 badge's own proportions, redrawn in CSS). The
 // sticker is the same frame 1.75 × taller, centred on the row. A mark drawn in a
 // grid with margins states its factor (`MarkArt.box`) and the chip scales the grid to
-// B × box, so its box is B tall. A brand symbol and the flag stand at B; a lockup
-// rises above B so a two-line wordmark stays legible, centred. Tuned once, on the
-// demo page:
+// B × box, so its box is B tall. A brand symbol and the flag stand at B. A LOCKUP is
+// set in the badge's text size and stands 1cap / `MarkArt.cap` tall, so its word's
+// capitals are exactly the badge words' capitals whatever font the consumer runs:
+// the height follows from a fact measured on the artwork, never from its shape.
+// Tuned once, on the demo page:
 //   sm  B = 10px  radius 2.5px  hairline 0.8px  text 8px   sides 3px   sticker 18px
 //   md  B = 12px  radius 3px    hairline 1px    text 11px  sides 4px   sticker 21px
-//       lockup 16px
 //   lg  B = 16px  radius 4px    hairline 1.25px text 14px  sides 5px   sticker 30px
-//       lockup 21px  symbol 18px
-type Box = "symbol" | "lockup" | "flag"
+//       symbol 30px
+type Box = "symbol" | "flag"
 const BOX_OF: Partial<Record<MarkId, Box>> = { "flag-es": "flag" }
 /** The badge height B per rung, in px: what a mark drawn in a grid scales its box to. */
 const BADGE_PX: Record<Size, number> = { sm: 10, md: 12, lg: 16 }
@@ -369,15 +370,21 @@ const BADGE_PX: Record<Size, number> = { sm: 10, md: 12, lg: 16 }
 // and at the badge height it read as a speck beside the sticker. At sm the sticker
 // is one line, so the symbol stays at B.
 const MARK_H: Record<Size, Record<Box, string>> = {
-  sm: { symbol: "h-2.5", lockup: "h-2.5", flag: "h-2.5" },
-  md: { symbol: "h-[21px]", lockup: "h-4", flag: "h-3" },
-  lg: { symbol: "h-[30px]", lockup: "h-[21px]", flag: "h-4" },
+  sm: { symbol: "h-2.5", flag: "h-2.5" },
+  md: { symbol: "h-[21px]", flag: "h-3" },
+  lg: { symbol: "h-[30px]", flag: "h-4" },
+}
+/** The badge words' size: the font a lockup's capitals are matched to. */
+const TEXT: Record<Size, string> = {
+  sm: "text-[8px]",
+  md: "text-[11px]",
+  lg: "text-[14px]",
 }
 /** The drawn badge. */
 const WORD: Record<Size, string> = {
-  sm: "h-2.5 rounded-[2.5px] border-[0.8px] px-[3px] text-[8px]",
-  md: "h-3 rounded-[3px] border px-1 text-[11px]",
-  lg: "h-4 rounded-[4px] border-[1.25px] px-[5px] text-[14px]",
+  sm: cn("h-2.5 rounded-[2.5px] border-[0.8px] px-[3px]", TEXT.sm),
+  md: cn("h-3 rounded-[3px] border px-1", TEXT.md),
+  lg: cn("h-4 rounded-[4px] border-[1.25px] px-[5px]", TEXT.lg),
 }
 /** THE STICKER: the disc-case resolution badge, two panels in one frame. An outer
  *  frame stroked in the ink; an upper panel on the near-black ground carrying the
@@ -651,10 +658,13 @@ function Chip({
     "--ag-media-ink": gold ? GOLD_MID : `var(--ag-media-${kind}, currentColor)`,
     ...emphasisStyle(emphasis, isMark),
   } as React.CSSProperties
+  const art = isMark ? markArt(atom.mark, form) : null
   // A mark drawn inside a grid with margins (tabler's badges) scales its BOX to the
   // badge height; the art states the factor, so the grid never sets the size.
-  const grid = isMark ? (MARKS[atom.mark][form]?.box ?? 1) : 1
+  const grid = art?.box ?? 1
   if (grid !== 1) style.height = `${BADGE_PX[size] * grid}px`
+  // A wordmark sizes itself from the badge words' font (`Mark` stands at 1cap / cap).
+  const worded = art !== null && art.cap !== null && grid === 1
   const sticker = !isMark && atom.sub !== undefined
   if (gold && !isMark && !sticker) {
     // The one-panel box under gold: near-black inside, the metal on the stroke, the
@@ -669,7 +679,9 @@ function Chip({
     "inline-flex shrink-0 items-center align-middle leading-none",
     "text-(--ag-media-ink)",
     isMark
-      ? grid === 1 && MARK_H[size][BOX_OF[atom.mark] ?? form]
+      ? worded
+        ? TEXT[size]
+        : grid === 1 && MARK_H[size][BOX_OF[atom.mark] ?? "symbol"]
       : sticker
         ? "whitespace-nowrap"
         : cn(
@@ -716,7 +728,7 @@ function Chip({
       form={form}
       tone={tone}
       paint={gold ? paint : undefined}
-      fill
+      fill={!worded}
     />
   ) : atom.sub !== undefined ? (
     <Sticker

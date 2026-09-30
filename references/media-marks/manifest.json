@@ -1,5 +1,6 @@
 {
   "vocabulary": "media-spec (kinds picture/sound/tier/lang/cut). A chip is one mark standing frameless; a drawn badge only where no artwork exists. `symbol` is the poster (sm) artwork, `lockup` the rail (md) artwork; brand = official hex for tone=brand; marks with intrinsic colours (the flag) ignore tone.",
+  "cap": "Every mark with a lockup states `cap`: the height of the lockup's primary word's capitals over the artwork's height, measured once on a render in a column holding only those capitals (DOLBY, not the D symbol; dts and flac by their ascenders, and dts-HD by its dts, never its smaller HD, so a family's brand word is one size; opus, lowercase without ascenders, by its x-height / 0.7). The disc logos lead with a shape, not a word (their words are small print), so Blu-ray is measured by its swoosh and Ultra HD Blu-ray by its black box, which keeps the two discs one height. The lockup is drawn at 1cap / cap tall, so its capitals equal the capitals of the font it stands in. null = the lockup carries no word (the flag, the badges) and is sized as a symbol.",
   "marks": {
     "dolby": {
       "symbol": "dolby-symbol.svg",
@@ -11,6 +12,7 @@
     "dolby-vision": {
       "symbol": "dolby-symbol.svg",
       "lockup": "Dolby_Vision_2021_logo.svg",
+      "cap": 0.517,
       "brand": "000000",
       "title": "Dolby Vision",
       "source": "Wikimedia Commons (PD)"
@@ -18,6 +20,7 @@
     "dolby-atmos": {
       "symbol": "dolby-symbol.svg",
       "lockup": "Logo_Dolby_Atmos.svg",
+      "cap": 0.515,
       "brand": "000000",
       "title": "Dolby Atmos",
       "source": "Wikimedia Commons (PD)"
@@ -25,6 +28,7 @@
     "dolby-truehd": {
       "symbol": "dolby-symbol.svg",
       "lockup": "Dolby_TrueHD.svg",
+      "cap": 0.522,
       "brand": "000000",
       "title": "Dolby TrueHD",
       "source": "Wikimedia Commons (PD)"
@@ -32,6 +36,7 @@
     "dolby-digital-plus": {
       "symbol": "dolby-symbol.svg",
       "lockup": "Dolby-Digital-Plus.svg",
+      "cap": 0.473,
       "brand": "000000",
       "title": "Dolby Digital Plus",
       "source": "Wikimedia Commons (PD)"
@@ -39,6 +44,7 @@
     "dolby-digital": {
       "symbol": "dolby-symbol.svg",
       "lockup": "Logo_Dolby-Digital_2011.svg",
+      "cap": 0.395,
       "brand": "000000",
       "title": "Dolby Digital",
       "source": "Wikimedia Commons (PD)"
@@ -46,6 +52,7 @@
     "dts": {
       "symbol": "dts-symbol.svg",
       "lockup": "DTS_2020_.svg",
+      "cap": 0.993,
       "brand": "F98B2B",
       "title": "DTS",
       "source": "simple-icons (CC0) / Commons (PD)"
@@ -53,6 +60,7 @@
     "dts-hd-ma": {
       "symbol": "dts-symbol.svg",
       "lockup": "DTS-HD-MA.svg",
+      "cap": 0.455,
       "brand": "F98B2B",
       "title": "DTS-HD Master Audio",
       "source": "Wikimedia Commons (PD)"
@@ -60,6 +68,7 @@
     "hdr10": {
       "symbol": "HDR_10_logo_black_.svg",
       "lockup": "HDR_10_logo_black_.svg",
+      "cap": 0.537,
       "brand": "000000",
       "title": "HDR10",
       "source": "Wikimedia Commons (PD)"
@@ -67,6 +76,7 @@
     "hdr10-plus": {
       "symbol": "HDR_10_plus_logo_black_.svg",
       "lockup": "HDR_10_plus_logo_black_.svg",
+      "cap": 0.47,
       "brand": "000000",
       "title": "HDR10+",
       "source": "Wikimedia Commons (PD)"
@@ -74,6 +84,7 @@
     "ultra-hd": {
       "symbol": null,
       "lockup": "Ultra_HD.svg",
+      "cap": 0.93,
       "brand": "221E1F",
       "title": "Ultra HD",
       "source": "Wikimedia Commons (PD)"
@@ -81,6 +92,7 @@
     "flac": {
       "symbol": null,
       "lockup": "FLAC_logo_vector.svg",
+      "cap": 0.758,
       "brand": "000000",
       "title": "FLAC",
       "source": "Wikimedia Commons (PD, Xiph)"
@@ -88,6 +100,7 @@
     "opus": {
       "symbol": null,
       "lockup": "Opus_logo2.svg",
+      "cap": 0.596,
       "brand": "000000",
       "title": "Opus",
       "source": "Wikimedia Commons (PD, Xiph)"
@@ -95,6 +108,7 @@
     "bluray": {
       "symbol": "bluray-symbol.svg",
       "lockup": "Blu-ray_Disc.svg",
+      "cap": 0.572,
       "brand": "0095D5",
       "title": "Blu-ray Disc",
       "source": "Wikimedia Commons (PD)"
@@ -102,6 +116,7 @@
     "ultra-hd-bluray": {
       "symbol": "bluray-symbol.svg",
       "lockup": "Ultra_HD_Blu-ray_logo.svg",
+      "cap": 0.575,
       "brand": "007DC5",
       "title": "Ultra HD Blu-ray",
       "source": "Wikimedia Commons (PD)"
@@ -109,6 +124,7 @@
     "dvd": {
       "symbol": "DVD_logo.svg",
       "lockup": "DVD_logo.svg",
+      "cap": 0.56,
       "brand": "000000",
       "title": "DVD",
       "source": "Wikimedia Commons (PD)"
@@ -116,6 +132,7 @@
     "imax": {
       "symbol": "IMAX.svg",
       "lockup": "IMAX.svg",
+      "cap": 0.997,
       "brand": "0072CE",
       "title": "IMAX",
       "source": "Wikimedia Commons (PD)"
@@ -123,6 +140,7 @@
     "flag-es": {
       "symbol": "Flag_of_Spain_civil_.svg",
       "lockup": "Flag_of_Spain_civil_.svg",
+      "cap": null,
       "brand": null,
       "title": "Spain",
       "source": "Wikimedia Commons (PD)",
@@ -131,6 +149,7 @@
     "badge-4k": {
       "symbol": "badge-4k.svg",
       "lockup": "badge-4k.svg",
+      "cap": null,
       "brand": null,
       "title": "4K",
       "source": "tabler icons via Iconify (MIT)",
@@ -140,6 +159,7 @@
     "badge-8k": {
       "symbol": "badge-8k.svg",
       "lockup": "badge-8k.svg",
+      "cap": null,
       "brand": null,
       "title": "8K",
       "source": "tabler icons via Iconify (MIT)",
@@ -149,6 +169,7 @@
     "badge-hd": {
       "symbol": "badge-hd.svg",
       "lockup": "badge-hd.svg",
+      "cap": null,
       "brand": null,
       "title": "HD",
       "source": "tabler icons via Iconify (MIT)",
@@ -158,6 +179,7 @@
     "badge-sd": {
       "symbol": "badge-sd.svg",
       "lockup": "badge-sd.svg",
+      "cap": null,
       "brand": null,
       "title": "SD",
       "source": "tabler icons via Iconify (MIT)",
@@ -197,9 +219,9 @@
   },
   "composition": {
     "law": "ARTWORK FIRST. A chip is one mark standing FRAMELESS (the artwork is the chip: lockups keep their shape, symbols their glyph); a drawn badge (rounded box + word, HDR10-badge geometry) only for a value with no artwork; the resolution badge is the disc-case badge drawn in that family ('4K' over 'ULTRA HD').",
-    "emphasis": "light, never geometry: ghost (55%) · plain (resting) · lit (a soft glow in the badge ink: box shadow on a drawn badge, drop shadow on a mark's silhouette) · vivid (a stronger glow, the chip at full brightness). No wash, no ring, no added shape.",
+    "emphasis": "light, never geometry: ghost (55%) · plain (resting) · lit (a soft glow in the badge ink: box shadow on a drawn badge, drop shadow on a mark's silhouette) · vivid (a stronger glow, the frame at the full ink; one colour per chip). No wash, no ring, no added shape.",
     "axes": "picture = [resolution] [range] (SDR omitted); sound = [object] [codec] [channels] (beside an object mark the codec is drawn); tier = [disc] [Remux]; lang = [flag] [name]; cut = [mark or drawn].",
-    "rungs": "sm = brand symbols and drawn badges; md = lockups. Strip groups per axis: tight gap within an axis, wider between axes.",
+    "rungs": "sm = brand symbols and drawn badges; md = lockups, each at its `cap` so its capitals equal the drawn badges' words. Strip groups per axis: tight gap within an axis, wider between axes.",
     "trailing": "a consumer's node after an axis's last chip."
   }
 }
