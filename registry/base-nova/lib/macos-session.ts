@@ -255,6 +255,24 @@ export function posterAt(timeline: Timeline): number {
   return (clock.starts[i] as number) / clock.total
 }
 
+/** The story's chapters, for a player's timeline: each caption tells one beat, so
+ *  each is a chapter titled with its own words. A chapter starts where the thing
+ *  it tells begins (the step after the previous caption; the first at 0) and runs
+ *  to the next. `start` in ms of the scene clock. */
+export function chapters(
+  timeline: Timeline,
+  clock: SceneClock,
+): { start: number; title: string }[] {
+  const out: { start: number; title: string }[] = []
+  let from = 0
+  timeline.steps.forEach((s, i) => {
+    if (s.kind !== "caption" || !s.text) return
+    out.push({ start: from, title: s.text })
+    from = clock.starts[i + 1] ?? clock.total
+  })
+  return out
+}
+
 export function sceneClock(timeline: Timeline): SceneClock {
   let at = 0
   // When the viewer is done with everything on screen so far.

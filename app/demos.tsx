@@ -27,6 +27,7 @@ import Lightbox from "@/registry/base-nova/ui/lightbox.demo"
 import LiquidGlass from "@/registry/base-nova/ui/liquid-glass.demo"
 import Macos from "@/registry/base-nova/ui/macos.demo"
 import MediaSpec from "@/registry/base-nova/ui/media-spec.demo"
+import Player from "@/registry/base-nova/ui/player.demo"
 import PreviewPicker from "@/registry/base-nova/ui/preview-picker.demo"
 import Quote from "@/registry/base-nova/ui/quote.demo"
 import Reveal from "@/registry/base-nova/ui/reveal.demo"
@@ -66,6 +67,7 @@ export const DEMOS: Record<string, ComponentType> = {
   terminal: Terminal,
   keys: Keys,
   kbd: Kbd,
+  player: Player,
   macos: Macos,
   "macos-session": MacosSession,
   "agent-session": AgentSession,

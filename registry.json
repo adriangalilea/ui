@@ -385,6 +385,19 @@
       ]
     },
     {
+      "name": "player",
+      "type": "registry:ui",
+      "title": "player",
+      "description": "a player for anything drawn from a progress: plays once in view, a thick timeline cut into chapters under the content, hover to preview any frame, click or drag or swipe to scrub, keys for play and chapters",
+      "registryDependencies": ["@ag/kbd"],
+      "files": [
+        {
+          "path": "registry/base-nova/ui/player.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
       "name": "macos",
       "type": "registry:ui",
       "title": "macos",
