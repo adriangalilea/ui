@@ -247,11 +247,16 @@ try {
     )
     assert.match(
       await readFile(join(components, "telegram-chat.tsx"), "utf8"),
-      /useChatAfterlife/,
+      /useChatLayout/,
     )
     assert.match(
-      await readFile(join(components, "telegram-chat-playback.tsx"), "utf8"),
-      /useChatAfterlife/,
+      await readFile(join(components, "telegram-chat-layout.tsx"), "utf8"),
+      /useChatLayout/,
+    )
+    assert.match(
+      await readFile(join(components, "playhead.tsx"), "utf8"),
+      /usePlayhead/,
+      "telegram-chat pulls its driver contract, @ag/playhead",
     )
     const lib = workspace
       ? join(destination, "packages/ui/src/lib")
