@@ -3,12 +3,12 @@
 // `ms` synchronously (flushSync runs the layout effects too, the camera's included)
 // and answers with a hash of the stage's markup, so the farm can tell a frame it has
 // already drawn from a new one without taking a picture of it.
-import * as React from "react"
 import { flushSync } from "react-dom"
 import { createRoot } from "react-dom/client"
 import {
   type Art,
   focusSpans,
+  pointerTargets,
   sceneClock,
   type Timeline,
 } from "@/registry/base-nova/lib/macos-session"
@@ -83,6 +83,9 @@ window.film = {
     // frame is taken: then a frame is the same whichever page draws it, in any order.
     for (const span of focusSpans(o.timeline, clock))
       if (span.kind) draw(span.start + 1)
+    // Likewise every place the pointer goes: each is on screen when it arrives.
+    for (const target of pointerTargets(o.timeline, clock))
+      draw(target.arrive + 1)
     draw(0)
     const r = (
       document.getElementById("stage") as HTMLElement

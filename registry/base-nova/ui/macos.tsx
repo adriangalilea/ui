@@ -25,6 +25,9 @@ import {
   KEY_MS,
   lidTravel,
   type MenuRow,
+  PRESS_MS,
+  pointerAt,
+  pointerTargets,
   type SceneClock,
   sceneClock,
   type TerminalLine,
@@ -123,10 +126,11 @@ export function Macos({
   const shut = f.world.lid === "closed" ? travel : 1 - travel
   const screen = (
     <Screen
+      timeline={timeline}
+      clock={clock}
       frame={f}
       ms={ms}
       shut={shut}
-      app={timeline.app}
       art={art}
       accent={accent}
     />
@@ -192,9 +196,17 @@ export function Macos({
             {f.world.asleep ? "asleep" : "still awake"}
           </span>
         </div>
-        {/* The presenter's key overlay sits over the camera, not in it: it stays in
-            view while the camera closes in on what the chord did. */}
+        {/* The presenter's overlays (the chord as keycaps, the mouse with the pressed
+            button lit) sit over the camera, not in it: they stay in view while the
+            camera closes in on what the input did. */}
         {f.key && <Keycaps keys={f.key.keys} age={ms - f.key.since} />}
+        {f.click && (
+          <Mouse
+            button={f.click.button}
+            age={ms - f.click.since}
+            accent={accent}
+          />
+        )}
       </div>
       <div
         data-slot="macos-caption"
@@ -222,23 +234,32 @@ export function Macos({
 /** One frame of the Mac's screen, filling its box: laid out at STAGE_WIDTH and as
  *  tall as the box's shape allows, then scaled to it. */
 function Screen({
+  timeline,
+  clock,
   frame: f,
   ms,
   shut,
-  app,
   art,
   accent,
 }: {
+  timeline: Timeline
+  clock: SceneClock
   frame: Frame
   ms: number
   shut: number
-  app: string
   art: Art
   accent: string
 }) {
+  const app = timeline.app
   const box = React.useRef<HTMLDivElement>(null)
+  const stage = React.useRef<HTMLDivElement>(null)
   const size = useBox(box)
   const scale = size.width / STAGE_WIDTH
+  const pointer = usePointer(stage, timeline, clock, ms, f)
+  // A right-click presses the status item for a beat, as the menu bar does.
+  const pressed =
+    f.menu !== null ||
+    (f.click?.button === "right" && ms - f.click.since < PRESS_MS + 120)
   return (
     <div
       ref={box}
@@ -247,6 +268,7 @@ function Screen({
     >
       {scale > 0 && (
         <div
+          ref={stage}
           data-slot="macos-stage"
           className="absolute top-0 left-0 origin-top-left bg-[radial-gradient(120%_90%_at_20%_0%,color-mix(in_oklab,var(--ag-macos-accent)_22%,#1c1c22),#101014_70%)] text-white"
           style={
@@ -262,7 +284,7 @@ function Screen({
           <MenuBar
             app={app}
             glyph={art.glyphs[f.glyph]}
-            open={f.menu !== null || f.rightClick !== null}
+            open={pressed}
             clock={f.world.clock}
             battery={f.world.battery}
             charging={f.world.charging}
@@ -280,10 +302,11 @@ function Screen({
             typing={f.typing}
             accent={accent}
           />
+          {pointer && <Cursor x={pointer.x} y={pointer.y} />}
           {/* The panel sleeps with the lid shut. */}
           <div
             data-slot="macos-panel-off"
-            className="absolute inset-0 bg-black"
+            className="absolute inset-0 z-[35] bg-black"
             style={{ opacity: shut }}
           />
           {f.banner && (
@@ -297,6 +320,107 @@ function Screen({
         </div>
       )}
     </div>
+  )
+}
+
+/** Where the pointer waits before its first trip, in stage px: over the desktop,
+ *  clear of the terminal. */
+const POINTER_REST = { x: 740, y: 420 }
+
+/** Measured pointer targets per timeline: the centre of the glyph, or of a row's
+ *  title, in stage px from layout offsets (transforms do not move them). */
+const PLACES = new WeakMap<Timeline, Map<string, { x: number; y: number }>>()
+function pointerPlaces(timeline: Timeline) {
+  const known = PLACES.get(timeline)
+  if (known) return known
+  const fresh = new Map<string, { x: number; y: number }>()
+  PLACES.set(timeline, fresh)
+  return fresh
+}
+
+function offsetIn(el: HTMLElement, root: HTMLElement) {
+  let x = 0
+  let y = 0
+  for (
+    let e: HTMLElement | null = el;
+    e && e !== root;
+    e = e.offsetParent as HTMLElement | null
+  ) {
+    x += e.offsetLeft
+    y += e.offsetTop
+  }
+  return { x, y }
+}
+
+/** The pointer, a pure function of scene time (`pointerTargets` + `pointerAt`):
+ *  every click in the story is made by a visible mouse that travels there first.
+ *  Null for a story that never clicks. */
+function usePointer(
+  stage: React.RefObject<HTMLDivElement | null>,
+  timeline: Timeline,
+  clock: SceneClock,
+  ms: number,
+  f: Frame,
+) {
+  const targets = React.useMemo(
+    () => pointerTargets(timeline, clock),
+    [timeline, clock],
+  )
+  const places = pointerPlaces(timeline)
+  const [, measured] = React.useReducer((n: number) => n + 1, 0)
+  React.useLayoutEffect(() => {
+    const root = stage.current
+    if (!root) return
+    let changed = false
+    const place = (
+      key: string,
+      selector: string,
+      dx: (el: HTMLElement) => number,
+    ) => {
+      if (places.has(key)) return
+      const el = root.querySelector<HTMLElement>(selector)
+      if (!el) return
+      const o = offsetIn(el, root)
+      places.set(key, { x: o.x + dx(el), y: o.y + el.offsetHeight / 2 })
+      changed = true
+    }
+    place(
+      "glyph",
+      '[data-slot="macos-status-item"]',
+      (el) => el.offsetWidth / 2,
+    )
+    if (f.menu)
+      for (const t of targets)
+        if (t.key.startsWith(`row:${f.menu.step}:`))
+          place(
+            t.key,
+            `[data-row="${t.key.split(":")[2]}"]`,
+            () => 56, // over the title, where a hand would aim
+          )
+    if (changed) measured()
+  })
+  if (targets.length === 0) return null
+  return pointerAt(targets, ms, (key) => places.get(key), POINTER_REST)
+}
+
+/** The macOS arrow, its tip at (x, y). */
+function Cursor({ x, y }: { x: number; y: number }) {
+  return (
+    <svg
+      data-slot="macos-cursor"
+      aria-hidden="true"
+      viewBox="0 0 14 21"
+      className="pointer-events-none absolute z-[26] h-[24px] w-auto drop-shadow-[0_1px_2px_rgb(0_0_0/0.6)]"
+      style={{ left: x - 1, top: y - 1 }}
+    >
+      <path
+        d="M1 1 L1 16.5 L4.8 12.9 L7.6 19.4 L10.2 18.3 L7.5 12 L12.6 12 Z"
+        fill="#fff"
+        stroke="#000"
+        strokeWidth="1.1"
+        strokeLinejoin="round"
+      />
+    </svg>
   )
 }
 
@@ -490,13 +614,15 @@ function Menu({
   rows,
   hover,
   pressed,
-  sub = false,
+  parent,
 }: {
   rows: MenuRow[]
   hover: number[] | null
   pressed: number[] | null
-  sub?: boolean
+  /** The row of the menu this one opens from; absent for the menu itself. */
+  parent?: number
 }) {
+  const sub = parent !== undefined
   const here = hover?.[0]
   return (
     <div
@@ -517,6 +643,7 @@ function Menu({
             // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional, as in NSMenu
             key={i}
             data-slot="macos-menu-row"
+            data-row={sub ? `${parent}.${i}` : `${i}`}
             className={cn(
               ROW,
               "relative",
@@ -544,7 +671,7 @@ function Menu({
                 pressed={
                   pressed && pressed.length > 1 ? [pressed[1] as number] : null
                 }
-                sub
+                parent={i}
               />
             )}
           </div>
@@ -651,18 +778,23 @@ function Banner({
   )
 }
 
-/** The chord as keycaps, popping up where a presenter's key overlay would. Sized to
- *  the viewport (cqw), since it lives outside the scaled screen. */
+/** Where the presenter's overlays sit: the bottom-left corner of the view. The
+ *  camera only ever closes in on the top-right corner and everything it shows grows
+ *  down and to the left from there, so this is the one place no menu, banner or
+ *  glyph ever reaches. Sized to the viewport (cqw), outside the scaled screen. */
+const OVERLAY = "absolute bottom-[14%] left-[5%] z-30 origin-bottom-left"
+
+/** The chord as keycaps, popping up where a presenter's key overlay would. */
 function Keycaps({ keys, age }: { keys: string; age: number }) {
   const t = Math.min(1, age / 160)
   const out = Math.max(0, (age - (KEY_MS - 260)) / 260)
   return (
     <div
       data-slot="macos-keycaps"
-      className="absolute bottom-[16%] left-1/2 z-30 flex gap-[0.7cqw]"
+      className={cn(OVERLAY, "flex gap-[0.7cqw]")}
       style={{
         opacity: Math.min(t, 1 - out),
-        transform: `translateX(-50%) scale(${0.92 + 0.08 * t})`,
+        transform: `scale(${0.92 + 0.08 * t})`,
       }}
     >
       {[...keys].map((k, i) => (
@@ -675,6 +807,66 @@ function Keycaps({ keys, age }: { keys: string; age: number }) {
           {k}
         </kbd>
       ))}
+    </div>
+  )
+}
+
+/** The mouse, the keycaps' counterpart: the button that was pressed lights in the
+ *  accent, so a right-click reads as one, where the pointer alone cannot say which
+ *  button went down. Same place and timing as the keycaps. */
+function Mouse({
+  button,
+  age,
+  accent,
+}: {
+  button: "left" | "right"
+  age: number
+  accent: string
+}) {
+  const t = Math.min(1, age / 160)
+  const out = Math.max(0, (age - (KEY_MS - 260)) / 260)
+  const lit = (side: "left" | "right") =>
+    side === button ? accent : "rgb(255 255 255 / 0.06)"
+  return (
+    <div
+      data-slot="macos-mouse"
+      className={cn(
+        OVERLAY,
+        "flex items-center gap-[1cqw] rounded-[1.2cqw] border border-white/15 bg-neutral-800/85 px-[1.4cqw] py-[1cqw] shadow-[0_8px_24px_rgb(0_0_0/0.4)] backdrop-blur-xl",
+      )}
+      style={{
+        opacity: Math.min(t, 1 - out),
+        transform: `scale(${0.92 + 0.08 * t})`,
+      }}
+    >
+      <svg aria-hidden="true" viewBox="0 0 24 36" className="h-[4.6cqw] w-auto">
+        <path d="M12 1 A11 11 0 0 0 1 12 L1 14 L12 14 Z" fill={lit("left")} />
+        <path
+          d="M12 1 A11 11 0 0 1 23 12 L23 14 L12 14 Z"
+          fill={lit("right")}
+        />
+        <rect
+          x="1"
+          y="1"
+          width="22"
+          height="34"
+          rx="11"
+          fill="none"
+          stroke="rgb(255 255 255 / 0.7)"
+          strokeWidth="1.5"
+        />
+        <path
+          d="M12 1 L12 14 M1 14 L23 14"
+          stroke="rgb(255 255 255 / 0.45)"
+          strokeWidth="1.2"
+        />
+      </svg>
+      <span
+        className="font-medium text-[2cqw] text-white"
+        style={{ fontFamily: SYSTEM }}
+      >
+        {button === "right" ? "right-click" : "click"}
+      </span>
     </div>
   )
 }

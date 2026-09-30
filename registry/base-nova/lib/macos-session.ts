@@ -72,6 +72,9 @@ export interface Art {
   glyphs: Record<string, { light: string; dark: string }>
 }
 
+/** How long the pointer takes to travel to what it is about to click. */
+export const POINTER_MS = 520
+
 // ── pacing: the one place a step's time is decided ──
 //
 // People do not read in an instant, and a story that moves on before its detail lands
@@ -88,12 +91,13 @@ const PAUSE: Record<StepKind, number> = {
   command: 400,
   output: 0,
   muted: 0,
-  menu: 400,
+  // A step the pointer performs gives it time to get there first.
+  menu: POINTER_MS + 150,
   close: 300,
-  hover: 400,
+  hover: POINTER_MS + 100,
   press: 350,
   key: 400,
-  "right-click": 400,
+  "right-click": POINTER_MS + 150,
   banner: 300,
   caption: 250,
 }
@@ -246,14 +250,17 @@ export interface Frame {
   /** The command being typed right now, and how much of it is typed. */
   typing: { text: string; chars: number } | null
   menu: {
+    /** The step that opened it: a row's pointer target is scoped to its menu. */
+    step: number
     rows: MenuRow[]
     hover: number[] | null
     pressed: number[] | null
   } | null
   /** The chord on screen as keycaps, and since when (ms). */
   key: { keys: string; since: number } | null
-  /** A right-click on the glyph, and since when. */
-  rightClick: number | null
+  /** The last mouse click (left opens the menu and picks a row, right on the glyph
+   *  is the toggle), and since when: shown as the pressed button while KEY_MS. */
+  click: { button: "left" | "right"; since: number } | null
   banner: { text: string; since: number } | null
   caption: string | null
   /** Index of the last step that has started. */
@@ -273,6 +280,9 @@ const NIGHT: WorldState = {
   heat: false,
 }
 
+const clicked = (button: "left" | "right", since: number, ms: number) =>
+  ms < since + KEY_MS ? { button, since } : null
+
 /** The whole stage at `ms`. Pure: no clock of its own, no memory between calls. */
 export function frameAt(
   timeline: Timeline,
@@ -288,7 +298,7 @@ export function frameAt(
     typing: null,
     menu: null,
     key: null,
-    rightClick: null,
+    click: null,
     banner: null,
     caption: null,
     step: -1,
@@ -338,7 +348,8 @@ export function frameAt(
         f.terminal.push({ kind: s.kind, text: s.text ?? "" })
         break
       case "menu":
-        f.menu = { rows: s.rows ?? [], hover: null, pressed: null }
+        f.menu = { step: i, rows: s.rows ?? [], hover: null, pressed: null }
+        f.click = clicked("left", start, ms)
         break
       case "hover":
         if (f.menu) f.menu.hover = s.path ?? null
@@ -348,6 +359,7 @@ export function frameAt(
           f.menu.hover = s.path ?? null
           f.menu.pressed = s.path ?? null
         }
+        f.click = clicked("left", start, ms)
         if (ms >= end) f.menu = null
         break
       case "close":
@@ -358,7 +370,7 @@ export function frameAt(
           ms < start + KEY_MS ? { keys: s.keys ?? "", since: start } : null
         break
       case "right-click":
-        f.rightClick = ms < start + KEY_MS ? start : null
+        f.click = clicked("right", start, ms)
         break
       case "banner": {
         const text = s.text ?? ""
@@ -523,6 +535,68 @@ export function zoomAt(
   let i = spans.findIndex((s) => ms >= s.start && ms < s.end)
   if (i < 0) i = spans.length - 1
   return at(i, ms)
+}
+
+// ── the pointer: where the mouse is going, over time ──
+//
+// Every click the story makes is made by a visible pointer that travels there first:
+// to the glyph for the menu and the right-click toggle, to a row for a hover or a
+// pick. Targets are named, not placed: "glyph", or "row:<menu step>:<path>"; the
+// renderer measures where a name is on its own stage.
+
+export interface PointerTarget {
+  key: string
+  /** When the pointer is there (the click, or the hover). It sets off POINTER_MS
+   *  earlier. */
+  arrive: number
+}
+
+export function pointerTargets(
+  timeline: Timeline,
+  clock: SceneClock,
+): PointerTarget[] {
+  const targets: PointerTarget[] = []
+  let menu = -1
+  timeline.steps.forEach((s, i) => {
+    const arrive = clock.starts[i] as number
+    const key =
+      s.kind === "menu" || s.kind === "right-click"
+        ? "glyph"
+        : (s.kind === "hover" || s.kind === "press") && menu >= 0
+          ? `row:${menu}:${(s.path ?? []).join(".")}`
+          : null
+    if (s.kind === "menu") menu = i
+    if (key && targets.at(-1)?.key !== key) targets.push({ key, arrive })
+  })
+  return targets
+}
+
+/** The pointer's position at `ms`, from each target's measured position (`at`) and
+ *  where it rests before its first trip: eased from the previous target, arriving
+ *  exactly when the click lands. */
+export function pointerAt(
+  targets: PointerTarget[],
+  ms: number,
+  at: (key: string) => { x: number; y: number } | undefined,
+  rest: { x: number; y: number },
+): { x: number; y: number } {
+  let i = -1
+  while (
+    i + 1 < targets.length &&
+    ms >= (targets[i + 1] as PointerTarget).arrive - POINTER_MS
+  )
+    i++
+  if (i < 0) return rest
+  const t = targets[i] as PointerTarget
+  const from =
+    i === 0 ? rest : (at((targets[i - 1] as PointerTarget).key) ?? rest)
+  const to = at(t.key) ?? from
+  const p = Math.min(
+    1,
+    Math.max(0, (ms - (t.arrive - POINTER_MS)) / POINTER_MS),
+  )
+  const e = p < 0.5 ? 4 * p ** 3 : 1 - (-2 * p + 2) ** 3 / 2
+  return { x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e }
 }
 
 /** The row a path points at in an open menu. */

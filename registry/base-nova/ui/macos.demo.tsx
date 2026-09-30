@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Sample } from "@/app/samples"
 import artJson from "@/public/macos/awake/art.json"
+import heroJson from "@/public/macos/awake/hero.json"
 import lidClosedJson from "@/public/macos/awake/lid-closed.json"
 import lidYoursJson from "@/public/macos/awake/lid-yours.json"
 import menuBarJson from "@/public/macos/awake/menu-bar.json"
@@ -21,6 +22,7 @@ import { Macos, type MacosDevice } from "@/registry/base-nova/ui/macos"
 // and art.json is its glyphs and icon drawn by its own code. `mise scene:watch` there
 // recompiles on every save, and this page picks the file up.
 const SCENES = {
+  hero: heroJson,
   "menu-bar": menuBarJson,
   "lid-closed": lidClosedJson,
   "lid-yours": lidYoursJson,
