@@ -60,9 +60,6 @@
      MacBook reads from the front. The frame draws no keyboard deck (the base is its
      front edge), so a lid laid flat in true 3D would have no consistent place to
      rest; this draws what the eye expects instead. Only set up when hinged. */
-  .device-desktop[data-hinged] {
-    perspective: 3600px;
-  }
   /* lid="open" | "closed": the frame owns the motion. --device-lid is a registered
      number (below), so it interpolates, and everything that reads it (the angle,
      the shut slab) moves together on one curve. A numeric lid is the caller's time
@@ -70,10 +67,17 @@
   .device-desktop[data-lid-motion] {
     transition: --device-lid 1.1s cubic-bezier(0.65, 0, 0.35, 1);
   }
+  /* The camera is chosen so the lid lands where the shut laptop is drawn. The eye
+     sits at the hinge (perspective() in the lid's own transform puts it at the
+     transform origin), so the lid's top edge comes down to the base's top; the
+     distance makes a lid 84% of the base's width, swung flat toward the viewer,
+     project to exactly the base's width: P / (P - H) = 1 / 0.84, P = 6.25 H, with H
+     the lid's height (55cqw). The corners then travel down and out, onto the base's
+     own corners. */
   .device-desktop[data-hinged] .device-lid {
     z-index: 3;
     transform-origin: 50% 100%;
-    transform: rotateX(calc(var(--device-lid, 0) * -90deg));
+    transform: perspective(344cqw) rotateX(calc(var(--device-lid, 0) * -90deg));
     /* Past edge-on the lid would show its own flipped panel over the base. */
     backface-visibility: hidden;
   }
