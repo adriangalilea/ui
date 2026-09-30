@@ -585,7 +585,10 @@ function SurfaceView({
     Math.max(SURFACE_EDGE, glyph - surface.width / 2),
     STAGE_WIDTH - SURFACE_EDGE - surface.width,
   )
-  const appear = Math.min(1, Math.max(0, (ms - open.since) / 160))
+  // Opened during the story it fades in; open at its first instant, it was
+  // already up, and a story held at 0 (a card not yet playing) shows it.
+  const appear =
+    open.since <= 0 ? 1 : Math.min(1, Math.max(0, (ms - open.since) / 160))
   return (
     <div
       data-slot="macos-surface"
