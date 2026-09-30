@@ -265,6 +265,9 @@ export interface SceneClock {
    *  work the agent did in the dark is read, then each banner that arrived
    *  meanwhile, from `deferred[banner step]`. */
   deferred: Record<number, number>
+  /** How many steps the opening frame is: the first `opening` steps land together,
+   *  as one picture, at 0. */
+  opening: number
   /** The whole story, until the last thing on screen has been taken in. */
   total: number
   /** The story as a clip, for any driver: its length, and one chapter per caption
@@ -312,6 +315,7 @@ export function sceneClock(timeline: Timeline): SceneClock {
   const deferred: Record<number, number> = {}
   let glyph = "off"
   let opening = true
+  let openingSteps = timeline.steps.length
   const starts: number[] = []
   const ends: number[] = []
   const looks: number[] = []
@@ -322,6 +326,7 @@ export function sceneClock(timeline: Timeline): SceneClock {
     // its kind: a glyph that flips a second in happens a second in.
     if (opening && (!OPENING.has(s.kind) || s.delay !== undefined)) {
       opening = false
+      openingSteps = i
       ready = Math.max(ready, ESTABLISH_MS)
       readyButGlyph = ready
     }
@@ -398,6 +403,7 @@ export function sceneClock(timeline: Timeline): SceneClock {
     ends,
     looks,
     deferred,
+    opening: openingSteps,
     total,
     clip: { duration: total, chapters },
   }
@@ -797,8 +803,12 @@ export function focusSpans(timeline: Timeline, clock: SceneClock): FocusSpan[] {
   let glyph = "off"
   // An open surface is the thing to see, and it hangs below the glyph: a close-up
   // on the glyph would crop it, so the camera stays wide while one is open. Behind
-  // the lock screen there is no glyph to close in on.
-  let surface = false
+  // the lock screen there is no glyph to close in on. The opening frame is one
+  // picture, so a surface open in it is open from its first instant, before any
+  // glyph that frame also sets.
+  let surface = timeline.steps
+    .slice(0, clock.opening)
+    .some((s) => s.kind === "surface")
   let locked = false
   // The chord or right-click whose answer is the next glyph: the camera leaves for
   // the glyph LEAD_MS before it lands, so the change happens in the close-up.
