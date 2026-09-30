@@ -446,7 +446,8 @@
         "@ag/agent-session",
         "@ag/kbd",
         "@ag/playhead",
-        "@ag/person"
+        "@ag/person",
+        "@ag/avatar"
       ],
       "files": [
         {

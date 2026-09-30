@@ -44,6 +44,7 @@ import {
   LINE_HEIGHT,
   terminalPalette,
 } from "@/registry/base-nova/lib/terminal-session"
+import { Avatar } from "@/registry/base-nova/ui/avatar"
 import {
   MacbookFrame,
   StudioDisplayFrame,
@@ -756,11 +757,17 @@ function LockScreen({
         </div>
       </div>
       <div className="absolute inset-x-0 bottom-[38px] flex flex-col items-center">
-        <div className="size-[50px] overflow-hidden rounded-full bg-[linear-gradient(180deg,#a3a7b3,#6b6f7c)] shadow-[0_6px_20px_rgb(0_0_0/0.35)] ring-[1.5px] ring-white/30">
-          {user?.avatar ? (
-            // biome-ignore lint/performance/noImgElement: the page's own picture of the person, any URL
-            <img src={user.avatar} alt="" className="size-full object-cover" />
-          ) : (
+        {/* The person's face is the studio's one face object (@ag/avatar, a plain
+            picture without `full`), sized and ringed as the lock screen wears it;
+            without a picture, macOS's silhouette. */}
+        {user?.avatar ? (
+          <Avatar
+            src={user.avatar}
+            alt={user.name}
+            className="size-[50px] shadow-[0_6px_20px_rgb(0_0_0/0.35)] ring-[1.5px] ring-white/30"
+          />
+        ) : (
+          <div className="size-[50px] rounded-full bg-[linear-gradient(180deg,#a3a7b3,#6b6f7c)] shadow-[0_6px_20px_rgb(0_0_0/0.35)] ring-[1.5px] ring-white/30">
             <svg
               aria-hidden="true"
               viewBox="0 0 24 24"
@@ -772,8 +779,8 @@ function LockScreen({
                 fill="rgb(255 255 255 / 0.95)"
               />
             </svg>
-          )}
-        </div>
+          </div>
+        )}
         {user && (
           <div className="mt-[8px] font-semibold text-[13px] text-white/95">
             {user.name}
