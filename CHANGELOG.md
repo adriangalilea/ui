@@ -12,6 +12,7 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 - `vivid` keeps the chip in its own ink: the frame goes to the full ink and the glow grows, and the word no longer turns white inside a coloured frame. A consumer that relied on vivid reading white sets the kind's ink to white.
 - The poster rung's scrim is a plain fill, no backdrop blur: a grid of posters re-blurred every badge on every animated frame.
 - A lockup's word stands at the font's cap height: DOLBY's capitals are TrueHD's beside it, and IMAX and ULTRA HD no longer tower over the row. Each lockup's size comes from its measured `cap` (the manifest, see `MarkArt.cap`), not from its width, and uses the CSS `cap` unit. Breaking: `MarkArt.em` is gone (a symbol stands at 1em, a lockup at `1cap / cap`); `Mark`'s `em` prop still overrides. New: `markArt(id, form)`.
+- Fix: the `ultra-hd` mark's "HD" is visible. The source artwork drew it in hairlines under a pixel wide at any chip size; it is redrawn at a light weight in the same place, so ULTRA, the spacing and the mark's size are unchanged.
 
 ### agent-session
 
