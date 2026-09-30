@@ -3,6 +3,16 @@
 Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 --dry-run` or `--diff`; use `--overwrite` only when replacing your installed copy.
 
+## 2026-09-30
+
+### macos
+
+- New: a menu bar app performed on a Mac screen. `<Macos timeline art alt />` draws the menu bar with the app's own glyph, battery and clock, the app's real menu (check column, key equivalents, submenus opening to the side with room), a terminal driving it, notification banners, the chord as keycaps, and the lid closing to a dark panel that keeps the world's clock. Same `progress` contract as `terminal`: pass 0..1 to scrub, omit it for a one-shot autoplay in view; reduced motion shows the final frame. The stage is laid out at a fixed Mac size and scaled to its box, so a menu keeps real proportions at any width. `accent` colours the menu highlight and the terminal.
+
+### macos-session
+
+- New: the timeline a `macos` stage plays, written by the app itself: a scene script played through the app's real engine compiles to steps (world, glyph, command, output, menu, hover, press, key, banner, caption), so every word and pixel on stage is the app's. awake's `awake-scene` is the first compiler. The lib owns pacing and nothing else: `sceneClock` lays the steps out in milliseconds, and `frameAt(timeline, clock, ms)` is a pure fold to the whole stage at one instant, so scrubbing, stills and autoplay are one function.
+
 ## 2026-09-11
 
 ### media-spec

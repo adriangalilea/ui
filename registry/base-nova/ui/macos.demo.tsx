@@ -1,0 +1,208 @@
+"use client"
+
+import * as React from "react"
+import { Sample } from "@/app/samples"
+import artJson from "@/public/macos/awake/art.json"
+import lidClosedJson from "@/public/macos/awake/lid-closed.json"
+import lidYoursJson from "@/public/macos/awake/lid-yours.json"
+import menuBarJson from "@/public/macos/awake/menu-bar.json"
+import safetyNetsJson from "@/public/macos/awake/safety-nets.json"
+import {
+  type Art,
+  frameAt,
+  sceneClock,
+  type Timeline,
+} from "@/registry/base-nova/lib/macos-session"
+import { Macos, type MacosDevice } from "@/registry/base-nova/ui/macos"
+
+// #region scenes
+// Real timelines, not hand-written ones: awake compiles them from its scene scripts
+// through its own engine (`mise scene` in the awake repo writes public/macos/awake/),
+// and art.json is its glyphs and icon drawn by its own code. `mise scene:watch` there
+// recompiles on every save, and this page picks the file up.
+const SCENES = {
+  "menu-bar": menuBarJson,
+  "lid-closed": lidClosedJson,
+  "lid-yours": lidYoursJson,
+  "safety-nets": safetyNetsJson,
+} as Record<string, Timeline>
+const ART = artJson as Art
+// #endregion
+
+export default function MacosDemo() {
+  return (
+    <div className="space-y-16">
+      <Sample
+        name="autoplay"
+        label="autoplay · plays once, in view"
+        with="scenes"
+      >
+        <Macos
+          timeline={SCENES["lid-yours"] as Timeline}
+          art={ART}
+          accent="#e7a13c"
+          alt="awake: a coding agent asks to survive lid close, you allow it from the menu, close the lid, and the Mac sleeps when the agent exits"
+        />
+      </Sample>
+      <Sample
+        name="macbook"
+        label="on a macbook · the lid folds when the scene closes it"
+        with="scenes"
+      >
+        <Macos
+          timeline={SCENES["lid-closed"] as Timeline}
+          art={ART}
+          accent="#e7a13c"
+          device="macbook"
+          alt="awake: two hours awake, the lid closes and the Mac keeps running"
+        />
+      </Sample>
+      <Sample
+        name="display"
+        label="on a display · the panel sleeps instead"
+        with="scenes"
+      >
+        <Macos
+          timeline={SCENES["menu-bar"] as Timeline}
+          art={ART}
+          accent="#e7a13c"
+          device="display"
+          alt="awake: one chord keeps the Mac awake, the cup fills, the menu opens"
+        />
+      </Sample>
+      <Sample name="studio" label="studio · pick, scrub, step" with="scenes">
+        <Studio scenes={SCENES} art={ART} />
+      </Sample>
+    </div>
+  )
+}
+
+/** The iteration surface: a scene at a chosen instant, its timeline as a list of steps
+ *  to jump between, and play from wherever the cursor is. */
+function Studio({
+  scenes,
+  art,
+}: {
+  scenes: Record<string, Timeline>
+  art: Art
+}) {
+  const [name, setName] = React.useState(Object.keys(scenes)[0] as string)
+  const [device, setDevice] = React.useState<MacosDevice | "screen">("macbook")
+  const timeline = scenes[name] as Timeline
+  const clock = React.useMemo(() => sceneClock(timeline), [timeline])
+  const [ms, setMs] = React.useState(0)
+  const [playing, setPlaying] = React.useState(false)
+
+  React.useEffect(() => {
+    if (!playing) return
+    let frame = 0
+    let last = performance.now()
+    const tick = (now: number) => {
+      setMs((v) => {
+        const next = v + (now - last)
+        if (next >= clock.total) setPlaying(false)
+        return Math.min(clock.total, next)
+      })
+      last = now
+      frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [playing, clock.total])
+
+  const current = frameAt(timeline, clock, ms).step
+  return (
+    <div className="grid gap-8 lg:grid-cols-[1fr_280px]">
+      <div className="space-y-4">
+        <Macos
+          timeline={timeline}
+          art={art}
+          progress={ms / clock.total}
+          accent="#e7a13c"
+          device={device === "screen" ? undefined : device}
+          alt={`awake, scene ${name}`}
+        />
+        <div className="flex items-center gap-3 font-mono text-xs lowercase">
+          <select
+            className="rounded-md border border-border bg-transparent px-2 py-1"
+            value={name}
+            onChange={(e) => {
+              setPlaying(false)
+              setMs(0)
+              setName(e.target.value)
+            }}
+            aria-label="scene"
+          >
+            {Object.keys(scenes).map((n) => (
+              <option key={n}>{n}</option>
+            ))}
+          </select>
+          <select
+            className="rounded-md border border-border bg-transparent px-2 py-1"
+            value={device}
+            onChange={(e) =>
+              setDevice(e.target.value as MacosDevice | "screen")
+            }
+            aria-label="device"
+          >
+            <option>macbook</option>
+            <option>display</option>
+            <option>screen</option>
+          </select>
+          <button
+            type="button"
+            className="w-14 rounded-md border border-border px-2 py-1"
+            onClick={() => {
+              if (ms >= clock.total) setMs(0)
+              setPlaying((p) => !p)
+            }}
+          >
+            {playing ? "pause" : "play"}
+          </button>
+          <input
+            type="range"
+            className="flex-1"
+            min={0}
+            max={clock.total}
+            value={ms}
+            onChange={(e) => {
+              setPlaying(false)
+              setMs(Number(e.target.value))
+            }}
+            aria-label="scene position"
+          />
+          <span className="w-24 text-right text-muted-foreground tabular-nums">
+            {(ms / 1000).toFixed(1)}s / {(clock.total / 1000).toFixed(1)}s
+          </span>
+        </div>
+      </div>
+      <ol className="max-h-[520px] space-y-px overflow-y-auto font-mono text-xs">
+        {timeline.steps.map((s, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: steps are positional
+          <li key={i}>
+            <button
+              type="button"
+              className={
+                i === current
+                  ? "w-full rounded bg-foreground/8 px-2 py-1 text-left"
+                  : "w-full rounded px-2 py-1 text-left text-muted-foreground hover:bg-foreground/4"
+              }
+              onClick={() => {
+                setPlaying(false)
+                setMs(clock.ends[i] as number)
+              }}
+            >
+              <span className="text-foreground/40 tabular-nums">
+                {((clock.starts[i] as number) / 1000).toFixed(1)}
+              </span>{" "}
+              {s.kind}{" "}
+              <span className="text-foreground/60">
+                {s.text ?? s.glyph ?? s.keys ?? s.world?.clock ?? ""}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ol>
+    </div>
+  )
+}

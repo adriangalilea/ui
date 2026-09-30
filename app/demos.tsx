@@ -4,6 +4,7 @@ import type { ComponentType } from "react"
 import TelegramSummary from "@/registry/base-nova/blocks/telegram-summary/telegram-summary.demo"
 import LightboxActions from "@/registry/base-nova/lib/lightbox-actions.demo"
 import LightboxMotion from "@/registry/base-nova/lib/lightbox-motion.demo"
+import MacosSession from "@/registry/base-nova/lib/macos-session.demo"
 import Media from "@/registry/base-nova/lib/media-asset.demo"
 import PrepareMedia from "@/registry/base-nova/lib/prepare-media.demo"
 import QuoteCard from "@/registry/base-nova/lib/quote-card.demo"
@@ -19,6 +20,7 @@ import Editor from "@/registry/base-nova/ui/editor.demo"
 import Image from "@/registry/base-nova/ui/image.demo"
 import Lightbox from "@/registry/base-nova/ui/lightbox.demo"
 import LiquidGlass from "@/registry/base-nova/ui/liquid-glass.demo"
+import Macos from "@/registry/base-nova/ui/macos.demo"
 import MediaSpec from "@/registry/base-nova/ui/media-spec.demo"
 import PreviewPicker from "@/registry/base-nova/ui/preview-picker.demo"
 import Quote from "@/registry/base-nova/ui/quote.demo"
@@ -57,6 +59,8 @@ export const DEMOS: Record<string, ComponentType> = {
   "media-spec": MediaSpec,
   quote: Quote,
   terminal: Terminal,
+  macos: Macos,
+  "macos-session": MacosSession,
   "theme-toggle": ThemeToggle,
   "telegram-chat": TelegramChat,
   "telegram-summary": TelegramSummary,

@@ -1,0 +1,16 @@
+@layer theme, base, components, utilities;
+
+@layer components {
+  /* device-frame draws the MacBook; the scene decides the lid's angle
+     (--ag-macos-lid-angle, a function of scene time, so a scrubbed or captured
+     frame is exact). The lid folds on its hinge, the bottom edge, toward the
+     viewer; the perspective lives on the parent so the fold foreshortens. */
+  [data-slot="macos"] .device-desktop[data-device="macbook"] {
+    perspective: 3600px;
+  }
+
+  [data-slot="macos"] .device-desktop[data-device="macbook"] .device-lid {
+    transform-origin: 50% 100%;
+    transform: rotateX(var(--ag-macos-lid-angle, 0deg));
+  }
+}

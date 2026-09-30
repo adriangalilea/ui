@@ -322,6 +322,40 @@
       ]
     },
     {
+      "name": "macos",
+      "type": "registry:ui",
+      "title": "macos",
+      "description": "a menu bar app performed on a Mac screen: its glyph, its real menu, the terminal driving it, its banners, the chord pressed, the lid closing. plays a timeline the app's own engine compiled; scrub it with progress or let it play once in view",
+      "registryDependencies": [
+        "@ag/macos-session",
+        "@ag/terminal-session",
+        "@ag/device-frame"
+      ],
+      "files": [
+        {
+          "path": "registry/base-nova/ui/macos.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/base-nova/ui/macos.css",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "macos-session",
+      "type": "registry:lib",
+      "title": "macos-session",
+      "description": "the timeline a macos stage plays: the step types an app's scene compiler writes, the pacing, and frameAt, a pure fold from a timeline and an instant to the whole stage. framework-free",
+      "registryDependencies": ["@ag/terminal-session"],
+      "files": [
+        {
+          "path": "registry/base-nova/lib/macos-session.ts",
+          "type": "registry:lib"
+        }
+      ]
+    },
+    {
       "name": "web-preview-unfurl",
       "type": "registry:lib",
       "title": "web-preview-unfurl",
