@@ -271,10 +271,7 @@ function Screen({
   agents: MacosProps["agents"]
 }) {
   const app = timeline.app
-  const box = React.useRef<HTMLDivElement>(null)
   const stage = React.useRef<HTMLDivElement>(null)
-  const size = useBox(box)
-  const scale = size.width / STAGE_WIDTH
   const pointer = usePointer(stage, timeline, clock, ms, f)
   // A right-click presses the status item for a beat, as the menu bar does.
   const pressed =
@@ -282,65 +279,65 @@ function Screen({
     (f.click?.button === "right" && ms - f.click.since < PRESS_MS + 120)
   return (
     <div
-      ref={box}
       data-slot="macos-screen"
-      className="absolute inset-0 overflow-hidden"
+      className="absolute inset-0 overflow-hidden [container-type:size]"
     >
-      {scale > 0 && (
-        <div
-          ref={stage}
-          data-slot="macos-stage"
-          className="absolute top-0 left-0 origin-top-left bg-[radial-gradient(120%_90%_at_20%_0%,color-mix(in_oklab,var(--ag-macos-accent)_22%,#1c1c22),#101014_70%)] text-white"
-          style={
-            {
-              width: STAGE_WIDTH,
-              height: size.height / scale,
-              transform: `scale(${scale})`,
-              fontFamily: SYSTEM,
-              "--ag-macos-accent": accent,
-            } as React.CSSProperties
-          }
+      {/* The scale is the box's width over the design width, done by CSS
+          (tan(atan2(a, b)) is a/b for two lengths), so the server's HTML already
+          holds the opening frame at its true size: nothing waits for a measure. */}
+      <div
+        ref={stage}
+        data-slot="macos-stage"
+        className="absolute top-0 left-0 origin-top-left bg-[radial-gradient(120%_90%_at_20%_0%,color-mix(in_oklab,var(--ag-macos-accent)_22%,#1c1c22),#101014_70%)] text-white"
+        style={
+          {
+            width: STAGE_WIDTH,
+            height: `calc(${STAGE_WIDTH}px * tan(atan2(100cqh, 100cqw)))`,
+            transform: `scale(tan(atan2(100cqw, ${STAGE_WIDTH}px)))`,
+            fontFamily: SYSTEM,
+            "--ag-macos-accent": accent,
+          } as React.CSSProperties
+        }
+      >
+        <MenuBar
+          app={app}
+          glyph={art.glyphs[f.glyph]}
+          open={pressed}
+          clock={f.world.clock}
+          battery={f.world.battery}
+          charging={f.world.charging}
         >
-          <MenuBar
-            app={app}
-            glyph={art.glyphs[f.glyph]}
-            open={pressed}
-            clock={f.world.clock}
-            battery={f.world.battery}
-            charging={f.world.charging}
-          >
-            {f.menu && (
-              <Menu
-                rows={f.menu.rows}
-                hover={f.menu.hover}
-                pressed={f.menu.pressed}
-              />
-            )}
-          </MenuBar>
-          <TerminalWindow
-            lines={f.terminal}
-            typing={f.typing}
-            accent={accent}
-            agent={f.agent}
-            Agent={f.agent ? agents?.[f.agent.name] : undefined}
-          />
-          {pointer && <Cursor x={pointer.x} y={pointer.y} />}
-          {/* The panel sleeps with the lid shut. */}
-          <div
-            data-slot="macos-panel-off"
-            className="absolute inset-0 z-[35] bg-black"
-            style={{ opacity: shut }}
-          />
-          {f.banner && (
-            <Banner
-              icon={art.icon}
-              app={app}
-              text={f.banner.text}
-              age={ms - f.banner.since}
+          {f.menu && (
+            <Menu
+              rows={f.menu.rows}
+              hover={f.menu.hover}
+              pressed={f.menu.pressed}
             />
           )}
-        </div>
-      )}
+        </MenuBar>
+        <TerminalWindow
+          lines={f.terminal}
+          typing={f.typing}
+          accent={accent}
+          agent={f.agent}
+          Agent={f.agent ? agents?.[f.agent.name] : undefined}
+        />
+        {pointer && <Cursor x={pointer.x} y={pointer.y} />}
+        {/* The panel sleeps with the lid shut. */}
+        <div
+          data-slot="macos-panel-off"
+          className="absolute inset-0 z-[35] bg-black"
+          style={{ opacity: shut }}
+        />
+        {f.banner && (
+          <Banner
+            icon={art.icon}
+            app={app}
+            text={f.banner.text}
+            age={ms - f.banner.since}
+          />
+        )}
+      </div>
     </div>
   )
 }
@@ -538,25 +535,6 @@ function useCamera(
     x: corner.x,
     y: corner.y,
   }
-}
-
-/** A box's size, measured: the one fact CSS cannot divide by. */
-function useBox(box: React.RefObject<HTMLDivElement | null>) {
-  const [size, setSize] = React.useState({ width: 0, height: 0 })
-  React.useEffect(() => {
-    const el = box.current
-    if (!el) return
-    const ro = new ResizeObserver(([entry]) => {
-      if (entry)
-        setSize({
-          width: entry.contentRect.width,
-          height: entry.contentRect.height,
-        })
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [box])
-  return size
 }
 
 function MenuBar({
