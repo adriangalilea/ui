@@ -210,6 +210,11 @@ export function Macos({
             {lapse.gained && (
               <span className="text-foreground">{lapse.gained} · </span>
             )}
+            {/* Heat is what a shut lid in a bag risks, so it is said here, where
+                the viewer is looking while the screen is dark. */}
+            {f.world.heat && (
+              <span className="text-[#ff6b4a]">critical heat · </span>
+            )}
             battery {lapse.battery}% ·{" "}
             {f.world.asleep ? "asleep" : "still awake"}
           </span>
