@@ -13,9 +13,13 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 - New: anything drawn from a moment, as the facts a driver moves through it by: `Clip` (its length in ms and its `Chapter`s), `progressAt` and `spans`. The content's lib makes the clip, a driver moves through it (the player by the clock, a scroll stage by scroll, a still at one moment), the component draws the frame at a progress. One contract, so any content plays in any driver.
 
+### playhead
+
+- New: how a driver hands its moment to the content it moves. `Playhead` provides it, `usePlayhead(progress)` reads it: an explicit `progress` wins (a still), else the driver's around it, and a component placed where nothing moves it throws. So a page composes plain elements, `<Player clip={clip}><Terminal session={s} /></Player>`, from a server component too: no render function crosses into the client.
+
 ### terminal
 
-- Breaking: the terminal draws and no longer plays itself. `progress` is required and the in-view autoplay and `duration` are gone: play it with `<Player clip={sessionTimeline(parseSession(session)).clip}>`, or pass a fixed `progress` for a still.
+- Breaking: the terminal draws and no longer plays itself. The in-view autoplay and `duration` are gone: place it inside `<Player clip={sessionTimeline(parseSession(session)).clip}>`, or pass a fixed `progress` for a still.
 
 ### terminal-session
 
@@ -31,7 +35,7 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 ### player
 
-- New: a player for any clip (`<Player clip label>{(progress) => …}</Player>`: a macos stage, a terminal, a telegram chat). It plays once in view; a thick timeline under the content, cut into its chapters, fills in the accent. Hovering the bar shows that exact frame, with the chapter and the time above the pointer, and a pointer near a chapter's start is pulled onto it (a marker stands at the boundary, the tooltip says so). A click or a drag seeks without losing the play state, a horizontal swipe scrubs, and the bar is a slider: space plays and pauses, ← and → move between chapters, Home and End go to the ends.
+- New: a player for any clip (`<Player clip label><Terminal session={s} /></Player>`: a macos stage, a terminal; it moves the content's playhead). It plays once in view; a thick timeline under the content, cut into its chapters, fills in the accent. Hovering the bar shows that exact frame, with the chapter and the time above the pointer, and a pointer near a chapter's start is pulled onto it (a marker stands at the boundary, the tooltip says so). A click or a drag seeks without losing the play state, a horizontal swipe scrubs, and the bar is a slider: space plays and pauses, ← and → move between chapters, Home and End go to the ends.
 
 ### keys
 
@@ -51,7 +55,7 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 ### macos
 
-- New: a menu bar app performed on a Mac screen. `<Macos timeline art alt />` draws the menu bar with the app's own glyph, the macOS 26 capsule battery (no percentage) and the clock, each item in the system's own padded box so the icons sit evenly apart, the app's real menu (check column, key equivalents, submenus opening to the side with room), a terminal driving it, notification banners, the keyboard shortcut as keycaps, a pointer that travels to whatever the story clicks with the pressed mouse button shown beside the keycaps, and captions, with any shortcut in them drawn as keys (`@ag/kbd`). A story can open a coding agent in the terminal (`agents={{ claude: ClaudeCode, codex: Codex }}`: the page supplies the skins, so this item depends on none of them), and the camera closes in on a glyph before the chord or right-click that flips it. `device="macbook"` puts it on device-frame's MacBook and closes the lid for real when the scene does, and while it is shut the dark panel shows the time passing, large; `device="display"` puts the panel to sleep instead. A camera closes in on the menu bar corner while a menu or banner is up or the glyph has just changed, as far as the measured thing allows. It draws the frame at a `progress` (required) and nothing moves it on its own: play it with `<Player clip={sceneClock(timeline).clip}>`, or pass a fixed `progress` for a still. The height never changes while it plays: the caption line reserves the story's tallest caption. The screen is scaled by CSS, not a measure, so the server's HTML is already the opening frame: no blank panel before hydration. `accent` colours the menu highlight and the terminal.
+- New: a menu bar app performed on a Mac screen. `<Macos timeline art alt />` draws the menu bar with the app's own glyph, the macOS 26 capsule battery (no percentage) and the clock, each item in the system's own padded box so the icons sit evenly apart, the app's real menu (check column, key equivalents, submenus opening to the side with room), a terminal driving it, notification banners, the keyboard shortcut as keycaps, a pointer that travels to whatever the story clicks with the pressed mouse button shown beside the keycaps, and captions, with any shortcut in them drawn as keys (`@ag/kbd`). A story can open a coding agent in the terminal (`agents={{ claude: ClaudeCode, codex: Codex }}`: the page supplies the skins, so this item depends on none of them), and the camera closes in on a glyph before the chord or right-click that flips it. `device="macbook"` puts it on device-frame's MacBook and closes the lid for real when the scene does, and while it is shut the dark panel shows the time passing, large; `device="display"` puts the panel to sleep instead. A camera closes in on the menu bar corner while a menu or banner is up or the glyph has just changed, as far as the measured thing allows. It draws the frame at a moment and nothing moves it on its own: place it inside `<Player clip={sceneClock(timeline).clip}>` to play it, or pass a fixed `progress` for a still. The height never changes while it plays: the caption line reserves the story's tallest caption. The screen is scaled by CSS, not a measure, so the server's HTML is already the opening frame: no blank panel before hydration. `accent` colours the menu highlight and the terminal.
 
 ### device-frame
 

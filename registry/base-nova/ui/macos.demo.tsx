@@ -89,17 +89,14 @@ function Played({
   const clock = React.useMemo(() => sceneClock(timeline), [timeline])
   return (
     <Player clip={clock.clip} label={alt}>
-      {(progress) => (
-        <Macos
-          timeline={timeline}
-          progress={progress}
-          art={ART}
-          agents={AGENTS}
-          accent="#e7a13c"
-          device={device}
-          alt={alt}
-        />
-      )}
+      <Macos
+        timeline={timeline}
+        art={ART}
+        agents={AGENTS}
+        accent="#e7a13c"
+        device={device}
+        alt={alt}
+      />
     </Player>
   )
 }

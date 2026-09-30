@@ -1,5 +1,3 @@
-"use client"
-
 import {
   parseSession,
   renderSessionSvg,
@@ -7,32 +5,6 @@ import {
 } from "@/registry/base-nova/lib/terminal-session"
 import { Player } from "@/registry/base-nova/ui/player"
 import { Terminal } from "@/registry/base-nova/ui/terminal"
-
-/** A session in the player: one chapter per command. */
-function Played({
-  session,
-  accent,
-  alt,
-}: {
-  session: string
-  accent?: string
-  alt: string
-}) {
-  const clip = sessionTimeline(parseSession(session)).clip
-  return (
-    <Player clip={clip} label={alt}>
-      {(progress) => (
-        <Terminal
-          session={session}
-          progress={progress}
-          accent={accent}
-          rows={12}
-          alt={alt}
-        />
-      )}
-    </Player>
-  )
-}
 
 const SESSION = `$ trash thesis-draft.txt
 trashed: ~/Desktop/thesis-draft.txt
@@ -45,6 +17,8 @@ restored: ~/Desktop/thesis-draft.txt
 ~ 0 items left`
 
 const ACCENT = "#e7a13c"
+// The session's clip: one chapter per command, played by the player around it.
+const CLIP = sessionTimeline(parseSession(SESSION)).clip
 
 export default function Demo() {
   // The same script, drawn twice: live in the DOM, and as an SVG still by the
@@ -56,13 +30,16 @@ export default function Demo() {
       <div className="grid gap-8 lg:grid-cols-2">
         <div className="space-y-2">
           <div className="font-mono text-xs lowercase text-muted-foreground">
-            live · terminal
+            live · terminal in a player
           </div>
-          <Played
-            session={SESSION}
-            accent={ACCENT}
-            alt="A terminal session: trash, list, restore."
-          />
+          <Player clip={CLIP} label="trash, list, restore">
+            <Terminal
+              session={SESSION}
+              accent={ACCENT}
+              rows={12}
+              alt="A terminal session: trash, list, restore."
+            />
+          </Player>
         </div>
         <div className="space-y-2">
           <div className="font-mono text-xs lowercase text-muted-foreground">
@@ -76,10 +53,13 @@ export default function Demo() {
           />
         </div>
       </div>
-      <Played
-        session={SESSION}
-        alt="The same session on the default phosphor."
-      />
+      <Player clip={CLIP} label="the same session, default phosphor">
+        <Terminal
+          session={SESSION}
+          rows={12}
+          alt="The same session on the default phosphor."
+        />
+      </Player>
     </div>
   )
 }

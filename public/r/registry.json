@@ -301,7 +301,7 @@
       "type": "registry:ui",
       "title": "terminal",
       "description": "a phosphor terminal that plays a session script live; the still renderer in terminal-session draws the same frame",
-      "registryDependencies": ["@ag/terminal-session"],
+      "registryDependencies": ["@ag/terminal-session", "@ag/playhead"],
       "files": [
         {
           "path": "registry/base-nova/ui/terminal.tsx",
@@ -398,11 +398,23 @@
       ]
     },
     {
+      "name": "playhead",
+      "type": "registry:ui",
+      "title": "playhead",
+      "description": "how a driver hands its moment to the content it moves: Playhead provides it, usePlayhead reads it (an explicit progress wins, a component placed where nothing moves it screams). so a page, a server one too, composes plain elements inside a player",
+      "files": [
+        {
+          "path": "registry/base-nova/ui/playhead.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
       "name": "player",
       "type": "registry:ui",
       "title": "player",
       "description": "a player for anything drawn from a progress: plays once in view, a thick timeline cut into chapters under the content, hover to preview any frame, click or drag or swipe to scrub, keys for play and chapters",
-      "registryDependencies": ["@ag/clip", "@ag/kbd"],
+      "registryDependencies": ["@ag/clip", "@ag/playhead", "@ag/kbd"],
       "files": [
         {
           "path": "registry/base-nova/ui/player.tsx",
@@ -414,13 +426,14 @@
       "name": "macos",
       "type": "registry:ui",
       "title": "macos",
-      "description": "a menu bar app performed on a Mac screen: its glyph, its real menu, the terminal driving it, its banners, the keyboard shortcut pressed, the lid closing. plays a timeline the app's own engine compiled; scrub it with progress or let it play once in view",
+      "description": "a menu bar app performed on a Mac screen: its glyph, its real menu, the terminal driving it, its banners, the keyboard shortcut pressed, the lid closing. draws a timeline the app's own engine compiled at a moment: inside a player it plays, with a fixed progress it is a still",
       "registryDependencies": [
         "@ag/macos-session",
         "@ag/terminal-session",
         "@ag/device-frame",
         "@ag/agent-session",
-        "@ag/kbd"
+        "@ag/kbd",
+        "@ag/playhead"
       ],
       "files": [
         {

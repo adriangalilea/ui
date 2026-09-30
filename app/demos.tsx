@@ -29,6 +29,7 @@ import LiquidGlass from "@/registry/base-nova/ui/liquid-glass.demo"
 import Macos from "@/registry/base-nova/ui/macos.demo"
 import MediaSpec from "@/registry/base-nova/ui/media-spec.demo"
 import Player from "@/registry/base-nova/ui/player.demo"
+import Playhead from "@/registry/base-nova/ui/playhead.demo"
 import PreviewPicker from "@/registry/base-nova/ui/preview-picker.demo"
 import Quote from "@/registry/base-nova/ui/quote.demo"
 import Reveal from "@/registry/base-nova/ui/reveal.demo"
@@ -69,6 +70,7 @@ export const DEMOS: Record<string, ComponentType> = {
   keys: Keys,
   kbd: Kbd,
   clip: Clip,
+  playhead: Playhead,
   player: Player,
   macos: Macos,
   "macos-session": MacosSession,

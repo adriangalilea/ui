@@ -4,8 +4,9 @@
 // terminal driving it, its banners, the chord pressed, the lid closing and the Mac
 // going to sleep. Every word and pixel comes from the app (a timeline its own engine
 // compiled, lib/macos-session); this draws the frame at a moment, and something else
-// moves time: `<Player clip={sceneClock(timeline).clip}>` plays it, a scroll stage
-// scrolls it, a fixed `progress` is a still (a link card, a film frame).
+// moves time: inside `<Player clip={sceneClock(timeline).clip}>` it plays, inside a
+// scroll stage it scrolls, with a fixed `progress` it is a still (a link card, a
+// film frame).
 // Display-only: role="img", zero focusables.
 //
 // The screen is laid out once at the width of a small Mac screen (STAGE_WIDTH) and
@@ -45,6 +46,7 @@ import {
   StudioDisplayFrame,
 } from "@/registry/base-nova/ui/device-frame"
 import { Kbd, KeysText } from "@/registry/base-nova/ui/kbd"
+import { usePlayhead } from "@/registry/base-nova/ui/playhead"
 
 /** The hardware around the screen. Absent: the screen alone, rounded. */
 export type MacosDevice = "macbook" | "display"
@@ -52,8 +54,9 @@ export type MacosDevice = "macbook" | "display"
 export interface MacosProps {
   timeline: Timeline
   art: Art
-  /** The moment drawn, 0..1 of the story. */
-  progress: number
+  /** The moment drawn, 0..1 of the story, for a still. Inside a driver (a Player)
+   *  omit it: the driver provides the moment. */
+  progress?: number
   /** The app's accent: menu highlight, terminal phosphor. */
   accent?: string
   /** A MacBook (the lid folds when the scene closes it) or a display (it sleeps). */
@@ -87,7 +90,7 @@ export function Macos({
   className,
 }: MacosProps) {
   const clock = React.useMemo(() => sceneClock(timeline), [timeline])
-  const ms = Math.min(1, Math.max(0, progress)) * clock.total
+  const ms = usePlayhead(progress) * clock.total
   const f = frameAt(timeline, clock, ms)
   // 0 = open, 1 = shut, in between while it moves.
   const travel = lidTravel(f, ms)

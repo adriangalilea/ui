@@ -2,7 +2,9 @@
 
 // A player for any clip (lib/clip): a macos stage, a terminal, anything drawn from a
 // progress. The content's lib gives the clip (its length and chapters); the player
-// owns time and hands the content a progress. It plays once when it comes
+// owns time and moves the playhead of the content inside (ui/playhead), so a
+// page writes `<Player clip={clip}><Terminal session={s} /></Player>`, from a server
+// component as well. It plays once when it comes
 // into view, and its timeline bar sits under the content, never over it: thick,
 // cut into the chapters, the played part in the accent. Hovering the bar shows that
 // exact frame in the content, with the chapter and the time above the pointer, and
@@ -18,10 +20,11 @@ import {
   spans as spansOf,
 } from "@/registry/base-nova/lib/clip"
 import { KeysText } from "@/registry/base-nova/ui/kbd"
+import { Playhead } from "@/registry/base-nova/ui/playhead"
 
 export interface PlayerProps {
-  /** The content at a progress, 0..1. */
-  children: (progress: number) => React.ReactNode
+  /** The content: components on the clip contract read the moment from the player. */
+  children: React.ReactNode
   /** What it plays: its length and its chapters. */
   clip: Clip
   /** Accessible name of the player. */
@@ -192,7 +195,7 @@ export function Player({
         } as React.CSSProperties
       }
     >
-      {children(progressAt(clip, shown))}
+      <Playhead at={progressAt(clip, shown)}>{children}</Playhead>
       <div className="mt-4 flex select-none items-center gap-3">
         <button
           type="button"

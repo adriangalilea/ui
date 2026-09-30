@@ -27,17 +27,14 @@ export default function PlayerDemo() {
       with="macos"
     >
       <Player clip={CLOCK.clip} label="awake's hero scene">
-        {(progress) => (
-          <Macos
-            timeline={HERO}
-            art={artJson as Art}
-            agents={AGENTS}
-            accent="#e7a13c"
-            device="macbook"
-            progress={progress}
-            alt="awake: Claude Code at work, ⌃⌥⌘A keeps the Mac awake, the lid closes, the work gets done"
-          />
-        )}
+        <Macos
+          timeline={HERO}
+          art={artJson as Art}
+          agents={AGENTS}
+          accent="#e7a13c"
+          device="macbook"
+          alt="awake: Claude Code at work, ⌃⌥⌘A keeps the Mac awake, the lid closes, the work gets done"
+        />
       </Player>
     </Sample>
   )

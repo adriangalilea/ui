@@ -2,8 +2,8 @@
 
 // A phosphor terminal that draws a session script (lib/terminal-session) at a moment:
 // commands type char by char, output lands whole, `@ms` pauses. It draws; something
-// else moves time: `<Player clip={sessionTimeline(…).clip}>` plays it, a scroll stage
-// scrolls it, a fixed `progress` is a still. The still renderer in the same lib draws
+// else moves time: inside `<Player clip={sessionTimeline(…).clip}>` it plays, inside
+// a scroll stage it scrolls, with a fixed `progress` it is a still. The still renderer in the same lib draws
 // the identical frame as SVG, so a CLI's media and its live demo cannot drift.
 // Display-only: role="img", zero focusables.
 
@@ -16,12 +16,14 @@ import {
   TYPE_MS,
   terminalPalette,
 } from "@/registry/base-nova/lib/terminal-session"
+import { usePlayhead } from "@/registry/base-nova/ui/playhead"
 
 export interface TerminalProps {
   /** A session script (`$ cmd` · `~ muted` · plain · `# comment` · `@ms` pause). */
   session: string
-  /** The moment drawn, 0..1 of the session. */
-  progress: number
+  /** The moment drawn, 0..1 of the session, for a still. Inside a driver (a Player)
+   *  omit it: the driver provides the moment. */
+  progress?: number
   /** One accent drives the whole palette (default: phosphor green). */
   accent?: string
   /** Minimum rows the frame reserves, so a short session still gets a window that
@@ -45,7 +47,7 @@ export function Terminal({
     [session],
   )
   const palette = React.useMemo(() => terminalPalette(accent), [accent])
-  const at = Math.min(1, Math.max(0, progress)) * timeline.total
+  const at = usePlayhead(progress) * timeline.total
   let full = 0
   while (full < timeline.lines.length && (timeline.ends[full] as number) <= at)
     full++
