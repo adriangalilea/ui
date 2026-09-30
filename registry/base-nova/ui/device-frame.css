@@ -1,3 +1,12 @@
+/* The lid's position, a number so a frame-owned lid can transition it (an
+   unregistered custom property flips at once). Declared first: @property cannot sit
+   inside a layer. */
+@property --device-lid {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
 @layer components {
   .device-desktop {
     position: relative;
@@ -54,24 +63,48 @@
   .device-desktop[data-hinged] {
     perspective: 3600px;
   }
+  /* lid="open" | "closed": the frame owns the motion. --device-lid is a registered
+     number (below), so it interpolates, and everything that reads it (the angle,
+     the shut slab) moves together on one curve. A numeric lid is the caller's time
+     and never transitions. */
+  .device-desktop[data-lid-motion] {
+    transition: --device-lid 1.1s cubic-bezier(0.65, 0, 0.35, 1);
+  }
   .device-desktop[data-hinged] .device-lid {
     z-index: 3;
     transform-origin: 50% 100%;
     transform: rotateX(calc(var(--device-lid, 0) * -90deg));
+    /* Past edge-on the lid would show its own flipped panel over the base. */
+    backface-visibility: hidden;
   }
+  /* The shut lid from the front: the lid's edge sitting on the base. Exactly the
+     base's width and end shading, rounded where the base is square, lit on its top
+     edge (the one the light reaches), and parted from the base by the dark hairline
+     gap every closed laptop has, so the base's own lit edge reads as the next piece
+     down. */
   .device-lid-shut {
     position: absolute;
     z-index: 3;
-    left: 50%;
-    bottom: 3.5cqw;
-    width: 97%;
-    height: 2.4cqw;
-    translate: -50% 0;
-    clip-path: polygon(5.7% 0, 94.3% 0, 100% 100%, 0 100%);
+    left: 0;
+    right: 0;
+    bottom: calc(3.7cqw - 0.15cqw);
+    height: 1.2cqw;
+    border-radius: 1.2cqw 1.2cqw 0 0;
     background:
-      linear-gradient(90deg, #0004, transparent 8%, transparent 92%, #0004),
-      linear-gradient(#2a2b2f, #3a3b40 70%, #56575c);
-    opacity: clamp(0, (var(--device-lid, 0) - 0.82) / 0.18, 1);
+      linear-gradient(
+        90deg,
+        #141416,
+        #505054 0.6%,
+        #202023 2%,
+        transparent 7%,
+        transparent 93%,
+        #202023 98%,
+        #505054 99.4%,
+        #141416
+      ),
+      linear-gradient(#5a5a5f, #2e2e32 22%, #36363a 72%, #1a1a1d 90%, #0b0b0c);
+    box-shadow: 0 0.14cqw 0 #060607;
+    opacity: clamp(0, (var(--device-lid, 0) - 0.9) / 0.1, 1);
   }
   .device-base {
     position: relative;

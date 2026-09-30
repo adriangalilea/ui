@@ -5,11 +5,15 @@ import "./device-frame.css"
 
 type DesktopFrameProps = ComponentProps<"div"> & { screenClassName?: string }
 
-/** A 16:10 laptop display with a shallow base. `lid` closes it on its hinge: 0 is
- *  open, 1 is shut, anything between is the lid on its way (the caller animates the
- *  number; the frame draws exactly that angle). Shut, it is a closed laptop from the
- *  front: the lid's top surface resting on the base. Without `lid` the frame is flat
- *  2D and nothing 3D is set up. */
+/** Where a MacBook's lid is. `"open"` / `"closed"`: the frame moves the lid itself,
+ *  on its own curve, whenever the value changes. A number (0 open .. 1 shut): the
+ *  lid sits exactly there and nothing animates, for a caller that owns time (a
+ *  scrubbed or filmed timeline, where every frame must be exact). */
+export type MacbookLid = "open" | "closed" | number
+
+/** A 16:10 laptop display with a shallow base. `lid` puts it on a hinge (see
+ *  MacbookLid); shut, it is a closed laptop from the front, the lid's top surface
+ *  resting on the base. Without `lid` the frame is flat 2D and nothing 3D is set up. */
 export function MacbookFrame({
   children,
   className,
@@ -18,20 +22,26 @@ export function MacbookFrame({
   lid,
   style,
   ...props
-}: DesktopFrameProps & { notch?: boolean; lid?: number }) {
+}: DesktopFrameProps & { notch?: boolean; lid?: MacbookLid }) {
+  const shut =
+    lid === undefined
+      ? undefined
+      : typeof lid === "number"
+        ? Math.min(1, Math.max(0, lid))
+        : lid === "closed"
+          ? 1
+          : 0
   return (
     <div
       {...props}
       data-device="macbook"
       data-hinged={lid === undefined ? undefined : ""}
+      data-lid-motion={typeof lid === "string" ? "" : undefined}
       className={cn("device-desktop", className)}
       style={
-        lid === undefined
+        shut === undefined
           ? style
-          : ({
-              ...style,
-              "--device-lid": Math.min(1, Math.max(0, lid)),
-            } as React.CSSProperties)
+          : ({ ...style, "--device-lid": shut } as React.CSSProperties)
       }
     >
       <div className="device-lid">
