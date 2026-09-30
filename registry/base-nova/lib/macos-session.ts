@@ -247,6 +247,9 @@ export function sceneClock(timeline: Timeline): SceneClock {
   let at = 0
   // When the viewer is done with everything on screen so far.
   let ready = 0
+  // The same, but for the camera's close-up on a changed glyph: a caption sits under
+  // the picture, not in it, so it can be read while the camera holds.
+  let readyButGlyph = 0
   // The opening world is where the story starts, not a change to watch.
   const first = timeline.steps[0]
   let world = first?.kind === "world" ? (first.world as WorldState) : NIGHT
@@ -264,6 +267,7 @@ export function sceneClock(timeline: Timeline): SceneClock {
     if (opening && !OPENING.has(s.kind)) {
       opening = false
       ready = Math.max(ready, ESTABLISH_MS)
+      readyButGlyph = ready
     }
     // What the agent does behind a shut lid takes no screen time: nobody sees it
     // happen, it is read when the lid opens.
@@ -275,7 +279,10 @@ export function sceneClock(timeline: Timeline): SceneClock {
       if (s.author)
         at = Math.max(
           at,
-          ready + (s.kind === "key" || s.kind === "right-click" ? LEAD_MS : 0),
+          s.kind === "caption"
+            ? readyButGlyph
+            : ready +
+                (s.kind === "key" || s.kind === "right-click" ? LEAD_MS : 0),
         )
     }
     starts.push(at)
@@ -290,8 +297,18 @@ export function sceneClock(timeline: Timeline): SceneClock {
     const shut = world.lid === "closed"
     if (shut && s.kind === "banner") dark.banners.push([i, seen])
     else if (shut && AGENT_WORDS.has(s.kind)) dark.agent += seen
-    else if (inTurn) ready = Math.max(ready, landed) + seen
-    else ready = Math.max(ready, landed + seen)
+    else {
+      const after = (r: number) =>
+        inTurn ? Math.max(r, landed) + seen : Math.max(r, landed + seen)
+      if (s.kind === "caption") {
+        // Read under the picture while the camera holds its close-up, not after.
+        readyButGlyph = after(readyButGlyph)
+        ready = Math.max(ready, readyButGlyph)
+      } else {
+        ready = after(ready)
+        if (s.kind !== "glyph") readyButGlyph = after(readyButGlyph)
+      }
+    }
     if (s.kind === "world") {
       const w = s.world as WorldState
       if (w.lid === "open" && shut) {
@@ -303,6 +320,7 @@ export function sceneClock(timeline: Timeline): SceneClock {
           t += look
         }
         ready = Math.max(ready, t)
+        readyButGlyph = Math.max(readyButGlyph, t)
         dark = { agent: 0, banners: [] }
       }
       world = w
