@@ -582,8 +582,9 @@ function MenuBar({
  *  each, so the space between icons is even whatever their widths. */
 const STATUS_ITEM = "flex h-[22px] items-center rounded-[5px] px-[7px]"
 
-/** The macOS 26 battery: a capsule, no outline, the charge a solid fill from the
- *  left inside a translucent body, a small nub apart from it. No percentage. */
+/** The macOS 26 battery: a rounded rectangle, no outline, the charge a solid fill
+ *  from the left inside a translucent body, a small nub apart from it. No
+ *  percentage. */
 function BatteryGlyph({
   percent,
   charging,
@@ -593,7 +594,7 @@ function BatteryGlyph({
 }) {
   return (
     <span className="flex items-center gap-[1.5px]">
-      <span className="relative flex h-[11.5px] w-[25px] overflow-hidden rounded-full bg-white/35">
+      <span className="relative flex h-[11.5px] w-[25px] overflow-hidden rounded-[3.5px] bg-white/35">
         <span
           className={percent <= 20 && !charging ? "bg-[#ff453a]" : "bg-white"}
           style={{ width: `${Math.max(8, percent)}%` }}
@@ -604,7 +605,7 @@ function BatteryGlyph({
           </span>
         )}
       </span>
-      <span className="h-[4px] w-[1.5px] rounded-r-full bg-white/35" />
+      <span className="h-[4px] w-[1.5px] rounded-r-[1px] bg-white/35" />
     </span>
   )
 }

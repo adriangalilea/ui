@@ -7,11 +7,11 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 ### agent-session
 
-- New: a coding agent's session as data (`AgentEntry`: a prompt, a reply, a tool call with its result; `AgentWork`: how long it has worked in the world's seconds and on screen in ms, facts each skin words and animates itself; `AgentFinished`: how long the finished turn took), the props every agent skin takes (`AgentViewProps`), `formatElapsed`, elapsed time the way both CLIs say it, and `formatTokens`, the running token count.
+- New: a coding agent's session as data (`AgentEntry`: a prompt, a reply, a tool call with its result; `AgentWork`: how long the turn and the request in flight have run in the world's seconds, the output tokens so far, and screen time in ms, facts each skin words and animates itself; `AgentFinished`: how long the finished turn took), the props every agent skin takes (`AgentViewProps`), `formatElapsed`, elapsed time the way both CLIs say it, and `entryTokens` / `requestTokens` / `formatTokens`, the output a turn counts up (each reply and tool call its thinking and words, a request nothing until its thinking is over).
 
 ### claude-code
 
-- New: Claude Code's terminal UI drawn from an agent-session: the welcome box, your prompts as full-width grey bars (the only tinted lines, as in the real CLI), `⏺` replies and tool calls with their `⎿` results, the working line as the CLI draws it (`✻ Spelunking… (22s · ↓ 1.5k tokens · esc to interrupt)`: the spinner breathing through `· ✢ ✳ ✶ ✻ ✽`, a light band sweeping the verb, a new verb from Claude Code's own list on every request, all a pure function of time), the grey line a finished turn leaves (`✻ Sautéed for 8m 37s`), the prompt box. Reads like a terminal: from the top while it fits, the oldest lines scrolled away once it does not.
+- New: Claude Code's terminal UI drawn from an agent-session: the welcome box, your prompts as full-width grey bars (the only tinted lines, as in the real CLI), `⏺` replies and tool calls with their `⎿` results, the working line as the CLI draws it (`✢ Shimmying… (1s)`, then `(5s · thinking)`, `(14s · still thinking)`, `(25s · thinking more)`, the stage in the verb's colour, and `↓ 2.9k tokens` once the turn has output: the spinner breathing through `· ✢ ✳ ✶ ✻ ✽`, a light band sweeping the verb, a new verb from Claude Code's own list on every request, all a pure function of time), the grey line a finished turn leaves (`✻ Sautéed for 8m 37s`), the prompt box. Reads like a terminal: from the top while it fits, the oldest lines scrolled away once it does not.
 
 ### codex
 

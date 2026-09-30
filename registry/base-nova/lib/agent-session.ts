@@ -11,11 +11,36 @@ export type AgentEntry =
 
 /** The agent at work. Facts only; each skin words and draws its own working line. */
 export interface AgentWork {
-  /** How long it has worked, in the world's seconds (a shut lid's hours count). */
+  /** How long the turn has run, in the world's seconds (a shut lid's hours count). */
   seconds: number
-  /** Time on screen since it started, in ms: the spinner and the shimmer run on it,
-   *  so a frame drawn alone animates exactly like one played to. */
+  /** How long the request in flight has run, in the world's seconds: the model is
+   *  asked again after every reply and tool result, and a request thinks first. */
+  request: number
+  /** Output tokens the turn has produced so far; 0 until its first output. */
+  tokens: number
+  /** Time on screen since the turn started, in ms: the spinner and the shimmer run
+   *  on it, so a frame drawn alone animates exactly like one played to. */
   ms: number
+}
+
+/** How long a request thinks before it streams output, in seconds. */
+export const THINK_SECONDS = 30
+/** Output tokens a request streams per second once it is past thinking. */
+const STREAM_PER_SECOND = 90
+
+/** The output tokens an entry the agent wrote cost: the thinking behind it and its
+ *  words, at about four characters a token. A prompt is the person's, not output. */
+export function entryTokens(e: AgentEntry): number {
+  if (e.kind === "prompt") return 0
+  const chars =
+    e.kind === "say" ? e.text.length : e.arg.length + e.result.join(" ").length
+  return 320 + Math.round(chars / 4)
+}
+
+/** Output tokens of the request in flight, `seconds` old: none while it thinks,
+ *  then streaming. */
+export function requestTokens(seconds: number): number {
+  return Math.round(Math.max(0, seconds - THINK_SECONDS) * STREAM_PER_SECOND)
 }
 
 /** The turn over: how long it took, in the world's seconds. Each skin draws its own
@@ -24,13 +49,8 @@ export interface AgentFinished {
   seconds: number
 }
 
-/** Output tokens an agent streams per second of work, near enough to what both
- *  CLIs count up while thinking and writing. */
-const TOKENS_PER_SECOND = 60
-
-/** "↓ 1.5k tokens": the running count Claude Code shows beside the elapsed time. */
-export function formatTokens(seconds: number): string {
-  const n = Math.round(Math.max(0, seconds) * TOKENS_PER_SECOND)
+/** "1.5k": a token count the way Claude Code prints it. */
+export function formatTokens(n: number): string {
   return n < 1000 ? `${n}` : `${(n / 1000).toFixed(1)}k`
 }
 

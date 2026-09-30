@@ -4,10 +4,12 @@
 // and nothing else. Framework-free by contract: `frameAt(timeline, ms)` is a pure fold,
 // so scrubbing, stills and autoplay are the same function at different times.
 
-import type {
-  AgentEntry,
-  AgentFinished,
-  AgentWork,
+import {
+  type AgentEntry,
+  type AgentFinished,
+  type AgentWork,
+  entryTokens,
+  requestTokens,
 } from "@/registry/base-nova/lib/agent-session"
 import { TYPE_MS } from "@/registry/base-nova/lib/terminal-session"
 
@@ -448,8 +450,13 @@ export function frameAt(
   // The agent's work, and when it began in scene time and on the world's clock: its
   // elapsed time is the world's, so two hours behind a shut lid read as two hours.
   let work = null as { since: number; clock: string } | null
-  const add = (e: AgentEntry) => {
-    if (f.agent) f.agent.entries.push(e)
+  // The request in flight: the model is asked again once each reply or tool result
+  // lands, and the new request starts by thinking.
+  let request = null as { since: number; clock: string } | null
+  const add = (e: AgentEntry, landed: number) => {
+    if (!f.agent) return
+    f.agent.entries.push(e)
+    request = { since: landed, clock: f.world.clock }
   }
   timeline.steps.forEach((s, i) => {
     const start = clock.starts[i] as number
@@ -547,6 +554,7 @@ export function frameAt(
         f.agent.entries.push({ kind: "prompt", text: s.text ?? "" })
         f.agent.finished = null
         work = { since: start, clock: f.world.clock }
+        request = work
         break
       case "prompt":
         if (!f.agent) break
@@ -560,29 +568,47 @@ export function frameAt(
           f.agent.entries.push({ kind: "prompt", text: s.text ?? "" })
           f.agent.finished = null
           work = { since: end, clock: f.world.clock }
+          request = work
         }
         break
       case "say":
-        add({ kind: "say", text: s.text ?? "" })
+        add({ kind: "say", text: s.text ?? "" }, start)
         break
       case "tool":
-        add({
-          kind: "tool",
-          name: s.text ?? "",
-          arg: s.arg ?? "",
-          result: ms < end ? [] : (s.lines ?? []),
-        })
+        // The next request starts once the result is back, not while the tool runs.
+        add(
+          {
+            kind: "tool",
+            name: s.text ?? "",
+            arg: s.arg ?? "",
+            result: ms < end ? [] : (s.lines ?? []),
+          },
+          Math.min(ms, end),
+        )
         break
       case "done":
-        add({ kind: "say", text: s.text ?? "" })
+        add({ kind: "say", text: s.text ?? "" }, start)
         if (f.agent && work)
           f.agent.finished = { seconds: worked(work, f.world, start) }
         work = null
+        request = null
         break
     }
   })
-  if (f.agent && work)
-    f.agent.work = { seconds: worked(work, f.world, ms), ms: ms - work.since }
+  if (f.agent && work && request) {
+    const entries = f.agent.entries
+    const turn = entries.slice(
+      entries.findLastIndex((e) => e.kind === "prompt") + 1,
+    )
+    const inFlight = worked(request, f.world, ms)
+    f.agent.work = {
+      seconds: worked(work, f.world, ms),
+      request: inFlight,
+      tokens:
+        turn.reduce((n, e) => n + entryTokens(e), 0) + requestTokens(inFlight),
+      ms: ms - work.since,
+    }
+  }
   return f
 }
 

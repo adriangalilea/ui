@@ -2,7 +2,10 @@
 
 import * as React from "react"
 import { Sample } from "@/app/samples"
-import type { AgentEntry } from "@/registry/base-nova/lib/agent-session"
+import {
+  type AgentEntry,
+  requestTokens,
+} from "@/registry/base-nova/lib/agent-session"
 import { ClaudeCode } from "@/registry/base-nova/ui/claude-code"
 
 // #region session
@@ -49,7 +52,13 @@ export default function ClaudeCodeDemo() {
       <div className="h-[420px] rounded-xl bg-[#161617] p-5 font-mono text-[13px] leading-[1.45]">
         <ClaudeCode
           entries={ENTRIES}
-          work={{ seconds: 192 + ms / 1000, ms }}
+          work={{
+            seconds: 192 + ms / 1000,
+            // One request's life, over and over: a beat, thinking, streaming.
+            request: (ms / 1000) % 40,
+            tokens: 2140 + requestTokens((ms / 1000) % 40),
+            ms,
+          }}
           draft=""
           cwd="~/billing"
         />

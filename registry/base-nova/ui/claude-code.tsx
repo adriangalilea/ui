@@ -14,6 +14,7 @@ import {
   type AgentWork,
   formatElapsed,
   formatTokens,
+  THINK_SECONDS,
 } from "@/registry/base-nova/lib/agent-session"
 
 /** Claude's own orange. */
@@ -193,16 +194,29 @@ const VERBS = [
   "Wrangling",
 ]
 
-/** "✻ Spelunking… (22s · ↓ 1.5k tokens · esc to interrupt)": the spinner breathes,
- *  a lighter band sweeps across the verb, and the counters run. The verb changes
- *  with each request (every entry the transcript gains is the model asked again).
- *  The rest runs on `work.ms`, so a frame drawn alone is the frame played to. */
+/** What a request is doing by its age, as the CLI says it: nothing for a beat, then
+ *  it thinks, longer and longer, until its output streams. */
+function stage(request: number): string | null {
+  if (request < 3) return null
+  if (request < 10) return "thinking"
+  if (request < 20) return "still thinking"
+  if (request < THINK_SECONDS) return "thinking more"
+  return null
+}
+
+/** "✻ Shimmying… (14s · still thinking)", later "(35s · ↓ 2.9k tokens)": the
+ *  spinner breathes, a lighter band sweeps across the verb, the stage wears the
+ *  verb's colour, and the token count shows once the turn has output. The verb
+ *  changes with each request (every entry the transcript gains is the model asked
+ *  again). The animation runs on `work.ms`, so a frame drawn alone is the frame
+ *  played to. */
 function Working({ work, request }: { work: AgentWork; request: number }) {
   const cycle = SPINNER.length * 2 - 2
   const step = Math.floor(work.ms / SPIN_MS) % cycle
   const glyph = SPINNER[step < SPINNER.length ? step : cycle - step]
   const verb = `${pick(VERBS, request)}…`
   const at = (work.ms / SWEEP_MS_PER_CHAR) % (verb.length + SWEEP_GAP)
+  const doing = stage(work.request)
   return (
     <div>
       <span style={{ color: CLAUDE }}>{glyph} </span>
@@ -216,8 +230,15 @@ function Working({ work, request }: { work: AgentWork; request: number }) {
         </span>
       ))}{" "}
       <span className="text-[#8a8a8a]">
-        ({formatElapsed(work.seconds)} · ↓ {formatTokens(work.seconds)} tokens ·
-        esc to interrupt)
+        ({formatElapsed(work.seconds)}
+        {work.tokens > 0 && ` · ↓ ${formatTokens(work.tokens)} tokens`}
+        {doing && (
+          <>
+            {" · "}
+            <span style={{ color: CLAUDE }}>{doing}</span>
+          </>
+        )}
+        )
       </span>
     </div>
   )
