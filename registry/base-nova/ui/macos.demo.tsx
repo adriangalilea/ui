@@ -76,7 +76,7 @@ export default function MacosDemo() {
           agents={AGENTS}
           accent="#e7a13c"
           device="display"
-          alt="awake: one chord keeps the Mac awake, the cup fills, the menu opens"
+          alt="awake: right-click the cup, ⌃⌥⌘A or the awake command flip the same switch, and the menu shows what holds the Mac awake"
         />
       </Sample>
       <Sample name="studio" label="studio · pick, scrub, step" with="scenes">
