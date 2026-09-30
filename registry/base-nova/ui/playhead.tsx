@@ -26,17 +26,22 @@ export function Playhead({
   return <Context.Provider value={at}>{children}</Context.Provider>
 }
 
-/** The moment a component draws: its own `progress` when given (a still), else the
+/** The moment a component draws (`at`, 0..1): its own `progress` when given, else the
  *  driver's around it. Neither is a component placed where nothing moves it, and
- *  that screams. */
-export function usePlayhead(progress: number | undefined): number {
-  const driven = React.useContext(Context)
-  const p = progress ?? driven
+ *  that screams. `driven` says which: a driven component can change at any moment
+ *  (a chat keeps a viewport that a landing message slides inside), one with its own
+ *  progress is a still and never will. */
+export function usePlayhead(progress: number | undefined): {
+  at: number
+  driven: boolean
+} {
+  const driver = React.useContext(Context)
+  const p = progress ?? driver
   if (p === null)
     throw new Error(
       "no playhead: pass `progress`, or place the component inside a driver (Playback, Player)",
     )
-  return Math.min(1, Math.max(0, p))
+  return { at: Math.min(1, Math.max(0, p)), driven: progress === undefined }
 }
 
 export interface PlaybackOptions {

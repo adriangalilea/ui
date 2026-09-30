@@ -7,7 +7,7 @@ import { Playhead, usePlayhead } from "@/registry/base-nova/ui/playhead"
 // #region reader
 /** Any component on the contract: its own progress when given, else the driver's. */
 function Reader({ progress }: { progress?: number }) {
-  const p = usePlayhead(progress)
+  const p = usePlayhead(progress).at
   return (
     <div className="h-2 w-64 overflow-hidden rounded-full bg-foreground/10">
       <div

@@ -47,7 +47,7 @@ export function Terminal({
     [session],
   )
   const palette = React.useMemo(() => terminalPalette(accent), [accent])
-  const at = usePlayhead(progress) * timeline.total
+  const at = usePlayhead(progress).at * timeline.total
   let full = 0
   while (full < timeline.lines.length && (timeline.ends[full] as number) <= at)
     full++

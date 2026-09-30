@@ -90,7 +90,7 @@ export function Macos({
   className,
 }: MacosProps) {
   const clock = React.useMemo(() => sceneClock(timeline), [timeline])
-  const ms = usePlayhead(progress) * clock.total
+  const ms = usePlayhead(progress).at * clock.total
   const f = frameAt(timeline, clock, ms)
   // 0 = open, 1 = shut, in between while it moves.
   const travel = lidTravel(f, ms)

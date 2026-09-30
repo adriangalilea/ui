@@ -666,12 +666,14 @@ export function TelegramChat({
   className,
 }: TelegramChatProps) {
   const animatedEmoji = animateEmoji && !frozen
+  // One clock for the story and its afterlife: the story in weighted chars up to its
+  // end, then whole seconds of afterlife.
+  const playhead = usePlayhead(frozen ? 1 : progress)
   // The frameless cut exists so a landing message slides the thread instead of growing
-  // the page; a controlled chat (a still, one bubble at `progress`) lands nothing and
-  // is simply its content's height.
+  // the page: only a driven chat lands anything. A still is its content's height.
   const wantsCut =
     (viewport === "container" ? "1" : crop) ??
-    (frame === "none" && progress === undefined ? FRAMELESS_CROP : undefined)
+    (frame === "none" && playhead.driven ? FRAMELESS_CROP : undefined)
   // The accounts: a `from` is the profile itself, a key into `people`, or a bare name.
   const profileOf = (who: Who): ChatProfile | undefined =>
     typeof who === "string" ? script.people?.[who] : who
@@ -715,9 +717,7 @@ export function TelegramChat({
   }
   const timeline = React.useMemo(() => buildTimeline(script), [script])
   const clip = React.useMemo(() => chatClip(script), [script])
-  // One clock for the story and its afterlife: the story in weighted chars up to its
-  // end, then whole seconds of afterlife.
-  const ms = usePlayhead(frozen ? 1 : progress) * clip.duration
+  const ms = playhead.at * clip.duration
   const story = timeline.total * MS_PER_WEIGHT
   const at = Math.min(ms, story) / MS_PER_WEIGHT
   const aliveSec = Math.floor(Math.max(0, ms - story) / 1000)
