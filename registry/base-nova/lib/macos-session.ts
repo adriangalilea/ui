@@ -44,6 +44,9 @@ export type StepKind =
 
 export interface Step {
   kind: StepKind
+  /** The script did this (a command, a click, the lid, a caption); absent, the app
+   *  did it in answer. The player waits for the viewer before an author step. */
+  author?: true
   /** The author's pause before this step, ms. Absent: the kind's default. */
   delay?: number
   text?: string
@@ -71,44 +74,54 @@ export interface Art {
 
 // ── pacing: the one place a step's time is decided ──
 //
-// PAUSE is the breath before a step when the script names none; HOLD is how long the
-// step itself takes. A glyph, a banner and a world change follow their cause at once:
-// the app reacts, it does not deliberate.
+// People do not read in an instant, and a story that moves on before its detail lands
+// has not shown it. So every step says what it asks of the viewer once it is on screen
+// (LOOK: a line to read, a menu to scan, the lid to watch close), and before the next
+// AUTHOR step (the script's own act: a command, a click, the lid, a caption) the
+// player waits until all of it has been taken in. A reaction (output, a banner, the
+// glyph) follows its cause at once: the app answers, it does not deliberate. PAUSE is
+// only the breath between steps; an author's `@ms` replaces it.
 
 const PAUSE: Record<StepKind, number> = {
-  world: 600,
-  glyph: 0,
-  command: 500,
+  world: 400,
+  glyph: 120,
+  command: 400,
   output: 0,
   muted: 0,
-  menu: 500,
-  close: 500,
-  hover: 450,
-  press: 450,
-  key: 500,
-  "right-click": 500,
-  banner: 150,
+  menu: 400,
+  close: 300,
+  hover: 400,
+  press: 350,
+  key: 400,
+  "right-click": 400,
+  banner: 300,
   caption: 250,
 }
 
 /** How long a pressed row flashes before the menu closes, as NSMenu does. */
 export const PRESS_MS = 220
 /** How long a keycap chip stays up. */
-export const KEY_MS = 1100
-/** How long a banner stays on screen. */
-export const BANNER_MS = 5200
+export const KEY_MS = 1600
 /** How long the lid takes to fold, and the panel to go dark with it. */
-export const LID_MS = 900
-
-/** How far the lid has travelled toward where it is going, 0..1, eased out: every
- *  motion on stage is a function of scene time, so a scrubbed frame, a played one and
- *  a captured one are the same frame. */
-export function lidTravel(frame: Frame, ms: number): number {
-  const t = Math.min(1, Math.max(0, (ms - frame.lidSince) / LID_MS))
-  return 1 - (1 - t) ** 3
-}
+export const LID_MS = 1100
+/** How long the camera holds on the glyph after it changes. */
+export const GLYPH_FOCUS_MS = 2400
 /** Output lands a beat after the previous line. */
 const LAND_MS = 140
+/** The opening frame, held before the story's first act. */
+const ESTABLISH_MS = 1600
+
+/** Time to notice a change and read `text` at a steady adult pace (about 210 words a
+ *  minute), in ms. */
+export function readMs(text: string): number {
+  const words = text.trim().split(/\s+/).filter(Boolean).length
+  return 700 + words * 285
+}
+
+/** How long a banner stays: long enough to read twice. */
+export function bannerStay(text: string): number {
+  return readMs(text) * 2
+}
 
 const hold = (s: Step) =>
   s.kind === "command"
@@ -119,28 +132,101 @@ const hold = (s: Step) =>
         ? PRESS_MS
         : 0
 
+/** What a step asks of the viewer once it has landed, ms. */
+function look(s: Step, before: WorldState, glyph: string): number {
+  const text = s.text ?? ""
+  switch (s.kind) {
+    case "world": {
+      const w = s.world as WorldState
+      if (w.lid !== before.lid) return LID_MS + 1200
+      if (w.clock !== before.clock || w.battery !== before.battery) return 1800
+      if (w.asleep !== before.asleep) return 1400
+      return 0
+    }
+    case "glyph":
+      return s.glyph === glyph ? 0 : GLYPH_FOCUS_MS
+    case "command":
+      return 300
+    case "output":
+      return readMs(text)
+    case "muted":
+      return readMs(text) / 2
+    case "menu":
+      // The camera closes in, then the eye walks the rows.
+      return 1400 + (s.rows?.filter((r) => !r.separator).length ?? 0) * 110
+    case "hover":
+      return 900
+    case "key":
+      return KEY_MS
+    case "right-click":
+      return 700
+    case "banner":
+      return readMs(text) + 600
+    case "caption":
+      return readMs(text)
+    default:
+      return 0
+  }
+}
+
+const READ_IN_TURN = new Set<StepKind>(["output", "muted", "banner", "caption"])
+
 export interface SceneClock {
   /** When each step starts (after its pause), ms. */
   starts: number[]
   /** When each step is complete. */
   ends: number[]
-  /** The whole story, plus the last banner's stay. */
+  /** The whole story, until the last thing on screen has been taken in. */
   total: number
 }
 
 export function sceneClock(timeline: Timeline): SceneClock {
   let at = 0
+  // When the viewer is done with everything on screen so far.
+  let ready = 0
+  // The opening world is where the story starts, not a change to watch.
+  const first = timeline.steps[0]
+  let world = first?.kind === "world" ? (first.world as WorldState) : NIGHT
+  // A banner posted behind a shut lid is read when the lid opens.
+  let unseen = 0
+  let glyph = "off"
   const starts: number[] = []
   const ends: number[] = []
   for (const s of timeline.steps) {
-    at += s.delay ?? PAUSE[s.kind]
+    // The story opens on its first step: no frame of anything before it.
+    if (starts.length > 0) at += s.delay ?? PAUSE[s.kind]
+    if (s.author) at = Math.max(at, ready)
     starts.push(at)
-    at += hold(s)
-    ends.push(at)
+    const landed = at + hold(s)
+    ends.push(landed)
+    // The opening frame is taken in before anything happens: where we are, what is
+    // on screen.
+    const seen = starts.length === 1 ? ESTABLISH_MS : look(s, world, glyph)
+    if (s.kind === "glyph") glyph = s.glyph as string
+    if (s.kind === "banner" && world.lid === "closed") unseen += seen
+    // Words are read one line after another; a picture is taken in at a glance,
+    // alongside whatever else is being read.
+    else if (READ_IN_TURN.has(s.kind)) ready = Math.max(ready, landed) + seen
+    else ready = Math.max(ready, landed + seen)
+    if (s.kind === "world") {
+      const w = s.world as WorldState
+      if (w.lid === "open" && world.lid === "closed") {
+        ready = Math.max(ready, landed + LID_MS + unseen)
+        unseen = 0
+      }
+      world = w
+    }
+    at = landed
   }
-  const lastBanner = timeline.steps.findLastIndex((s) => s.kind === "banner")
-  const tail = lastBanner < 0 ? 0 : (starts[lastBanner] as number) + BANNER_MS
-  return { starts, ends, total: Math.max(1, at + 1200, tail) }
+  return { starts, ends, total: Math.max(1, at, ready) + 800 }
+}
+
+/** How far the lid has travelled toward where it is going, 0..1, eased in and out
+ *  like a hand closing it: every motion on stage is a function of scene time, so a
+ *  scrubbed frame, a played one and a captured one are the same frame. */
+export function lidTravel(frame: Frame, ms: number): number {
+  const t = Math.min(1, Math.max(0, (ms - frame.lidSince) / LID_MS))
+  return t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2
 }
 
 // ── the fold: a timeline at one instant ──
@@ -172,6 +258,10 @@ export interface Frame {
   caption: string | null
   /** Index of the last step that has started. */
   step: number
+  /** When the glyph last changed (ms): the camera holds on it for GLYPH_FOCUS_MS. */
+  glyphSince: number
+  /** When the current caption appeared: it fades in from here. */
+  captionSince: number
 }
 
 const NIGHT: WorldState = {
@@ -202,7 +292,10 @@ export function frameAt(
     banner: null,
     caption: null,
     step: -1,
+    glyphSince: Number.NEGATIVE_INFINITY,
+    captionSince: Number.NEGATIVE_INFINITY,
   }
+  let unseen: string | null = null
   timeline.steps.forEach((s, i) => {
     const start = clock.starts[i] as number
     if (start > ms) return
@@ -210,10 +303,22 @@ export function frameAt(
     f.step = i
     switch (s.kind) {
       case "world":
-        if (s.world?.lid !== f.world.lid) f.lidSince = start
+        if (s.world?.lid !== f.world.lid) {
+          f.lidSince = start
+          // Notifications that arrived behind the shut lid are there when it opens.
+          if (s.world?.lid === "open" && unseen) {
+            const since = start + LID_MS
+            f.banner =
+              ms >= since && ms < since + bannerStay(unseen)
+                ? { text: unseen, since }
+                : null
+            unseen = null
+          }
+        }
         f.world = s.world as WorldState
         break
       case "glyph":
+        if (s.glyph !== f.glyph) f.glyphSince = start
         f.glyph = s.glyph as string
         f.tooltip = s.tooltip ?? ""
         break
@@ -255,12 +360,17 @@ export function frameAt(
       case "right-click":
         f.rightClick = ms < start + KEY_MS ? start : null
         break
-      case "banner":
-        f.banner =
-          ms < start + BANNER_MS ? { text: s.text ?? "", since: start } : null
+      case "banner": {
+        const text = s.text ?? ""
+        if (f.world.lid === "closed") unseen = text
+        else
+          f.banner =
+            ms < start + bannerStay(text) ? { text, since: start } : null
         break
+      }
       case "caption":
         f.caption = s.text ?? null
+        f.captionSince = start
         break
     }
   })

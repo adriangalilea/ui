@@ -11,7 +11,8 @@
 // The screen is laid out once at the width of a small Mac screen (STAGE_WIDTH) and
 // scaled to whatever box holds it, so a menu keeps its real proportions from a phone to
 // a hero, and the same screen fits a MacBook's 16:10 panel or a display's 16:9. On a
-// MacBook (`device="macbook"`, device-frame's hardware) closing the lid folds the lid.
+// MacBook (`device="macbook"`) the scene drives device-frame's hinge, so closing the
+// lid closes the laptop.
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
@@ -19,6 +20,7 @@ import {
   type Art,
   type Frame,
   frameAt,
+  GLYPH_FOCUS_MS,
   KEY_MS,
   lidTravel,
   type MenuRow,
@@ -34,7 +36,6 @@ import {
   MacbookFrame,
   StudioDisplayFrame,
 } from "@/registry/base-nova/ui/device-frame"
-import "./macos.css"
 
 /** The hardware around the screen. Absent: the screen alone, rounded. */
 export type MacosDevice = "macbook" | "display"
@@ -56,10 +57,6 @@ export interface MacosProps {
 /** The design width, in CSS px: a 13-inch Mac at half scale, where a 13px menu reads
  *  as a menu. The height follows the box the screen is given. */
 const STAGE_WIDTH = 960
-
-/** How far a shut lid folds, degrees: short of flat, so a sliver of the dark panel
- *  still reads as a lid resting on the base. */
-const LID_ANGLE = 86
 
 /** The OS being depicted speaks in its own face, not the page's. */
 const SYSTEM = "-apple-system, BlinkMacSystemFont, system-ui, sans-serif"
@@ -132,25 +129,33 @@ export function Macos({
     />
   )
   const viewport = React.useRef<HTMLDivElement>(null)
-  const camera = useCamera(viewport, ms)
+  const camera = useCamera(viewport, ms, ms - f.glyphSince < GLYPH_FOCUS_MS)
+  // Every caption the story will show, so the line is as tall as its tallest from
+  // the first frame and the page never moves under the reader.
+  const captions = React.useMemo(
+    () => [
+      ...new Set(
+        timeline.steps.flatMap((s) =>
+          s.kind === "caption" && s.text ? [s.text] : [],
+        ),
+      ),
+    ],
+    [timeline],
+  )
+  const captionIn = Math.min(1, Math.max(0, (ms - f.captionSince) / 360))
 
   return (
     <div
       ref={root}
       data-slot="macos"
       className={cn("w-full", className)}
-      style={
-        {
-          "--ag-macos-lid-angle": `${-LID_ANGLE * shut}deg`,
-        } as React.CSSProperties
-      }
       role="img"
       aria-label={alt}
     >
       <div
         ref={viewport}
         aria-hidden="true"
-        className="relative overflow-hidden"
+        className="relative overflow-hidden [container-type:inline-size]"
       >
         <div
           data-slot="macos-camera"
@@ -160,7 +165,7 @@ export function Macos({
           }}
         >
           {device === "macbook" ? (
-            <MacbookFrame>{screen}</MacbookFrame>
+            <MacbookFrame lid={shut}>{screen}</MacbookFrame>
           ) : device === "display" ? (
             <StudioDisplayFrame>{screen}</StudioDisplayFrame>
           ) : (
@@ -170,26 +175,42 @@ export function Macos({
           )}
         </div>
         {/* The world keeps its clock while the lid is shut: over the dark panel, or
-            in the space the folded lid leaves. */}
+            in the space the shut lid leaves. Time passing IS the story there. */}
         <div
           data-slot="macos-lid-status"
-          className="pointer-events-none absolute inset-x-0 top-0 bottom-[10%] flex flex-col items-center justify-center gap-1.5 font-mono text-muted-foreground text-xs lowercase"
+          className="pointer-events-none absolute inset-x-0 top-0 bottom-[12%] flex flex-col items-center justify-center gap-[0.8cqw] font-mono text-[1.7cqw] text-foreground/70 lowercase tabular-nums"
           style={{ opacity: shut }}
         >
           <span>
             lid closed · {f.world.clock} · {f.world.battery}%
           </span>
-          <span className="opacity-70">
+          <span className="text-foreground/45">
             {f.world.asleep ? "asleep" : "still awake"}
           </span>
         </div>
+        {/* The presenter's key overlay sits over the camera, not in it: it stays in
+            view while the camera closes in on what the chord did. */}
+        {f.key && <Keycaps keys={f.key.keys} age={ms - f.key.since} />}
       </div>
-      <p
+      <div
         data-slot="macos-caption"
-        className="mt-3 min-h-[1.5em] text-center text-muted-foreground text-sm"
+        className="mt-5 grid text-balance text-center text-[15px] text-foreground/80 leading-relaxed"
       >
-        {f.caption}
-      </p>
+        {captions.map((c) => (
+          <p key={c} className="invisible [grid-area:1/1]">
+            {c}
+          </p>
+        ))}
+        <p
+          className="[grid-area:1/1]"
+          style={{
+            opacity: captionIn,
+            transform: `translateY(${(1 - captionIn) * 4}px)`,
+          }}
+        >
+          {f.caption}
+        </p>
+      </div>
     </div>
   )
 }
@@ -269,7 +290,6 @@ function Screen({
               age={ms - f.banner.since}
             />
           )}
-          {f.key && <Keycaps keys={f.key.keys} age={ms - f.key.since} />}
         </div>
       )}
     </div>
@@ -277,19 +297,21 @@ function Screen({
 }
 
 /** The camera: a menu bar app lives in a 24pt strip, so when its menu or a banner is
- *  up the view closes in on the screen's top-right corner, as far as the thing on
- *  screen allows. The zoom is measured, not tuned: the menu's (and submenu's) real
- *  box, or the banner's, must fit the view, so a tall menu gets less zoom than a
- *  short one. The corner stays put and the rest grows away from it. The zoom chases
- *  its target in SCENE time (a jump backward snaps), so playing, scrubbing and a
- *  frame-by-frame capture land on the same frames. */
-const ZOOM_MAX = 2.2
-const ZOOM_TAU_MS = 240
+ *  up, or its glyph has just changed, the view closes in on the screen's top-right
+ *  corner, as far as the thing on screen allows. The zoom is measured, not tuned: the
+ *  menu's (and submenu's) real box, the banner's, or the glyph's must fit the view,
+ *  so a tall menu gets less zoom than a lone glyph. The corner stays put and the rest
+ *  grows away from it. The zoom chases its target in SCENE time (a jump backward
+ *  snaps), so playing, scrubbing and a frame-by-frame capture land on the same
+ *  frames. */
+const ZOOM_MAX = 3.2
+const ZOOM_TAU_MS = 260
 const FOCUS_MARGIN = 20
 
 function useCamera(
   viewport: React.RefObject<HTMLDivElement | null>,
   ms: number,
+  glyph: boolean,
 ) {
   const [camera, setCamera] = React.useState({ scale: 1, x: 0, y: 0 })
   const chase = React.useRef({ scale: 1, ms: 0 })
@@ -318,7 +340,7 @@ function useCamera(
     let left = STAGE_WIDTH
     let bottom = 0
     for (const el of stage.querySelectorAll<HTMLElement>(
-      '[data-slot="macos-menu"], [data-slot="macos-banner"]',
+      `[data-slot="macos-menu"], [data-slot="macos-banner"]${glyph ? ', [data-slot="macos-status-item"]' : ""}`,
     )) {
       const r = el.getBoundingClientRect()
       left = Math.min(left, (r.left - sr.left) / k - FOCUS_MARGIN)
@@ -609,14 +631,15 @@ function Banner({
   )
 }
 
-/** The chord as keycaps, popping up where a presenter's key overlay would. */
+/** The chord as keycaps, popping up where a presenter's key overlay would. Sized to
+ *  the viewport (cqw), since it lives outside the scaled screen. */
 function Keycaps({ keys, age }: { keys: string; age: number }) {
   const t = Math.min(1, age / 160)
-  const out = Math.max(0, (age - (KEY_MS - 220)) / 220)
+  const out = Math.max(0, (age - (KEY_MS - 260)) / 260)
   return (
     <div
       data-slot="macos-keycaps"
-      className="absolute bottom-[36px] left-1/2 z-30 flex gap-1.5"
+      className="absolute bottom-[16%] left-1/2 z-30 flex gap-[0.7cqw]"
       style={{
         opacity: Math.min(t, 1 - out),
         transform: `translateX(-50%) scale(${0.92 + 0.08 * t})`,
@@ -626,7 +649,7 @@ function Keycaps({ keys, age }: { keys: string; age: number }) {
         <kbd
           // biome-ignore lint/suspicious/noArrayIndexKey: a chord is positional
           key={i}
-          className="flex h-[44px] min-w-[44px] items-center justify-center rounded-[9px] border border-white/15 bg-white/10 px-3 font-medium text-[20px] text-white shadow-[0_2px_0_rgb(255_255_255/0.08),0_8px_24px_rgb(0_0_0/0.4)] backdrop-blur-xl"
+          className="flex h-[5cqw] min-w-[5cqw] items-center justify-center rounded-[1cqw] border border-white/15 bg-neutral-800/85 px-[1.2cqw] font-medium text-[2.3cqw] text-white shadow-[0_2px_0_rgb(255_255_255/0.08),0_8px_24px_rgb(0_0_0/0.4)] backdrop-blur-xl"
           style={{ fontFamily: SYSTEM }}
         >
           {k}

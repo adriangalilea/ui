@@ -335,10 +335,6 @@
         {
           "path": "registry/base-nova/ui/macos.tsx",
           "type": "registry:ui"
-        },
-        {
-          "path": "registry/base-nova/ui/macos.css",
-          "type": "registry:ui"
         }
       ]
     },
