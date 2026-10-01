@@ -91,6 +91,20 @@ arg "<url>" help="the link"
 '''
 run = 'bun scripts/unfurl.ts {{arg(name="url")}}'
 
+[tasks.telegram-post]
+description = "a public channel post's facts as JSON (telegram-chat-post), to keep beside the page; its picture urls are signed and expire, download them"
+usage = '''
+arg "<url>" help="https://t.me/<channel>/<id>"
+'''
+run = 'bun scripts/telegram-post.ts {{arg(name="url")}}'
+
+[tasks.tweet]
+description = "a post on X as JSON (tweet-data), to keep beside the page"
+usage = '''
+arg "<url>" help="https://x.com/<user>/status/<id>"
+'''
+run = 'bun scripts/tweet.ts {{arg(name="url")}}'
+
 [tasks.add]
 description = "preview, diff, or install local registry items through shadcn (default: preview)"
 usage = '''
