@@ -530,14 +530,38 @@ the original, prepare out of band, insert the node when the asset comes back pre
 The same path gives a GIF its finite play-once or boomerang, since that turns it into a
 video asset too.
 
-### twitter / x
+### tweet: shipped; what is left
 
-A post as a component, the way `telegram-chat` is a chat: author, handle, verified
-mark, body with entities (mentions, links, hashtags), media, quote-post, the metrics
-row, the relative time; light and dark, the client's exact geometry. Same doctrine:
-data in, what looks clickable is clickable, decorative chrome aria-hidden. Consumers:
-the garden's project pages quoting reactions, adriangalilea.com notes embedding a
-post without the widget script.
+`tweet` draws a post from its facts (`tweet-data`, fetched by `mise tweet <url>` from
+`cdn.syndication.twimg.com/tweet-result`, the endpoint X's embed and react-tweet read;
+no key). Body runs with entities as links, one-to-four media grid, mp4 under
+`VIDEO_BUDGET_BPS`, quote inside, card or X article through `web-preview`'s x style,
+date and compact counts. Indices count code points of the ESCAPED text (`&amp;` is
+five): slice, then decode. A server component. adriangalilea.com embeds it by URL
+(`pnpm embed` keeps the facts). Left: photos opening in `lightbox`; the verified badge
+is drawn, not X's exact outline; polls throw; a thread is one post at a time.
+
+### telegram-chat: a channel post is a chat of one
+
+`telegram-chat-post` fetches a public post from t.me's embed page into the chat's own
+data (`postScript` → a `channel` script of one message with `rich`, `photo`, `foot`),
+so the post is drawn by the same bubble as every chat: `frame="none" backdrop
+text="page" composer={false} frozen`. `backdrop` is the Telegram context (a lone bubble
+on the page's ground read as a card, not as Telegram); `text="page"` exists because
+scaled type grows WITH the canvas, so a frameless bubble held a phone's ~30 characters
+at any width and a post ran three screens long. `mise telegram-post <url>` prints the
+facts. The parser takes the embed's
+closed tag set and THROWS on anything else (blockquote, video, album, poll): add each
+when a real post needs it, with its example in `scripts/examples/telegram-chat-post.ts`.
+`foot` is the first step of the bubble-meta todo above (time, views, edited); it sits
+on its own line, not tucked into the last line of text yet.
+
+### github: next
+
+Repo, issue, PR and profile with the contribution calendar, same doctrine (facts once,
+drawn as a pure function). Prior art: e-id's vendored react-activity-calendar and its
+GraphQL `contributionCalendar` fetch (`components/github/`, `fetch_github_activity.tsx`
+in adriangalilea/e-id); take the shape, not the code.
 
 ### web-preview: shipped; what is left
 
