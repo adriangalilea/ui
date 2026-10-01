@@ -519,7 +519,7 @@
       "name": "telegram-chat",
       "type": "registry:ui",
       "title": "telegram-chat",
-      "description": "a Telegram chat as a pure function of {messages, progress}: peer, bot and group shapes, people defined once, streaming bodies, pressable reactions with animated emoji, an afterlife that scrubs like the story. a clip on the playhead: play it, put it in a player, cue it from a scroll stage, or fix it as a still. on an iPhone, or frameless at the container's width; focus lifts a message and blurs the rest; crop cuts the phone to a viewport, for a scrolly",
+      "description": "a Telegram chat as a pure function of {messages, progress}: peer, bot, group and channel shapes, formatted text with code blocks, photos, the time and views in a bubble's corner, a public channel post fetched once into the same data, people defined once, streaming bodies, pressable reactions with animated emoji, an afterlife that scrubs like the story. a clip on the playhead: play it, put it in a player, cue it from a scroll stage, or fix it as a still. on an iPhone, or frameless at the container's width; focus lifts a message and blurs the rest; crop cuts the phone to a viewport, for a scrolly",
       "dependencies": ["lucide-react"],
       "registryDependencies": [
         "@ag/clip",
@@ -537,6 +537,10 @@
         },
         {
           "path": "registry/base-nova/lib/telegram-chat-framing.ts",
+          "type": "registry:lib"
+        },
+        {
+          "path": "registry/base-nova/lib/telegram-chat-post.ts",
           "type": "registry:lib"
         },
         {

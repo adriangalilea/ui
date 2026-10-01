@@ -535,6 +535,117 @@
     color: var(--tg-on-accent);
   }
 
+  /* Formatted text (`rich`): the author's own line breaks, Telegram's marks. Inline code
+   is mono in the link colour; a code block is a tinted panel with the rule on its left
+   and the language over it. Long lines WRAP, as in the client: a bubble is too narrow
+   for a sideways scroller, which cut the code mid-word. */
+  .tgchat-rich {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    line-height: 1.3;
+  }
+  .tgchat-code,
+  .tgchat-pre {
+    font-family: var(
+      --font-mono,
+      ui-monospace,
+      SFMono-Regular,
+      Menlo,
+      monospace
+    );
+  }
+  .tgchat-code {
+    font-size: 0.92em;
+    color: var(--tg-link);
+  }
+  .tgchat-pre {
+    margin: 0;
+    padding: 1.6cqw 2.4cqw;
+    border-left: 3px solid var(--tg-link);
+    border-radius: 1.2cqw;
+    background: color-mix(in srgb, var(--tg-link) 10%, transparent);
+    font-size: 0.84em;
+    line-height: 1.35;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .tgchat-pre[data-lang]::before {
+    content: attr(data-lang);
+    display: block;
+    margin-bottom: 0.8cqw;
+    color: var(--tg-link);
+    font-family: var(--font-sans, ui-sans-serif, system-ui);
+    font-weight: 600;
+  }
+  .tgchat-bubble.user .tgchat-code,
+  .tgchat-bubble.user .tgchat-pre[data-lang]::before {
+    color: var(--tg-on-accent);
+  }
+  .tgchat-bubble.user .tgchat-pre {
+    border-left-color: var(--tg-on-accent);
+    background: rgba(255, 255, 255, 0.14);
+  }
+  /* A spoiler is blurred until a hand or the keyboard reaches it. */
+  .tgchat-spoiler {
+    filter: blur(0.3em);
+    cursor: pointer;
+    transition: filter 200ms var(--tg-ease);
+  }
+  .tgchat-spoiler:hover,
+  .tgchat-spoiler:focus-visible {
+    filter: none;
+  }
+
+  /* A photo spans the bubble edge to edge at its own aspect; at the head of the bubble
+   it takes the bubble's top corners. */
+  .tgchat-photo {
+    display: block;
+    width: calc(100% + 6.8cqw);
+    max-width: none;
+    height: auto;
+    margin: 0.4cqw -3.4cqw 1.6cqw;
+  }
+  .tgchat-bubble > .tgchat-photo:first-child {
+    margin-top: -1.9cqw;
+    border-radius: 3.4cqw 3.4cqw 0 0;
+  }
+  .tgchat-bubble:has(> .tgchat-photo) {
+    inline-size: 94%;
+  }
+
+  /* The bubble's corner: edited, the views, the time, on their own line at the right.
+   (The client tucks them into the last line when it has room; not yet.) */
+  .tgchat-foot {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 1.2cqw;
+    margin: 1cqw -0.6cqw -0.4cqw 0;
+    color: var(--tg-muted);
+    font-size: 0.78em;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .tgchat-foot a {
+    color: inherit;
+    text-decoration: none;
+  }
+  .tgchat-foot a:hover {
+    text-decoration: underline;
+  }
+  .tgchat-foot .views {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6cqw;
+  }
+  .tgchat-foot svg {
+    width: 1.15em;
+    height: 1.15em;
+  }
+  .tgchat-bubble.user .tgchat-foot {
+    color: rgba(255, 255, 255, 0.78);
+  }
+
   /* The webpage preview under a link is `web-preview` in its telegram style; the bubble
    only hands it the client's colours. One color (the link) at alpha tiers in a received
    bubble, white tiers in yours, like the client. */
@@ -1101,6 +1212,37 @@
   }
   .tgchat[data-frame="none"] .tgchat-wall {
     border-radius: 1rem;
+  }
+  /* `backdrop`: the canvas keeps Telegram's chat background (the screen colour and its
+   gradient) instead of the page's, so a lone message still reads as Telegram. */
+  .tgchat[data-frame="none"][data-backdrop] .tgchat-screen {
+    background: var(--tg-wallpaper), var(--tg-screen);
+    border-radius: 1rem;
+    /* A screen has room around its thread; the gutter is one message gap, so the
+     avatar and the bubble never touch the canvas edge. */
+    padding: var(--tg-message-gap);
+  }
+  /* `text="page"`: the words at the PAGE's size and a bubble capped at a reading measure
+   in characters (`--tg-measure`, 60), instead of everything scaling with the canvas.
+   Scaled, a bubble holds a phone's ~30 characters at any width, because type and
+   bubble grow together; an embed inside an article wants the article's type and a
+   desktop client's measure. The chrome (avatars, gaps, radii) still follows the canvas. */
+  .tgchat[data-frame="none"][data-text="page"] .tgchat-screen {
+    font-size: 1em;
+    line-height: 1.4;
+  }
+  .tgchat[data-frame="none"][data-text="page"] .tgchat-rowline {
+    max-inline-size: 100%;
+  }
+  .tgchat[data-frame="none"][data-text="page"] .tgchat-bubble {
+    max-inline-size: min(100%, calc(var(--tg-measure, 60) * 1ch));
+  }
+  .tgchat[data-frame="none"][data-text="page"]
+    .tgchat-bubble:has(> .tgchat-photo) {
+    inline-size: min(100%, calc(var(--tg-measure, 60) * 1ch));
+  }
+  .tgchat[data-frame="none"][data-text="page"] .tgchat-from {
+    font-size: 0.9em;
   }
   /* A bare canvas has no screen to fill, so the thread grows to its content instead of
    scrolling inside one. */

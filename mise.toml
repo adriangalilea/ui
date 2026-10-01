@@ -30,6 +30,7 @@ run = [
   "pnpm next build",
   "bun scripts/examples/telegram-chat-framing.ts",
   "bun scripts/examples/telegram-chat-scroll.ts",
+  "bun scripts/examples/telegram-chat-post.ts",
   "bun scripts/examples/macos-session.ts",
   "bun scripts/check-browser.ts",
   "bun scripts/check-media.ts",

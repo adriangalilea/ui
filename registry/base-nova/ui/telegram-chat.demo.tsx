@@ -4,6 +4,10 @@ import * as React from "react"
 import { trace, useDebug } from "@/app/debug"
 import { Sample } from "@/app/samples"
 import { chapterSpan } from "@/registry/base-nova/lib/clip"
+import {
+  postScript,
+  type TelegramPost,
+} from "@/registry/base-nova/lib/telegram-chat-post"
 import { Player } from "@/registry/base-nova/ui/player"
 import { Playback } from "@/registry/base-nova/ui/playhead"
 import { Act, ScrollStage, useAct } from "@/registry/base-nova/ui/scroll-stage"
@@ -37,6 +41,42 @@ const PEOPLE: Record<string, ChatProfile> = {
   adrian: ADRIAN,
   melon: { name: "Melon", handle: "@melonflip" },
   xtldr: XTLDR,
+}
+// #endregion
+
+// #region post
+/** A PUBLIC CHANNEL POST, as data: `mise telegram-post https://t.me/jardindigital/236`
+ *  printed this, and its two pictures were downloaded beside the page (Telegram's CDN
+ *  paths are signed and expire). `postScript` makes it a chat of one message, so the
+ *  bubble that draws every chat on this page draws the post too. */
+const POST: TelegramPost = {
+  url: "https://t.me/jardindigital/236",
+  channel: {
+    name: "Jardin Digital",
+    handle: "@jardindigital",
+    avatar: "/telegram-jardindigital.jpg",
+  },
+  date: "2024-07-22T22:27:05+00:00",
+  edited: true,
+  views: "59",
+  photos: [{ src: "/telegram-post-236.jpg", width: 800, height: 121 }],
+  body: [
+    { text: "💡" },
+    { text: "AI as an API", marks: ["bold"] },
+    { text: " to accelerate development" },
+    { text: ".", marks: ["bold"] },
+    {
+      text: "\n\nInstead of using AI to help you code an API:\n\n[USER NEED] -> AI as API -> Validation -> Refine for cost/quality.\n",
+    },
+    {
+      pre: 'def complex_task():\n    """\n    Input: Complex JSON data\n    Instructions: Analyze and produce structured output\n    Output: {\n        "result": "Predicted outcome",\n        "confidence": 0.95\n    }\n    """',
+    },
+    { text: "\nTraditionally you'd add a " },
+    { text: "pass", marks: ["code"] },
+    {
+      text: " for a function like this or you'd just give up while implementing, now you can let AI be a blackbox that produces the output that you need validated with something like pydantic, using instructor.\n\nVery specific use-cases, but I'm sure everyone misses them still.\n\n(Natural Language Coding)",
+    },
+  ],
 }
 // #endregion
 
@@ -418,7 +458,11 @@ export default function Demo() {
         label="03 · focus · one message lifts, the rest blur and step back"
       >
         <div className="flex flex-wrap items-start justify-center gap-10">
-          <Playback clip={CLIP} start={STORY_END} className="max-w-[30rem]">
+          <Playback
+            clip={CLIP}
+            start={STORY_END}
+            className="w-full max-w-[30rem]"
+          >
             <TelegramChat
               script={SCRIPT}
               wallpaper={WALL}
@@ -426,7 +470,11 @@ export default function Demo() {
               focus={3}
             />
           </Playback>
-          <Playback clip={CLIP} start={STORY_END} className="max-w-[18rem]">
+          <Playback
+            clip={CLIP}
+            start={STORY_END}
+            className="w-full max-w-[18rem]"
+          >
             <TelegramChat
               script={SCRIPT}
               wallpaper={WALL}
@@ -476,10 +524,10 @@ export default function Demo() {
         label="05 · people · two profiles, defined once: a private chat with Adrian, and a group where Adrian and the bot are both senders"
       >
         <div className="flex flex-wrap items-start justify-center gap-10">
-          <Playback clip={chatClip(PEER)} className="max-w-[18rem]">
+          <Playback clip={chatClip(PEER)} className="w-full max-w-[18rem]">
             <TelegramChat script={PEER} wallpaper={WALL} theme="dark" />
           </Playback>
-          <Playback clip={chatClip(GROUP)} className="max-w-[18rem]">
+          <Playback clip={chatClip(GROUP)} className="w-full max-w-[18rem]">
             <TelegramChat script={GROUP} wallpaper={WALL} theme="dark" />
           </Playback>
         </div>
@@ -519,6 +567,37 @@ export default function Demo() {
         >
           <Scrolly />
         </ScrollStage>
+      </Sample>
+
+      <Sample
+        name="post"
+        with="post"
+        label="07 · a channel post · fetched once into the chat's own data, drawn as a still: frameless, frozen, no composer. the page's theme, and pinned dark"
+      >
+        <div className="flex flex-wrap items-start justify-center gap-10">
+          <TelegramChat
+            script={postScript(POST)}
+            wallpaper={WALL}
+            frame="none"
+            composer={false}
+            frozen
+            theme="light"
+            backdrop
+            text="page"
+            className="w-full"
+          />
+          <TelegramChat
+            script={postScript(POST)}
+            wallpaper={WALL}
+            frame="none"
+            composer={false}
+            frozen
+            theme="dark"
+            backdrop
+            text="page"
+            className="w-full"
+          />
+        </div>
       </Sample>
 
       <p className="max-w-prose text-foreground/60 text-sm">

@@ -36,7 +36,7 @@
 //                 measured, not guessed.
 // A scrolly telling composes them: an act index in, focus out.
 
-import { ChevronDown, SlidersHorizontal } from "lucide-react"
+import { ChevronDown, Eye, SlidersHorizontal } from "lucide-react"
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import type { Clip } from "@/registry/base-nova/lib/clip"
@@ -49,7 +49,32 @@ import { useChatLayout } from "@/registry/base-nova/ui/telegram-chat-layout"
 import { WebPreview } from "@/registry/base-nova/ui/web-preview"
 import "./telegram-chat.css"
 
-export type ChatKind = "peer" | "bot" | "group"
+/** `channel`: a public channel's posts, each labelled with the channel and its
+ *  picture the way a group labels a sender. */
+export type ChatKind = "peer" | "bot" | "group" | "channel"
+
+export type Mark =
+  | "bold"
+  | "italic"
+  | "underline"
+  | "strike"
+  | "code"
+  | "spoiler"
+
+/** Formatted text as Telegram's entities draw it: a run of text with its marks and its
+ *  link, or a code block. `\n` inside a run is a line break. */
+export type ChatRun =
+  | { text: string; marks?: Mark[]; href?: string }
+  | { pre: string; lang?: string }
+
+/** The corner of a bubble: when it was sent, and for a channel post how many saw it
+ *  and whether it changed since. `href` makes the time the post's permalink. */
+export interface ChatFoot {
+  time: string
+  href?: string
+  views?: string
+  edited?: boolean
+}
 
 export interface ChatPreview {
   /** Site name line, link-colored bold ("YouTube", "GitHub"). */
@@ -85,6 +110,12 @@ export interface ChatMessage {
    *  it is the colored label and picks the mini avatar. */
   from: "me" | Who
   text?: string
+  /** Formatted text, in place of `text`: bold, code, links, code blocks. A fetched
+   *  channel post arrives as this (`telegram-chat-post`). */
+  rich?: ChatRun[]
+  /** A picture at the head of the bubble, edge to edge, at its own aspect. */
+  photo?: { src: string; width: number; height: number; alt?: string }
+  foot?: ChatFoot
   /** The sender's photo (left bubbles in groups). */
   avatar?: string
   /** The quoted message this one replies to. */
@@ -172,6 +203,14 @@ export interface TelegramChatProps {
    *  the container's width: no header or typing status, the
    *  composer stays visible to keep typing transitions stable. */
   frame?: "phone" | "none"
+  /** Frameless only: keep Telegram's chat background (screen colour, gradient) under
+   *  the messages instead of the page's. What makes a single embedded post read as
+   *  Telegram rather than as a floating bubble. */
+  backdrop?: boolean
+  /** Frameless only. `scaled` (default): every size is a share of the canvas, a phone
+   *  blown up. `page`: the words at the page's own size, bubbles capped at a reading
+   *  measure (`--tg-measure` characters, 60), for a post embedded in prose. */
+  text?: "scaled" | "page"
   /** Hide the decorative input controls for message-only compositions. */
   composer?: boolean
   /** Message indices that stay sharp and lift; the rest blur and step back (hover brings
@@ -445,6 +484,79 @@ function linkify(text: string): React.ReactNode {
   return out
 }
 
+const MARK_TAG: Record<Mark, string> = {
+  bold: "strong",
+  italic: "em",
+  underline: "u",
+  strike: "s",
+  code: "code",
+  spoiler: "span",
+}
+
+/** Runs as Telegram draws them. A spoiler is blurred until it is hovered or focused,
+ *  so it is focusable; nothing else about the text is interactive but its links. */
+function richText(runs: readonly ChatRun[]): React.ReactNode {
+  return runs.map((run, i) => {
+    if ("pre" in run)
+      return (
+        // biome-ignore lint/suspicious/noArrayIndexKey: runs are positional and never reorder
+        <pre className="tgchat-pre" key={i} data-lang={run.lang}>
+          {run.pre}
+        </pre>
+      )
+    let node: React.ReactNode = run.text
+    for (const mark of run.marks ?? []) {
+      const Tag = MARK_TAG[mark] as "span"
+      node =
+        mark === "spoiler" ? (
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: a spoiler is revealed by focus as well as by hover
+          <span className="tgchat-spoiler" tabIndex={0}>
+            {node}
+          </span>
+        ) : (
+          <Tag className={mark === "code" ? "tgchat-code" : undefined}>
+            {node}
+          </Tag>
+        )
+    }
+    if (run.href)
+      node = (
+        <a
+          className="tgchat-link"
+          href={run.href}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {node}
+        </a>
+      )
+    // biome-ignore lint/suspicious/noArrayIndexKey: runs are positional and never reorder
+    return <React.Fragment key={i}>{node}</React.Fragment>
+  })
+}
+
+function Foot({ foot }: { foot: ChatFoot }) {
+  return (
+    <span className="tgchat-foot">
+      {foot.edited && <span>edited</span>}
+      {foot.views && (
+        <span className="views">
+          <Eye aria-hidden="true" />
+          {foot.views}
+          <span className="sr-only"> views</span>
+        </span>
+      )}
+      {foot.href ? (
+        <a href={foot.href} target="_blank" rel="noopener noreferrer">
+          {foot.time}
+        </a>
+      ) : (
+        <span>{foot.time}</span>
+      )}
+    </span>
+  )
+}
+
 // A cite is the bot's own citation into the source: on YouTube a timestamp deep-links
 // to that second (`&t=29s`); anywhere else it opens the page.
 function citeHref(source: string, cite: string): string {
@@ -654,6 +766,8 @@ export function TelegramChat({
   wallpaper,
   theme = "page",
   frame = "phone",
+  backdrop = false,
+  text = "scaled",
   composer = true,
   focus,
   crop,
@@ -745,6 +859,9 @@ export function TelegramChat({
       ? wantsCut
       : undefined
   const isGroup = script.kind === "group"
+  // Who wrote a left bubble is said on it in a group and in a channel: the name over
+  // the text, the picture beside it.
+  const labeled = isGroup || script.kind === "channel"
   const completed = at >= timeline.total - BEAT.meta / 2 - 1e-6
 
   const { viewH, scroller, trace, showLatest, scrollToLatest } = useChatLayout({
@@ -828,10 +945,16 @@ export function TelegramChat({
   }
 
   const senderLabel = (who: Who) =>
-    isGroup ? (
+    labeled ? (
       <div
         className="tgchat-from"
-        style={{ color: SENDER_COLORS[senderIndex(nameOf(who))] }}
+        // A channel signs in the accent, the way the client labels a post; a group
+        // member in their peer colour.
+        style={{
+          color: isGroup
+            ? SENDER_COLORS[senderIndex(nameOf(who))]
+            : "var(--tg-link)",
+        }}
       >
         {nameOf(who)}
       </div>
@@ -840,7 +963,7 @@ export function TelegramChat({
   // Group chats put a mini avatar beside every left bubble, like Telegram does: the
   // profile's picture when the sender has one, the message's own, else the initial.
   const leftRow = (bubble: React.ReactNode, who: Who, avatarUrl?: string) =>
-    isGroup ? (
+    labeled ? (
       <div className="tgchat-rowline">
         <Avatar
           className="tgchat-mini"
@@ -968,8 +1091,20 @@ export function TelegramChat({
       streaming && full < (m.blocks as ChatBlock[]).length && clock > prevEnd
         ? (m.blocks as ChatBlock[])[full]
         : undefined
+    if (m.text !== undefined && m.rich !== undefined)
+      throw new Error(`telegram-chat: message ${i} has both text and rich`)
     const body = (
       <>
+        {m.photo && (
+          // biome-ignore lint/performance/noImgElement: any origin, sized by its own aspect
+          <img
+            className="tgchat-photo"
+            src={m.photo.src}
+            width={m.photo.width}
+            height={m.photo.height}
+            alt={m.photo.alt ?? ""}
+          />
+        )}
         {m.reply && (
           <div
             className="tgchat-reply"
@@ -986,6 +1121,7 @@ export function TelegramChat({
         )}
         {m.via && <div className="tgchat-via">{m.via}</div>}
         {m.text && emphasized(m.text, m.emphasis, lit)}
+        {m.rich && <div className="tgchat-rich">{richText(m.rich)}</div>}
         {/* The webpage preview under a link: `web-preview` in its telegram style, the
             same card every surface draws from the same five facts, coloured by the
             bubble's `--wp-*`. */}
@@ -1015,6 +1151,7 @@ export function TelegramChat({
           </div>
         )}
         {reactionPills(m, beat, i, clock, final)}
+        {m.foot && <Foot foot={m.foot} />}
       </>
     )
     const hero = focused.includes(i) || undefined
@@ -1068,6 +1205,8 @@ export function TelegramChat({
       data-theme={theme}
       data-managed={script.managedBy ? "" : undefined}
       data-frame={frame}
+      data-backdrop={(frame === "none" && backdrop) || undefined}
+      data-text={frame === "none" ? text : undefined}
       data-focus={
         // The blur waits for the focused message to EXIST: before it lands there is
         // nothing to focus on, and blurring everything pointed at nothing.
@@ -1223,7 +1362,7 @@ export function TelegramChat({
                     </div>
                   )
                   if (
-                    !isGroup &&
+                    !labeled &&
                     !script.afterlife?.avatar &&
                     !profileOf(who)?.avatar
                   )
