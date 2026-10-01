@@ -512,6 +512,24 @@
       ]
     },
     {
+      "name": "github",
+      "type": "registry:ui",
+      "title": "github",
+      "description": "github drawn from its facts, no API at render: a repository's pinned card, an issue or pull request with its state, labels and diff, one comment in its thread with GitHub's own markdown, a profile with the contribution calendar. each opens its place; the facts are fetched once at authoring time with the author's token",
+      "dependencies": ["lucide-react"],
+      "registryDependencies": ["@ag/card-link"],
+      "files": [
+        {
+          "path": "registry/base-nova/ui/github.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/base-nova/lib/github-data.ts",
+          "type": "registry:lib"
+        }
+      ]
+    },
+    {
       "name": "tweet",
       "type": "registry:ui",
       "title": "tweet",

@@ -105,6 +105,13 @@ arg "<url>" help="https://x.com/<user>/status/<id>"
 '''
 run = 'bun scripts/tweet.ts {{arg(name="url")}}'
 
+[tasks.github]
+description = "a github.com profile, repo, issue, pull or comment as JSON (github-data), to keep beside the page; uses your gh token, never ships it"
+usage = '''
+arg "<url>" help="https://github.com/<owner>[/<repo>[/issues|pull/<n>[#issuecomment-<id>]]]"
+'''
+run = 'bun scripts/github.ts {{arg(name="url")}}'
+
 [tasks.add]
 description = "preview, diff, or install local registry items through shadcn (default: preview)"
 usage = '''

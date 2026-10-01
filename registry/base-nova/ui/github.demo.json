@@ -1,0 +1,2144 @@
+{
+  "issue": {
+    "kind": "issue",
+    "url": "https://github.com/vercel/ai/issues/6976",
+    "repo": "vercel/ai",
+    "number": 6976,
+    "title": "AI CLI",
+    "state": "completed",
+    "author": {
+      "login": "lgrammel",
+      "avatar": "https://avatars.githubusercontent.com/u/205036?u=c99cd59c811d927b8c6dd41e51338bcfa90f8a0a&v=4&s=96",
+      "url": "https://github.com/lgrammel"
+    },
+    "createdAt": "2025-07-02T07:06:44Z",
+    "closedAt": "2025-07-15T13:34:33Z",
+    "bodyHtml": "<h3 dir=\"auto\">Description</h3>\n<p dir=\"auto\">Use AI SDK to run command against LLMs. See <a href=\"https://llm.datasette.io/en/stable/\" rel=\"nofollow\">https://llm.datasette.io/en/stable/</a> for inspiration.</p>\n<h3 dir=\"auto\">AI SDK Version</h3>\n<p dir=\"auto\"><em>No response</em></p>",
+    "comments": 4,
+    "labels": [
+      {
+        "name": "feature",
+        "color": "0e8a16"
+      },
+      {
+        "name": "ai/provider",
+        "color": "FE4C25"
+      },
+      {
+        "name": "task-identify-issue-type-done",
+        "color": "ededed"
+      }
+    ]
+  },
+  "comment": {
+    "kind": "comment",
+    "url": "https://github.com/vercel/ai/issues/6976#issuecomment-3026730420",
+    "author": {
+      "login": "rauchg",
+      "avatar": "https://avatars.githubusercontent.com/u/13041?u=1ee8d111657cdd02ff6d253df00978d17ee6d722&v=4&s=96",
+      "url": "https://github.com/rauchg"
+    },
+    "createdAt": "2025-07-02T07:16:18Z",
+    "bodyHtml": "<ul dir=\"auto\">\n<li><strong>Files support</strong> – make it really easy to attach a bunch of files, upload transparently</li>\n<li><strong>Easy model switching</strong> - e.g.: <code class=\"notranslate\">-m</code> to alternate between models</li>\n<li><strong>Unix-y</strong> - make it easy to pipe, consume stdin, etc. e.g.: <code class=\"notranslate\">echo 'what is life?' | npx ai</code></li>\n</ul>",
+    "thread": {
+      "kind": "issue",
+      "url": "https://github.com/vercel/ai/issues/6976",
+      "repo": "vercel/ai",
+      "number": 6976,
+      "title": "AI CLI",
+      "state": "completed",
+      "author": {
+        "login": "lgrammel",
+        "avatar": "https://avatars.githubusercontent.com/u/205036?u=c99cd59c811d927b8c6dd41e51338bcfa90f8a0a&v=4&s=96",
+        "url": "https://github.com/lgrammel"
+      },
+      "createdAt": "2025-07-02T07:06:44Z",
+      "closedAt": "2025-07-15T13:34:33Z",
+      "comments": 4,
+      "labels": [
+        {
+          "name": "feature",
+          "color": "0e8a16"
+        },
+        {
+          "name": "ai/provider",
+          "color": "FE4C25"
+        },
+        {
+          "name": "task-identify-issue-type-done",
+          "color": "ededed"
+        }
+      ]
+    }
+  },
+  "long": {
+    "kind": "comment",
+    "url": "https://github.com/vercel/ai/issues/6976#issuecomment-3029520382",
+    "author": {
+      "login": "adriangalilea",
+      "avatar": "https://avatars.githubusercontent.com/u/90320947?u=7fef116689b86aaf1623b264a02bf55afbd112d8&v=4&s=96",
+      "url": "https://github.com/adriangalilea"
+    },
+    "createdAt": "2025-07-02T22:36:11Z",
+    "bodyHtml": "<ul dir=\"auto\">\n<li>Structured output, so it can be used as code, composable.</li>\n</ul>\n<p dir=\"auto\"><strong>Usage</strong></p>\n<div class=\"highlight highlight-source-shell notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"$ curl -s https://acme.com/pricing | \\\n  npx ai &quot;extract pricing tiers&quot; --schema '{\n    &quot;tiers&quot;: [{\n      &quot;name&quot;: &quot;string&quot;,\n      &quot;price&quot;: &quot;number&quot;,\n      &quot;bandwidth_gb&quot;: &quot;number&quot;,\n      &quot;team_members&quot;: &quot;number&quot;\n    }]\n  }'\"><pre class=\"notranslate\">$ curl -s https://acme.com/pricing <span class=\"pl-k\">|</span> \\\n  npx ai <span class=\"pl-s\"><span class=\"pl-pds\">\"</span>extract pricing tiers<span class=\"pl-pds\">\"</span></span> --schema <span class=\"pl-s\"><span class=\"pl-pds\">'</span>{</span>\n<span class=\"pl-s\">    \"tiers\": [{</span>\n<span class=\"pl-s\">      \"name\": \"string\",</span>\n<span class=\"pl-s\">      \"price\": \"number\",</span>\n<span class=\"pl-s\">      \"bandwidth_gb\": \"number\",</span>\n<span class=\"pl-s\">      \"team_members\": \"number\"</span>\n<span class=\"pl-s\">    }]</span>\n<span class=\"pl-s\">  }<span class=\"pl-pds\">'</span></span></pre></div>\n<p dir=\"auto\">Output:</p>\n<div class=\"highlight highlight-source-json notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"{\n  &quot;tiers&quot;: [\n    {&quot;name&quot;: &quot;Starter&quot;, &quot;price&quot;: 0, &quot;bandwidth_gb&quot;: 50, &quot;team_members&quot;: 1},\n    {&quot;name&quot;: &quot;Growth&quot;, &quot;price&quot;: 29, &quot;bandwidth_gb&quot;: 500, &quot;team_members&quot;: 5},\n    {&quot;name&quot;: &quot;Scale&quot;, &quot;price&quot;: 99, &quot;bandwidth_gb&quot;: 2000, &quot;team_members&quot;: 20},\n    {&quot;name&quot;: &quot;Enterprise&quot;, &quot;price&quot;: -1, &quot;bandwidth_gb&quot;: -1, &quot;team_members&quot;: -1}\n  ]\n}\"><pre class=\"notranslate\">{\n  <span class=\"pl-ent\">\"tiers\"</span>: [\n    {<span class=\"pl-ent\">\"name\"</span>: <span class=\"pl-s\"><span class=\"pl-pds\">\"</span>Starter<span class=\"pl-pds\">\"</span></span>, <span class=\"pl-ent\">\"price\"</span>: <span class=\"pl-c1\">0</span>, <span class=\"pl-ent\">\"bandwidth_gb\"</span>: <span class=\"pl-c1\">50</span>, <span class=\"pl-ent\">\"team_members\"</span>: <span class=\"pl-c1\">1</span>},\n    {<span class=\"pl-ent\">\"name\"</span>: <span class=\"pl-s\"><span class=\"pl-pds\">\"</span>Growth<span class=\"pl-pds\">\"</span></span>, <span class=\"pl-ent\">\"price\"</span>: <span class=\"pl-c1\">29</span>, <span class=\"pl-ent\">\"bandwidth_gb\"</span>: <span class=\"pl-c1\">500</span>, <span class=\"pl-ent\">\"team_members\"</span>: <span class=\"pl-c1\">5</span>},\n    {<span class=\"pl-ent\">\"name\"</span>: <span class=\"pl-s\"><span class=\"pl-pds\">\"</span>Scale<span class=\"pl-pds\">\"</span></span>, <span class=\"pl-ent\">\"price\"</span>: <span class=\"pl-c1\">99</span>, <span class=\"pl-ent\">\"bandwidth_gb\"</span>: <span class=\"pl-c1\">2000</span>, <span class=\"pl-ent\">\"team_members\"</span>: <span class=\"pl-c1\">20</span>},\n    {<span class=\"pl-ent\">\"name\"</span>: <span class=\"pl-s\"><span class=\"pl-pds\">\"</span>Enterprise<span class=\"pl-pds\">\"</span></span>, <span class=\"pl-ent\">\"price\"</span>: <span class=\"pl-c1\">-1</span>, <span class=\"pl-ent\">\"bandwidth_gb\"</span>: <span class=\"pl-c1\">-1</span>, <span class=\"pl-ent\">\"team_members\"</span>: <span class=\"pl-c1\">-1</span>}\n  ]\n}</pre></div>\n<p dir=\"auto\"><strong>Advanced usage</strong> – solving harder problems with AI as an API blackbox</p>\n<p dir=\"auto\">Ex: Installing the latest version of a github release is trickier than it may seem, but it could become something like:</p>\n<div class=\"highlight highlight-source-shell notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"#!/bin/bash\n# install-latest.sh - Install any GitHub CLI tool with one command\n\nREPO=$1  # e.g., &quot;junegunn/fzf&quot;\n\n# Get latest release data\ncurl -s &quot;https://api.github.com/repos/$REPO/releases/latest&quot; | \\\n  npx ai &quot;find download URL for $(uname -s) $(uname -m)&quot; --schema '{\n    &quot;download_url&quot;: &quot;string&quot;,\n    &quot;binary_name&quot;: &quot;string&quot;,\n    &quot;extract_command&quot;: &quot;string&quot;\n  }' &gt; release.json\n\n# Extract the info\nURL=$(jq -r .download_url release.json)\nBINARY=$(jq -r .binary_name release.json)\nEXTRACT=$(jq -r .extract_command release.json)\n\n# Download and install\ncurl -L &quot;$URL&quot; -o /tmp/download\neval &quot;$EXTRACT” # 🤠\nchmod +x &quot;$BINARY&quot;\nsudo mv &quot;$BINARY&quot; /usr/local/bin/\n\necho &quot;✓ Installed $BINARY”\"><pre class=\"notranslate\"><span class=\"pl-c\"><span class=\"pl-c\">#!</span>/bin/bash</span>\n<span class=\"pl-c\"><span class=\"pl-c\">#</span> install-latest.sh - Install any GitHub CLI tool with one command</span>\n\nREPO=<span class=\"pl-smi\">$1</span>  <span class=\"pl-c\"><span class=\"pl-c\">#</span> e.g., \"junegunn/fzf\"</span>\n\n<span class=\"pl-c\"><span class=\"pl-c\">#</span> Get latest release data</span>\ncurl -s <span class=\"pl-s\"><span class=\"pl-pds\">\"</span>https://api.github.com/repos/<span class=\"pl-smi\">$REPO</span>/releases/latest<span class=\"pl-pds\">\"</span></span> <span class=\"pl-k\">|</span> \\\n  npx ai <span class=\"pl-s\"><span class=\"pl-pds\">\"</span>find download URL for <span class=\"pl-s\"><span class=\"pl-pds\">$(</span>uname -s<span class=\"pl-pds\">)</span></span> <span class=\"pl-s\"><span class=\"pl-pds\">$(</span>uname -m<span class=\"pl-pds\">)</span></span><span class=\"pl-pds\">\"</span></span> --schema <span class=\"pl-s\"><span class=\"pl-pds\">'</span>{</span>\n<span class=\"pl-s\">    \"download_url\": \"string\",</span>\n<span class=\"pl-s\">    \"binary_name\": \"string\",</span>\n<span class=\"pl-s\">    \"extract_command\": \"string\"</span>\n<span class=\"pl-s\">  }<span class=\"pl-pds\">'</span></span> <span class=\"pl-k\">&gt;</span> release.json\n\n<span class=\"pl-c\"><span class=\"pl-c\">#</span> Extract the info</span>\nURL=<span class=\"pl-s\"><span class=\"pl-pds\">$(</span>jq -r .download_url release.json<span class=\"pl-pds\">)</span></span>\nBINARY=<span class=\"pl-s\"><span class=\"pl-pds\">$(</span>jq -r .binary_name release.json<span class=\"pl-pds\">)</span></span>\nEXTRACT=<span class=\"pl-s\"><span class=\"pl-pds\">$(</span>jq -r .extract_command release.json<span class=\"pl-pds\">)</span></span>\n\n<span class=\"pl-c\"><span class=\"pl-c\">#</span> Download and install</span>\ncurl -L <span class=\"pl-s\"><span class=\"pl-pds\">\"</span><span class=\"pl-smi\">$URL</span><span class=\"pl-pds\">\"</span></span> -o /tmp/download\n<span class=\"pl-c1\">eval</span> <span class=\"pl-s\"><span class=\"pl-pds\">\"</span><span class=\"pl-smi\">$EXTRACT</span>” # 🤠</span>\n<span class=\"pl-s\">chmod +x <span class=\"pl-pds\">\"</span></span><span class=\"pl-smi\">$BINARY</span><span class=\"pl-s\"><span class=\"pl-pds\">\"</span></span>\n<span class=\"pl-s\">sudo mv <span class=\"pl-pds\">\"</span></span><span class=\"pl-smi\">$BINARY</span><span class=\"pl-s\"><span class=\"pl-pds\">\"</span> /usr/local/bin/</span>\n<span class=\"pl-s\"></span>\n<span class=\"pl-s\">echo <span class=\"pl-pds\">\"</span></span>✓ Installed <span class=\"pl-smi\">$BINARY</span>”</pre></div>\n<p dir=\"auto\">Usage</p>\n<div class=\"highlight highlight-source-shell notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"# Install fzf (handles .tar.gz)\n$ ./install-latest.sh junegunn/fzf\n✓ Installed fzf\n\n# Install ripgrep (handles different naming: rg)\n$ ./install-latest.sh BurntSushi/ripgrep  \n✓ Installed rg\"><pre class=\"notranslate\"><span class=\"pl-c\"><span class=\"pl-c\">#</span> Install fzf (handles .tar.gz)</span>\n$ ./install-latest.sh junegunn/fzf\n✓ Installed fzf\n\n<span class=\"pl-c\"><span class=\"pl-c\">#</span> Install ripgrep (handles different naming: rg)</span>\n$ ./install-latest.sh BurntSushi/ripgrep  \n✓ Installed rg</pre></div>",
+    "thread": {
+      "kind": "issue",
+      "url": "https://github.com/vercel/ai/issues/6976",
+      "repo": "vercel/ai",
+      "number": 6976,
+      "title": "AI CLI",
+      "state": "completed",
+      "author": {
+        "login": "lgrammel",
+        "avatar": "https://avatars.githubusercontent.com/u/205036?u=c99cd59c811d927b8c6dd41e51338bcfa90f8a0a&v=4&s=96",
+        "url": "https://github.com/lgrammel"
+      },
+      "createdAt": "2025-07-02T07:06:44Z",
+      "closedAt": "2025-07-15T13:34:33Z",
+      "comments": 4,
+      "labels": [
+        {
+          "name": "feature",
+          "color": "0e8a16"
+        },
+        {
+          "name": "ai/provider",
+          "color": "FE4C25"
+        },
+        {
+          "name": "task-identify-issue-type-done",
+          "color": "ededed"
+        }
+      ]
+    }
+  },
+  "pr": {
+    "kind": "pr",
+    "url": "https://github.com/vercel/ai/pull/6979",
+    "repo": "vercel/ai",
+    "number": 6979,
+    "title": "feat(cli): add ai command line interface",
+    "state": "merged",
+    "author": {
+      "login": "lgrammel",
+      "avatar": "https://avatars.githubusercontent.com/u/205036?u=c99cd59c811d927b8c6dd41e51338bcfa90f8a0a&v=4&s=96",
+      "url": "https://github.com/lgrammel"
+    },
+    "createdAt": "2025-07-02T09:17:57Z",
+    "closedAt": "2025-07-15T08:48:37Z",
+    "bodyHtml": "<h2 dir=\"auto\">background</h2>\n<p dir=\"auto\">We wanted to make it simple to use AI from the command line without having to write code or learn APIs.</p>\n<h2 dir=\"auto\">summary</h2>\n<ul dir=\"auto\">\n<li>add ai cli with file attachment support</li>\n<li>add model switching via -m flag</li>\n<li>add unix-style piping and stdin support</li>\n</ul>\n<h2 dir=\"auto\">verification</h2>\n<ul dir=\"auto\">\n<li>cli handles text and image file attachments</li>\n<li>model switching works across providers (openai, anthropic, groq, etc.)</li>\n<li>stdin piping works with echo, cat, curl commands</li>\n<li>authentication via VERCEL_OIDC_TOKEN and AI_GATEWAY_API_KEY</li>\n<li>verbose mode shows usage statistics</li>\n</ul>\n<h2 dir=\"auto\">tasks</h2>\n<ul class=\"contains-task-list\">\n<li class=\"task-list-item\"><input type=\"checkbox\" id=\"\" disabled=\"\" class=\"task-list-item-checkbox\" aria-label=\"Completed task\" checked=\"\"> cli argument parsing with model, file, system options</li>\n<li class=\"task-list-item\"><input type=\"checkbox\" id=\"\" disabled=\"\" class=\"task-list-item-checkbox\" aria-label=\"Completed task\" checked=\"\"> file attachment with mime type detection</li>\n<li class=\"task-list-item\"><input type=\"checkbox\" id=\"\" disabled=\"\" class=\"task-list-item-checkbox\" aria-label=\"Completed task\" checked=\"\"> stdin reading for unix piping</li>\n<li class=\"task-list-item\"><input type=\"checkbox\" id=\"\" disabled=\"\" class=\"task-list-item-checkbox\" aria-label=\"Completed task\" checked=\"\"> gateway provider integration</li>\n<li class=\"task-list-item\"><input type=\"checkbox\" id=\"\" disabled=\"\" class=\"task-list-item-checkbox\" aria-label=\"Completed task\" checked=\"\"> image file base64 encoding</li>\n<li class=\"task-list-item\"><input type=\"checkbox\" id=\"\" disabled=\"\" class=\"task-list-item-checkbox\" aria-label=\"Completed task\" checked=\"\"> streaming text output</li>\n<li class=\"task-list-item\"><input type=\"checkbox\" id=\"\" disabled=\"\" class=\"task-list-item-checkbox\" aria-label=\"Completed task\" checked=\"\"> error handling and help documentation</li>\n</ul>",
+    "comments": 1,
+    "labels": [
+      {
+        "name": "task-merge-tracking-no-issue",
+        "color": "ededed"
+      }
+    ],
+    "diff": {
+      "additions": 785,
+      "deletions": 1,
+      "files": 6
+    },
+    "branches": {
+      "base": "main",
+      "head": "lg/WiNtOSv2"
+    }
+  },
+  "repo": {
+    "kind": "repo",
+    "url": "https://github.com/vercel-labs/ai-cli",
+    "name": "vercel-labs/ai-cli",
+    "owner": {
+      "login": "vercel-labs",
+      "avatar": "https://avatars.githubusercontent.com/u/108547162?v=4&s=96",
+      "url": "https://github.com/vercel-labs"
+    },
+    "description": "Generate anything from your terminal",
+    "homepage": "https://ai-cli.dev",
+    "stars": 818,
+    "forks": 65,
+    "language": {
+      "name": "TypeScript",
+      "color": "#3178c6"
+    },
+    "topics": [],
+    "archived": false,
+    "pushedAt": "2026-10-01T21:46:06Z"
+  },
+  "profile": {
+    "kind": "profile",
+    "url": "https://github.com/adriangalilea",
+    "user": {
+      "login": "adriangalilea",
+      "avatar": "https://avatars.githubusercontent.com/u/90320947?u=7fef116689b86aaf1623b264a02bf55afbd112d8&v=4&s=96",
+      "url": "https://github.com/adriangalilea"
+    },
+    "name": "Adrian Galilea",
+    "bio": "✨",
+    "website": "👤.to/adriangalilea",
+    "followers": 50,
+    "following": 170,
+    "repos": 96,
+    "calendar": {
+      "total": 9383,
+      "weeks": [
+        [
+          {
+            "date": "2025-09-28",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-09-29",
+            "count": 10,
+            "level": 1
+          },
+          {
+            "date": "2025-09-30",
+            "count": 8,
+            "level": 1
+          },
+          {
+            "date": "2025-10-01",
+            "count": 1,
+            "level": 1
+          },
+          {
+            "date": "2025-10-02",
+            "count": 3,
+            "level": 1
+          },
+          {
+            "date": "2025-10-03",
+            "count": 1,
+            "level": 1
+          },
+          {
+            "date": "2025-10-04",
+            "count": 0,
+            "level": 0
+          }
+        ],
+        [
+          {
+            "date": "2025-10-05",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-10-06",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-10-07",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-10-08",
+            "count": 1,
+            "level": 1
+          },
+          {
+            "date": "2025-10-09",
+            "count": 11,
+            "level": 1
+          },
+          {
+            "date": "2025-10-10",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-10-11",
+            "count": 0,
+            "level": 0
+          }
+        ],
+        [
+          {
+            "date": "2025-10-12",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-10-13",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-10-14",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-10-15",
+            "count": 1,
+            "level": 1
+          },
+          {
+            "date": "2025-10-16",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-10-17",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-10-18",
+            "count": 0,
+            "level": 0
+          }
+        ],
+        [
+          {
+            "date": "2025-10-19",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-10-20",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-10-21",
+            "count": 4,
+            "level": 1
+          },
+          {
+            "date": "2025-10-22",
+            "count": 6,
+            "level": 1
+          },
+          {
+            "date": "2025-10-23",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-10-24",
+            "count": 2,
+            "level": 1
+          },
+          {
+            "date": "2025-10-25",
+            "count": 1,
+            "level": 1
+          }
+        ],
+        [
+          {
+            "date": "2025-10-26",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-10-27",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-10-28",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-10-29",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-10-30",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-10-31",
+            "count": 7,
+            "level": 1
+          },
+          {
+            "date": "2025-11-01",
+            "count": 0,
+            "level": 0
+          }
+        ],
+        [
+          {
+            "date": "2025-11-02",
+            "count": 5,
+            "level": 1
+          },
+          {
+            "date": "2025-11-03",
+            "count": 1,
+            "level": 1
+          },
+          {
+            "date": "2025-11-04",
+            "count": 2,
+            "level": 1
+          },
+          {
+            "date": "2025-11-05",
+            "count": 29,
+            "level": 1
+          },
+          {
+            "date": "2025-11-06",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-11-07",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-11-08",
+            "count": 0,
+            "level": 0
+          }
+        ],
+        [
+          {
+            "date": "2025-11-09",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-11-10",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-11-11",
+            "count": 1,
+            "level": 1
+          },
+          {
+            "date": "2025-11-12",
+            "count": 4,
+            "level": 1
+          },
+          {
+            "date": "2025-11-13",
+            "count": 23,
+            "level": 1
+          },
+          {
+            "date": "2025-11-14",
+            "count": 2,
+            "level": 1
+          },
+          {
+            "date": "2025-11-15",
+            "count": 0,
+            "level": 0
+          }
+        ],
+        [
+          {
+            "date": "2025-11-16",
+            "count": 20,
+            "level": 1
+          },
+          {
+            "date": "2025-11-17",
+            "count": 3,
+            "level": 1
+          },
+          {
+            "date": "2025-11-18",
+            "count": 6,
+            "level": 1
+          },
+          {
+            "date": "2025-11-19",
+            "count": 6,
+            "level": 1
+          },
+          {
+            "date": "2025-11-20",
+            "count": 27,
+            "level": 1
+          },
+          {
+            "date": "2025-11-21",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-11-22",
+            "count": 0,
+            "level": 0
+          }
+        ],
+        [
+          {
+            "date": "2025-11-23",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-11-24",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-11-25",
+            "count": 12,
+            "level": 1
+          },
+          {
+            "date": "2025-11-26",
+            "count": 3,
+            "level": 1
+          },
+          {
+            "date": "2025-11-27",
+            "count": 3,
+            "level": 1
+          },
+          {
+            "date": "2025-11-28",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-11-29",
+            "count": 0,
+            "level": 0
+          }
+        ],
+        [
+          {
+            "date": "2025-11-30",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-12-01",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-12-02",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-12-03",
+            "count": 2,
+            "level": 1
+          },
+          {
+            "date": "2025-12-04",
+            "count": 10,
+            "level": 1
+          },
+          {
+            "date": "2025-12-05",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-12-06",
+            "count": 8,
+            "level": 1
+          }
+        ],
+        [
+          {
+            "date": "2025-12-07",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-12-08",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-12-09",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-12-10",
+            "count": 9,
+            "level": 1
+          },
+          {
+            "date": "2025-12-11",
+            "count": 2,
+            "level": 1
+          },
+          {
+            "date": "2025-12-12",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-12-13",
+            "count": 2,
+            "level": 1
+          }
+        ],
+        [
+          {
+            "date": "2025-12-14",
+            "count": 1,
+            "level": 1
+          },
+          {
+            "date": "2025-12-15",
+            "count": 5,
+            "level": 1
+          },
+          {
+            "date": "2025-12-16",
+            "count": 2,
+            "level": 1
+          },
+          {
+            "date": "2025-12-17",
+            "count": 15,
+            "level": 1
+          },
+          {
+            "date": "2025-12-18",
+            "count": 2,
+            "level": 1
+          },
+          {
+            "date": "2025-12-19",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-12-20",
+            "count": 8,
+            "level": 1
+          }
+        ],
+        [
+          {
+            "date": "2025-12-21",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-12-22",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-12-23",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-12-24",
+            "count": 3,
+            "level": 1
+          },
+          {
+            "date": "2025-12-25",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-12-26",
+            "count": 1,
+            "level": 1
+          },
+          {
+            "date": "2025-12-27",
+            "count": 0,
+            "level": 0
+          }
+        ],
+        [
+          {
+            "date": "2025-12-28",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-12-29",
+            "count": 3,
+            "level": 1
+          },
+          {
+            "date": "2025-12-30",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2025-12-31",
+            "count": 1,
+            "level": 1
+          },
+          {
+            "date": "2026-01-01",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-01-02",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-01-03",
+            "count": 0,
+            "level": 0
+          }
+        ],
+        [
+          {
+            "date": "2026-01-04",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-01-05",
+            "count": 21,
+            "level": 1
+          },
+          {
+            "date": "2026-01-06",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-01-07",
+            "count": 3,
+            "level": 1
+          },
+          {
+            "date": "2026-01-08",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-01-09",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-01-10",
+            "count": 0,
+            "level": 0
+          }
+        ],
+        [
+          {
+            "date": "2026-01-11",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-01-12",
+            "count": 10,
+            "level": 1
+          },
+          {
+            "date": "2026-01-13",
+            "count": 1,
+            "level": 1
+          },
+          {
+            "date": "2026-01-14",
+            "count": 2,
+            "level": 1
+          },
+          {
+            "date": "2026-01-15",
+            "count": 17,
+            "level": 1
+          },
+          {
+            "date": "2026-01-16",
+            "count": 5,
+            "level": 1
+          },
+          {
+            "date": "2026-01-17",
+            "count": 0,
+            "level": 0
+          }
+        ],
+        [
+          {
+            "date": "2026-01-18",
+            "count": 25,
+            "level": 1
+          },
+          {
+            "date": "2026-01-19",
+            "count": 5,
+            "level": 1
+          },
+          {
+            "date": "2026-01-20",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-01-21",
+            "count": 18,
+            "level": 1
+          },
+          {
+            "date": "2026-01-22",
+            "count": 13,
+            "level": 1
+          },
+          {
+            "date": "2026-01-23",
+            "count": 22,
+            "level": 1
+          },
+          {
+            "date": "2026-01-24",
+            "count": 1,
+            "level": 1
+          }
+        ],
+        [
+          {
+            "date": "2026-01-25",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-01-26",
+            "count": 12,
+            "level": 1
+          },
+          {
+            "date": "2026-01-27",
+            "count": 29,
+            "level": 1
+          },
+          {
+            "date": "2026-01-28",
+            "count": 8,
+            "level": 1
+          },
+          {
+            "date": "2026-01-29",
+            "count": 27,
+            "level": 1
+          },
+          {
+            "date": "2026-01-30",
+            "count": 10,
+            "level": 1
+          },
+          {
+            "date": "2026-01-31",
+            "count": 10,
+            "level": 1
+          }
+        ],
+        [
+          {
+            "date": "2026-02-01",
+            "count": 13,
+            "level": 1
+          },
+          {
+            "date": "2026-02-02",
+            "count": 9,
+            "level": 1
+          },
+          {
+            "date": "2026-02-03",
+            "count": 56,
+            "level": 1
+          },
+          {
+            "date": "2026-02-04",
+            "count": 17,
+            "level": 1
+          },
+          {
+            "date": "2026-02-05",
+            "count": 30,
+            "level": 1
+          },
+          {
+            "date": "2026-02-06",
+            "count": 50,
+            "level": 1
+          },
+          {
+            "date": "2026-02-07",
+            "count": 35,
+            "level": 1
+          }
+        ],
+        [
+          {
+            "date": "2026-02-08",
+            "count": 51,
+            "level": 1
+          },
+          {
+            "date": "2026-02-09",
+            "count": 76,
+            "level": 1
+          },
+          {
+            "date": "2026-02-10",
+            "count": 70,
+            "level": 1
+          },
+          {
+            "date": "2026-02-11",
+            "count": 22,
+            "level": 1
+          },
+          {
+            "date": "2026-02-12",
+            "count": 44,
+            "level": 1
+          },
+          {
+            "date": "2026-02-13",
+            "count": 24,
+            "level": 1
+          },
+          {
+            "date": "2026-02-14",
+            "count": 0,
+            "level": 0
+          }
+        ],
+        [
+          {
+            "date": "2026-02-15",
+            "count": 13,
+            "level": 1
+          },
+          {
+            "date": "2026-02-16",
+            "count": 12,
+            "level": 1
+          },
+          {
+            "date": "2026-02-17",
+            "count": 4,
+            "level": 1
+          },
+          {
+            "date": "2026-02-18",
+            "count": 56,
+            "level": 1
+          },
+          {
+            "date": "2026-02-19",
+            "count": 41,
+            "level": 1
+          },
+          {
+            "date": "2026-02-20",
+            "count": 44,
+            "level": 1
+          },
+          {
+            "date": "2026-02-21",
+            "count": 0,
+            "level": 0
+          }
+        ],
+        [
+          {
+            "date": "2026-02-22",
+            "count": 27,
+            "level": 1
+          },
+          {
+            "date": "2026-02-23",
+            "count": 19,
+            "level": 1
+          },
+          {
+            "date": "2026-02-24",
+            "count": 46,
+            "level": 1
+          },
+          {
+            "date": "2026-02-25",
+            "count": 4,
+            "level": 1
+          },
+          {
+            "date": "2026-02-26",
+            "count": 2,
+            "level": 1
+          },
+          {
+            "date": "2026-02-27",
+            "count": 8,
+            "level": 1
+          },
+          {
+            "date": "2026-02-28",
+            "count": 2,
+            "level": 1
+          }
+        ],
+        [
+          {
+            "date": "2026-03-01",
+            "count": 3,
+            "level": 1
+          },
+          {
+            "date": "2026-03-02",
+            "count": 12,
+            "level": 1
+          },
+          {
+            "date": "2026-03-03",
+            "count": 3,
+            "level": 1
+          },
+          {
+            "date": "2026-03-04",
+            "count": 5,
+            "level": 1
+          },
+          {
+            "date": "2026-03-05",
+            "count": 2,
+            "level": 1
+          },
+          {
+            "date": "2026-03-06",
+            "count": 16,
+            "level": 1
+          },
+          {
+            "date": "2026-03-07",
+            "count": 3,
+            "level": 1
+          }
+        ],
+        [
+          {
+            "date": "2026-03-08",
+            "count": 2,
+            "level": 1
+          },
+          {
+            "date": "2026-03-09",
+            "count": 5,
+            "level": 1
+          },
+          {
+            "date": "2026-03-10",
+            "count": 2,
+            "level": 1
+          },
+          {
+            "date": "2026-03-11",
+            "count": 7,
+            "level": 1
+          },
+          {
+            "date": "2026-03-12",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-03-13",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-03-14",
+            "count": 0,
+            "level": 0
+          }
+        ],
+        [
+          {
+            "date": "2026-03-15",
+            "count": 3,
+            "level": 1
+          },
+          {
+            "date": "2026-03-16",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-03-17",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-03-18",
+            "count": 3,
+            "level": 1
+          },
+          {
+            "date": "2026-03-19",
+            "count": 25,
+            "level": 1
+          },
+          {
+            "date": "2026-03-20",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-03-21",
+            "count": 0,
+            "level": 0
+          }
+        ],
+        [
+          {
+            "date": "2026-03-22",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-03-23",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-03-24",
+            "count": 3,
+            "level": 1
+          },
+          {
+            "date": "2026-03-25",
+            "count": 2,
+            "level": 1
+          },
+          {
+            "date": "2026-03-26",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-03-27",
+            "count": 1,
+            "level": 1
+          },
+          {
+            "date": "2026-03-28",
+            "count": 52,
+            "level": 1
+          }
+        ],
+        [
+          {
+            "date": "2026-03-29",
+            "count": 2,
+            "level": 1
+          },
+          {
+            "date": "2026-03-30",
+            "count": 35,
+            "level": 1
+          },
+          {
+            "date": "2026-03-31",
+            "count": 7,
+            "level": 1
+          },
+          {
+            "date": "2026-04-01",
+            "count": 9,
+            "level": 1
+          },
+          {
+            "date": "2026-04-02",
+            "count": 1,
+            "level": 1
+          },
+          {
+            "date": "2026-04-03",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-04-04",
+            "count": 0,
+            "level": 0
+          }
+        ],
+        [
+          {
+            "date": "2026-04-05",
+            "count": 1,
+            "level": 1
+          },
+          {
+            "date": "2026-04-06",
+            "count": 6,
+            "level": 1
+          },
+          {
+            "date": "2026-04-07",
+            "count": 5,
+            "level": 1
+          },
+          {
+            "date": "2026-04-08",
+            "count": 1,
+            "level": 1
+          },
+          {
+            "date": "2026-04-09",
+            "count": 1,
+            "level": 1
+          },
+          {
+            "date": "2026-04-10",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-04-11",
+            "count": 0,
+            "level": 0
+          }
+        ],
+        [
+          {
+            "date": "2026-04-12",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-04-13",
+            "count": 6,
+            "level": 1
+          },
+          {
+            "date": "2026-04-14",
+            "count": 14,
+            "level": 1
+          },
+          {
+            "date": "2026-04-15",
+            "count": 12,
+            "level": 1
+          },
+          {
+            "date": "2026-04-16",
+            "count": 18,
+            "level": 1
+          },
+          {
+            "date": "2026-04-17",
+            "count": 8,
+            "level": 1
+          },
+          {
+            "date": "2026-04-18",
+            "count": 0,
+            "level": 0
+          }
+        ],
+        [
+          {
+            "date": "2026-04-19",
+            "count": 13,
+            "level": 1
+          },
+          {
+            "date": "2026-04-20",
+            "count": 2,
+            "level": 1
+          },
+          {
+            "date": "2026-04-21",
+            "count": 38,
+            "level": 1
+          },
+          {
+            "date": "2026-04-22",
+            "count": 2,
+            "level": 1
+          },
+          {
+            "date": "2026-04-23",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-04-24",
+            "count": 13,
+            "level": 1
+          },
+          {
+            "date": "2026-04-25",
+            "count": 2,
+            "level": 1
+          }
+        ],
+        [
+          {
+            "date": "2026-04-26",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-04-27",
+            "count": 1,
+            "level": 1
+          },
+          {
+            "date": "2026-04-28",
+            "count": 4,
+            "level": 1
+          },
+          {
+            "date": "2026-04-29",
+            "count": 4,
+            "level": 1
+          },
+          {
+            "date": "2026-04-30",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-05-01",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-05-02",
+            "count": 0,
+            "level": 0
+          }
+        ],
+        [
+          {
+            "date": "2026-05-03",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-05-04",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-05-05",
+            "count": 14,
+            "level": 1
+          },
+          {
+            "date": "2026-05-06",
+            "count": 10,
+            "level": 1
+          },
+          {
+            "date": "2026-05-07",
+            "count": 4,
+            "level": 1
+          },
+          {
+            "date": "2026-05-08",
+            "count": 20,
+            "level": 1
+          },
+          {
+            "date": "2026-05-09",
+            "count": 0,
+            "level": 0
+          }
+        ],
+        [
+          {
+            "date": "2026-05-10",
+            "count": 5,
+            "level": 1
+          },
+          {
+            "date": "2026-05-11",
+            "count": 53,
+            "level": 1
+          },
+          {
+            "date": "2026-05-12",
+            "count": 11,
+            "level": 1
+          },
+          {
+            "date": "2026-05-13",
+            "count": 34,
+            "level": 1
+          },
+          {
+            "date": "2026-05-14",
+            "count": 43,
+            "level": 1
+          },
+          {
+            "date": "2026-05-15",
+            "count": 25,
+            "level": 1
+          },
+          {
+            "date": "2026-05-16",
+            "count": 2,
+            "level": 1
+          }
+        ],
+        [
+          {
+            "date": "2026-05-17",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-05-18",
+            "count": 3,
+            "level": 1
+          },
+          {
+            "date": "2026-05-19",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-05-20",
+            "count": 2,
+            "level": 1
+          },
+          {
+            "date": "2026-05-21",
+            "count": 10,
+            "level": 1
+          },
+          {
+            "date": "2026-05-22",
+            "count": 2,
+            "level": 1
+          },
+          {
+            "date": "2026-05-23",
+            "count": 1,
+            "level": 1
+          }
+        ],
+        [
+          {
+            "date": "2026-05-24",
+            "count": 2,
+            "level": 1
+          },
+          {
+            "date": "2026-05-25",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-05-26",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-05-27",
+            "count": 1,
+            "level": 1
+          },
+          {
+            "date": "2026-05-28",
+            "count": 5,
+            "level": 1
+          },
+          {
+            "date": "2026-05-29",
+            "count": 5,
+            "level": 1
+          },
+          {
+            "date": "2026-05-30",
+            "count": 11,
+            "level": 1
+          }
+        ],
+        [
+          {
+            "date": "2026-05-31",
+            "count": 13,
+            "level": 1
+          },
+          {
+            "date": "2026-06-01",
+            "count": 10,
+            "level": 1
+          },
+          {
+            "date": "2026-06-02",
+            "count": 2,
+            "level": 1
+          },
+          {
+            "date": "2026-06-03",
+            "count": 43,
+            "level": 1
+          },
+          {
+            "date": "2026-06-04",
+            "count": 17,
+            "level": 1
+          },
+          {
+            "date": "2026-06-05",
+            "count": 4,
+            "level": 1
+          },
+          {
+            "date": "2026-06-06",
+            "count": 0,
+            "level": 0
+          }
+        ],
+        [
+          {
+            "date": "2026-06-07",
+            "count": 2,
+            "level": 1
+          },
+          {
+            "date": "2026-06-08",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-06-09",
+            "count": 21,
+            "level": 1
+          },
+          {
+            "date": "2026-06-10",
+            "count": 110,
+            "level": 2
+          },
+          {
+            "date": "2026-06-11",
+            "count": 90,
+            "level": 2
+          },
+          {
+            "date": "2026-06-12",
+            "count": 141,
+            "level": 2
+          },
+          {
+            "date": "2026-06-13",
+            "count": 26,
+            "level": 1
+          }
+        ],
+        [
+          {
+            "date": "2026-06-14",
+            "count": 43,
+            "level": 1
+          },
+          {
+            "date": "2026-06-15",
+            "count": 44,
+            "level": 1
+          },
+          {
+            "date": "2026-06-16",
+            "count": 42,
+            "level": 1
+          },
+          {
+            "date": "2026-06-17",
+            "count": 39,
+            "level": 1
+          },
+          {
+            "date": "2026-06-18",
+            "count": 28,
+            "level": 1
+          },
+          {
+            "date": "2026-06-19",
+            "count": 29,
+            "level": 1
+          },
+          {
+            "date": "2026-06-20",
+            "count": 3,
+            "level": 1
+          }
+        ],
+        [
+          {
+            "date": "2026-06-21",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-06-22",
+            "count": 16,
+            "level": 1
+          },
+          {
+            "date": "2026-06-23",
+            "count": 8,
+            "level": 1
+          },
+          {
+            "date": "2026-06-24",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-06-25",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-06-26",
+            "count": 2,
+            "level": 1
+          },
+          {
+            "date": "2026-06-27",
+            "count": 10,
+            "level": 1
+          }
+        ],
+        [
+          {
+            "date": "2026-06-28",
+            "count": 13,
+            "level": 1
+          },
+          {
+            "date": "2026-06-29",
+            "count": 11,
+            "level": 1
+          },
+          {
+            "date": "2026-06-30",
+            "count": 1,
+            "level": 1
+          },
+          {
+            "date": "2026-07-01",
+            "count": 42,
+            "level": 1
+          },
+          {
+            "date": "2026-07-02",
+            "count": 149,
+            "level": 2
+          },
+          {
+            "date": "2026-07-03",
+            "count": 148,
+            "level": 2
+          },
+          {
+            "date": "2026-07-04",
+            "count": 96,
+            "level": 2
+          }
+        ],
+        [
+          {
+            "date": "2026-07-05",
+            "count": 171,
+            "level": 3
+          },
+          {
+            "date": "2026-07-06",
+            "count": 158,
+            "level": 3
+          },
+          {
+            "date": "2026-07-07",
+            "count": 106,
+            "level": 2
+          },
+          {
+            "date": "2026-07-08",
+            "count": 55,
+            "level": 1
+          },
+          {
+            "date": "2026-07-09",
+            "count": 116,
+            "level": 2
+          },
+          {
+            "date": "2026-07-10",
+            "count": 84,
+            "level": 2
+          },
+          {
+            "date": "2026-07-11",
+            "count": 52,
+            "level": 1
+          }
+        ],
+        [
+          {
+            "date": "2026-07-12",
+            "count": 50,
+            "level": 1
+          },
+          {
+            "date": "2026-07-13",
+            "count": 65,
+            "level": 1
+          },
+          {
+            "date": "2026-07-14",
+            "count": 28,
+            "level": 1
+          },
+          {
+            "date": "2026-07-15",
+            "count": 109,
+            "level": 2
+          },
+          {
+            "date": "2026-07-16",
+            "count": 126,
+            "level": 2
+          },
+          {
+            "date": "2026-07-17",
+            "count": 144,
+            "level": 2
+          },
+          {
+            "date": "2026-07-18",
+            "count": 64,
+            "level": 1
+          }
+        ],
+        [
+          {
+            "date": "2026-07-19",
+            "count": 74,
+            "level": 1
+          },
+          {
+            "date": "2026-07-20",
+            "count": 89,
+            "level": 2
+          },
+          {
+            "date": "2026-07-21",
+            "count": 93,
+            "level": 2
+          },
+          {
+            "date": "2026-07-22",
+            "count": 61,
+            "level": 1
+          },
+          {
+            "date": "2026-07-23",
+            "count": 66,
+            "level": 1
+          },
+          {
+            "date": "2026-07-24",
+            "count": 16,
+            "level": 1
+          },
+          {
+            "date": "2026-07-25",
+            "count": 56,
+            "level": 1
+          }
+        ],
+        [
+          {
+            "date": "2026-07-26",
+            "count": 1,
+            "level": 1
+          },
+          {
+            "date": "2026-07-27",
+            "count": 196,
+            "level": 3
+          },
+          {
+            "date": "2026-07-28",
+            "count": 17,
+            "level": 1
+          },
+          {
+            "date": "2026-07-29",
+            "count": 13,
+            "level": 1
+          },
+          {
+            "date": "2026-07-30",
+            "count": 7,
+            "level": 1
+          },
+          {
+            "date": "2026-07-31",
+            "count": 11,
+            "level": 1
+          },
+          {
+            "date": "2026-08-01",
+            "count": 42,
+            "level": 1
+          }
+        ],
+        [
+          {
+            "date": "2026-08-02",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-08-03",
+            "count": 41,
+            "level": 1
+          },
+          {
+            "date": "2026-08-04",
+            "count": 83,
+            "level": 2
+          },
+          {
+            "date": "2026-08-05",
+            "count": 72,
+            "level": 1
+          },
+          {
+            "date": "2026-08-06",
+            "count": 96,
+            "level": 2
+          },
+          {
+            "date": "2026-08-07",
+            "count": 113,
+            "level": 2
+          },
+          {
+            "date": "2026-08-08",
+            "count": 90,
+            "level": 2
+          }
+        ],
+        [
+          {
+            "date": "2026-08-09",
+            "count": 112,
+            "level": 2
+          },
+          {
+            "date": "2026-08-10",
+            "count": 51,
+            "level": 1
+          },
+          {
+            "date": "2026-08-11",
+            "count": 16,
+            "level": 1
+          },
+          {
+            "date": "2026-08-12",
+            "count": 20,
+            "level": 1
+          },
+          {
+            "date": "2026-08-13",
+            "count": 45,
+            "level": 1
+          },
+          {
+            "date": "2026-08-14",
+            "count": 77,
+            "level": 2
+          },
+          {
+            "date": "2026-08-15",
+            "count": 11,
+            "level": 1
+          }
+        ],
+        [
+          {
+            "date": "2026-08-16",
+            "count": 88,
+            "level": 2
+          },
+          {
+            "date": "2026-08-17",
+            "count": 72,
+            "level": 1
+          },
+          {
+            "date": "2026-08-18",
+            "count": 120,
+            "level": 2
+          },
+          {
+            "date": "2026-08-19",
+            "count": 66,
+            "level": 1
+          },
+          {
+            "date": "2026-08-20",
+            "count": 222,
+            "level": 3
+          },
+          {
+            "date": "2026-08-21",
+            "count": 80,
+            "level": 2
+          },
+          {
+            "date": "2026-08-22",
+            "count": 50,
+            "level": 1
+          }
+        ],
+        [
+          {
+            "date": "2026-08-23",
+            "count": 90,
+            "level": 2
+          },
+          {
+            "date": "2026-08-24",
+            "count": 109,
+            "level": 2
+          },
+          {
+            "date": "2026-08-25",
+            "count": 135,
+            "level": 2
+          },
+          {
+            "date": "2026-08-26",
+            "count": 186,
+            "level": 3
+          },
+          {
+            "date": "2026-08-27",
+            "count": 100,
+            "level": 2
+          },
+          {
+            "date": "2026-08-28",
+            "count": 116,
+            "level": 2
+          },
+          {
+            "date": "2026-08-29",
+            "count": 25,
+            "level": 1
+          }
+        ],
+        [
+          {
+            "date": "2026-08-30",
+            "count": 89,
+            "level": 2
+          },
+          {
+            "date": "2026-08-31",
+            "count": 70,
+            "level": 1
+          },
+          {
+            "date": "2026-09-01",
+            "count": 30,
+            "level": 1
+          },
+          {
+            "date": "2026-09-02",
+            "count": 53,
+            "level": 1
+          },
+          {
+            "date": "2026-09-03",
+            "count": 54,
+            "level": 1
+          },
+          {
+            "date": "2026-09-04",
+            "count": 137,
+            "level": 2
+          },
+          {
+            "date": "2026-09-05",
+            "count": 132,
+            "level": 2
+          }
+        ],
+        [
+          {
+            "date": "2026-09-06",
+            "count": 307,
+            "level": 4
+          },
+          {
+            "date": "2026-09-07",
+            "count": 53,
+            "level": 1
+          },
+          {
+            "date": "2026-09-08",
+            "count": 97,
+            "level": 2
+          },
+          {
+            "date": "2026-09-09",
+            "count": 175,
+            "level": 3
+          },
+          {
+            "date": "2026-09-10",
+            "count": 64,
+            "level": 1
+          },
+          {
+            "date": "2026-09-11",
+            "count": 146,
+            "level": 2
+          },
+          {
+            "date": "2026-09-12",
+            "count": 34,
+            "level": 1
+          }
+        ],
+        [
+          {
+            "date": "2026-09-13",
+            "count": 84,
+            "level": 2
+          },
+          {
+            "date": "2026-09-14",
+            "count": 130,
+            "level": 2
+          },
+          {
+            "date": "2026-09-15",
+            "count": 82,
+            "level": 2
+          },
+          {
+            "date": "2026-09-16",
+            "count": 6,
+            "level": 1
+          },
+          {
+            "date": "2026-09-17",
+            "count": 15,
+            "level": 1
+          },
+          {
+            "date": "2026-09-18",
+            "count": 20,
+            "level": 1
+          },
+          {
+            "date": "2026-09-19",
+            "count": 0,
+            "level": 0
+          }
+        ],
+        [
+          {
+            "date": "2026-09-20",
+            "count": 40,
+            "level": 1
+          },
+          {
+            "date": "2026-09-21",
+            "count": 7,
+            "level": 1
+          },
+          {
+            "date": "2026-09-22",
+            "count": 1,
+            "level": 1
+          },
+          {
+            "date": "2026-09-23",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-09-24",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-09-25",
+            "count": 2,
+            "level": 1
+          },
+          {
+            "date": "2026-09-26",
+            "count": 0,
+            "level": 0
+          }
+        ],
+        [
+          {
+            "date": "2026-09-27",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-09-28",
+            "count": 6,
+            "level": 1
+          },
+          {
+            "date": "2026-09-29",
+            "count": 0,
+            "level": 0
+          },
+          {
+            "date": "2026-09-30",
+            "count": 66,
+            "level": 1
+          },
+          {
+            "date": "2026-10-01",
+            "count": 14,
+            "level": 1
+          },
+          {
+            "date": "2026-10-02",
+            "count": 2,
+            "level": 1
+          }
+        ]
+      ]
+    }
+  }
+}

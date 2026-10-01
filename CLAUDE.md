@@ -556,12 +556,17 @@ when a real post needs it, with its example in `scripts/examples/telegram-chat-p
 `foot` is the first step of the bubble-meta todo above (time, views, edited); it sits
 on its own line, not tucked into the last line of text yet.
 
-### github: next
+### github: shipped; what is left
 
-Repo, issue, PR and profile with the contribution calendar, same doctrine (facts once,
-drawn as a pure function). Prior art: e-id's vendored react-activity-calendar and its
-GraphQL `contributionCalendar` fetch (`components/github/`, `fetch_github_activity.tsx`
-in adriangalilea/e-id); take the shape, not the code.
+`github` draws a profile, repo, issue, PR or one comment from `github-data` facts
+(`mise github <url>`, GraphQL with `gh auth token`; a comment from REST, which GraphQL
+cannot address by id). Bodies are GitHub's own sanitized `bodyHTML`, styled by
+descendant utilities incl. the `pl-*` syntax classes. `lines` cuts a body with no
+measuring: fade and link sit AT the cut, so a shorter body clips them away (that short
+case is unverified by hand). The calendar is an SVG in its own units with `<title>` per
+day; the first week keeps its weekdays when it starts mid-week. Left: the commit list
+of a repo or PR, reactions, a thread's opening post beside a comment, org avatars as
+rounded squares.
 
 ### web-preview: shipped; what is left
 

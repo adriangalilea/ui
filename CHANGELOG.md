@@ -3,6 +3,12 @@
 Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 --dry-run` or `--diff`; use `--overwrite` only when replacing your installed copy.
 
+## 2026-10-02
+
+### github
+
+- New: GitHub drawn from its facts, no API and no token at render. `Github` draws whatever a github.com URL is: a repository's pinned card (description, topics, language, stars, forks, license), an issue or pull request (state in GitHub's colours, labels in their own, the diff and branches), one comment with its thread on a line above it and GitHub's own sanitized markdown (syntax colours included), a profile with `ContributionCalendar`, the last year in GitHub's five greens, light and dark. `lines` cuts a long body with a fade and a link to the rest. Every card opens its place through `card-link`. `fetchGithub(url, token)` in `github-data` reads the facts once with the author's token.
+
 ## 2026-10-01
 
 ### card-link

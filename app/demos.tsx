@@ -24,6 +24,7 @@ import Codex from "@/registry/base-nova/ui/codex.demo"
 import Copy from "@/registry/base-nova/ui/copy.demo"
 import DeviceFrame from "@/registry/base-nova/ui/device-frame.demo"
 import Editor from "@/registry/base-nova/ui/editor.demo"
+import Github from "@/registry/base-nova/ui/github.demo"
 import Image from "@/registry/base-nova/ui/image.demo"
 import Kbd from "@/registry/base-nova/ui/kbd.demo"
 import Lightbox from "@/registry/base-nova/ui/lightbox.demo"
@@ -61,6 +62,7 @@ export const DEMOS: Record<string, ComponentType> = {
   "web-preview": WebPreview,
   tweet: Tweet,
   "card-link": CardLink,
+  github: Github,
   "scroll-stage": ScrollStage,
   avatar: Avatar,
   code: Code,
