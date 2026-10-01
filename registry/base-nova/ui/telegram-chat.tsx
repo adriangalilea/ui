@@ -41,6 +41,7 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import type { Clip } from "@/registry/base-nova/lib/clip"
 import type { Person } from "@/registry/base-nova/lib/person"
+import { CardLink } from "@/registry/base-nova/ui/card-link"
 import { IphoneFrame } from "@/registry/base-nova/ui/device-frame"
 import { Glass, type GlassTone } from "@/registry/base-nova/ui/liquid-glass"
 import { usePlayhead } from "@/registry/base-nova/ui/playhead"
@@ -211,6 +212,10 @@ export interface TelegramChatProps {
    *  blown up. `page`: the words at the page's own size, bubbles capped at a reading
    *  measure (`--tg-measure` characters, 60), for a post embedded in prose. */
   text?: "scaled" | "page"
+  /** The chat as a whole opens this (a post's permalink): a click anywhere but a link,
+   *  a control or a selection (`card-link`). The keyboard's way there is a real link
+   *  inside, a bubble's `foot.href`. */
+  href?: string
   /** Hide the decorative input controls for message-only compositions. */
   composer?: boolean
   /** Message indices that stay sharp and lift; the rest blur and step back (hover brings
@@ -768,6 +773,7 @@ export function TelegramChat({
   frame = "phone",
   backdrop = false,
   text = "scaled",
+  href,
   composer = true,
   focus,
   crop,
@@ -944,21 +950,35 @@ export function TelegramChat({
     )
   }
 
-  const senderLabel = (who: Who) =>
-    labeled ? (
+  const senderLabel = (who: Who) => {
+    if (!labeled) return null
+    // A channel signs in the accent and its name opens the channel, as tapping it does
+    // in the client; a group member signs in their peer colour.
+    const handle = isGroup ? undefined : profileOf(who)?.handle
+    return (
       <div
         className="tgchat-from"
-        // A channel signs in the accent, the way the client labels a post; a group
-        // member in their peer colour.
         style={{
           color: isGroup
             ? SENDER_COLORS[senderIndex(nameOf(who))]
             : "var(--tg-link)",
         }}
       >
-        {nameOf(who)}
+        {handle ? (
+          <a
+            href={hrefOf(handle)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline"
+          >
+            {nameOf(who)}
+          </a>
+        ) : (
+          nameOf(who)
+        )}
       </div>
-    ) : null
+    )
+  }
 
   // Group chats put a mini avatar beside every left bubble, like Telegram does: the
   // profile's picture when the sender has one, the message's own, else the initial.
@@ -1198,11 +1218,12 @@ export function TelegramChat({
     )
   }
 
-  return (
+  const chat = (
     <figure
       ref={root}
       className={`tgchat${className ? ` ${className}` : ""}`}
       data-theme={theme}
+      data-linked={href ? "" : undefined}
       data-managed={script.managedBy ? "" : undefined}
       data-frame={frame}
       data-backdrop={(frame === "none" && backdrop) || undefined}
@@ -1517,5 +1538,14 @@ export function TelegramChat({
         </pre>
       )}
     </figure>
+  )
+  // `contents`: the card adds no box, so the chat sizes against its own parent exactly
+  // as it does unlinked (a block wrapper collapsed it to zero inside a flex row).
+  return href ? (
+    <CardLink href={href} className="contents">
+      {chat}
+    </CardLink>
+  ) : (
+    chat
   )
 }

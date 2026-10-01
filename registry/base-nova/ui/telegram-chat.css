@@ -1244,6 +1244,14 @@
   .tgchat[data-frame="none"][data-text="page"] .tgchat-from {
     font-size: 0.9em;
   }
+  /* `href`: the chat opens somewhere, so it says so under the pointer: the received
+   bubbles take a breath of the text colour, as a pressed row does in the client. */
+  .tgchat[data-linked] .tgchat-bubble.bot {
+    transition: background-color 200ms var(--tg-ease);
+  }
+  .tgchat[data-linked]:hover .tgchat-bubble.bot {
+    background: color-mix(in srgb, var(--tg-bot-bubble) 94%, var(--tg-text));
+  }
   /* A bare canvas has no screen to fill, so the thread grows to its content instead of
    scrolling inside one. */
   .tgchat[data-frame="none"] .tgchat-messages {

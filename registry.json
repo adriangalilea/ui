@@ -561,6 +561,7 @@
         "@ag/person",
         "@ag/playhead",
         "@ag/web-preview",
+        "@ag/card-link",
         "@ag/device-frame",
         "@ag/liquid-glass",
         "@ag/scrims"

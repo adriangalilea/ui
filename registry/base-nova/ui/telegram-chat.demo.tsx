@@ -577,6 +577,7 @@ export default function Demo() {
         <div className="flex flex-wrap items-start justify-center gap-10">
           <TelegramChat
             script={postScript(POST)}
+            href={POST.url}
             wallpaper={WALL}
             frame="none"
             composer={false}
@@ -588,6 +589,7 @@ export default function Demo() {
           />
           <TelegramChat
             script={postScript(POST)}
+            href={POST.url}
             wallpaper={WALL}
             frame="none"
             composer={false}
