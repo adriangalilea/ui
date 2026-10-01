@@ -5,7 +5,13 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 
 ## 2026-10-01
 
+### card-link
+
+- New: a whole card that opens a place, the way an embedded post opens the post. A click anywhere opens `href` in a new tab, except on links, buttons, form and media controls, or when it ends a text selection; in nested cards the innermost wins. The card is not a tab stop: the keyboard reaches the place through a real link inside it.
+
 ### tweet
+
+- The whole post opens the post on X (`card-link`), and a quoted post opens itself; the post lightens a step under the pointer. The mark and the date stay the keyboard's way there.
 
 - New: a post on X drawn from its facts, with no widget script and no request at render. The author with the verified badge (blue, business gold, government grey; businesses in a rounded square), the text with mentions, hashtags and links, X's grid for one to four pictures, video with its poster, a quoted post drawn small inside, a link card or X article through `web-preview`'s x style, the date and the like and reply counts. `fetchTweet(url)` in `tweet-data` reads the facts once, from the endpoint X's own embed reads; keep them beside the page.
 
@@ -14,6 +20,7 @@ Registry updates are opt-in source updates. Preview with `shadcn add @ag/<item>
 - New: a public channel post as a chat of one. `fetchTelegramPost(url)` in `telegram-chat-post` reads t.me's embed page into the facts and `postScript(post)` makes them the chat's own script, drawn with `frame="none" backdrop text="page" composer={false} frozen`. Its pictures are on signed CDN paths that expire: download them beside the page.
 - New: `backdrop` keeps Telegram's chat background (screen colour, gradient, a gutter) under a frameless chat instead of the page's. `text="page"` sets a frameless chat's words at the page's own size with bubbles capped at a reading measure (`--tg-measure`, 60 characters), for a post inside prose; the default `scaled` is unchanged.
 - Fix: code blocks wrap instead of scrolling sideways inside the bubble.
+- New: `href` makes the whole chat open a place (a post's permalink, through `card-link`), with received bubbles tinting under the pointer. In a channel, the channel's name links to the channel.
 - New: a `channel` chat kind, labelled like a group with the channel's name in the accent. Messages take `rich` (formatted text: bold, italic, underline, strike, inline code, spoilers, links and code blocks with their language), `photo` (edge to edge at the head of the bubble) and `foot` (the time, linked when given an `href`, the views and edited). A message with both `text` and `rich` throws.
 
 ## 2026-09-30
