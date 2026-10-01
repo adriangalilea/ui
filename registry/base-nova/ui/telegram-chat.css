@@ -1244,6 +1244,22 @@
   .tgchat[data-frame="none"][data-text="page"] .tgchat-from {
     font-size: 0.9em;
   }
+  /* The day separator, as the client draws it: a small pill centred over the wallpaper
+   on the chrome's glass, where a new day starts. */
+  .tgchat-day {
+    display: flex;
+    justify-content: center;
+  }
+  .tgchat-day span {
+    padding: 0.25em 0.75em;
+    border-radius: 1em;
+    background: var(--tg-glass);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    color: var(--tg-text);
+    font-size: 0.85em;
+    font-weight: 500;
+  }
   /* `href`: the chat opens somewhere, so it says so under the pointer: the received
    bubbles take a breath of the text colour, as a pressed row does in the client. */
   .tgchat[data-linked] .tgchat-bubble.bot {

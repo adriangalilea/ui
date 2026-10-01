@@ -309,16 +309,29 @@ export async function fetchTelegramPost(url: string): Promise<TelegramPost> {
   }
 }
 
-const DATE = new Intl.DateTimeFormat("en", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-  timeZone: "UTC",
-})
-
 /** The post as a chat of one message from its channel: what `<TelegramChat
- *  frame="none" frozen />` draws. */
-export function postScript(post: TelegramPost): ChatScript {
+ *  frame="none" frozen />` draws. The client writes the day over the message ("23 July
+ *  2024") and only the hour in its corner ("00:27"), both in the reader's own zone. A
+ *  page rendered ahead of time has no reader yet, so it names the zone the post is
+ *  told in: the author's, usually. UTC when it says nothing, which is honest and
+ *  rarely where anyone was. */
+export function postScript(
+  post: TelegramPost,
+  { timeZone = "UTC" }: { timeZone?: string } = {},
+): ChatScript {
+  const when = new Date(post.date)
+  const day = new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone,
+  }).format(when)
+  const hour = new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone,
+  }).format(when)
   if (post.photos.length > 1)
     throw new Error(
       `telegram-chat-post ${post.url}: albums are not drawn yet (${post.photos.length} photos)`,
@@ -341,8 +354,9 @@ export function postScript(post: TelegramPost): ChatScript {
           },
         }
       : {}),
+    day,
     foot: {
-      time: DATE.format(new Date(post.date)),
+      time: hour,
       href: post.url,
       ...(post.views ? { views: post.views } : {}),
       ...(post.edited ? { edited: true } : {}),

@@ -576,7 +576,7 @@ export default function Demo() {
       >
         <div className="flex flex-wrap items-start justify-center gap-10">
           <TelegramChat
-            script={postScript(POST)}
+            script={postScript(POST, { timeZone: "Europe/Madrid" })}
             href={POST.url}
             wallpaper={WALL}
             frame="none"
@@ -588,7 +588,7 @@ export default function Demo() {
             className="w-full"
           />
           <TelegramChat
-            script={postScript(POST)}
+            script={postScript(POST, { timeZone: "Europe/Madrid" })}
             href={POST.url}
             wallpaper={WALL}
             frame="none"

@@ -68,8 +68,9 @@ export type ChatRun =
   | { text: string; marks?: Mark[]; href?: string }
   | { pre: string; lang?: string }
 
-/** The corner of a bubble: when it was sent, and for a channel post how many saw it
- *  and whether it changed since. `href` makes the time the post's permalink. */
+/** The corner of a bubble, in the client's order: how many saw it (a channel post),
+ *  whether it changed since, and the hour it was sent ("00:27"; the day goes in a
+ *  message's `day`). `href` makes the hour the post's permalink. */
 export interface ChatFoot {
   time: string
   href?: string
@@ -117,6 +118,9 @@ export interface ChatMessage {
   /** A picture at the head of the bubble, edge to edge, at its own aspect. */
   photo?: { src: string; width: number; height: number; alt?: string }
   foot?: ChatFoot
+  /** A day separator before this message ("23 July 2024"), the pill Telegram centres
+   *  over the wallpaper where a new day starts. */
+  day?: string
   /** The sender's photo (left bubbles in groups). */
   avatar?: string
   /** The quoted message this one replies to. */
@@ -543,7 +547,6 @@ function richText(runs: readonly ChatRun[]): React.ReactNode {
 function Foot({ foot }: { foot: ChatFoot }) {
   return (
     <span className="tgchat-foot">
-      {foot.edited && <span>edited</span>}
       {foot.views && (
         <span className="views">
           <Eye aria-hidden="true" />
@@ -551,6 +554,7 @@ function Foot({ foot }: { foot: ChatFoot }) {
           <span className="sr-only"> views</span>
         </span>
       )}
+      {foot.edited && <span>edited</span>}
       {foot.href ? (
         <a href={foot.href} target="_blank" rel="noopener noreferrer">
           {foot.time}
@@ -1178,21 +1182,31 @@ export function TelegramChat({
     const hold = (el: HTMLElement | null) => {
       held.current[i] = el
     }
+    // A new day opens with its date, centred over the wallpaper; the bubble's corner
+    // then only says the hour.
+    const day = m.day && (
+      <div className="tgchat-day">
+        <span>{m.day}</span>
+      </div>
+    )
     if (m.from === "me")
       return (
-        <div
-          ref={hold}
-          data-focused={hero}
-          data-continued={continued || undefined}
-          data-tail={!hasFollowing || undefined}
-          className={`tgchat-bubble user${m.preview || linkIn(m.text) ? " link" : ""}`}
-          key={i}
-        >
-          {body}
-        </div>
+        <React.Fragment key={i}>
+          {day}
+          <div
+            ref={hold}
+            data-focused={hero}
+            data-continued={continued || undefined}
+            data-tail={!hasFollowing || undefined}
+            className={`tgchat-bubble user${m.preview || linkIn(m.text) ? " link" : ""}`}
+          >
+            {body}
+          </div>
+        </React.Fragment>
       )
     return (
       <React.Fragment key={i}>
+        {day}
         {leftRow(
           <div
             ref={hold}
