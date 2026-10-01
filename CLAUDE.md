@@ -562,11 +562,13 @@ on its own line, not tucked into the last line of text yet.
 (`mise github <url>`, GraphQL with `gh auth token`; a comment from REST, which GraphQL
 cannot address by id). Bodies are GitHub's own sanitized `bodyHTML`, styled by
 descendant utilities incl. the `pl-*` syntax classes. `lines` cuts a body with no
-measuring: fade and link sit AT the cut, so a shorter body clips them away (that short
-case is unverified by hand). The calendar is an SVG in its own units with `<title>` per
-day; the first week keeps its weekdays when it starts mid-week. Left: the commit list
-of a repo or PR, reactions, a thread's opening post beside a comment, org avatars as
-rounded squares.
+measuring: fade and link sit AT the cut, so a shorter body clips them away (the demo's
+02 shows both cases). The calendar is an SVG in its own units with `<title>` per day;
+the first week keeps its weekdays when it starts mid-week. Reactions (GraphQL
+`reactionGroups`, REST `reactions` on a comment) are spans, not buttons: the page cannot
+react. Commits are kept newest first, five at most (`COMMITS`); a card draws `commits`
+of them. Left: an organization's profile (the query asks for a user and throws for an
+org), a thread's opening post beside a comment.
 
 ### web-preview: shipped; what is left
 

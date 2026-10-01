@@ -15,6 +15,25 @@ export interface GithubUser {
   login: string
   avatar: string
   url: string
+  /** An organization: GitHub draws its avatar as a rounded square, a person's round. */
+  org?: boolean
+}
+
+/** One of GitHub's eight reactions and how many gave it, in GitHub's order. */
+export interface GithubReaction {
+  emoji: string
+  count: number
+}
+
+export interface GithubCommit {
+  sha: string
+  /** The first line of the message. */
+  message: string
+  url: string
+  /** ISO 8601 */
+  date: string
+  /** Who wrote it: a GitHub account when the email maps to one, else the git name. */
+  author: { name: string; avatar: string; url?: string }
 }
 
 export interface GithubLabel {
@@ -39,6 +58,8 @@ export interface GithubRepo {
   archived: boolean
   /** ISO 8601 */
   pushedAt: string
+  /** The default branch's latest commits, newest first. */
+  commits: GithubCommit[]
 }
 
 /** Where a thread stands, in GitHub's own words: an issue closes as done or as not
@@ -69,6 +90,10 @@ export interface GithubThread {
   /** Pull requests: the size of the change and where it goes. */
   diff?: { additions: number; deletions: number; files: number }
   branches?: { base: string; head: string }
+  /** Pull requests: the last commits, newest first. */
+  commits?: GithubCommit[]
+  /** Reactions to the opening post. */
+  reactions: GithubReaction[]
 }
 
 export interface GithubComment {
@@ -78,9 +103,16 @@ export interface GithubComment {
   createdAt: string
   /** GitHub's own rendering of the comment, sanitized by GitHub. */
   bodyHtml: string
-  /** The thread it answers, without its own body. */
-  thread: Omit<GithubThread, "bodyHtml">
+  reactions: GithubReaction[]
+  /** The thread it answers: its header only. */
+  thread: GithubThreadHeader
 }
+
+/** A thread as one line names it: no body, commits or reactions. */
+export type GithubThreadHeader = Omit<
+  GithubThread,
+  "bodyHtml" | "commits" | "reactions"
+>
 
 export interface GithubDay {
   date: string
@@ -178,11 +210,21 @@ async function graphql<T>(
 // `s=` asks the avatar service for the size a card draws at 2x.
 const avatar = (url: string) => `${url}${url.includes("?") ? "&" : "?"}s=96`
 
-const user = (
-  u: { login: string; avatarUrl: string; url: string } | null,
-): GithubUser =>
+type RawUser = {
+  __typename?: string
+  login: string
+  avatarUrl: string
+  url: string
+}
+
+const user = (u: RawUser | null): GithubUser =>
   u
-    ? { login: u.login, avatar: avatar(u.avatarUrl), url: u.url }
+    ? {
+        login: u.login,
+        avatar: avatar(u.avatarUrl),
+        url: u.url,
+        ...(u.__typename === "Organization" ? { org: true } : {}),
+      }
     : // A deleted account is GitHub's "ghost".
       {
         login: "ghost",
@@ -190,7 +232,66 @@ const user = (
         url: "https://github.com/ghost",
       }
 
-const USER = "login avatarUrl url"
+const USER = "__typename login avatarUrl url"
+
+/** GitHub's eight reactions, in the order GitHub lists them, keyed by the GraphQL
+ *  enum and by the REST field. */
+const REACTIONS: { graphql: string; rest: string; emoji: string }[] = [
+  { graphql: "THUMBS_UP", rest: "+1", emoji: "👍" },
+  { graphql: "THUMBS_DOWN", rest: "-1", emoji: "👎" },
+  { graphql: "LAUGH", rest: "laugh", emoji: "😄" },
+  { graphql: "HOORAY", rest: "hooray", emoji: "🎉" },
+  { graphql: "CONFUSED", rest: "confused", emoji: "😕" },
+  { graphql: "HEART", rest: "heart", emoji: "❤️" },
+  { graphql: "ROCKET", rest: "rocket", emoji: "🚀" },
+  { graphql: "EYES", rest: "eyes", emoji: "👀" },
+]
+
+const reactionsOf = (count: (r: (typeof REACTIONS)[number]) => number) =>
+  REACTIONS.map((r) => ({ emoji: r.emoji, count: count(r) })).filter(
+    (r) => r.count > 0,
+  )
+
+const REACTION_GROUPS = "reactionGroups{content reactors{totalCount}}"
+type RawReactionGroups = {
+  content: string
+  reactors: { totalCount: number }
+}[]
+
+const COMMIT =
+  "oid messageHeadline committedDate url author{name avatarUrl user{login url}}"
+type RawCommit = {
+  oid: string
+  messageHeadline: string
+  committedDate: string
+  url: string
+  author: {
+    name: string | null
+    avatarUrl: string
+    user: { login: string; url: string } | null
+  } | null
+}
+
+function commit(c: RawCommit): GithubCommit {
+  const a = c.author
+  const name = a?.user?.login ?? a?.name
+  if (!a || !name) throw new Error(`github: commit ${c.oid} has no author`)
+  return {
+    sha: c.oid,
+    message: c.messageHeadline,
+    url: c.url,
+    date: c.committedDate,
+    author: {
+      name,
+      avatar: avatar(a.avatarUrl),
+      ...(a.user ? { url: a.user.url } : {}),
+    },
+  }
+}
+
+/** How many commits a card can draw: enough for a recent history, few enough that the
+ *  facts stay small. */
+const COMMITS = 5
 
 async function repo(
   token: string,
@@ -210,7 +311,8 @@ async function repo(
       licenseInfo: { spdxId: string } | null
       primaryLanguage: { name: string; color: string | null } | null
       repositoryTopics: { nodes: { topic: { name: string } }[] }
-      owner: { login: string; avatarUrl: string; url: string }
+      owner: RawUser
+      defaultBranchRef: { target: { history?: { nodes: RawCommit[] } } } | null
     } | null
   }
   const { repository: r } = await graphql<R>(
@@ -218,7 +320,8 @@ async function repo(
     `query($owner:String!,$name:String!){repository(owner:$owner,name:$name){
       nameWithOwner url description homepageUrl stargazerCount forkCount isArchived pushedAt
       licenseInfo{spdxId} primaryLanguage{name color}
-      repositoryTopics(first:8){nodes{topic{name}}} owner{${USER}}}}`,
+      repositoryTopics(first:8){nodes{topic{name}}} owner{${USER}}
+      defaultBranchRef{target{... on Commit{history(first:${COMMITS}){nodes{${COMMIT}}}}}}}}`,
     { owner, name },
   )
   if (!r) throw new Error(`github: no repository ${owner}/${name}`)
@@ -245,6 +348,8 @@ async function repo(
       : {}),
     archived: r.isArchived,
     pushedAt: r.pushedAt,
+    // An empty repository has no default branch, so no history.
+    commits: (r.defaultBranchRef?.target.history?.nodes ?? []).map(commit),
   }
 }
 
@@ -266,11 +371,13 @@ async function thread(
             state: "OPEN" | "CLOSED" | "MERGED"
             createdAt: string
             closedAt: string | null
-            author: { login: string; avatarUrl: string; url: string } | null
+            author: RawUser | null
             bodyHTML: string
             comments: { totalCount: number }
             labels: { nodes: GithubLabel[] } | null
+            reactionGroups: RawReactionGroups
           } & {
+            commits?: { nodes: { commit: RawCommit }[] }
             stateReason?: "COMPLETED" | "NOT_PLANNED" | "REOPENED" | null
             isDraft?: boolean
             mergedAt?: string | null
@@ -284,13 +391,14 @@ async function thread(
     } | null
   }
   const shared = `number title url state createdAt closedAt author{${USER}} bodyHTML
-    comments{totalCount} labels(first:8){nodes{name color}}`
+    comments{totalCount} labels(first:8){nodes{name color}} ${REACTION_GROUPS}`
   const { repository } = await graphql<T>(
     token,
     `query($owner:String!,$name:String!,$n:Int!){repository(owner:$owner,name:$name){
       nameWithOwner issueOrPullRequest(number:$n){__typename
         ... on Issue{${shared} stateReason}
-        ... on PullRequest{${shared} isDraft mergedAt additions deletions changedFiles baseRefName headRefName}}}}`,
+        ... on PullRequest{${shared} isDraft mergedAt additions deletions changedFiles baseRefName headRefName
+          commits(last:${COMMITS}){nodes{commit{${COMMIT}}}}}}}}`,
     { owner, name, n: number },
   )
   const t = repository?.issueOrPullRequest
@@ -332,8 +440,17 @@ async function thread(
             files: t.changedFiles ?? 0,
           },
           branches: { base: t.baseRefName ?? "", head: t.headRefName ?? "" },
+          // GitHub lists a pull's commits oldest first; newest first, like a branch.
+          commits: (t.commits?.nodes ?? [])
+            .map((n) => commit(n.commit))
+            .reverse(),
         }
       : {}),
+    reactions: reactionsOf(
+      (r) =>
+        t.reactionGroups.find((g) => g.content === r.graphql)?.reactors
+          .totalCount ?? 0,
+    ),
   }
 }
 
@@ -357,20 +474,27 @@ async function comment(
     html_url: string
     created_at: string
     body_html: string
-    user: { login: string; avatar_url: string; html_url: string } | null
+    user: {
+      login: string
+      avatar_url: string
+      html_url: string
+      type: string
+    } | null
+    reactions: Record<string, number>
   }
-  const { bodyHtml: _, ...parent } = await thread(
-    token,
-    target.owner,
-    target.name,
-    target.number,
-  )
+  const {
+    bodyHtml: _body,
+    commits: _commits,
+    reactions: _reactions,
+    ...parent
+  } = await thread(token, target.owner, target.name, target.number)
   return {
     kind: "comment",
     url: c.html_url,
     author: user(
       c.user
         ? {
+            __typename: c.user.type,
             login: c.user.login,
             avatarUrl: c.user.avatar_url,
             url: c.user.html_url,
@@ -379,6 +503,7 @@ async function comment(
     ),
     createdAt: c.created_at,
     bodyHtml: c.body_html,
+    reactions: reactionsOf((r) => c.reactions[r.rest] ?? 0),
     thread: parent,
   }
 }
@@ -428,7 +553,10 @@ async function profile(token: string, login: string): Promise<GithubProfile> {
         weeks{contributionDays{date contributionCount contributionLevel}}}}}}`,
     { login },
   )
-  if (!p) throw new Error(`github: no user ${login}`)
+  if (!p)
+    throw new Error(
+      `github: no user ${login} (an organization's profile is not drawn yet)`,
+    )
   const cal = p.contributionsCollection.contributionCalendar
   return {
     kind: "profile",

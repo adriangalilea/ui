@@ -34,13 +34,16 @@ import type * as React from "react"
 import { cn } from "@/lib/utils"
 import type {
   GithubComment,
+  GithubCommit,
   GithubDay,
   GithubFacts,
   GithubLabel,
   GithubProfile,
+  GithubReaction,
   GithubRepo,
   GithubState,
   GithubThread,
+  GithubThreadHeader,
   GithubUser,
 } from "@/registry/base-nova/lib/github-data"
 import { CardLink } from "@/registry/base-nova/ui/card-link"
@@ -123,7 +126,7 @@ function StateIcon({
   return <Icon aria-hidden="true" className={cn(ICON, className)} />
 }
 
-function StatePill({ thread }: { thread: Omit<GithubThread, "bodyHtml"> }) {
+function StatePill({ thread }: { thread: GithubThreadHeader }) {
   const s = STATE[thread.state]
   return (
     <span
@@ -141,14 +144,89 @@ function StatePill({ thread }: { thread: Omit<GithubThread, "bodyHtml"> }) {
 
 // ── parts ──
 
-function Avatar({ user, size }: { user: GithubUser; size: string }) {
+/** A face as GitHub draws it: a person round, an organization a rounded square. */
+function Avatar({
+  user,
+  size,
+}: {
+  user: Pick<GithubUser, "avatar" | "org">
+  size: string
+}) {
   return (
     // biome-ignore lint/performance/noImgElement: GitHub's avatar service, a fixed small size
     <img
       src={user.avatar}
       alt=""
-      className={cn(size, "shrink-0 rounded-full bg-foreground/8 object-cover")}
+      className={cn(
+        size,
+        "shrink-0 bg-foreground/8 object-cover",
+        user.org ? "rounded-[22%]" : "rounded-full",
+      )}
     />
+  )
+}
+
+/** Reactions as GitHub lists them under a post: the emoji and how many gave it. Not
+ *  buttons: pressing one here would promise a reaction this page cannot send. */
+function Reactions({ reactions }: { reactions: GithubReaction[] }) {
+  if (reactions.length === 0) return null
+  return (
+    <div data-slot="github-reactions" className="flex flex-wrap gap-1.5">
+      {reactions.map((r) => (
+        <span
+          key={r.emoji}
+          className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[12px] text-foreground/70"
+        >
+          <span aria-hidden="true">{r.emoji}</span>
+          {r.count}
+          <span className="sr-only"> {r.emoji} reactions</span>
+        </span>
+      ))}
+    </div>
+  )
+}
+
+/** Commits as GitHub lists them: who, the first line of the message, the short sha and
+ *  the day, each a link to the commit. */
+function Commits({
+  commits,
+  count,
+}: {
+  commits: GithubCommit[]
+  count: number
+}) {
+  if (!Number.isInteger(count) || count < 1)
+    throw new Error(`github: commits must be a whole number from 1`)
+  const shown = commits.slice(0, count)
+  if (shown.length === 0) return null
+  return (
+    <ol
+      data-slot="github-commits"
+      className="divide-y divide-border overflow-hidden rounded-lg border border-border text-[13px]"
+    >
+      {shown.map((c) => (
+        <li key={c.sha} className="flex items-center gap-2 px-3 py-2">
+          <Avatar user={c.author} size="size-4" />
+          <a
+            href={c.url}
+            {...ANCHOR}
+            className="min-w-0 flex-1 truncate hover:underline"
+          >
+            {c.message}
+          </a>
+          <a
+            href={c.url}
+            {...ANCHOR}
+            className={cn("shrink-0 font-mono text-[12px]", LINK)}
+          >
+            {c.sha.slice(0, 7)}
+          </a>
+          <time dateTime={c.date} className={cn("shrink-0", MUTED)}>
+            {date(c.date)}
+          </time>
+        </li>
+      ))}
+    </ol>
   )
 }
 
@@ -202,7 +280,7 @@ function Markdown({ html }: { html: string }) {
 }
 
 /** The thread a card is about, on one line: its state, where it lives, its title. */
-function ThreadLine({ thread }: { thread: Omit<GithubThread, "bodyHtml"> }) {
+function ThreadLine({ thread }: { thread: GithubThreadHeader }) {
   return (
     <a
       href={thread.url}
@@ -228,9 +306,12 @@ function ThreadLine({ thread }: { thread: Omit<GithubThread, "bodyHtml"> }) {
 
 export function GithubRepoCard({
   repo,
+  commits,
   className,
 }: {
   repo: GithubRepo
+  /** List the default branch's latest commits under the card, this many. */
+  commits?: number
   className?: string
 }) {
   const [owner, name] = repo.name.split("/")
@@ -314,6 +395,9 @@ export function GithubRepoCard({
         )}
         <span>Updated {date(repo.pushedAt)}</span>
       </div>
+      {commits !== undefined && (
+        <Commits commits={repo.commits} count={commits} />
+      )}
     </CardLink>
   )
 }
@@ -322,6 +406,7 @@ export function GithubThreadCard({
   thread,
   body = false,
   lines,
+  commits,
   className,
 }: {
   thread: GithubThread
@@ -329,6 +414,8 @@ export function GithubThreadCard({
   body?: boolean
   /** Cut that opening post at this many lines. Whole when unset. */
   lines?: number
+  /** A pull request: list its last commits, this many. */
+  commits?: number
   className?: string
 }) {
   const verb =
@@ -383,6 +470,10 @@ export function GithubThreadCard({
         <div className="border-border border-t pt-3">
           <Body html={thread.bodyHtml} lines={lines} href={thread.url} />
         </div>
+      )}
+      <Reactions reactions={thread.reactions} />
+      {commits !== undefined && thread.commits && (
+        <Commits commits={thread.commits} count={commits} />
       )}
       <div
         className={cn(
@@ -451,6 +542,11 @@ export function GithubCommentCard({
       <div className="px-4 py-3">
         <Body html={comment.bodyHtml} lines={lines} href={comment.url} />
       </div>
+      {comment.reactions.length > 0 && (
+        <div className="px-4 pb-3">
+          <Reactions reactions={comment.reactions} />
+        </div>
+      )}
     </CardLink>
   )
 }
@@ -716,6 +812,7 @@ export function ContributionCalendar({
 export function Github({
   facts,
   lines,
+  commits,
   className,
 }: {
   facts: GithubFacts
@@ -723,10 +820,14 @@ export function Github({
    *  An issue or pull request with `lines` shows its opening post; without, only its
    *  header. */
   lines?: number
+  /** A repository's latest commits or a pull request's last ones, this many. */
+  commits?: number
   className?: string
 }) {
   if (facts.kind === "repo")
-    return <GithubRepoCard repo={facts} className={className} />
+    return (
+      <GithubRepoCard repo={facts} commits={commits} className={className} />
+    )
   if (facts.kind === "comment")
     return (
       <GithubCommentCard comment={facts} lines={lines} className={className} />
@@ -738,6 +839,7 @@ export function Github({
       thread={facts}
       body={lines !== undefined}
       lines={lines}
+      commits={commits}
       className={className}
     />
   )

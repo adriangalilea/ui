@@ -32,26 +32,29 @@ export default function Demo() {
 
       <Sample
         name="cut"
-        label="02 · a long comment, cut · lines={14}: the body stops at fourteen of its own lines, fades, and the rest is a link away"
+        label="02 · cut · lines={14} on a long comment and a short one: the long stops at fourteen lines with the rest a link away, the short never reaches the cut and shows whole"
       >
-        <Github facts={LONG} lines={14} className="mx-auto max-w-2xl" />
+        <div className="mx-auto max-w-2xl space-y-6">
+          <Github facts={LONG} lines={14} />
+          <Github facts={COMMENT} lines={14} />
+        </div>
       </Sample>
 
       <Sample
         name="threads"
-        label="03 · an issue and a pull request · state in GitHub's colours, labels in their own, the size of the change"
+        label="03 · an issue and a pull request · state in GitHub's colours, labels in their own, reactions, the size of the change and commits={3}"
       >
-        <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-2">
+        <div className="mx-auto grid max-w-4xl items-start gap-6 md:grid-cols-2">
           <Github facts={ISSUE} />
-          <Github facts={PR} />
+          <Github facts={PR} commits={3} />
         </div>
       </Sample>
 
       <Sample
         name="repo"
-        label="04 · a repository · the pinned card: description, language, stars, forks"
+        label="04 · a repository · the pinned card: description, language, stars, forks, and commits={3} from the default branch"
       >
-        <Github facts={REPO} className="mx-auto max-w-md" />
+        <Github facts={REPO} commits={3} className="mx-auto max-w-xl" />
       </Sample>
 
       <Sample

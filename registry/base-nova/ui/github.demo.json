@@ -28,6 +28,12 @@
         "name": "task-identify-issue-type-done",
         "color": "ededed"
       }
+    ],
+    "reactions": [
+      {
+        "emoji": "❤️",
+        "count": 3
+      }
     ]
   },
   "comment": {
@@ -40,6 +46,12 @@
     },
     "createdAt": "2025-07-02T07:16:18Z",
     "bodyHtml": "<ul dir=\"auto\">\n<li><strong>Files support</strong> – make it really easy to attach a bunch of files, upload transparently</li>\n<li><strong>Easy model switching</strong> - e.g.: <code class=\"notranslate\">-m</code> to alternate between models</li>\n<li><strong>Unix-y</strong> - make it easy to pipe, consume stdin, etc. e.g.: <code class=\"notranslate\">echo 'what is life?' | npx ai</code></li>\n</ul>",
+    "reactions": [
+      {
+        "emoji": "❤️",
+        "count": 1
+      }
+    ],
     "thread": {
       "kind": "issue",
       "url": "https://github.com/vercel/ai/issues/6976",
@@ -81,6 +93,7 @@
     },
     "createdAt": "2025-07-02T22:36:11Z",
     "bodyHtml": "<ul dir=\"auto\">\n<li>Structured output, so it can be used as code, composable.</li>\n</ul>\n<p dir=\"auto\"><strong>Usage</strong></p>\n<div class=\"highlight highlight-source-shell notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"$ curl -s https://acme.com/pricing | \\\n  npx ai &quot;extract pricing tiers&quot; --schema '{\n    &quot;tiers&quot;: [{\n      &quot;name&quot;: &quot;string&quot;,\n      &quot;price&quot;: &quot;number&quot;,\n      &quot;bandwidth_gb&quot;: &quot;number&quot;,\n      &quot;team_members&quot;: &quot;number&quot;\n    }]\n  }'\"><pre class=\"notranslate\">$ curl -s https://acme.com/pricing <span class=\"pl-k\">|</span> \\\n  npx ai <span class=\"pl-s\"><span class=\"pl-pds\">\"</span>extract pricing tiers<span class=\"pl-pds\">\"</span></span> --schema <span class=\"pl-s\"><span class=\"pl-pds\">'</span>{</span>\n<span class=\"pl-s\">    \"tiers\": [{</span>\n<span class=\"pl-s\">      \"name\": \"string\",</span>\n<span class=\"pl-s\">      \"price\": \"number\",</span>\n<span class=\"pl-s\">      \"bandwidth_gb\": \"number\",</span>\n<span class=\"pl-s\">      \"team_members\": \"number\"</span>\n<span class=\"pl-s\">    }]</span>\n<span class=\"pl-s\">  }<span class=\"pl-pds\">'</span></span></pre></div>\n<p dir=\"auto\">Output:</p>\n<div class=\"highlight highlight-source-json notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"{\n  &quot;tiers&quot;: [\n    {&quot;name&quot;: &quot;Starter&quot;, &quot;price&quot;: 0, &quot;bandwidth_gb&quot;: 50, &quot;team_members&quot;: 1},\n    {&quot;name&quot;: &quot;Growth&quot;, &quot;price&quot;: 29, &quot;bandwidth_gb&quot;: 500, &quot;team_members&quot;: 5},\n    {&quot;name&quot;: &quot;Scale&quot;, &quot;price&quot;: 99, &quot;bandwidth_gb&quot;: 2000, &quot;team_members&quot;: 20},\n    {&quot;name&quot;: &quot;Enterprise&quot;, &quot;price&quot;: -1, &quot;bandwidth_gb&quot;: -1, &quot;team_members&quot;: -1}\n  ]\n}\"><pre class=\"notranslate\">{\n  <span class=\"pl-ent\">\"tiers\"</span>: [\n    {<span class=\"pl-ent\">\"name\"</span>: <span class=\"pl-s\"><span class=\"pl-pds\">\"</span>Starter<span class=\"pl-pds\">\"</span></span>, <span class=\"pl-ent\">\"price\"</span>: <span class=\"pl-c1\">0</span>, <span class=\"pl-ent\">\"bandwidth_gb\"</span>: <span class=\"pl-c1\">50</span>, <span class=\"pl-ent\">\"team_members\"</span>: <span class=\"pl-c1\">1</span>},\n    {<span class=\"pl-ent\">\"name\"</span>: <span class=\"pl-s\"><span class=\"pl-pds\">\"</span>Growth<span class=\"pl-pds\">\"</span></span>, <span class=\"pl-ent\">\"price\"</span>: <span class=\"pl-c1\">29</span>, <span class=\"pl-ent\">\"bandwidth_gb\"</span>: <span class=\"pl-c1\">500</span>, <span class=\"pl-ent\">\"team_members\"</span>: <span class=\"pl-c1\">5</span>},\n    {<span class=\"pl-ent\">\"name\"</span>: <span class=\"pl-s\"><span class=\"pl-pds\">\"</span>Scale<span class=\"pl-pds\">\"</span></span>, <span class=\"pl-ent\">\"price\"</span>: <span class=\"pl-c1\">99</span>, <span class=\"pl-ent\">\"bandwidth_gb\"</span>: <span class=\"pl-c1\">2000</span>, <span class=\"pl-ent\">\"team_members\"</span>: <span class=\"pl-c1\">20</span>},\n    {<span class=\"pl-ent\">\"name\"</span>: <span class=\"pl-s\"><span class=\"pl-pds\">\"</span>Enterprise<span class=\"pl-pds\">\"</span></span>, <span class=\"pl-ent\">\"price\"</span>: <span class=\"pl-c1\">-1</span>, <span class=\"pl-ent\">\"bandwidth_gb\"</span>: <span class=\"pl-c1\">-1</span>, <span class=\"pl-ent\">\"team_members\"</span>: <span class=\"pl-c1\">-1</span>}\n  ]\n}</pre></div>\n<p dir=\"auto\"><strong>Advanced usage</strong> – solving harder problems with AI as an API blackbox</p>\n<p dir=\"auto\">Ex: Installing the latest version of a github release is trickier than it may seem, but it could become something like:</p>\n<div class=\"highlight highlight-source-shell notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"#!/bin/bash\n# install-latest.sh - Install any GitHub CLI tool with one command\n\nREPO=$1  # e.g., &quot;junegunn/fzf&quot;\n\n# Get latest release data\ncurl -s &quot;https://api.github.com/repos/$REPO/releases/latest&quot; | \\\n  npx ai &quot;find download URL for $(uname -s) $(uname -m)&quot; --schema '{\n    &quot;download_url&quot;: &quot;string&quot;,\n    &quot;binary_name&quot;: &quot;string&quot;,\n    &quot;extract_command&quot;: &quot;string&quot;\n  }' &gt; release.json\n\n# Extract the info\nURL=$(jq -r .download_url release.json)\nBINARY=$(jq -r .binary_name release.json)\nEXTRACT=$(jq -r .extract_command release.json)\n\n# Download and install\ncurl -L &quot;$URL&quot; -o /tmp/download\neval &quot;$EXTRACT” # 🤠\nchmod +x &quot;$BINARY&quot;\nsudo mv &quot;$BINARY&quot; /usr/local/bin/\n\necho &quot;✓ Installed $BINARY”\"><pre class=\"notranslate\"><span class=\"pl-c\"><span class=\"pl-c\">#!</span>/bin/bash</span>\n<span class=\"pl-c\"><span class=\"pl-c\">#</span> install-latest.sh - Install any GitHub CLI tool with one command</span>\n\nREPO=<span class=\"pl-smi\">$1</span>  <span class=\"pl-c\"><span class=\"pl-c\">#</span> e.g., \"junegunn/fzf\"</span>\n\n<span class=\"pl-c\"><span class=\"pl-c\">#</span> Get latest release data</span>\ncurl -s <span class=\"pl-s\"><span class=\"pl-pds\">\"</span>https://api.github.com/repos/<span class=\"pl-smi\">$REPO</span>/releases/latest<span class=\"pl-pds\">\"</span></span> <span class=\"pl-k\">|</span> \\\n  npx ai <span class=\"pl-s\"><span class=\"pl-pds\">\"</span>find download URL for <span class=\"pl-s\"><span class=\"pl-pds\">$(</span>uname -s<span class=\"pl-pds\">)</span></span> <span class=\"pl-s\"><span class=\"pl-pds\">$(</span>uname -m<span class=\"pl-pds\">)</span></span><span class=\"pl-pds\">\"</span></span> --schema <span class=\"pl-s\"><span class=\"pl-pds\">'</span>{</span>\n<span class=\"pl-s\">    \"download_url\": \"string\",</span>\n<span class=\"pl-s\">    \"binary_name\": \"string\",</span>\n<span class=\"pl-s\">    \"extract_command\": \"string\"</span>\n<span class=\"pl-s\">  }<span class=\"pl-pds\">'</span></span> <span class=\"pl-k\">&gt;</span> release.json\n\n<span class=\"pl-c\"><span class=\"pl-c\">#</span> Extract the info</span>\nURL=<span class=\"pl-s\"><span class=\"pl-pds\">$(</span>jq -r .download_url release.json<span class=\"pl-pds\">)</span></span>\nBINARY=<span class=\"pl-s\"><span class=\"pl-pds\">$(</span>jq -r .binary_name release.json<span class=\"pl-pds\">)</span></span>\nEXTRACT=<span class=\"pl-s\"><span class=\"pl-pds\">$(</span>jq -r .extract_command release.json<span class=\"pl-pds\">)</span></span>\n\n<span class=\"pl-c\"><span class=\"pl-c\">#</span> Download and install</span>\ncurl -L <span class=\"pl-s\"><span class=\"pl-pds\">\"</span><span class=\"pl-smi\">$URL</span><span class=\"pl-pds\">\"</span></span> -o /tmp/download\n<span class=\"pl-c1\">eval</span> <span class=\"pl-s\"><span class=\"pl-pds\">\"</span><span class=\"pl-smi\">$EXTRACT</span>” # 🤠</span>\n<span class=\"pl-s\">chmod +x <span class=\"pl-pds\">\"</span></span><span class=\"pl-smi\">$BINARY</span><span class=\"pl-s\"><span class=\"pl-pds\">\"</span></span>\n<span class=\"pl-s\">sudo mv <span class=\"pl-pds\">\"</span></span><span class=\"pl-smi\">$BINARY</span><span class=\"pl-s\"><span class=\"pl-pds\">\"</span> /usr/local/bin/</span>\n<span class=\"pl-s\"></span>\n<span class=\"pl-s\">echo <span class=\"pl-pds\">\"</span></span>✓ Installed <span class=\"pl-smi\">$BINARY</span>”</pre></div>\n<p dir=\"auto\">Usage</p>\n<div class=\"highlight highlight-source-shell notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"# Install fzf (handles .tar.gz)\n$ ./install-latest.sh junegunn/fzf\n✓ Installed fzf\n\n# Install ripgrep (handles different naming: rg)\n$ ./install-latest.sh BurntSushi/ripgrep  \n✓ Installed rg\"><pre class=\"notranslate\"><span class=\"pl-c\"><span class=\"pl-c\">#</span> Install fzf (handles .tar.gz)</span>\n$ ./install-latest.sh junegunn/fzf\n✓ Installed fzf\n\n<span class=\"pl-c\"><span class=\"pl-c\">#</span> Install ripgrep (handles different naming: rg)</span>\n$ ./install-latest.sh BurntSushi/ripgrep  \n✓ Installed rg</pre></div>",
+    "reactions": [],
     "thread": {
       "kind": "issue",
       "url": "https://github.com/vercel/ai/issues/6976",
@@ -142,7 +155,65 @@
     "branches": {
       "base": "main",
       "head": "lg/WiNtOSv2"
-    }
+    },
+    "commits": [
+      {
+        "sha": "0397e62843ab7d7d3f27b057bd0c7a2ed7030892",
+        "message": "x",
+        "url": "https://github.com/vercel/ai/commit/0397e62843ab7d7d3f27b057bd0c7a2ed7030892",
+        "date": "2025-07-15T07:51:11Z",
+        "author": {
+          "name": "dancer",
+          "avatar": "https://avatars.githubusercontent.com/u/144584931?v=4&s=96",
+          "url": "https://github.com/dancer"
+        }
+      },
+      {
+        "sha": "32c7eafaa0a2542f9945c41badfbf7937f3564e8",
+        "message": "x",
+        "url": "https://github.com/vercel/ai/commit/32c7eafaa0a2542f9945c41badfbf7937f3564e8",
+        "date": "2025-07-15T07:48:35Z",
+        "author": {
+          "name": "dancer",
+          "avatar": "https://avatars.githubusercontent.com/u/144584931?v=4&s=96",
+          "url": "https://github.com/dancer"
+        }
+      },
+      {
+        "sha": "517fc985e30bc5116ee9a3731873fa9d55c0fd01",
+        "message": "x",
+        "url": "https://github.com/vercel/ai/commit/517fc985e30bc5116ee9a3731873fa9d55c0fd01",
+        "date": "2025-07-15T07:43:09Z",
+        "author": {
+          "name": "dancer",
+          "avatar": "https://avatars.githubusercontent.com/u/144584931?v=4&s=96",
+          "url": "https://github.com/dancer"
+        }
+      },
+      {
+        "sha": "c2f1aeb89681472b141dc20d78176bc2225997ad",
+        "message": "added test + fixes",
+        "url": "https://github.com/vercel/ai/commit/c2f1aeb89681472b141dc20d78176bc2225997ad",
+        "date": "2025-07-15T07:35:37Z",
+        "author": {
+          "name": "dancer",
+          "avatar": "https://avatars.githubusercontent.com/u/144584931?v=4&s=96",
+          "url": "https://github.com/dancer"
+        }
+      },
+      {
+        "sha": "d77325b82884f26a62a0eea91ef3b82660846e8b",
+        "message": "x",
+        "url": "https://github.com/vercel/ai/commit/d77325b82884f26a62a0eea91ef3b82660846e8b",
+        "date": "2025-07-15T07:19:55Z",
+        "author": {
+          "name": "dancer",
+          "avatar": "https://avatars.githubusercontent.com/u/144584931?v=4&s=96",
+          "url": "https://github.com/dancer"
+        }
+      }
+    ],
+    "reactions": []
   },
   "repo": {
     "kind": "repo",
@@ -151,7 +222,8 @@
     "owner": {
       "login": "vercel-labs",
       "avatar": "https://avatars.githubusercontent.com/u/108547162?v=4&s=96",
-      "url": "https://github.com/vercel-labs"
+      "url": "https://github.com/vercel-labs",
+      "org": true
     },
     "description": "Generate anything from your terminal",
     "homepage": "https://ai-cli.dev",
@@ -163,7 +235,64 @@
     },
     "topics": [],
     "archived": false,
-    "pushedAt": "2026-10-01T21:46:06Z"
+    "pushedAt": "2026-10-01T21:46:06Z",
+    "commits": [
+      {
+        "sha": "400c603655858bf3b4f5670bf86cc6b18e4b7d22",
+        "message": "Prepare v0.6.1 release (#104)",
+        "url": "https://github.com/vercel-labs/ai-cli/commit/400c603655858bf3b4f5670bf86cc6b18e4b7d22",
+        "date": "2026-10-01T21:43:46Z",
+        "author": {
+          "name": "ctate",
+          "avatar": "https://avatars.githubusercontent.com/u/366502?v=4&s=96",
+          "url": "https://github.com/ctate"
+        }
+      },
+      {
+        "sha": "72d200508d86a0b841372b138523d150f3b81526",
+        "message": "Rename evaluate to decide (#103)",
+        "url": "https://github.com/vercel-labs/ai-cli/commit/72d200508d86a0b841372b138523d150f3b81526",
+        "date": "2026-10-01T21:32:54Z",
+        "author": {
+          "name": "ctate",
+          "avatar": "https://avatars.githubusercontent.com/u/366502?v=4&s=96",
+          "url": "https://github.com/ctate"
+        }
+      },
+      {
+        "sha": "70efb975a2575d1d228407dec1d5a7db26a14a8f",
+        "message": "Prepare v0.6.0 release (#102)",
+        "url": "https://github.com/vercel-labs/ai-cli/commit/70efb975a2575d1d228407dec1d5a7db26a14a8f",
+        "date": "2026-09-30T16:37:39Z",
+        "author": {
+          "name": "ctate",
+          "avatar": "https://avatars.githubusercontent.com/u/366502?v=4&s=96",
+          "url": "https://github.com/ctate"
+        }
+      },
+      {
+        "sha": "765abe61859994e2ee000c188eb18f269b877fd2",
+        "message": "feat!: align image and video CLI with AI SDK and Gateway (#101)",
+        "url": "https://github.com/vercel-labs/ai-cli/commit/765abe61859994e2ee000c188eb18f269b877fd2",
+        "date": "2026-09-30T16:21:33Z",
+        "author": {
+          "name": "ctate",
+          "avatar": "https://avatars.githubusercontent.com/u/366502?v=4&s=96",
+          "url": "https://github.com/ctate"
+        }
+      },
+      {
+        "sha": "088d76493e30595f07bf5fddca8f9073a821af4b",
+        "message": "Add experiment and package badges to the README (#97)",
+        "url": "https://github.com/vercel-labs/ai-cli/commit/088d76493e30595f07bf5fddca8f9073a821af4b",
+        "date": "2026-09-23T05:30:20Z",
+        "author": {
+          "name": "ctate",
+          "avatar": "https://avatars.githubusercontent.com/u/366502?v=4&s=96",
+          "url": "https://github.com/ctate"
+        }
+      }
+    ]
   },
   "profile": {
     "kind": "profile",
@@ -180,7 +309,7 @@
     "following": 170,
     "repos": 96,
     "calendar": {
-      "total": 9383,
+      "total": 9387,
       "weeks": [
         [
           {
@@ -2134,7 +2263,7 @@
           },
           {
             "date": "2026-10-02",
-            "count": 2,
+            "count": 6,
             "level": 1
           }
         ]
