@@ -499,6 +499,24 @@
       ]
     },
     {
+      "name": "tweet",
+      "type": "registry:ui",
+      "title": "tweet",
+      "description": "a post on X drawn from its facts, no widget script: author with the verified badge, text with its links, X's one-to-four media grid, video, a quoted post inside, a link card through web-preview, date and counts. the facts are fetched once at authoring time from the endpoint X's own embed reads",
+      "dependencies": ["lucide-react"],
+      "registryDependencies": ["@ag/person", "@ag/web-preview"],
+      "files": [
+        {
+          "path": "registry/base-nova/ui/tweet.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/base-nova/lib/tweet-data.ts",
+          "type": "registry:lib"
+        }
+      ]
+    },
+    {
       "name": "device-frame",
       "type": "registry:ui",
       "title": "device-frame",

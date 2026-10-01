@@ -39,6 +39,7 @@ import ScrollStage from "@/registry/base-nova/ui/scroll-stage.demo"
 import TelegramChat from "@/registry/base-nova/ui/telegram-chat.demo"
 import Terminal from "@/registry/base-nova/ui/terminal.demo"
 import ThemeToggle from "@/registry/base-nova/ui/theme-toggle.demo"
+import Tweet from "@/registry/base-nova/ui/tweet.demo"
 import Upload from "@/registry/base-nova/ui/upload.demo"
 import Video from "@/registry/base-nova/ui/video.demo"
 import WebPreview from "@/registry/base-nova/ui/web-preview.demo"
@@ -57,6 +58,7 @@ export const DEMOS: Record<string, ComponentType> = {
   "terminal-session": TerminalSession,
   "web-preview-unfurl": WebPreviewUnfurl,
   "web-preview": WebPreview,
+  tweet: Tweet,
   "scroll-stage": ScrollStage,
   avatar: Avatar,
   code: Code,
