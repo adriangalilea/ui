@@ -499,12 +499,29 @@
       ]
     },
     {
+      "name": "card-link",
+      "type": "registry:ui",
+      "title": "card-link",
+      "description": "a whole card that opens a place, the way an embedded post opens the post: a click anywhere but a link, a control or a text selection; the innermost card wins; no extra tab stop, the keyboard goes through a real link inside",
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/base-nova/ui/card-link.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
       "name": "tweet",
       "type": "registry:ui",
       "title": "tweet",
       "description": "a post on X drawn from its facts, no widget script: author with the verified badge, text with its links, X's one-to-four media grid, video, a quoted post inside, a link card through web-preview, date and counts. the facts are fetched once at authoring time from the endpoint X's own embed reads",
       "dependencies": ["lucide-react"],
-      "registryDependencies": ["@ag/person", "@ag/web-preview"],
+      "registryDependencies": [
+        "@ag/person",
+        "@ag/web-preview",
+        "@ag/card-link"
+      ],
       "files": [
         {
           "path": "registry/base-nova/ui/tweet.tsx",

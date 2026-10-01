@@ -1,0 +1,15 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "card-link",
+  "title": "card-link",
+  "description": "a whole card that opens a place, the way an embedded post opens the post: a click anywhere but a link, a control or a text selection; the innermost card wins; no extra tab stop, the keyboard goes through a real link inside",
+  "registryDependencies": [],
+  "files": [
+    {
+      "path": "registry/base-nova/ui/card-link.tsx",
+      "content": "\"use client\"\n\n// A WHOLE CARD THAT OPENS SOMEWHERE, the way an embedded post on X opens the post: a\n// click anywhere on it goes to `href`, and everything a reader would expect to keep\n// working keeps working.\n//\n//   - Links, buttons, form controls and media controls inside do their own thing.\n//   - Selecting text is reading, not clicking: a click that ends a selection goes\n//     nowhere.\n//   - Nested cards: the innermost one wins (a quoted post opens the quoted post).\n//   - External places open in a new tab, as every link inside the card does.\n//\n// The card itself is NOT a tab stop and has no link role: a keyboard reaches the\n// destination through a real <a> the card already carries (a date, a mark, a name).\n// That is the contract: put one inside. A second tab stop for the same place, or an\n// `<article role=link>` around other links, is what this refuses to be.\n\nimport type * as React from \"react\"\nimport { cn } from \"@/lib/utils\"\n\nconst INTERACTIVE =\n  \"a, button, input, select, textarea, label, summary, video, audio, [role=button], [contenteditable]\"\n\nexport interface CardLinkProps extends React.ComponentProps<\"div\"> {\n  href: string\n}\n\nexport function CardLink({\n  href,\n  className,\n  onClick,\n  children,\n  ...props\n}: CardLinkProps) {\n  return (\n    // biome-ignore lint/a11y/noStaticElementInteractions: a pointer shortcut over a card whose real link is inside it\n    // biome-ignore lint/a11y/useKeyWithClickEvents: the keyboard's way is that inner link; a second stop would duplicate it\n    <div\n      // A user's own slot (`tweet`, `tweet-quote`) wins; the card is found by its own\n      // attribute, so it never takes the name of what it wraps.\n      data-slot=\"card-link\"\n      {...props}\n      data-card-link={href}\n      className={cn(\"cursor-pointer\", className)}\n      onClick={(e) => {\n        onClick?.(e)\n        if (e.defaultPrevented) return\n        const target = e.target as HTMLElement\n        if (target.closest(\"[data-card-link]\") !== e.currentTarget) return\n        if (target.closest(INTERACTIVE)) return\n        if (!window.getSelection()?.isCollapsed) return\n        window.open(href, \"_blank\", \"noopener,noreferrer\")\n      }}\n    >\n      {children}\n    </div>\n  )\n}\n",
+      "type": "registry:ui"
+    }
+  ],
+  "type": "registry:ui"
+}

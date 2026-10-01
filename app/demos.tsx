@@ -17,6 +17,7 @@ import WebPreviewUnfurl from "@/registry/base-nova/lib/web-preview-unfurl.demo"
 import Tokens from "@/registry/base-nova/theme/tokens.demo"
 import Avatar from "@/registry/base-nova/ui/avatar.demo"
 import CardGallery from "@/registry/base-nova/ui/card-gallery.demo"
+import CardLink from "@/registry/base-nova/ui/card-link.demo"
 import ClaudeCode from "@/registry/base-nova/ui/claude-code.demo"
 import Code from "@/registry/base-nova/ui/code.demo"
 import Codex from "@/registry/base-nova/ui/codex.demo"
@@ -59,6 +60,7 @@ export const DEMOS: Record<string, ComponentType> = {
   "web-preview-unfurl": WebPreviewUnfurl,
   "web-preview": WebPreview,
   tweet: Tweet,
+  "card-link": CardLink,
   "scroll-stage": ScrollStage,
   avatar: Avatar,
   code: Code,
